@@ -491,11 +491,16 @@ async function bootEmptyPreview(origin: string, browser: Browser): Promise<void>
     })
     expect(sessionCount).toBe(0)
     expect(pageErrors.map(error => error.message)).toEqual([])
-    // Two accepted static-host 404s, sorted (the boot fetches race): the HMR
-    // event stream has no server here, and the open-in-app availability read
-    // has no host routes — the controller publishes an empty list and the
-    // header renders no button, which is that surface's designed degradation.
-    expect([...failedResponses].sort()).toEqual(['/open-in-app/apps', '/plugins/events'])
+    // Four accepted static-host 404s, sorted (the boot fetches race): the HMR
+    // event stream has no server here, the open-in-app availability read has no
+    // host routes — the controller publishes an empty list and the header
+    // renders no button, which is that surface's designed degradation — and the
+    // board's clone and task roster reads have no clone host package mounted,
+    // which leaves the dock, the Action Menu's clone entries, and the tasks
+    // window empty.
+    expect([...failedResponses].sort()).toEqual([
+      '/api/ketos.clones', '/api/ketos.tasks', '/open-in-app/apps', '/plugins/events',
+    ])
     expect(consoleErrors.filter(line => !line.includes('Failed to load resource: the server responded with a status of 404')))
       .toEqual([])
   } catch (error) {

@@ -105,6 +105,11 @@ describe('web e2e: queue row actions', () => {
     await input.fill(ACTIVE_PROMPT)
     await input.press('Enter')
     await expect.poll(() => existsSync(readyFile), { timeout: 15_000 }).toBe(true)
+    // The replay writes the ready file right after yielding its partial chunk;
+    // wait for the rendered paragraph so the golden capture cannot race SSE
+    // delivery on a loaded machine.
+    await expect.poll(() => page.getByText('partial', { exact: true }).count(), { timeout: 15_000 })
+      .toBeGreaterThan(0)
 
     const admitted = page.waitForResponse('**/api/session/prompt')
     const received = Promise.withResolvers<undefined>()

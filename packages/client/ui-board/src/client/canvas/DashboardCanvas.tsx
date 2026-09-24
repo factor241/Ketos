@@ -1,242 +1,83 @@
 /**
- * Master GPU-accelerated Spatial Multi-Window Canvas OpenSwarm-style.
+ * Canvas layer of the board: the transformed surface, its dot grid, and the
+ * plain background pan. Space/middle-button panning lives on the board root,
+ * which also sees the floating chrome; wheel zoom lives there for the same
+ * reason. Presentation lives in `DashboardCanvas.module.css`; inline styles
+ * carry only geometry and the computed metrics that scale with pan/zoom.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { BoardState } from '../store.ts'
-import type { BoardWindowState, WindowId } from '../contract/slots.ts'
-import { Minimap } from './Minimap.tsx'
-import type { BoardTranslate } from '../locale.ts'
-import { AgentCard } from '../window/AgentCard.tsx'
-import { ToolWindow } from '../window/ToolWindow.tsx'
-import { SessionRail } from '../dock/SessionRail.tsx'
-import { DashboardToolbar } from '../omnibox/DashboardToolbar.tsx'
-import { ElementSelectionOverlay } from '../inspector/ElementSelectionContext.tsx'
-import '../tokens.css'
+import { useCallback, useEffect, useRef } from 'react'
+import clsx from 'clsx'
+import type { PropsRenderSlots, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from '../store.ts'
+import { useBoardPointerGesture } from '../pointer-gesture.ts'
+import { startBoardPanGesture } from '../pan-gesture.ts'
+import css from './DashboardCanvas.module.css'
 
-export interface DashboardCanvasProps {
-  /** Locale seat resolving this panel's copy. */
-  t: BoardTranslate
-  state: BoardState
-  actions: {
-    setPan: (panX: number, panY: number) => void
-    setZoom: (zoom: number) => void
-    zoomTowardPointer: (delta: number, pointerX: number, pointerY: number) => void
-    addWindow: (window: BoardWindowState) => void
-    moveWindow: (id: WindowId, x: number, y: number, snap: boolean) => void
-    resizeWindow: (id: WindowId, width: number, height: number, snap: boolean) => void
-    focusWindow: (id: WindowId) => void
-    closeWindow: (id: WindowId) => void
-    setSelectingElement: (selecting: boolean) => void
-  }
-}
+export type DashboardCanvasProps =
+  PropsRenderSlots<'board.windows'>
+  & PropsStore<BoardStoreHandle>
 
-export function DashboardCanvas({ t, state, actions }: DashboardCanvasProps) {
+export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [viewportSize, setViewportSize] = useState({ width: 1920, height: 1080 })
-  const isPanningRef = useRef(false)
+  const startGesture = useBoardPointerGesture()
+  const panX = useStore(s => s.panX)
+  const panY = useStore(s => s.panY)
+  const zoom = useStore(s => s.zoom)
+  const isSelectingElement = useStore(s => s.isSelectingElement)
+  const isFullscreen = useStore(s => s.fullscreenWindowId !== null)
 
-  // Track viewport dimensions for minimap and center calculations
+  // Publish the canvas box: window placement and the minimap frustum measure
+  // against it. A ResizeObserver follows panel geometry — collapsing the
+  // sidebar or resizing the rightbar changes the box without a window resize.
   useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        setViewportSize({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        })
-      }
-    }
-    updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
-  }, [])
+    const container = containerRef.current
+    if (container === null) return
+    const publish = (): void => { actions.setViewport(container.clientWidth, container.clientHeight) }
+    publish()
+    // jsdom implements no ResizeObserver; the unit lane keeps the mount-time read.
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(publish)
+    observer.observe(container)
+    return () => { observer.disconnect() }
+  }, [actions])
 
-  // Canvas pan via dragging on empty space
+  // A plain drag pans only from the bare canvas, and never while a fullscreen
+  // window holds the panel: the mode's identity transform is not the world.
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.target !== containerRef.current && (e.target as HTMLElement).dataset.surface !== 'canvas') {
-      return
-    }
-    isPanningRef.current = true
-    containerRef.current?.setPointerCapture(e.pointerId)
+    if (isFullscreen) return
+    if (e.target !== containerRef.current && (e.target as HTMLElement).dataset.surface !== 'canvas-layer') return
+    startBoardPanGesture({ event: e, panX, panY, actions, start: startGesture })
+  }, [isFullscreen, panX, panY, actions, startGesture])
 
-    const startX = e.clientX
-    const startY = e.clientY
-    const startPanX = state.panX
-    const startPanY = state.panY
-
-    const onPointerMove = (moveEvt: PointerEvent) => {
-      if (!isPanningRef.current) return
-      const dx = moveEvt.clientX - startX
-      const dy = moveEvt.clientY - startY
-      actions.setPan(startPanX + dx, startPanY + dy)
-    }
-
-    const onPointerUp = (upEvt: PointerEvent) => {
-      isPanningRef.current = false
-      try {
-        containerRef.current?.releasePointerCapture(upEvt.pointerId)
-      } catch {}
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-    }
-
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-  }, [state.panX, state.panY, actions])
-
-  // Wheel zoom toward pointer
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const pointerX = e.clientX - rect.left
-    const pointerY = e.clientY - rect.top
-    actions.zoomTowardPointer(e.deltaY, pointerX, pointerY)
-  }, [actions])
-
-  // Center on a specific window
-  const handleSelectWindow = useCallback((id: WindowId) => {
-    actions.focusWindow(id)
-    const win = state.windows[id as string]
-    if (!win) return
-    const targetX = -(win.x + win.width / 2 - viewportSize.width / (2 * state.zoom)) * state.zoom
-    const targetY = -(win.y + win.height / 2 - viewportSize.height / (2 * state.zoom)) * state.zoom
-    actions.setPan(targetX, targetY)
-  }, [state.windows, state.zoom, viewportSize, actions])
-
-  // Add default agent window if none exist
-  const handleAddAgent = useCallback(() => {
-    const id = `agent-${Date.now()}` as WindowId
-    const newWin: BoardWindowState = {
-      id,
-      kind: 'agent',
-      title: t('canvas.agentTitle', { n: state.windowOrder.length + 1 }),
-      x: (-state.panX + viewportSize.width / 2 - 240) / state.zoom,
-      y: (-state.panY + viewportSize.height / 2 - 280) / state.zoom,
-      width: 480,
-      height: 560,
-      zIndex: 10 + state.windowOrder.length,
-      status: 'idle',
-      statusText: t('canvas.agentStatusOnline'),
-    }
-    actions.addWindow(newWin)
-  }, [state.panX, state.panY, state.zoom, state.windowOrder.length, viewportSize, actions])
-
-  const handleAddTools = useCallback(() => {
-    const id = `tool-${Date.now()}` as WindowId
-    const newWin: BoardWindowState = {
-      id,
-      kind: 'connectors',
-      title: t('canvas.connectorsTitle'),
-      x: (-state.panX + viewportSize.width / 2 - 260) / state.zoom,
-      y: (-state.panY + viewportSize.height / 2 - 240) / state.zoom,
-      width: 520,
-      height: 480,
-      zIndex: 10 + state.windowOrder.length,
-    }
-    actions.addWindow(newWin)
-  }, [state.panX, state.panY, state.zoom, state.windowOrder.length, viewportSize, actions])
-
-  const handleResetView = useCallback(() => {
-    actions.setPan(0, 0)
-    actions.setZoom(1)
-  }, [actions])
+  // Grid geometry follows the live zoom; the dot grid paints from these
+  // variables. A fullscreen window fills the panel, so the surface drops its
+  // pan and zoom under it and the frame's inset rectangle maps to the visible
+  // canvas instead of world units.
+  const view = isFullscreen ? { panX: 0, panY: 0, zoom: 1 } : { panX, panY, zoom }
+  const grid = 24 * view.zoom
+  const gridStyle = {
+    '--board-grid-dot-radius': `${Math.max(1, 1.5 * view.zoom)}px`,
+    '--board-grid-size': `${grid}px`,
+    '--board-grid-x': `${view.panX % grid}px`,
+    '--board-grid-y': `${view.panY % grid}px`,
+    '--board-pan-x': `${view.panX}px`,
+    '--board-pan-y': `${view.panY}px`,
+    '--board-zoom': view.zoom,
+  } as React.CSSProperties
 
   return (
     <div
       ref={containerRef}
+      data-board-layer="canvas"
       data-surface="canvas"
       onPointerDown={handlePointerDown}
-      onWheel={handleWheel}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        overflow: 'hidden',
-        background: '#F5F5F0',
-        backgroundImage: `radial-gradient(circle, rgba(0, 0, 0, 0.08) ${Math.max(1, 1.5 * state.zoom)}px, transparent ${Math.max(1, 1.5 * state.zoom)}px)`,
-        backgroundSize: `${24 * state.zoom}px ${24 * state.zoom}px`,
-        backgroundPosition: `${state.panX % (24 * state.zoom)}px ${state.panY % (24 * state.zoom)}px`,
-        cursor: state.isSelectingElement ? 'crosshair' : 'default',
-      }}
+      className={clsx(css.canvas, isSelectingElement && css.selecting)}
+      style={gridStyle}
     >
       {/* Transformed Canvas Content Surface */}
-      <div
-        data-surface="canvas"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          transformOrigin: '0 0',
-          transform: `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom})`,
-          willChange: 'transform',
-        }}
-      >
-        {state.windowOrder.map((id) => {
-          const win = state.windows[id as string]
-          if (!win) return null
-          const isActive = id === state.activeWindowId
-
-          if (win.kind === 'agent') {
-            return (
-              <AgentCard
-                key={win.id}
-                t={t}
-                cardWindow={win}
-                zoom={state.zoom}
-                isActive={isActive}
-                onFocus={actions.focusWindow}
-                onMove={actions.moveWindow}
-                onResize={actions.resizeWindow}
-                onClose={actions.closeWindow}
-                onActionMenuClick={() => actions.setSelectingElement(true)}
-              />
-            )
-          }
-
-          return (
-            <ToolWindow
-              key={win.id}
-              t={t}
-              cardWindow={win}
-              zoom={state.zoom}
-              isActive={isActive}
-              onFocus={actions.focusWindow}
-              onMove={actions.moveWindow}
-              onResize={actions.resizeWindow}
-              onClose={actions.closeWindow}
-            />
-          )
-        })}
+      <div data-surface="canvas-layer" className={css.surface}>
+        {renderSlot('board.windows', {})}
       </div>
-
-      {/* Floating Overlays */}
-      <SessionRail
-        t={t}
-        state={state}
-        onSelectWindow={handleSelectWindow}
-        onAddAgent={handleAddAgent}
-        onAddTools={handleAddTools}
-        onResetView={handleResetView}
-      />
-
-      <DashboardToolbar
-        t={t}
-        onSendMessage={msg => alert(t('canvas.messageSent', { message: msg }))}
-        onStartElementSelection={() => actions.setSelectingElement(true)}
-        onOpenConnectors={handleAddTools}
-      />
-
-      <Minimap
-        state={state}
-        viewportWidth={viewportSize.width}
-        viewportHeight={viewportSize.height}
-        onPanChange={actions.setPan}
-        onFocusWindow={handleSelectWindow}
-      />
-
-      <ElementSelectionOverlay
-        t={t}
-        active={state.isSelectingElement}
-        onCancel={() => actions.setSelectingElement(false)}
-      />
     </div>
   )
 }

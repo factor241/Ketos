@@ -26,20 +26,29 @@ async function bootHmr(dir: string, root: string[] = [], usePolling?: boolean): 
   return ctx
 }
 
-async function eventually(test: () => boolean, message: string): Promise<void> {
-  const deadline = Date.now() + 10_000
+// The coverage lane grants DSH_COVERAGE_TEST_TIMEOUT_MS (90000 ms in CI) as
+// its per-test budget, and an explicit case timeout overrides that grant
+// rather than yielding to it. Native watcher delivery is this file's
+// nondeterministic boundary, so every case takes the lane budget and every
+// wait polls the observable watcher signal under a deadline just below it,
+// naming the awaited state on failure instead of relying on the case timeout.
+const WATCHER_CASE_TIMEOUT_MS = 90_000
+const WATCHER_WAIT_TIMEOUT_MS = 80_000
+
+async function eventually(test: () => boolean, message: string, timeoutMs = WATCHER_WAIT_TIMEOUT_MS): Promise<void> {
+  const deadline = Date.now() + timeoutMs
   while (!test()) {
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 10))
   }
 }
 
-describe('HMR exact config paths', () => {
+describe('HMR exact config paths', { timeout: WATCHER_CASE_TIMEOUT_MS }, () => {
   afterEach(() => {
     for (const root of hmrRoots.splice(0)) rmSync(root, { recursive: true, force: true })
   })
 
-  it('observes module changes when its watch base is a filesystem alias', { timeout: 30_000 }, async () => {
+  it('observes module changes when its watch base is a filesystem alias', async () => {
     const target = mkdtempSync(join(tmpdir(), 'dsh-hmr-module-canonical-'))
     const alias = `${target}-alias`
     const aliasFilename = join(alias, 'module.ts')
@@ -54,7 +63,7 @@ describe('HMR exact config paths', () => {
     const observed: string[] = []
     ctx.on('hmr/change', (url) => { observed.push(url) })
     try {
-      const deadline = Date.now() + 20_000
+      const deadline = Date.now() + WATCHER_WAIT_TIMEOUT_MS
       for (let generation = 1; !observed.includes(expected); generation += 1) {
         if (Date.now() >= deadline) {
           throw new Error(`HMR did not observe ${expected} through the alias; observed ${JSON.stringify(observed)}`)
@@ -90,7 +99,7 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('observes add, change, and unlink outside its module roots', { timeout: 20_000 }, async () => {
+  it('observes add, change, and unlink outside its module roots', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     hmrRoots.push(dir)
     const filename = join(dir, 'plugins.yml')
@@ -117,12 +126,16 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('observes creation when the config parent did not exist at registration', { timeout: 20_000 }, async () => {
+  it('observes creation when the config parent did not exist at registration', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     hmrRoots.push(root)
     const dir = join(root, 'later')
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(root)
+    // The watch is restored onto the deepest existing ancestor, and the plugin
+    // polls an absent target's existence, so a file created right after
+    // registration cannot be lost to the polling watcher's first-stat baseline;
+    // the other cases keep native delivery covered.
+    const ctx = await bootHmr(root, [], true)
     const observed: string[] = []
     try {
       await ctx.hmr.registerConfig(filename, () => {
@@ -136,7 +149,7 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('serializes refreshes and waits for them during disposal', { timeout: 20_000 }, async () => {
+  it('serializes refreshes and waits for them during disposal', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     hmrRoots.push(dir)
     const filename = join(dir, 'plugins.yml')
@@ -178,12 +191,16 @@ describe('HMR exact config paths', () => {
     }
   })
 
-  it('normalizes refresh failures and broadcasts them without escaping the watcher', { timeout: 20_000 }, async () => {
+  it('normalizes refresh failures and broadcasts them without escaping the watcher', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     hmrRoots.push(dir)
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(dir)
-    const failure = Promise.withResolvers<{ filename: string; error: Error }>()
+    // This case asserts failure normalization, not event latency: the target
+    // is absent at registration, so the plugin's existence poll delivers the
+    // first write deterministically; the remaining cases keep native delivery
+    // covered.
+    const ctx = await bootHmr(dir, [], true)
+    let observedFailure: { filename: string; error: Error } | undefined
     let failureCount = 0
     try {
       ctx.on('hmr/config-update-failed', () => {
@@ -191,12 +208,13 @@ describe('HMR exact config paths', () => {
       })
       ctx.on('hmr/config-update-failed', (failedFilename, error) => {
         failureCount += 1
-        failure.resolve({ filename: failedFilename, error })
+        observedFailure = { filename: failedFilename, error }
       })
       await ctx.hmr.registerConfig(filename, () => { throw 42 })
       writeFileSync(filename, 'invalid')
 
-      const observed = await failure.promise
+      await eventually(() => observedFailure !== undefined, 'HMR did not broadcast the first refresh failure')
+      const observed = observedFailure!
       expect(observed.filename).toBe(filename)
       expect(observed.error).toBeInstanceOf(Error)
       expect(observed.error.message).toBe('42')

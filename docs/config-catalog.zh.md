@@ -3440,6 +3440,40 @@ export interface Config {
 
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="ketosclone-core"></a>
+
+## `@ketos/clone-core`
+
+Requires: `connection` · `agents` · `sessionProjections`
+
+```ts config-catalog
+/** Deployment configuration of the clone domain. */
+export interface Config {
+  /**
+   * Path of the clone database file. The shipped web profile passes
+   * `dshHomePath('clones.db')`; the parent directory is created owner-only
+   * before the file is opened.
+   */
+  path: string
+  /**
+   * Largest number of active memories the prompt snapshot lists. The default
+   * suits a clone that remembers a handful of working facts; deeper lookup is
+   * the `clone_memory_search` tool.
+   */
+  memoryEntries?: number
+  /** Largest total length, in characters, of the prompt memory snapshot. */
+  memoryChars?: number
+  /**
+   * Round budget a new autonomous task hands to its goal: how many model
+   * rounds the clone may take before the round driver blocks the goal with
+   * `round-limit`. The upper bound is a validation invariant, not a setting.
+   */
+  defaultMaxRounds?: number
+}
+```
+
+来源：[`packages/ketos/clone-core/src/index.ts:44`](../packages/ketos/clone-core/src/index.ts)
+
 ## 无配置的可加载插件
 
 这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。

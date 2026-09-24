@@ -1,0 +1,51 @@
+/* Bottom-right interactive minimap: a floating panel with one rect per window
+ * and the camera frustum. Window geometry is projected by the component; the
+ * fills and the frustum ride the theme's accent and neutral scales. */
+
+.minimap {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  overflow: hidden;
+  z-index: 100;
+  user-select: none;
+}
+
+.svg {
+  display: block;
+  cursor: crosshair;
+}
+
+.rect {
+  cursor: pointer;
+}
+
+/* Agent windows take the platform accent; every other window takes the
+   neutral caption tone. */
+.agent {
+  fill: var(--dsw-alias-state-business-primary);
+}
+
+.tool {
+  fill: var(--dsw-alias-label-caption);
+}
+
+.active {
+  opacity: 0.9;
+}
+
+.idle {
+  opacity: 0.45;
+}
+
+.frustum {
+  fill: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+  stroke: var(--dsw-alias-state-business-primary);
+  stroke-width: 1.5;
+  pointer-events: none;
+}

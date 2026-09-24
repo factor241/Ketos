@@ -1,0 +1,168 @@
+/* Left floating dock: one row per open window plus the board controls, on the
+ * theme's floating-panel recipe. */
+
+.rail {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  /* One row per window: past the panel's height the rail scrolls instead of
+     clipping its rows and controls beyond the viewport. The thumb rides the l2
+     pair (ui-theme's scrollbar rebinding contract for elevated surfaces). */
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  z-index: 100;
+  user-select: none;
+}
+
+.row {
+  position: relative;
+}
+
+/* The dock is a narrow rail: the rename editor floats beside the row instead of
+   widening it, so the stack never reflows while a name is edited. */
+.rowInput {
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 180px;
+  padding: 6px 8px;
+  border: 0.5px solid var(--dsw-alias-state-business-primary);
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  z-index: 1;
+  user-select: text;
+}
+
+.windowButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  transition: background var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.windowButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The focused window's row takes the platform's selected-surface fill. */
+.windowButton.active {
+  background: var(--dsw-alias-markdown-tag);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The status dot overlays the button's lower-right corner: the glyph keeps the
+   row's identity and the dot reads as an accent over it. */
+.statusDot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+}
+
+/* Two-line close row in the row menu: the action and what it leaves behind. */
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.menuHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.divider {
+  width: 24px;
+  height: 0.5px;
+  margin: 4px 0;
+  background: var(--dsw-alias-border-l2);
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  border: 0.5px dashed var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  border: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.control:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Clone mini-panel rows: compact entries below the add control, one per stored
+   clone. They sit on the rail's own surface instead of a floating-button fill,
+   so a long roster reads as a list rather than more windows. */
+.cloneButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.cloneButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}

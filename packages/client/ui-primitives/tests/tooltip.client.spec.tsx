@@ -257,6 +257,50 @@ describe('Tooltip', () => {
     }
   })
 
+  it('hides the bubble when its anchor relocates under a still pointer', () => {
+    const view = render(
+      <Tooltip label="Open fullscreen">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    const anchor = screen.getByText('anchor')
+    // The click focuses the anchor and the bubble shows.
+    fireEvent.focus(anchor)
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+
+    // The anchor's label flips and the layout moves it away from the pointer:
+    // no mouseleave ever arrives for the old position.
+    view.rerender(
+      <Tooltip label="Exit fullscreen">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    expect(screen.getByRole('tooltip').textContent).toBe('Exit fullscreen')
+    fireEvent.pointerMove(document.body, { pointerId: 1 })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('keeps the bubble while the pointer moves inside the anchor', () => {
+    render(
+      <Tooltip label="Inside">
+        <button type="button">
+          <span data-testid="icon">icon</span>
+          anchor
+        </button>
+      </Tooltip>,
+    )
+    fireEvent.mouseEnter(screen.getByText('anchor'))
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+    fireEvent.pointerMove(screen.getByTestId('icon'), { pointerId: 2 })
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+    // Leaving through a later mouseleave still clears it, and the pointer
+    // listener is gone with the bubble.
+    fireEvent.mouseLeave(screen.getByText('anchor'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    fireEvent.pointerMove(document.body, { pointerId: 3 })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
   it('chains the anchor\'s own handlers ahead of the tooltip\'s', () => {
     const onMouseEnter = vi.fn()
     const onMouseLeave = vi.fn()

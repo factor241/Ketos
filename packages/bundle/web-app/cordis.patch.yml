@@ -42,6 +42,16 @@
 # `dsh.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
 - insert:
+    # Ketos clone domain: the clones.db database, its schema, and the exact
+    # /api/ketos.clones route the board's clone windows read and write. The row
+    # carries no client half, so it is a host row inside this insert; the
+    # database opens on the first request, keeping startup free of the
+    # node:sqlite experimental warning.
+    - id: ketos-clone-core
+      name: '@ketos/clone-core'
+      config:
+        path: !!js dshHomePath('clones.db')
+
     # Host-owned opt-in sampled when a new Web session receives its preset
     # delegation tools. The Plugins page edits this settings namespace.
     - id: subagent-model-selection-settings
@@ -260,6 +270,11 @@
 
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
+
+    # Ketos board: the spatial multi-window canvas as a `main` panel, with its
+    # entry in the sidebar panel list.
+    - id: ui-board
+      name: '@deepseek-ai/dsh-client-ui-board'
 
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official

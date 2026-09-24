@@ -112,6 +112,7 @@
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/locale" },
     { "path": "./packages/ketos/client-locale-ru" },
+    { "path": "./packages/ketos/clone-core/tsconfig.client.json" },
     { "path": "./packages/client/ui-renderer" },
     { "path": "./packages/client/ui-session" },
     { "path": "./packages/client/resources" },

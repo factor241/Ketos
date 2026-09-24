@@ -61,6 +61,15 @@ function styleInjectionModule(
 export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-agent-presets\/display$|@deepseek-ai\/dsh-spill-policy\/notice$)/
 
 /**
+ * Fork-namespace subpaths a client bundle may inline: pure, browser-safe
+ * vocabulary modules of Ketos host packages with no runtime identity to share.
+ * A fork value import the module table cannot answer for inlines host code into
+ * the browser, so every other @ketos/* specifier is rejected until its subpath
+ * is reviewed and listed here.
+ */
+const KETOS_INLINE_SAFE = /^@ketos\/clone-core\/methodology$/
+
+/**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
  * would read them as plugin packages. They carry no cross-plugin runtime
  * identity to share — the framework itself is a requested module-table row
@@ -488,6 +497,15 @@ function clientConfig(id: string, entry: string): UserConfig {
       // Cross-plugin collaboration goes through cordis services instead.
       name: 'dsh-client-bundle-purity',
       resolveId(source: string) {
+        if (source.startsWith('@ketos/')) {
+          if (isRequested(source)) return null // requested module-table row: external wins
+          if (KETOS_INLINE_SAFE.test(source)) return null // reviewed browser-safe fork vocabulary: inline is the point
+          throw new Error(
+            `client bundle purity: "${source}" is not a requested module-table row or a reviewed browser-safe fork subpath — `
+            + 'fork value imports inline host code into the browser; collaborate through cordis services '
+            + '(type-only imports are erased and never reach this gate)',
+          )
+        }
         if (!source.startsWith('@deepseek-ai/')) return null
         if (isRequested(source)) return null // requested module-table row: external wins
         if (VENDORED_LIBRARY.test(source)) return null // vendored library: inline, no shared identity

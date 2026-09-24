@@ -1,0 +1,101 @@
+/**
+ * Path validation for workspace registration: rejects the literal ~/.ketos /
+ * ~/.dsh spellings and a path inside the reported home's runtime directories,
+ * and warns when registering dangerous system roots or the user home directory.
+ * The client knows no DSH_HOME of its own: a deployment whose runtime root
+ * moved elsewhere is refused by the host, whose `workspace/invalid-path`
+ * answer the panel localizes.
+ */
+import type { BoardTranslate } from '../locale.ts'
+
+/**
+ * Outcome of validating a candidate workspace folder path: valid, rejected with an error,
+ * or accepted with a warning that requires user confirmation.
+ */
+export type PathValidationResult =
+  | { readonly kind: 'valid' }
+  | { readonly kind: 'rejected'; readonly error: string }
+  | { readonly kind: 'warning'; readonly warning: string }
+
+/** Options for validating a candidate workspace directory path against the known home directory. */
+export interface ValidateWorkspacePathOptions {
+  /** Home directory the folder listing reported; absent when the client holds no listing. */
+  readonly hostHome?: string | undefined
+  readonly t: BoardTranslate
+}
+
+function normalizeSlashes(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+/g, '/')
+}
+
+function stripTrailingSlash(p: string): string {
+  const norm = normalizeSlashes(p).trim()
+  if (norm === '/' || /^[a-zA-Z]:\/$/.test(norm)) return norm
+  return norm.replace(/\/+$/, '')
+}
+
+function isSameOrInside(parentNorm: string, childNorm: string): boolean {
+  const p = stripTrailingSlash(parentNorm)
+  const c = stripTrailingSlash(childNorm)
+  if (p === c) return true
+  if (/^[a-zA-Z]:\//.test(p) && /^[a-zA-Z]:\//.test(c)) {
+    const pLow = p.toLowerCase()
+    const cLow = c.toLowerCase()
+    if (pLow === cLow) return true
+    return cLow.startsWith(`${pLow}/`)
+  }
+  return c.startsWith(`${p}/`)
+}
+
+/**
+ * Validate a candidate workspace path before registration.
+ * Rejects the literal ~/.ketos and ~/.dsh spellings, and a path inside the
+ * reported home's ~/.ketos or ~/.dsh when `hostHome` is known; warns on system
+ * roots and the user home. A runtime root the client cannot name (a moved
+ * DSH_HOME) is not detectable here and is left to the host.
+ * @param rawPath - input path entered or selected by the user.
+ * @param options - translation and the optional reported home directory.
+ * @returns validation result with localized error or warning when applicable.
+ */
+export function validateWorkspacePath(
+  rawPath: string,
+  options: ValidateWorkspacePathOptions,
+): PathValidationResult {
+  const trimmed = rawPath.trim()
+  if (trimmed === '') {
+    return { kind: 'rejected', error: options.t('panel.error.emptyPath') }
+  }
+
+  const normalized = normalizeSlashes(trimmed)
+  const homeNorm = options.hostHome ? normalizeSlashes(options.hostHome) : undefined
+
+  // 1. Check rejection for the literal Ketos / DSH home spellings
+  if (
+    normalized === '~/.ketos' || normalized.startsWith('~/.ketos/')
+    || normalized === '~/.dsh' || normalized.startsWith('~/.dsh/')
+  ) {
+    return { kind: 'rejected', error: options.t('panel.error.ketosHome', { path: rawPath }) }
+  }
+
+  if (homeNorm) {
+    const ketosHome = `${stripTrailingSlash(homeNorm)}/.ketos`
+    const dshHome = `${stripTrailingSlash(homeNorm)}/.dsh`
+    if (isSameOrInside(ketosHome, normalized) || isSameOrInside(dshHome, normalized)) {
+      return { kind: 'rejected', error: options.t('panel.error.ketosHome', { path: rawPath }) }
+    }
+  }
+
+  // 2. Check warning for filesystem root or user home directory
+  const isRoot = normalized === '/' || /^[a-zA-Z]:\/?$/.test(normalized) || /^\/+$/.test(normalized)
+  const isHome = normalized === '~' || normalized === '~/'
+    || (homeNorm !== undefined && (
+      stripTrailingSlash(normalized) === stripTrailingSlash(homeNorm)
+      || (/^[a-zA-Z]:\//.test(normalized) && stripTrailingSlash(normalized).toLowerCase() === stripTrailingSlash(homeNorm).toLowerCase())
+    ))
+
+  if (isRoot || isHome) {
+    return { kind: 'warning', warning: options.t('panel.warn.dangerousPath', { path: rawPath }) }
+  }
+
+  return { kind: 'valid' }
+}

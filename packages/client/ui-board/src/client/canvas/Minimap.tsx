@@ -2,41 +2,41 @@
  * Interactive SVG Minimap for Spatial Board Canvas.
  */
 import { useCallback, useRef } from 'react'
-import type { BoardState } from '../store.ts'
-import type { WindowId } from '../contract/slots.ts'
+import clsx from 'clsx'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BoardStoreHandle } from '../store.ts'
+import css from './Minimap.module.css'
 
-export interface MinimapProps {
-  state: BoardState
-  viewportWidth: number
-  viewportHeight: number
-  onPanChange: (panX: number, panY: number) => void
-  onFocusWindow: (id: WindowId) => void
-}
+export type MinimapProps =
+  PropsRuntime<'board.minimap'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
 
 const MINIMAP_WIDTH = 200
 const MINIMAP_HEIGHT = 140
 const PADDING = 20
 
-export function Minimap({
-  state,
-  viewportWidth,
-  viewportHeight,
-  onPanChange,
-  onFocusWindow,
-}: MinimapProps) {
+export function Minimap({ useStore, actions, t }: MinimapProps) {
   const isDraggingRef = useRef(false)
+  const panX = useStore(s => s.panX)
+  const panY = useStore(s => s.panY)
+  const zoom = useStore(s => s.zoom)
+  const windows = useStore(s => s.windows)
+  const activeWindowId = useStore(s => s.activeWindowId)
+  const viewportWidth = useStore(s => s.viewportWidth)
+  const viewportHeight = useStore(s => s.viewportHeight)
 
-  const viewLeft = -state.panX / state.zoom
-  const viewTop = -state.panY / state.zoom
-  const viewRight = viewLeft + viewportWidth / state.zoom
-  const viewBottom = viewTop + viewportHeight / state.zoom
+  const viewLeft = -panX / zoom
+  const viewTop = -panY / zoom
+  const viewRight = viewLeft + viewportWidth / zoom
+  const viewBottom = viewTop + viewportHeight / zoom
 
   let minX = Math.min(viewLeft, 0)
   let minY = Math.min(viewTop, 0)
   let maxX = Math.max(viewRight, 1000)
   let maxY = Math.max(viewBottom, 800)
 
-  for (const win of Object.values(state.windows)) {
+  for (const win of Object.values(windows)) {
     minX = Math.min(minX, win.x)
     minY = Math.min(minY, win.y)
     maxX = Math.max(maxX, win.x + win.width)
@@ -54,98 +54,85 @@ export function Minimap({
 
   const frustumX = toMiniX(viewLeft)
   const frustumY = toMiniY(viewTop)
-  const frustumW = Math.max(8, (viewportWidth / state.zoom) * scale)
-  const frustumH = Math.max(8, (viewportHeight / state.zoom) * scale)
+  const frustumW = Math.max(8, (viewportWidth / zoom) * scale)
+  const frustumH = Math.max(8, (viewportHeight / zoom) * scale)
+
+  // Click or drag on the map recentres the viewport on the pointer's world
+  // point; both gestures translate one pointer position through the same map
+  // transform, so they share the pan step.
+  const panFromPointer = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const targetWorldX = toWorldX(e.clientX - rect.left)
+    const targetWorldY = toWorldY(e.clientY - rect.top)
+    actions.setPan(
+      -(targetWorldX - (viewportWidth / (2 * zoom))) * zoom,
+      -(targetWorldY - (viewportHeight / (2 * zoom))) * zoom,
+    )
+  }, [zoom, viewportWidth, viewportHeight, minX, minY, scale, actions])
 
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     isDraggingRef.current = true
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickMx = e.clientX - rect.left
-    const clickMy = e.clientY - rect.top
-
-    const targetWorldX = toWorldX(clickMx)
-    const targetWorldY = toWorldY(clickMy)
-
-    const newPanX = -(targetWorldX - (viewportWidth / (2 * state.zoom))) * state.zoom
-    const newPanY = -(targetWorldY - (viewportHeight / (2 * state.zoom))) * state.zoom
-    onPanChange(newPanX, newPanY)
-  }, [state.zoom, viewportWidth, viewportHeight, minX, minY, scale, onPanChange])
+    panFromPointer(e)
+  }, [panFromPointer])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!isDraggingRef.current) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickMx = e.clientX - rect.left
-    const clickMy = e.clientY - rect.top
-
-    const targetWorldX = toWorldX(clickMx)
-    const targetWorldY = toWorldY(clickMy)
-
-    const newPanX = -(targetWorldX - (viewportWidth / (2 * state.zoom))) * state.zoom
-    const newPanY = -(targetWorldY - (viewportHeight / (2 * state.zoom))) * state.zoom
-    onPanChange(newPanX, newPanY)
-  }, [state.zoom, viewportWidth, viewportHeight, minX, minY, scale, onPanChange])
+    panFromPointer(e)
+  }, [panFromPointer])
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     isDraggingRef.current = false
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {
-      // Ignored if capture already lost
+      // Swallows the capture-release miss after the pointer already left; the drag ends either way.
     }
   }, [])
 
   return (
     <div
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-        width: MINIMAP_WIDTH,
-        height: MINIMAP_HEIGHT,
-        background: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: 12,
-        border: '1px solid rgba(0, 0, 0, 0.08)',
-        boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden',
-        zIndex: 100,
-        userSelect: 'none',
-      }}
+      data-board-layer="minimap"
+      data-board-minimap=""
+      className={css.minimap}
+      role="img"
+      aria-label={t('minimap.aria')}
+      style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
     >
       <svg
         width={MINIMAP_WIDTH}
         height={MINIMAP_HEIGHT}
-        style={{ display: 'block', cursor: 'crosshair' }}
+        className={css.svg}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
-        {Object.values(state.windows).map((win) => {
+        {Object.values(windows).map((win) => {
           const wx = toMiniX(win.x)
           const wy = toMiniY(win.y)
           const ww = Math.max(4, win.width * scale)
           const wh = Math.max(4, win.height * scale)
           const isAgent = win.kind === 'agent'
-          const fill = isAgent ? '#B8532F' : '#3266AD'
-          const opacity = win.id === state.activeWindowId ? 0.9 : 0.5
 
           return (
             <rect
               key={win.id}
+              data-board-rect={win.kind}
               x={wx}
               y={wy}
               width={ww}
               height={wh}
               rx={3}
-              fill={fill}
-              opacity={opacity}
+              className={clsx(
+                css.rect,
+                isAgent ? css.agent : css.tool,
+                win.id === activeWindowId ? css.active : css.idle,
+              )}
               onClick={(e) => {
                 e.stopPropagation()
-                onFocusWindow(win.id)
+                actions.centerOnWindow(win.id)
               }}
-              style={{ cursor: 'pointer' }}
             />
           )
         })}
@@ -156,10 +143,7 @@ export function Minimap({
           width={frustumW}
           height={frustumH}
           rx={4}
-          fill="rgba(184, 83, 47, 0.08)"
-          stroke="#B8532F"
-          strokeWidth={1.5}
-          style={{ pointerEvents: 'none' }}
+          className={css.frustum}
         />
       </svg>
     </div>

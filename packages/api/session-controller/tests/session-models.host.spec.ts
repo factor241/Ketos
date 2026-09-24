@@ -595,6 +595,37 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
+  it('keeps the stored default when a selection asks to keep it', async () => {
+    const { ctx, sessionId } = await harness()
+    const saved: unknown[] = []
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      saveDefaultModelSelection: (selection) => { saved.push(selection) },
+      cwd: '/tmp',
+    })
+
+    // The board's clone starts ask to keep the default: the Session switches
+    // and the stored default new Sessions use stays where the user left it.
+    expectValue(await remote.selectModel(request({
+      sessionId, provider: 'deepseek-official', model: 'deepseek-reasoner', keepDefault: true,
+    })))
+    expect(saved).toEqual([])
+    expect(currentSelection(ctx, sessionId))
+      .toEqual({ provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'high' })
+
+    // Absent or false keeps the composer's behaviour: the pick is also saved
+    // as the deployment default for new Sessions.
+    expectValue(await remote.selectModel(request({
+      sessionId, provider: 'deepseek-official', model: 'deepseek-chat', keepDefault: false,
+    })))
+    expect(saved).toEqual([{ provider: 'deepseek-official', model: 'deepseek-chat', reasoningEffort: 'high' }])
+    expectValue(await remote.selectModel(request({
+      sessionId, provider: 'deepseek-official', model: 'deepseek-reasoner',
+    })))
+    expect(saved).toHaveLength(2)
+    await ctx.fiber.dispose()
+  })
+
   it('refuses a prompt no adapter can route, and reports it on the directory', async () => {
     const { ctx, sessionId } = await harness()
     const remote = createSessionTestRemote(ctx, {

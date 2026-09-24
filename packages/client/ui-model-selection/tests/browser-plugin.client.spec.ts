@@ -70,6 +70,14 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
   let defaultSelection: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
   let selected = defaultSelection
   const calls = { models: 0, select: 0 }
+  /** Exact request payloads the Host received, in call order. */
+  const selectPayloads: Array<{
+    sessionId: SessionId
+    provider: string
+    model: string
+    reasoningEffort?: string
+    keepDefault?: boolean
+  }> = []
   const projections = new Map<SessionId, SnapshotStore<ModelSelectionProjection | undefined>>()
   // Whether the Host reports an adapter for the current route; the composer
   // block follows this, never catalog membership.
@@ -87,8 +95,15 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
         },
       })
     },
-    selectModel: (payload: { sessionId: SessionId; provider: string; model: string; reasoningEffort?: string }) => {
+    selectModel: (payload: {
+      sessionId: SessionId
+      provider: string
+      model: string
+      reasoningEffort?: string
+      keepDefault?: boolean
+    }) => {
       calls.select += 1
+      selectPayloads.push({ ...payload })
       selected = {
         provider: payload.provider,
         model: payload.model,
@@ -164,7 +179,7 @@ async function bench(locale: 'zh' | 'en' = 'zh') {
     return handle
   }
   return {
-    ctx, fiber, mint, calls, remote,
+    ctx, fiber, mint, calls, selectPayloads, remote,
     contribution: () => contribution!,
     popup: (): PopupSelectSpec => {
       const ui = contribution!.ui
@@ -275,6 +290,22 @@ describe('ui-model-selection dual entry', () => {
       b.popup().options(projection('b'), new AbortController().signal),
     ])
     expect(b.calls.models).toBe(1)
+  })
+
+  it('sends keepDefault only when the caller asks to leave the deployment default alone', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const directory = b.ctx.modelDirectories.directoryFor(sid('s1'))
+    // Absent and false both leave the composer behaviour: the Host may save the
+    // pick as the deployment default, so the wire request carries no flag.
+    await directory.select({ provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+    await directory.select({ provider: 'deepseek-official', model: 'deepseek-v4-pro' }, { keepDefault: false })
+    await directory.select({ provider: 'deepseek-official', model: 'deepseek-v4-flash' }, { keepDefault: true })
+    expect(b.selectPayloads).toEqual([
+      { sessionId: sid('s1'), provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+      { sessionId: sid('s1'), provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+      { sessionId: sid('s1'), provider: 'deepseek-official', model: 'deepseek-v4-flash', keepDefault: true },
+    ])
   })
 
   it('keeps the durable projected selection while the eager catalog reconnects', async () => {

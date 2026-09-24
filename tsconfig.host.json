@@ -134,6 +134,7 @@
   ],
   "references": [
     { "path": "./packages/client/ui-deliverables/tsconfig.host.json" },
+    { "path": "./packages/ketos/clone-core/tsconfig.host.json" },
     { "path": "./vendor/cosmokit" },
     { "path": "./vendor/schemastery" },
     { "path": "./vendor/cordis" },

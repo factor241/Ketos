@@ -1,0 +1,152 @@
+/* Tasks body: the clone task list of one window. A filter and create row above
+ * one scrolling column of task rows, each with its actions and an expandable
+ * report. Depth ladder: canvas → window → body. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  padding: var(--board-pad-lane);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-content);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.create > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.objective {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.artifacts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.artifact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.artifactKind {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 9999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+  line-height: 18px;
+}
+
+.artifactPath {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-hint);
+}
+
+.notice {
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: var(--board-font-label);
+}
+
+.noticeError {
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}

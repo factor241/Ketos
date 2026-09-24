@@ -1,0 +1,296 @@
+/* Clone window body: the clone card editor. One scrolling column of labelled
+ * fields, the preferred-model picker, the lifecycle pills, the form actions,
+ * and the sessions bound to the clone. Depth ladder: canvas → window → body. */
+
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--board-pad-lane);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-content);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 10px;
+}
+
+.fieldRow > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: var(--board-font-label);
+  resize: vertical;
+}
+
+.textarea::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.anchor {
+  display: inline-block;
+  width: 0;
+  height: 0;
+}
+
+.modelButton {
+  padding: 4px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 9999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: var(--board-font-label);
+  cursor: pointer;
+}
+
+.modelButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+  margin-right: 2px;
+}
+
+.hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.notice {
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: var(--board-font-label);
+}
+
+.noticeConflict {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-label-primary);
+}
+
+.noticeError {
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* A successful task start: the same single-line banner in the success tone. */
+.noticeSuccess {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+/* Pending agent revision: the row carries its own apply action, so it lays out
+   as a wrapped row instead of the single-line banners above. */
+.noticeAgent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Mark beside one field label: the stored value of this field moved since the
+   user last adopted the record. */
+.agentBadge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+  padding-top: 12px;
+}
+
+.revision {
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.updated {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+/* Mark beside a methodology section chip: the section is present but empty or
+   absent from the draft. */
+.sectionMark {
+  margin-left: 4px;
+  color: var(--dsw-alias-label-dimmed);
+  font-size: var(--board-font-hint);
+}
+
+.skillForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skillList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skillRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.skillName {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+}
+
+.skillDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+/* A skill with an empty description: it stays in the record but never reaches
+   the model catalog. */
+.skillWarning {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.rowAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.rowAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: var(--board-font-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sessionRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.sessionId {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--board-pad-lane);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-label);
+}

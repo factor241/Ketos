@@ -1,0 +1,49 @@
+/* Board root: the frame that stacks the floating layers. The board consumes
+ * the shared theme directly — no brand override layer — and owns one local
+ * scale for the window UI. */
+
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* One stacking context for the whole board: the window band, the floating
+     chrome (100), the selection overlay (500), and the fullscreen layer (1000)
+     stay inside the board box, so shell-level overlays above the box keep
+     painting and hit-testing above every board layer. NOTE: the frames and the
+     chats panel live inside the canvas transform, so their z-index values order
+     them within that subtree; the chrome (root-level, 100) paints above the
+     panel's overlay presentation. */
+  isolation: isolate;
+
+  /* Window UI scale: a floating window renders above the base design
+     (13-14px text, 28px controls, 16px body padding) so its chat stays readable
+     beside the app's 14px content axis. The frames, lanes, and composer read
+     these; the dock, omnibar, and minimap keep the app's sizes, and portalled
+     primitives (Menu, Tooltip) keep the app's sizes too. */
+  --board-font-title: 17px;
+  --board-font-content: 17px;
+  --board-font-label: 15px;
+  --board-font-hint: 14px;
+  --board-line-input: 24px;
+  --board-pad-header: 12px 14px;
+  --board-pad-window: 18px;
+  --board-pad-lane: 16px 18px;
+  --board-pad-card: 10px 12px;
+  --board-gap-window: 9px;
+  --board-gap-row: 8px;
+  --board-control: 32px;
+  --board-control-lane: 30px;
+  --board-control-small: 26px;
+  --board-control-send: 36px;
+  --board-chip-pad: 4px 10px;
+}
+
+.icon {
+  stroke: currentColor;
+}
+
+/* Space arms panning from anywhere on the board, chrome included. */
+.panArmed {
+  cursor: grab;
+}

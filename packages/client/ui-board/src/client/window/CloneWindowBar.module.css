@@ -1,0 +1,45 @@
+/* Clone window bar: the Profile/Interview tab pair and the interview status
+ * strip, sitting between the frame header and the body. Depth ladder:
+ * canvas → window → body. */
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The primitive owns the capsule; disabled tabs only dim and stop inviting the
+   pointer, like every other disabled board control. */
+.interviewTab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.interview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.interviewText {
+  min-width: 0;
+}
+
+.hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}

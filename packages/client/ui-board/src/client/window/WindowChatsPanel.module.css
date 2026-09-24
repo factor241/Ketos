@@ -1,0 +1,538 @@
+/* Chats panel of one board window. It is a layer of its own beside the frame:
+ * collapsed a rail hugs the frame's left edge, open a resizable column slides
+ * out of that edge. Fullscreen docks it as the plain sidebar of a normal chat
+ * layout. Depth ladder: canvas → panel → panel rows. */
+
+.panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-label);
+  user-select: none;
+  /* Closed: hidden behind the frame's own edge (or past the board panel edge). */
+  transform: translateX(var(--board-panel-hidden-x, 100%));
+  visibility: hidden;
+  transition:
+    transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    visibility 0s linear var(--ds-transition-duration-slow);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.panel[data-board-panel='beside'][data-board-panel-side='left'],
+.panel[data-board-panel='overlay'] {
+  --board-panel-hidden-x: 100%;
+}
+
+.panel[data-board-panel='beside'][data-board-panel-side='right'] {
+  --board-panel-hidden-x: -100%;
+}
+
+.panel[data-board-panel='docked'] {
+  border-radius: 0;
+  --board-panel-hidden-x: -100%;
+  border-right: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.panel[data-board-panel-open] {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-board-panel-open],
+  .rail {
+    transition: none;
+  }
+}
+
+/* Collapsed rail: the compact element that keeps the panel one click away. */
+.rail {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-secondary);
+  user-select: none;
+  transition: opacity var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.railButton {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.railButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The rail's four controls plus padding and gaps equal its 178px rect. */
+.rail > * {
+  flex: none;
+}
+
+/* Resize: an invisible hit strip on the panel's outer edge. */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 1;
+  cursor: ew-resize;
+}
+
+.resizeLeft {
+  left: 0;
+}
+
+.resizeRight {
+  right: 0;
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  padding: 10px 10px 6px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The project header doubles as the way back to the project list. */
+.back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.backGlyph {
+  flex: none;
+  transform: rotate(180deg);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--board-control-small);
+  height: var(--board-control-small);
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.actionActive {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A row and its trailing menu trigger share one line. */
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.groupRow > .row {
+  flex: 1;
+}
+
+.rowAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.groupRow:hover .rowAction,
+.rowAction:focus-visible {
+  opacity: 1;
+}
+
+.rowAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The row a drag would drop onto. */
+.dropTarget {
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-state-business-primary);
+}
+
+.flip {
+  transform: rotate(180deg);
+}
+
+/* The portal anchor: an empty box that takes no part in layout. */
+.anchor {
+  display: none;
+}
+
+.editRow,
+.searchRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  margin: 0 6px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  border: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  outline: none;
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+}
+
+.confirmAction {
+  flex: none;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  cursor: pointer;
+}
+
+.confirmAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.errorRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-width: 0;
+  margin: 0 6px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+  font-size: var(--board-font-label);
+}
+
+.crumbs {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 2px 6px;
+}
+
+.crumb {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.crumb:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  flex: none;
+  min-width: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.row.current {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.rowIcon {
+  display: flex;
+  align-items: center;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+/* Running marker: the dot the app sidebar shows beside a live chat. */
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-business-primary);
+}
+
+/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+   panel keeps its DOM and state and stops painting. */
+.hidden {
+  content-visibility: hidden;
+}
+
+.projectPathRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  gap: 8px;
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-tertiary);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.projectPathText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.projectPathActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.pathAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pathAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+}
+
+.tabBadge {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--dsw-alias-border-l1);
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.artifactsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-label);
+}
+
+.artifactsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.artifactRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+}
+
+.artifactRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.artifactIcon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artifactBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artifactPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--board-font-label);
+}
+
+.artifactMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.artifactTime {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.artifactActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}

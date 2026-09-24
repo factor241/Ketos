@@ -1,0 +1,231 @@
+/* Shared board window frame: the theme's floating-panel recipe — layer-2 fill,
+ * no border, the elevation hairline carrying the stroke, and the focused state
+ * rebinding that stroke to the business accent. Placement (left/top/width/
+ * height/z-index) stays inline because it comes from the board store;
+ * everything painted lives here. */
+
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  /* Handles and the panel ride the frame's edge, so the frame never clips. */
+  overflow: visible;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  user-select: none;
+}
+
+.window.active {
+  --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
+}
+
+/* A window the board was asked to bring forward after a main-panel detour
+   flashes its primary ring once; reduced motion keeps the static ring for the
+   same short window instead. */
+.window.returned {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  animation: window-return 1.6s ease-out 1;
+}
+
+@keyframes window-return {
+  0% { outline-color: transparent; }
+  20%, 60% { outline-color: var(--dsw-alias-state-business-primary); }
+  100% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window.returned { animation: none; }
+}
+
+/* 8-direction resize handles: invisible hit zones along the edges (6px) and
+   at the corners (14px). */
+.handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.handleN {
+  top: -3px;
+  left: 14px;
+  right: 14px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.handleS {
+  bottom: -3px;
+  left: 14px;
+  right: 14px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.handleW {
+  left: -3px;
+  top: 14px;
+  bottom: 14px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.handleE {
+  right: -3px;
+  top: 14px;
+  bottom: 14px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.handleNw,
+.handleNe,
+.handleSw,
+.handleSe {
+  z-index: 11;
+  width: 14px;
+  height: 14px;
+}
+
+.handleNw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.handleNe {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.handleSw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.handleSe {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--board-gap-window);
+  padding: var(--board-pad-header);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+  cursor: grab;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+  min-width: 0;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+  flex: none;
+}
+
+/* Round icon control in the chrome idiom: the window's control circle,
+   secondary ink, hover fill (the settings header and dockkit strip recipe). */
+.headerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--board-control);
+  height: var(--board-control);
+  border-radius: 50%;
+  corner-shape: round;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.headerButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The name is the rename trigger: a text-weight button that takes the header's
+   remaining width, so a long chat title elides instead of pushing the controls. */
+.titleButton {
+  display: block;
+  min-width: 0;
+  flex: 0 1 auto;
+  /* The ellipsis must clip here: the inner span keeps its full min-content
+     width, and without this the header overflows the frame on long names. */
+  overflow: hidden;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: text;
+}
+
+.titleButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.title {
+  display: block;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-title);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In-place rename editor: same metrics as the title, sized by the header. */
+.titleInput {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0.5px solid var(--dsw-alias-state-business-primary);
+  border-radius: 8px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-title);
+  font-weight: 500;
+  outline: none;
+}
+
+/* The body scrolls inside elevated chrome, so the thumb rides the l2 pair
+   (ui-theme's scrollbar rebinding contract). */
+.body {
+  flex: 1;
+  padding: var(--board-pad-window);
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-content);
+  line-height: 1.5;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Fullscreen: the frame fills the board panel, so it squares off and drops the
+   floating elevation (nothing floats above it). */
+.window.fullscreen {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+   frame keeps its DOM and state and stops painting. */
+.window.hidden {
+  content-visibility: hidden;
+}

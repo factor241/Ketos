@@ -213,9 +213,25 @@ function toOpenCodeSessionId(sessionId: unknown): string {
   return randomUUID()
 }
 
+/** Attribution headers for a route that services OpenCode traffic, empty otherwise. */
+function openCodeSessionHeaders(
+  provider: string,
+  profile: ResolvedPiAiProviderProfile,
+  model: Model<Api>,
+  sessionId: unknown,
+): Record<string, string> {
+  if (!isOpenCodeRoute(provider, profile, model)) return {}
+  const session = toOpenCodeSessionId(sessionId)
+  return { 'x-opencode-session': session, 'n-session': session, 'n-client': 'deepseek-harness' }
+}
+
 function isOpenCodeRoute(provider: string, profile: ResolvedPiAiProviderProfile, model: Model<Api>): boolean {
   if (provider.toLowerCase().startsWith('opencode')) return true
-  const baseUrl = profile.baseURL ?? profile.piProvider?.baseUrl ?? (model as { baseUrl?: string }).baseUrl ?? ''
+  // A catalog route without a provider-level endpoint carries one per model,
+  // and catalog resolution refuses a route without any endpoint, so every
+  // resolved model already carries the baseUrl this marker check reads.
+  const modelBaseUrl = (model as { baseUrl: string }).baseUrl
+  const baseUrl = profile.baseURL ?? profile.piProvider?.baseUrl ?? modelBaseUrl
   return baseUrl.includes('opencode.ai')
 }
 
@@ -399,13 +415,7 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
-      const sessionHeaders: Record<string, string> = {}
-      if (isOpenCodeRoute(options.provider, profile, model)) {
-        const opencodeSession = toOpenCodeSessionId(options.sessionId)
-        sessionHeaders['x-opencode-session'] = opencodeSession
-        sessionHeaders['n-session'] = opencodeSession
-        sessionHeaders['n-client'] = 'deepseek-harness'
-      }
+      const sessionHeaders = openCodeSessionHeaders(options.provider, profile, model, options.sessionId)
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },

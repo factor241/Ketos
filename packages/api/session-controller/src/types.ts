@@ -278,6 +278,12 @@ export interface SessionCreateValue {
 /** Session model-selection request. */
 export interface SessionSelectModelRequest extends ModelSelection {
   readonly sessionId: SessionId
+  /**
+   * `true` applies the selection to this Session only and leaves the stored
+   * default for new Sessions untouched; absent or `false` saves the selection
+   * as the deployment default (the composer behaviour).
+   */
+  readonly keepDefault?: boolean
 }
 
 /** Accepted model selection after Host resolution. */

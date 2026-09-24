@@ -1,0 +1,1008 @@
+// Proves the clone package composes the way the shipped web profile mounts it:
+// a real Loader boots `@ketos/clone-core` from cordis.yml, activates it against
+// the connection, agent, and projection services, and reaches the database
+// only through the route. The interview flow then runs against a real
+// AgentLoop and a scripted model, so the whole stage-16 path is exercised over
+// the shipped composition rather than a hand-built context.
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Context, Service } from '@deepseek-ai/cordis'
+import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Include from '@deepseek-ai/cordis-plugin-include'
+import { assembleContextFor } from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import GoalService from '@deepseek-ai/dsh-goal'
+import * as GoalRoundDriver from '@deepseek-ai/dsh-goal-round-driver'
+import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
+import { ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import SkillRegistry from '@deepseek-ai/dsh-skill'
+import { renderContextSections, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
+import * as CloneCore from '@ketos/clone-core'
+import { MEMORY_PATH } from '../src/memory-routes.ts'
+import { CLONES_PATH } from '../src/routes.ts'
+import { TASKS_PATH } from '../src/task-routes.ts'
+import { openDatabase } from '../src/db.ts'
+import { CLONE_TEXT_LIMITS } from '../src/repository.ts'
+import {
+  CLONE_INTERVIEW_SECTION, CLONE_MEMORY_CONTEXT, CLONE_PROFILE_SECTION,
+} from '../src/session.ts'
+import type { CloneAnswerResponse, CloneSkill, MemoryListResponse, TaskAnswerResponse } from '../src/types.ts'
+import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+
+/**
+ * Stand-in for the connection service that records exact routes and disposes
+ * them with the registering fiber, mirroring `HostConnectionService.fetch`.
+ */
+class RecordingConnection extends Service {
+  readonly routes = new Map<string, ConnectionFetchRoute>()
+  readonly withdrawn: string[] = []
+
+  constructor(ctx: Context) {
+    super(ctx, 'connection')
+  }
+
+  get fetch() {
+    const owner = this.ctx
+    return {
+      register: (route: ConnectionFetchRoute) => owner.effect(() => {
+        this.routes.set(route.path, route)
+        return async () => {
+          this.routes.delete(route.path)
+          this.withdrawn.push(route.path)
+        }
+      }, `recording-connection: ${route.path}`),
+    }
+  }
+}
+
+let root: string | undefined
+let context: Context | undefined
+
+afterEach(async () => {
+  await context?.fiber.dispose()
+  context = undefined
+  if (root !== undefined) await rm(root, { recursive: true, force: true })
+  root = undefined
+})
+
+interface Booted {
+  readonly ctx: Context
+  readonly routes: Map<string, ConnectionFetchRoute>
+  readonly withdrawn: string[]
+  readonly path: string
+}
+
+/** One decoded request against the booted clone route. */
+async function request(route: ConnectionFetchRoute, body: unknown): Promise<Record<string, unknown>> {
+  return await pathRequest(route, CLONES_PATH, body)
+}
+
+/** One decoded request against the booted memory route. */
+async function memoryRequest(route: ConnectionFetchRoute, body: unknown): Promise<Record<string, unknown>> {
+  return await pathRequest(route, MEMORY_PATH, body)
+}
+
+/** One decoded request against the booted tasks route. */
+async function taskRequest(route: ConnectionFetchRoute, body: unknown): Promise<TaskAnswerResponse> {
+  return await pathRequest(route, TASKS_PATH, body) as unknown as TaskAnswerResponse
+}
+
+/** One decoded request against one booted route path. */
+async function pathRequest(route: ConnectionFetchRoute, path: string, body: unknown): Promise<Record<string, unknown>> {
+  const response = await route.fetch(new Request(`http://localhost${path}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json' },
+  }))
+  return await response.json() as Record<string, unknown>
+}
+
+/** One clone answer as the route sends it. */
+function answered(answer: Record<string, unknown>): CloneAnswerResponse {
+  return answer as unknown as CloneAnswerResponse
+}
+
+/**
+ * Load one cordis.yml through the real Loader with a fixed module map.
+ * @param ctx - context carrying the services the loaded rows inject.
+ * @param configPath - file URL of the cordis.yml to include.
+ * @param modules - loader import map, holding every bare plugin the file names.
+ */
+async function loadThroughLoader(ctx: Context, configPath: string, modules: Map<string, unknown>): Promise<void> {
+  await ctx.plugin(Loader)
+  ctx.loader.builtins.include = Include
+  ctx.loader.internal = {
+    version: 'v2',
+    async import(specifier: string) {
+      if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
+      return modules.get(specifier)
+    },
+  } as unknown as NonNullable<typeof ctx.loader.internal>
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
+  await ctx.loader.await()
+}
+
+/**
+ * Boot a temporary cordis.yml carrying the clone package row, against a
+ * connection service that records registered routes.
+ * @param withPath - whether the row config carries the database path.
+ * @param extraConfig - further row config fields, as literal YAML values.
+ * @param withSkills - whether the shipped skill registry and its loader tool are mounted beside it.
+ * @param withGoals - whether the shipped goal service and round driver are mounted beside it.
+ * @returns the booted context, the recorded routes, and the database path.
+ */
+async function boot(
+  withPath = true,
+  extraConfig: Record<string, string | number> = {},
+  withSkills = false,
+  withGoals = false,
+): Promise<Booted> {
+  root = await mkdtemp(join(tmpdir(), 'dsh-clone-loader-'))
+  const path = join(root, 'clones.db')
+  const configPath = join(root, 'cordis.yml')
+  await writeFile(configPath, [
+    "- name: '@ketos/clone-core'",
+    ...withPath
+      ? [
+        '  config:',
+        `    path: ${JSON.stringify(path)}`,
+        ...Object.entries(extraConfig).map(([key, value]) => `    ${key}: ${JSON.stringify(value)}`),
+      ]
+      : [],
+    // The shipped profile keeps the skill REGISTRY on the host plane and gives
+    // each agent the catalog and loader; both rows are what a clone session
+    // registers its own skills into.
+    ...withSkills
+      ? ["- name: '@deepseek-ai/dsh-skill'", "- name: '@deepseek-ai/dsh-tool-skill'"]
+      : [],
+    '',
+  ].join('\n'))
+
+  const ctx = new Context()
+  context = ctx
+  ctx.baseUrl = pathToFileURL(root).href + '/'
+  // The shipped profile carries the whole agent stack; the testkit mounts the
+  // same services so the plugin's `agents` and `sessionProjections`
+  // dependencies activate exactly as they do under `dsh web`.
+  await mountAgentLoopTestDependencies(ctx)
+  await mountAgentLoopTestHarness(ctx)
+  if (withGoals) {
+    await ctx.plugin(GoalService)
+    await ctx.plugin(GoalRoundDriver)
+  }
+  const connection = new RecordingConnection(ctx)
+  const modules = new Map<string, unknown>([['@ketos/clone-core', CloneCore]])
+  if (withSkills) {
+    modules.set('@deepseek-ai/dsh-skill', SkillRegistry)
+    modules.set('@deepseek-ai/dsh-tool-skill', ToolSkill)
+  }
+  await loadThroughLoader(ctx, configPath, modules)
+  return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, path }
+}
+
+/**
+ * Boot the clone package through the real Loader against only the services its
+ * root `inject` names: a connection that records routes, an agent registry with
+ * no live agents, and a projection registry. The tool and prompt registries the
+ * per-agent scope injects are deliberately absent, so activation proves the
+ * root does not depend on them.
+ * @returns the booted context, the recorded routes, and the database path.
+ */
+async function bootWithoutAgentRegistries(): Promise<Booted> {
+  root = await mkdtemp(join(tmpdir(), 'dsh-clone-loader-min-'))
+  const path = join(root, 'clones.db')
+  const configPath = join(root, 'cordis.yml')
+  await writeFile(configPath, [
+    "- name: '@ketos/clone-core'",
+    '  config:',
+    `    path: ${JSON.stringify(path)}`,
+    '',
+  ].join('\n'))
+
+  const ctx = new Context()
+  context = ctx
+  ctx.baseUrl = pathToFileURL(root).href + '/'
+  ctx.provide('agents', { roots: () => [] } as never)
+  ctx.provide('sessionProjections', { register: () => () => {} } as never)
+  const connection = new RecordingConnection(ctx)
+  await loadThroughLoader(ctx, configPath, new Map<string, unknown>([['@ketos/clone-core', CloneCore]]))
+  return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, path }
+}
+
+/** One stored skill with a description unless the test says otherwise. */
+const skill = (name: string, description: string, instructions = ''): CloneSkill =>
+  ({ name, description, instructions })
+
+/**
+ * The skills one agent's catalog published, or undefined when it published none.
+ * @param agent - the agent whose durable log is read.
+ * @returns the entries of the first skill-catalog message, or undefined.
+ */
+function catalogEntries(agent: Agent): readonly { readonly name: string; readonly description: string }[] | undefined {
+  for (const event of agent.session.snapshotEvents()) {
+    if (event.type !== 'user/message' || event.data.source.kind !== 'skill-catalog') continue
+    return event.data.source.entries
+  }
+  return undefined
+}
+
+describe('clone package real Loader composition', () => {
+  it('registers the clone route and opens the database only on the first request', async () => {
+    const { routes, path } = await boot()
+    const route = routes.get(CLONES_PATH)
+    expect(route?.methods).toEqual(['GET', 'POST'])
+    expect(route?.requestBody).toBe('buffered')
+    expect(routes.get(MEMORY_PATH)?.methods).toEqual(['POST'])
+    expect(routes.get(MEMORY_PATH)?.requestBody).toBe('buffered')
+    expect(routes.get(TASKS_PATH)?.methods).toEqual(['POST'])
+    expect(routes.get(TASKS_PATH)?.requestBody).toBe('buffered')
+    // Laziness is observable: boot mounted the plugin but nothing opened the file.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+
+    const created = await (route as ConnectionFetchRoute).fetch(new Request(`http://localhost${CLONES_PATH}`, {
+      method: 'POST',
+      body: JSON.stringify({ op: 'create', name: 'Анна', role: 'Аналитик' }),
+    }))
+    expect((await created.json() as CloneAnswerResponse).clone).toMatchObject({ name: 'Анна', revision: 1 })
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    const listed = await (route as ConnectionFetchRoute).fetch(new Request(`http://localhost${CLONES_PATH}`))
+    expect(await listed.json()).toMatchObject({ ok: true, clones: [{ name: 'Анна' }] })
+  })
+
+  it('closes the database and withdraws the route at disposal, keeping the records', async () => {
+    const { ctx, routes, withdrawn, path } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    await route.fetch(new Request(`http://localhost${CLONES_PATH}`, {
+      method: 'POST',
+      body: JSON.stringify({ op: 'create', name: 'Борис', role: 'Юрист' }),
+    }))
+    await ctx.fiber.dispose()
+    context = undefined
+    // The tasks route is registered last, so it is withdrawn first.
+    expect(withdrawn).toEqual([TASKS_PATH, MEMORY_PATH, CLONES_PATH])
+    expect(routes.has(CLONES_PATH)).toBe(false)
+    expect(routes.has(MEMORY_PATH)).toBe(false)
+    expect(routes.has(TASKS_PATH)).toBe(false)
+
+    const db = await openDatabase(path)
+    expect(db.prepare('SELECT name FROM clones').all()).toEqual([{ name: 'Борис' }])
+    db.close()
+  })
+
+  it('activates and serves its routes without the tool and prompt registries', async () => {
+    const { ctx, routes, withdrawn, path } = await bootWithoutAgentRegistries()
+    // Activation completed: every route is registered although no tool or
+    // prompt registry exists in this context.
+    expect(routes.get(CLONES_PATH)?.methods).toEqual(['GET', 'POST'])
+    expect(routes.get(MEMORY_PATH)?.methods).toEqual(['POST'])
+    expect(routes.get(TASKS_PATH)?.methods).toEqual(['POST'])
+    expect(ctx.get('tools')).toBeUndefined()
+    expect(ctx.get('systemPrompt')).toBeUndefined()
+    // Laziness holds: the first request is what opens the database.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+    const created = await (routes.get(CLONES_PATH) as ConnectionFetchRoute).fetch(new Request(
+      `http://localhost${CLONES_PATH}`,
+      { method: 'POST', body: JSON.stringify({ op: 'create', name: 'Анна', role: 'Аналитик' }) },
+    ))
+    expect((await created.json() as CloneAnswerResponse).clone).toMatchObject({ name: 'Анна' })
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+
+    await ctx.fiber.dispose()
+    context = undefined
+    expect(withdrawn).toEqual([TASKS_PATH, MEMORY_PATH, CLONES_PATH])
+    expect(routes.size).toBe(0)
+    // Disposal closed the handle: the file reopens with the committed record.
+    const db = await openDatabase(path)
+    expect(db.prepare('SELECT name FROM clones').all()).toEqual([{ name: 'Анна' }])
+    db.close()
+  })
+
+  it('fails loading when the required path is missing', async () => {
+    await expect(boot(false)).rejects.toThrow('$.path missing required value')
+  })
+})
+
+describe('clone interview over the shipped composition', () => {
+  it('composes the interview into the bound agent scope and withdraws it on save', async () => {
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Какую роль вы занимаете?')]))
+
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-1', role: 'interview',
+    })
+
+    const agent = await ctx.agentLoop.create(SessionId('interview-1'), { provider: 'mock', model: 'mock' })
+    // The mode is derived after the lifecycle event answered, so the scope
+    // arrives on the next turn of the event loop.
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_INTERVIEW_SECTION)
+      expect(renderPrompt(assembly)).toContain('You are interviewing a person')
+      expect(assembly.tools.map(tool => tool.name)).toContain('clone_draft_save')
+    })
+    // The tool belongs to this agent's scope only: the global catalog of an
+    // ordinary session stays untouched.
+    expect(ctx.tools.get('clone_draft_save')).toBeUndefined()
+    expect(ctx.tools.get('clone_draft_save', agent)).toBeDefined()
+
+    /** Kickoff messages this session logged. */
+    const opens = (): number => agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+      && event.data.source.kind === 'ketos-clone-interview').length
+    await vi.waitFor(() => { expect(opens()).toBe(1) })
+
+    // A stored change re-derives the mode; the opening turn is not queued twice.
+    await request(route, { op: 'update', id: created.clone.id, revision: 2, patch: { description: 'Разбор требований' } })
+    await new Promise((resolve) => { setTimeout(resolve, 20) })
+    expect(opens()).toBe(1)
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'assistant/message')).toHaveLength(1)
+
+    const saved = await ctx.tools.execute({
+      callId: ToolCallId('call-save'),
+      name: 'clone_draft_save',
+      arguments: {
+        role: 'Старший аналитик',
+        description: 'Разбирает требования',
+        persona: 'Спокойная и точная',
+        methodology: 'Сначала факты, потом гипотезы',
+        skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
+      },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(saved.isError).toBe(false)
+
+    const stored = answered(await request(route, { op: 'get', id: created.clone.id }))
+    expect(stored.clone).toMatchObject({
+      status: 'ready',
+      role: 'Старший аналитик',
+      persona: 'Спокойная и точная',
+      skills: [skill('analiz', 'Разбор требований'), skill('intervyu', 'Интервью')],
+      revision: 4,
+    })
+
+    await vi.waitFor(async () => {
+      const after = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(renderPrompt(after)).not.toContain('You are interviewing a person')
+      expect(ctx.tools.get('clone_draft_save', agent)).toBeUndefined()
+    })
+  })
+
+  it('installs the mode when the binding lands after the agent exists', async () => {
+    // The shipped browser order creates the session before it binds it, so the
+    // lifecycle events see a draft clone and no binding; the route's mutation
+    // notification is what turns the mode on.
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('С чего начнём?')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+
+    const agent = await ctx.agentLoop.create(SessionId('interview-late'), { provider: 'mock', model: 'mock' })
+    const before = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+    expect(before.sections.map(section => section.name)).not.toContain(CLONE_INTERVIEW_SECTION)
+
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-late', role: 'interview',
+    })
+    await vi.waitFor(async () => {
+      const after = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(after.sections.map(section => section.name)).toContain(CLONE_INTERVIEW_SECTION)
+      expect(ctx.tools.get('clone_draft_save', agent)).toBeDefined()
+    })
+    await vi.waitFor(() => {
+      expect(agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+        && event.data.source.kind === 'ketos-clone-interview')).toHaveLength(1)
+    })
+  })
+
+  it('queues one kickoff even when a stored change lands while the turn opens', async () => {
+    // Between the driver claiming the kickoff and appending it to the log no
+    // record carries it; a mutation there must not queue a second one.
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const gate = Promise.withResolvers<undefined>()
+    let held = false
+    ctx.on('agent/pre-step', async (_payload, next) => {
+      if (!held) {
+        held = true
+        await gate.promise
+      }
+      return await next()
+    })
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-gap', role: 'interview',
+    })
+
+    const agent = await ctx.agentLoop.create(SessionId('interview-gap'), { provider: 'mock', model: 'mock' })
+    const opens = (): number => agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+      && event.data.source.kind === 'ketos-clone-interview').length
+    await vi.waitFor(() => { expect(agent.inbox.nextTurn).toHaveLength(0) })
+    expect(opens()).toBe(0)
+
+    // The stored change arrives while the claimed message is still unlogged.
+    await request(route, { op: 'update', id: created.clone.id, revision: 2, patch: { description: 'Разбор' } })
+    gate.resolve(undefined)
+    await vi.waitFor(() => { expect(opens()).toBe(1) })
+    await new Promise((resolve) => { setTimeout(resolve, 20) })
+    expect(opens()).toBe(1)
+  })
+
+  it('refuses the profile tool when its session lost the clone binding', async () => {
+    const { ctx, routes, path } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-2', role: 'interview',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('interview-2'), { provider: 'mock', model: 'mock' })
+
+    // A hand-edited database whose binding outlived the clone it named.
+    const direct = await openDatabase(path)
+    direct.prepare('DELETE FROM clone_sessions WHERE session_id = ?').run('interview-2')
+    direct.close()
+
+    const refused = await ctx.tools.execute({
+      callId: ToolCallId('call-refused'),
+      name: 'clone_draft_save',
+      arguments: { role: 'роль', description: 'описание', persona: 'персона', methodology: 'метод', skills: [] },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(refused.isError).toBe(true)
+    expect(refused.error?.info?.code).toBe('ketos/not-a-clone-session')
+  })
+
+  it('records the invalid-draft code for a profile the store refuses', async () => {
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-bounds', role: 'interview',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('interview-bounds'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_draft_save', agent)).toBeDefined() })
+
+    const refused = await ctx.tools.execute({
+      callId: ToolCallId('call-bounds'),
+      name: 'clone_draft_save',
+      arguments: {
+        role: '  ',
+        description: 'описание',
+        persona: 'персона',
+        methodology: 'метод',
+        skills: [],
+      },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(refused.isError).toBe(true)
+    expect(refused.error?.info?.code).toBe('ketos/invalid-draft')
+    // The refusal wrote nothing: the clone is still interviewing.
+    expect(answered(await request(route, { op: 'get', id: created.clone.id })).clone.status).toBe('interviewing')
+  })
+
+  it('keeps the assembled interview prompt identical between turns', async () => {
+    const { ctx, routes } = await boot()
+    const route = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Первый вопрос')]))
+    const created = answered(await request(route, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(route, { op: 'update', id: created.clone.id, revision: 1, patch: { status: 'interviewing' } })
+    await request(route, {
+      op: 'bindSession', cloneId: created.clone.id, sessionId: 'interview-prompt', role: 'interview',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('interview-prompt'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_INTERVIEW_SECTION)
+    })
+    const before = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Я аналитик' }], source: { kind: 'user' } }))
+    await vi.waitFor(() => { expect(agent.status).toBe('idle') })
+    const after = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(after).toBe(before)
+  })
+})
+
+describe('clone memory over the shipped composition', () => {
+  it('composes the memory tools into a bound agent and saves and finds a memory', async () => {
+    const { ctx, routes } = await boot()
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const memoryRoute = routes.get(MEMORY_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-1' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-1'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => {
+      expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined()
+      expect(ctx.tools.get('clone_memory_search', agent)).toBeDefined()
+    })
+    // The tools belong to this agent's scope only: the global catalog of an
+    // ordinary session stays untouched.
+    expect(ctx.tools.get('clone_memory_remember')).toBeUndefined()
+    expect(ctx.tools.get('clone_memory_search')).toBeUndefined()
+
+    const remembered = await ctx.tools.execute({
+      callId: ToolCallId('call-remember'),
+      name: 'clone_memory_remember',
+      arguments: { content: 'Предпочитает короткие письма', tags: ['стиль'], methodology_candidate: true },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(remembered.isError).toBe(false)
+    const saved = remembered.isError ? { id: '', status: '' } : remembered.value as { id: string; status: string }
+    expect(saved.status).toBe('candidate')
+    // The model-facing projection is rendered text, never raw JSON.
+    expect(remembered.content).toEqual([{
+      type: 'text',
+      text: `Saved to the clone's memory as candidate; its id is ${saved.id}.`,
+    }])
+
+    const found = await ctx.tools.execute({
+      callId: ToolCallId('call-search'),
+      name: 'clone_memory_search',
+      arguments: { query: 'письм' },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(found.isError).toBe(false)
+    expect(found.isError ? [] : (found.value as unknown as { memories: readonly unknown[] }).memories).toMatchObject([{
+      id: saved.id,
+      content: 'Предпочитает короткие письма',
+      tags: ['стиль'],
+      status: 'candidate',
+    }])
+    expect(found.content).toEqual([{ type: 'text', text: `[${saved.id}] Предпочитает короткие письма` }])
+
+    const listed = await memoryRequest(memoryRoute, { op: 'list', cloneId: created.clone.id }) as unknown as MemoryListResponse
+    expect(listed.memories).toMatchObject([{
+      id: saved.id,
+      content: 'Предпочитает короткие письма',
+      tags: ['стиль'],
+      sourceSessionId: 'clone-1',
+      status: 'candidate',
+    }])
+  })
+
+  it('keeps the memory tools and the memory context out of an unbound session', async () => {
+    const { ctx, path } = await boot()
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const agent = await ctx.agentLoop.create(SessionId('plain-1'), { provider: 'mock', model: 'mock' })
+    const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+    expect(assembly.sections.map(section => section.name)).not.toContain(CLONE_PROFILE_SECTION)
+    expect(assembly.contexts.map(context => context.name)).not.toContain(CLONE_MEMORY_CONTEXT)
+    expect(assembly.tools.map(tool => tool.name)).not.toContain('clone_memory_remember')
+    // Nothing about this session is a clone, so its database stays unopened.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('refuses the memory tools when their session lost the clone binding', async () => {
+    const { ctx, routes, path } = await boot()
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-2' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-2'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined() })
+
+    // A hand-edited database whose binding outlived the clone it named.
+    const direct = await openDatabase(path)
+    direct.prepare('DELETE FROM clone_sessions WHERE session_id = ?').run('clone-2')
+    direct.close()
+
+    for (const call of [
+      { name: 'clone_memory_remember', arguments: { content: 'Факт' } },
+      { name: 'clone_memory_search', arguments: { query: 'факт' } },
+    ]) {
+      const refused = await ctx.tools.execute({
+        callId: ToolCallId(`call-${call.name}`),
+        name: call.name,
+        arguments: call.arguments,
+        agent,
+        signal: new AbortController().signal,
+      })
+      expect(refused.isError, call.name).toBe(true)
+      expect(refused.error?.info?.code, call.name).toBe('ketos/not-a-clone-session')
+    }
+  })
+
+  it('refuses a memory whose content or search limit leaves the bounds', async () => {
+    const { ctx, routes } = await boot()
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-3' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-3'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined() })
+
+    const calls = [
+      { name: 'clone_memory_remember', arguments: { content: 'x'.repeat(4001) } },
+      { name: 'clone_memory_remember', arguments: { content: '   ' } },
+      { name: 'clone_memory_search', arguments: { query: 'факт', limit: 21 } },
+    ]
+    for (const call of calls) {
+      const refused = await ctx.tools.execute({
+        callId: ToolCallId(`call-bounds-${call.name}-${String(call.arguments.limit ?? '')}`),
+        name: call.name,
+        arguments: call.arguments,
+        agent,
+        signal: new AbortController().signal,
+      })
+      expect(refused.isError, JSON.stringify(call)).toBe(true)
+      expect(refused.error?.info?.code, JSON.stringify(call)).toBe('ketos/invalid-memory')
+    }
+    // The refusals wrote nothing.
+    expect((await memoryRequest(routes.get(MEMORY_PATH) as ConnectionFetchRoute, {
+      op: 'list', cloneId: created.clone.id,
+    }) as unknown as MemoryListResponse).memories).toEqual([])
+  })
+})
+
+describe('clone profile and memory injection over the shipped composition', () => {
+  it('injects the profile and follows user memory edits without touching the prompt prefix', async () => {
+    const { ctx, routes } = await boot()
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const memoryRoute = routes.get(MEMORY_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      // The second skill is still a draft: its empty description keeps it out
+      // of the profile line and out of the registry.
+      skills: [skill('sql', 'Запросы к базе'), skill('draft-skill', '')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-profile' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-profile'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_PROFILE_SECTION)
+    })
+    const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(profile).toContain('You are the digital clone of Анна, working as Аналитик.')
+    expect(profile).toContain('Character, tone, and working style: Спокойная и точная')
+    expect(profile).toContain('Working method: Сначала факты, потом гипотезы')
+    // The profile carries no skill names: the registered catalog is the one
+    // model-facing list, so a draft that cannot register is absent everywhere.
+    expect(profile).not.toContain('Skills you may rely on')
+    expect(profile).not.toContain('sql')
+    expect(profile).not.toContain('draft-skill')
+    // Nothing is remembered yet, so the dynamic snapshot renders nothing.
+    const empty = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+    expect(renderContextSections(empty).map(context => context.name)).not.toContain(CLONE_MEMORY_CONTEXT)
+
+    // The agent saves one fact; the snapshot picks it up on the next assembly.
+    const remembered = await ctx.tools.execute({
+      callId: ToolCallId('call-profile-remember'),
+      name: 'clone_memory_remember',
+      arguments: { content: 'Считает сроки критичными' },
+      agent,
+      signal: new AbortController().signal,
+    })
+    expect(remembered.isError).toBe(false)
+    const saved = remembered.isError ? { id: '' } : remembered.value as { id: string }
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(renderContextSections(assembly).find(context => context.name === CLONE_MEMORY_CONTEXT)?.text)
+        .toContain('Считает сроки критичными')
+    })
+    // A memory write never touches the stable section prefix.
+    expect(renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))).toBe(profile)
+
+    // The person edits and then deletes the memory; each change reaches the
+    // next assembly through the same snapshot.
+    await memoryRequest(memoryRoute, {
+      op: 'update', id: saved.id, patch: { content: 'Считает сроки критичными, письма — короткими' },
+    })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(renderContextSections(assembly).find(context => context.name === CLONE_MEMORY_CONTEXT)?.text)
+        .toContain('письма — короткими')
+    })
+    await memoryRequest(memoryRoute, { op: 'delete', id: saved.id })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(renderContextSections(assembly).map(context => context.name)).not.toContain(CLONE_MEMORY_CONTEXT)
+    })
+
+    // A profile edit updates the section, because the profile is the clone.
+    await request(cloneRoute, {
+      op: 'update',
+      id: created.clone.id,
+      revision: 1,
+      patch: { persona: 'Резкая и быстрая' },
+    })
+    await vi.waitFor(async () => {
+      expect(renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent))))
+        .toContain('Character, tone, and working style: Резкая и быстрая')
+    })
+  })
+
+  it('honours the configured snapshot size', async () => {
+    const { ctx, routes } = await boot(true, { memoryEntries: 1 })
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-budget' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-budget'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined() })
+    for (const content of ['Первый факт', 'Второй факт']) {
+      const saved = await ctx.tools.execute({
+        callId: ToolCallId(`call-budget-${content}`),
+        name: 'clone_memory_remember',
+        arguments: { content },
+        agent,
+        signal: new AbortController().signal,
+      })
+      expect(saved.isError).toBe(false)
+    }
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      const snapshot = renderContextSections(assembly).find(context => context.name === CLONE_MEMORY_CONTEXT)?.text ?? ''
+      expect(snapshot).toContain('Второй факт')
+      expect(snapshot).not.toContain('Первый факт')
+    })
+  })
+
+  it('withdraws the whole clone scope when the clone is deleted', async () => {
+    const { ctx, routes } = await boot()
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, { op: 'create', name: 'Анна', role: 'Аналитик', persona: 'Спокойная' }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-deleted' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-deleted'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined() })
+
+    await request(cloneRoute, { op: 'delete', id: created.clone.id, revision: 1 })
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).not.toContain(CLONE_PROFILE_SECTION)
+      expect(ctx.tools.get('clone_memory_remember', agent)).toBeUndefined()
+    })
+  })
+})
+
+describe('clone skills over the shipped composition', () => {
+  it('registers the clone skills into the bound agent and publishes them in the catalog', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе', 'Пиши SELECT по схеме'), skill('otchety', 'Готовит отчёты')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-skills' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-skills'), { provider: 'mock', model: 'mock' })
+
+    await vi.waitFor(async () => {
+      expect(await ctx.skills.list({ scope: agent })).toMatchObject([
+        { name: 'otchety', description: 'Готовит отчёты', source: 'runtime' },
+        { name: 'sql', description: 'Запросы к базе', source: 'runtime' },
+      ])
+    })
+    // The instructions ride the definition, so invoking the skill loads them.
+    await expect(ctx.skills.get('sql', { scope: agent })).resolves.toMatchObject({
+      name: 'sql',
+      content: 'Пиши SELECT по схеме',
+    })
+
+    // The catalog the model reads on the next turn names each skill and its
+    // routing description.
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Привет' }], source: { kind: 'user' } }))
+    await vi.waitFor(() => { expect(agent.status).toBe('idle') })
+    expect(catalogEntries(agent)).toMatchObject([
+      { name: 'otchety', description: 'Готовит отчёты' },
+      { name: 'sql', description: 'Запросы к базе' },
+    ])
+  })
+
+  it('leaves a session without a clone binding without any clone skill', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-bound' })
+    const bound = await ctx.agentLoop.create(SessionId('clone-bound'), { provider: 'mock', model: 'mock' })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: bound })).map(candidate => candidate.name)).toEqual(['sql'])
+    })
+
+    const plain = await ctx.agentLoop.create(SessionId('plain-session'), { provider: 'mock', model: 'mock' })
+    expect((await ctx.skills.list({ scope: plain })).map(candidate => candidate.name)).toEqual([])
+  })
+
+  it('withdraws the clone skills when the agent is disposed', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-gone' })
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('clone-gone'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: handle.agent })).map(candidate => candidate.name)).toEqual(['sql'])
+    })
+
+    await handle.dispose()
+    expect((await ctx.skills.list({ scope: handle.agent })).map(candidate => candidate.name)).toEqual([])
+  })
+
+  it('skips a skill the registry cannot address while the profile still installs', async () => {
+    const { ctx, routes, path } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      methodology: 'Сначала факты',
+      skills: [skill('sql', 'Запросы к базе'), skill('draft-skill', '')],
+    }))
+    // A legacy name only a database written before the grammar can hold, beside
+    // a skill whose description the editor has not authored yet, a name past
+    // the wire length bound, and a name the registry cannot address.
+    const direct = await openDatabase(path)
+    direct.prepare('UPDATE clones SET skills_json = ? WHERE id = ?').run(JSON.stringify([
+      { name: 'sql', description: 'Запросы к базе', instructions: '' },
+      { name: 'draft-skill', description: '', instructions: '' },
+      { name: 'Договоры', description: 'Договорная работа', instructions: '' },
+      { name: 'a'.repeat(CLONE_TEXT_LIMITS.skillName + 1), description: 'Слишком длинное имя', instructions: '' },
+    ]), created.clone.id)
+    direct.close()
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-partial' })
+    const agent = await ctx.agentLoop.create(SessionId('clone-partial'), { provider: 'mock', model: 'mock' })
+
+    // The unusable skills are skipped, not the scope: the profile section, the
+    // memory tools, and the addressable skill all still install.
+    await vi.waitFor(async () => {
+      const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+      expect(assembly.sections.map(section => section.name)).toContain(CLONE_PROFILE_SECTION)
+      expect(ctx.tools.get('clone_memory_remember', agent)).toBeDefined()
+    })
+    expect((await ctx.skills.list({ scope: agent })).map(candidate => candidate.name)).toEqual(['sql'])
+    const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(profile).not.toContain('Skills you may rely on')
+    expect(profile).not.toContain('draft-skill')
+    expect(profile).not.toContain('Договоры')
+    expect(profile).not.toContain('a'.repeat(CLONE_TEXT_LIMITS.skillName + 1))
+  })
+
+  it('recreates an agent for the same bound session after the clone is edited', async () => {
+    const { ctx, routes } = await boot(true, {}, true)
+    const cloneRoute = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(cloneRoute, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      methodology: '## Принципы\nСтарые принципы',
+      skills: [skill('sql', 'Запросы к базе')],
+    }))
+    await request(cloneRoute, { op: 'bindSession', cloneId: created.clone.id, sessionId: 'clone-recreated' })
+    const first = await ctx.agents.create({
+      sessionId: SessionId('clone-recreated'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(first.agent)))
+      expect(profile).toContain('Старые принципы')
+    })
+    await first.dispose()
+
+    const edited = answered(await request(cloneRoute, {
+      op: 'update',
+      id: created.clone.id,
+      revision: created.clone.revision,
+      patch: {
+        methodology: '## Принципы\nНовые принципы',
+        skills: [skill('sql', 'Другие запросы', 'Пиши SELECT'), skill('analiz', 'Разбор требований')],
+      },
+    }))
+    expect(edited.clone.revision).toBe(created.clone.revision + 1)
+
+    // A new session for the same clone sees the new version, because the scope
+    // is derived from the stored record at installation.
+    const second = await ctx.agents.create({
+      sessionId: SessionId('clone-recreated'),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    await vi.waitFor(async () => {
+      const profile = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(second.agent)))
+      expect(profile).toContain('Новые принципы')
+      expect(profile).not.toContain('Старые принципы')
+    })
+    await vi.waitFor(async () => {
+      expect((await ctx.skills.list({ scope: second.agent })).map(candidate => candidate.name)).toEqual(['analiz', 'sql'])
+    })
+    await expect(ctx.skills.get('sql', { scope: second.agent })).resolves.toMatchObject({ content: 'Пиши SELECT' })
+    await second.dispose()
+  })
+})
+
+describe('clone tasks over the shipped composition', () => {
+  it('runs an autonomous task to a report through the goal round driver', async () => {
+    const { ctx, routes } = await boot(true, {}, false, true)
+    const clones = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const tasks = routes.get(TASKS_PATH) as ConnectionFetchRoute
+    // The clone works one round on its own, then files the report the task
+    // ends with; the second entry answers the continuation of that same turn.
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([
+      toolCallResponse('call-report', 'clone_task_report', { summary: 'Отчёт: проверены 3 документа.' }, 'Работа сделана.'),
+      textResponse('Отчёт зафиксирован.'),
+    ]))
+    const created = answered(await request(clones, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      status: 'ready',
+    }))
+    const task = (await taskRequest(tasks, { op: 'create', cloneId: created.clone.id, objective: 'Проверить документы' })).task
+    const agent = await ctx.agentLoop.create(SessionId('task-1'), { provider: 'mock', model: 'mock' })
+    const started = await taskRequest(tasks, { op: 'start', id: task.id, sessionId: 'task-1' })
+    expect(started.task).toMatchObject({ status: 'running', sessionId: 'task-1' })
+    expect(ctx.goals.get(agent)).toMatchObject({
+      phase: 'active',
+      objective: 'Проверить документы',
+      maxGoalRounds: 10,
+    })
+
+    // No person prompts this session: the round driver adds the round and the
+    // model's report tool ends the task.
+    await vi.waitFor(async () => {
+      expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.status).toBe('done')
+    }, { timeout: 10_000 })
+    expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.resultSummary)
+      .toBe('Отчёт: проверены 3 документа.')
+    expect(ctx.goals.get(agent)?.phase).toBe('complete')
+    expect(agent.session.snapshotEvents().some(event => event.type === 'user/message'
+      && event.data.source.kind === 'goal')).toBe(true)
+    // The report tool belongs to the running task only.
+    await vi.waitFor(() => { expect(ctx.tools.get('clone_task_report', agent)).toBeUndefined() })
+  })
+
+  it('refuses to start a task for a session whose clone is not ready', async () => {
+    const { ctx, routes } = await boot(true, {}, false, true)
+    const clones = routes.get(CLONES_PATH) as ConnectionFetchRoute
+    const tasks = routes.get(TASKS_PATH) as ConnectionFetchRoute
+    ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('Привет')]))
+    const created = answered(await request(clones, { op: 'create', name: 'Анна', role: 'Аналитик' }))
+    const task = (await taskRequest(tasks, { op: 'create', cloneId: created.clone.id, objective: 'Проверить' })).task
+    await ctx.agentLoop.create(SessionId('task-draft'), { provider: 'mock', model: 'mock' })
+    const refused = await pathRequest(tasks, TASKS_PATH, { op: 'start', id: task.id, sessionId: 'task-draft' })
+    expect(refused).toEqual({ ok: false, error: 'ketos/invalid-state' })
+    expect((await taskRequest(tasks, { op: 'get', id: task.id })).task.status).toBe('pending')
+  })
+})

@@ -1,0 +1,203 @@
+/* Tool card of the window lane: a status line plus the mapped ui-primitives
+   block (terminal, read, diff, search, web) or a bespoke list, with the JSON
+   fallback for anything the table cannot cover. */
+
+.card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-label);
+}
+
+.cardFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.status {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-window);
+}
+
+.statusName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusNote {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.errorDetail {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Error body: the provider's own text, kept verbatim and height-capped so one
+   long failure cannot push the lane. */
+.errorText {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow: auto;
+}
+
+/* Running marker: a small pulsing dot, motion-free under reduced motion. */
+.runningDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-business-primary);
+  animation: tool-running 1s ease-in-out infinite alternate;
+}
+
+@keyframes tool-running {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runningDot { animation: none; }
+}
+
+.repeat {
+  flex: none;
+  padding: 2px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 9999px;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.repeat:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Bespoke cards (to-do list, question transcript) keep the same title tier as
+   the mapped blocks' own banners. */
+.list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listTitle {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.todoList {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todo {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.todoMark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 50%;
+  corner-shape: round;
+}
+
+.todo[data-board-todo='in_progress'] .todoMark {
+  border-color: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.todo[data-board-todo='completed'] .todoMark {
+  border-color: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-label-tertiary);
+}
+
+.todoDone .todoText {
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration: line-through;
+}
+
+.todoText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.qaList {
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qa {
+  min-width: 0;
+}
+
+.qaQuestion {
+  overflow-wrap: anywhere;
+}
+
+.qaAnswer {
+  min-width: 0;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.images {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--board-gap-row);
+}
+
+.image {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 6px;
+  corner-shape: round;
+}
+
+.imagePending {
+  width: 96px;
+  height: 64px;
+  border-radius: 6px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+}

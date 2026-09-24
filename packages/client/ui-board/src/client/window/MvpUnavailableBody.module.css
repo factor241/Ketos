@@ -1,0 +1,16 @@
+/* Unavailable window body: the MVP notice centred in the frame's content
+ * region. Depth ladder: canvas → window → body. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  text-align: center;
+}
+
+.text {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-content);
+}

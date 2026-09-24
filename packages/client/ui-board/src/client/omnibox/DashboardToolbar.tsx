@@ -1,167 +1,255 @@
 /**
- * Center floating Omnibox with Action Menu OpenSwarm-style.
+ * Center floating Omnibox with its Action Menu. Submit delivers the typed text
+ * through the window bridge, so Enter and Send land in the active chat window's
+ * session (a chat window opens when none is addressed); the menu's window
+ * entries open real board windows, and capability entries either reach their
+ * board-local target or state why the MVP has none.
  */
-import { useState, type FormEvent } from 'react'
-import type { BoardTranslate } from '../locale.ts'
+import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
+import clsx from 'clsx'
+import {
+  IconAgentPresetOutline16,
+  IconBrowseOutline16,
+  IconChecklistOutline14,
+  IconGlobeOutline14,
+  IconInspectOutline12,
+  IconPaperclipOutline16,
+  IconSendOutline16,
+  IconSparkle16,
+  Menu,
+  Tooltip,
+  type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { CloneId } from '@ketos/clone-core/types'
+import type { BoardWindowInjected } from '../contract/slots.ts'
+import type { BoardStoreHandle } from '../store.ts'
+import { nextWindowOrdinal } from '../store.ts'
+import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
+import { openBoardWindow, resolveChatWindow } from '../open-window.ts'
+import { folderName, recentChats } from '../chat-list-model.ts'
+import { useDictation } from '../dictation.tsx'
+import css from './DashboardToolbar.module.css'
 
-export interface DashboardToolbarProps {
-  /** Locale seat resolving this omnibox's copy. */
-  t: BoardTranslate
-  onSendMessage: (text: string) => void
-  onStartElementSelection: () => void
-  onOpenConnectors: () => void
-}
+/** Most recent chats the Omnibox menu offers. */
+const RECENT_CHAT_LIMIT = 6
+
+export type DashboardToolbarProps =
+  PropsRuntime<'board.omnibar'>
+  & PropsStore<BoardStoreHandle>
+  & PropsLocale<'board'>
+  & InjectFace<BoardWindowInjected>
 
 export function DashboardToolbar({
-  t,
-  onSendMessage,
-  onStartElementSelection,
-  onOpenConnectors,
+  useStore, actions, t, sendPrompt, openChat, useSessionList, useWorkspaceList, useAgentPresetRoster,
+  useCloneList, createClone, openClone, refreshAgentPresets, refreshClones,
 }: DashboardToolbarProps) {
   const [text, setText] = useState('')
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [menu, setMenu] = useState<MenuPlacement | null>(null)
+  const menuAnchor = useRef<HTMLButtonElement>(null)
+  const windows = useStore(s => s.windows)
+  const activeWindowId = useStore(s => s.activeWindowId)
+  const sessionList = useSessionList(s => s)
+  const workspaceList = useWorkspaceList(s => s)
+  const presetRoster = useAgentPresetRoster(s => s)
+  const clones = useCloneList(roster => roster.clones)
+  const recent = useMemo(
+    () => recentChats(sessionList, workspaceList, RECENT_CHAT_LIMIT),
+    [sessionList, workspaceList],
+  )
 
-  const handleSubmit = (e: FormEvent) => {
+  const dictation = useDictation((transcript) => {
+    setText(current => current === '' ? transcript : `${current} ${transcript}`)
+  })
+
+  // The portal positions from the trigger rect, so the side and alignment read
+  // the trigger's viewport position once and the list tracks it afterwards.
+  const openMenu = useCallback((trigger: HTMLElement | null): void => {
+    // Refresh the presets and the clone roster on every open, so a row the
+    // host added or removed since the last visit is offered or dropped rather
+    // than stored stale.
+    refreshAgentPresets()
+    refreshClones()
+    setMenu(current => current !== null ? null : menuPlacement(trigger))
+  }, [refreshAgentPresets, refreshClones])
+  const closeMenu = useCallback(() => { setMenu(null) }, [])
+
+  const handleSubmit = (e: FormEvent): void => {
     e.preventDefault()
-    if (!text.trim()) return
-    onSendMessage(text)
-    setText('')
+    const typed = text
+    const value = typed.trim()
+    if (value === '') return
+    const target = resolveChatWindow(actions, windows, activeWindowId)
+    // The draft leaves the field only once the host accepts it: a refused
+    // prompt keeps what the user typed (the window channel explains the
+    // refusal), and text typed while the round-trip ran is never dropped.
+    void sendPrompt(target, value, 'queue').then((accepted) => {
+      if (accepted) setText(current => current === typed ? '' : current)
+    }, () => {
+      // A rejected admission is a refusal like any other: the draft stays.
+    })
+    setNotice(null)
   }
 
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        userSelect: 'none',
-      }}
-    >
-      {menuOpen && (
-        <div
-          style={{
-            marginBottom: 10,
-            background: '#222126',
-            borderRadius: 14,
-            border: '1px solid #36353C',
-            boxShadow: '0 16px 36px rgba(0,0,0,0.4)',
-            padding: 6,
-            minWidth: 200,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            color: '#E6E4E8',
-            fontSize: 13,
-          }}
-        >
-          <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.attachFile')) }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>📎</span> {t('menu.attachFile')}
-          </button>
-          <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.dictate')) }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🎙️</span> {t('menu.dictate')}
-          </button>
-          <button
-            onClick={() => { setMenuOpen(false); alert(t('menu.webSearch')) }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🌐</span> {t('menu.webSearch')}
-          </button>
-          <button
-            onClick={() => { setMenuOpen(false); onStartElementSelection() }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'rgba(184, 83, 47, 0.15)', border: 'none', color: '#B8532F', fontWeight: 600, cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🎯</span> {t('menu.selectElement')}
-          </button>
-          <div style={{ height: 1, background: '#36353C', margin: '4px 0' }} />
-          <button
-            onClick={() => { setMenuOpen(false); onOpenConnectors() }}
-            style={{ padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', color: '#E6E4E8', cursor: 'pointer', borderRadius: 8, display: 'flex', gap: 8 }}
-          >
-            <span>🔌</span> {t('menu.connectors')}
-          </button>
-        </div>
-      )}
+  const handleMenuSelect = (id: string): void => {
+    closeMenu()
+    switch (id) {
+      case 'open:agent':
+        openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+        return
+      case 'open:connectors':
+        openBoardWindow(actions, 'connectors', nextWindowOrdinal(windows))
+        return
+      case 'open:settings':
+        openBoardWindow(actions, 'settings', nextWindowOrdinal(windows))
+        return
+      case 'open:clone':
+        void createClone().then((created) => { if (created === 'failed') setNotice(t('clone.failed')) })
+        return
+      case 'open:dashboard':
+        setNotice(t('menu.unavailable.dashboard'))
+        return
+      case 'open:tasks':
+        openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows))
+        return
+      case 'attachFile': {
+        const target = resolveChatWindow(actions, windows, activeWindowId)
+        actions.pushComposerIntent(target, { pickFiles: true })
+        return
+      }
+      case 'dictate':
+        if (dictation.supported) dictation.toggle()
+        else setNotice(t('voice.unsupported'))
+        return
+      case 'webSearch':
+        // The web capability is host-side with no client path: the notice is
+        // the honest outcome, not a session call that cannot exist.
+        setNotice(t('menu.unavailable.webSearch'))
+        return
+      case 'selectElement':
+        actions.setSelectingElement(true)
+        return
+      default:
+        if (id.startsWith('preset:')) {
+          // The quick choice at creation: remember the pick, then open the
+          // window; its session is created with this preset by the bridge.
+          actions.setDefaultPreset(id.slice('preset:'.length))
+          openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+          return
+        }
+        if (id.startsWith('clone:')) {
+          openClone(id.slice('clone:'.length) as CloneId)
+          return
+        }
+        if (id.startsWith('recent:')) {
+          // The recent list follows the same duplicate rule as the chats panel:
+          // an already open chat focuses its window instead of opening twice.
+          const outcome = openChat(id.slice('recent:'.length) as SessionId)
+          if (outcome.kind === 'unknown') setNotice(t('panel.chatGone'))
+        }
+        return
+    }
+  }
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: 'rgba(43, 42, 48, 0.92)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: 9999,
-          border: '1px solid #3A3940',
-          boxShadow: '0 12px 32px -4px rgba(0, 0, 0, 0.35)',
-          padding: '6px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: 440,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: menuOpen ? '#B8532F' : '#36343C',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-          title={t('menu.openActionMenu')}
-        >
-          +
-        </button>
+  const menuItems: readonly MenuEntry[] = [
+    { type: 'label', id: 'group.newWindow', text: t('menu.newWindow') },
+    { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutline16 /> },
+    ...(presetRoster.pickerEnabled && presetRoster.presets.length > 0
+      ? [{
+        id: 'preset',
+        label: t('menu.preset'),
+        icon: <IconAgentPresetOutline16 />,
+        submenu: presetRoster.presets.map(preset => ({
+          id: `preset:${preset.id}`,
+          label: preset.name,
+          ...(preset.isDefault === true ? { icon: <IconChecklistOutline14 /> } : {}),
+        })),
+      }] satisfies readonly MenuEntry[]
+      : []),
+    { id: 'open:connectors', label: t('menu.open.connectors'), icon: <IconBrowseOutline16 /> },
+    { id: 'open:settings', label: t('menu.open.settings'), icon: <IconBrowseOutline16 /> },
+    { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },
+    { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: <IconBrowseOutline16 /> },
+    { id: 'open:tasks', label: t('menu.open.tasks'), icon: <IconBrowseOutline16 /> },
+    ...(clones.length === 0 ? [] : [
+      { type: 'separator', id: 'separator.clones' },
+      { type: 'label', id: 'group.clones', text: t('menu.clones') },
+      ...clones.map(clone => ({
+        id: `clone:${clone.id}`,
+        label: clone.role === '' ? clone.name : `${clone.name} · ${clone.role}`,
+        icon: <IconAgentPresetOutline16 />,
+      })),
+    ] satisfies readonly MenuEntry[]),
+    ...(recent.length === 0 ? [] : [
+      { type: 'separator', id: 'separator.recent' },
+      { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },
+      ...recent.map(row => ({
+        id: `recent:${row.id}`,
+        label: row.cwd === undefined || row.cwd === '' ? row.title : `${row.title} · ${folderName(row.cwd)}`,
+      })),
+    ] satisfies readonly MenuEntry[]),
+    { type: 'separator', id: 'separator.capabilities' },
+    { id: 'attachFile', label: t('menu.attachFile'), icon: <IconPaperclipOutline16 /> },
+    { id: 'dictate', label: t('menu.dictate'), icon: <IconSparkle16 /> },
+    { id: 'webSearch', label: t('menu.webSearch'), icon: <IconGlobeOutline14 /> },
+    { type: 'separator', id: 'separator.selection' },
+    { id: 'selectElement', label: t('menu.selectElement'), icon: <IconInspectOutline12 /> },
+  ]
+
+  return (
+    <div data-board-layer="omnibar" className={css.omnibar}>
+      {notice !== null && <div data-board-omnibar-notice className={css.notice}>{notice}</div>}
+      <form onSubmit={handleSubmit} className={css.form}>
+        <Menu
+          portal
+          open={menu !== null}
+          side={menu?.side ?? 'top'}
+          align={menu?.align ?? 'start'}
+          selection="fill"
+          anchor={(
+            <Tooltip label={t('menu.openActionMenu')} side="top" disabled={menu !== null}>
+              <button
+                ref={menuAnchor}
+                type="button"
+                data-board-action="omnibar-action-menu"
+                onClick={() => { openMenu(menuAnchor.current) }}
+                className={clsx(css.menuButton, menu !== null && css.open)}
+                aria-label={t('menu.openActionMenu')}
+              >
+                +
+              </button>
+            </Tooltip>
+          )}
+          getAnchorRect={() => menuAnchor.current?.getBoundingClientRect() ?? null}
+          items={menuItems}
+          onSelect={handleMenuSelect}
+          onClose={closeMenu}
+        />
 
         <input
           type="text"
           value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder={t('toolbar.composerPlaceholder')}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: '#E6E4E8',
-            fontSize: 14,
+          data-board-action="omnibar-input"
+          onChange={(e) => {
+            setText(e.target.value)
+            setNotice(null)
           }}
+          placeholder={t('toolbar.composerPlaceholder')}
+          className={css.input}
         />
 
-        <button
-          type="submit"
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: text.trim() ? '#B8532F' : '#36343C',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: 13,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: text.trim() ? 'pointer' : 'default',
-          }}
-        >
-          ↑
-        </button>
+        <Tooltip label={t('menu.send')} side="top">
+          <button
+            type="submit"
+            data-board-action="omnibar-send"
+            className={clsx(css.submit, text.trim() !== '' && css.ready)}
+            aria-label={t('menu.send')}
+          >
+            <IconSendOutline16 />
+          </button>
+        </Tooltip>
       </form>
     </div>
   )

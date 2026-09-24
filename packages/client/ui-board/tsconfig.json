@@ -21,6 +21,21 @@
       "path": "../ui-layout"
     },
     {
+      "path": "../file-upload/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../ui-chat"
+    },
+    {
+      "path": "../ui-model-selection"
+    },
+    {
+      "path": "../ui-workspace"
+    },
+    {
       "path": "../ui-primitives"
     },
     {
@@ -31,6 +46,27 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../preset/agent-presets"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../../ketos/clone-core/tsconfig.client.json"
     }
   ]
 }

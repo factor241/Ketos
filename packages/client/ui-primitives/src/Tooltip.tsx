@@ -136,6 +136,24 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     if (!triggers.current.hover && !triggers.current.focus) setPos(null)
   }
 
+  // Hover state cannot rely on mouseleave alone: an anchor that relocates under
+  // a still pointer (a window mode flip, a layout change) never receives one,
+  // and the bubble would stay forever. While the bubble is visible, a pointer
+  // move whose target is outside the anchor clears hover exactly like a leave
+  // would; moving over another tooltip's anchor closes this one too.
+  useEffect(() => {
+    if (pos === null) return
+    const onPointerMove = (event: PointerEvent): void => {
+      /* v8 ignore next -- the anchor ref is attached whenever the bubble renders. */
+      if (anchor.current !== null && event.target instanceof Node && anchor.current.contains(event.target)) return
+      triggers.current.hover = false
+      cancelShow()
+      setPos(null)
+    }
+    document.addEventListener('pointermove', onPointerMove, true)
+    return () => { document.removeEventListener('pointermove', onPointerMove, true) }
+  }, [cancelShow, pos])
+
   return (
     <>
       {cloneElement(children, {

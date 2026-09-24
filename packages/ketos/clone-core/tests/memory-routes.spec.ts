@@ -7,6 +7,7 @@ import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser-auth.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CloneDatabase } from '../src/db.ts'
+import { MEMORY_LIMITS } from '../src/memory.ts'
 import { MEMORY_PATH, registerMemoryRoutes } from '../src/memory-routes.ts'
 import type { CloneId, CloneRecord, MemoryListResponse, MemoryAnswerResponse } from '../src/types.ts'
 
@@ -148,6 +149,7 @@ describe('memory route operations', () => {
       { op: 'search', cloneId: f.clone.id, query: 'навык', limit: 0 },
       { op: 'search', cloneId: f.clone.id, query: 'навык', limit: 21 },
       { op: 'search', cloneId: f.clone.id, query: 'навык', limit: 1.5 },
+      { op: 'search', cloneId: f.clone.id, query: 'x'.repeat(MEMORY_LIMITS.query + 1) },
       { op: 'search', cloneId: f.clone.id, query: '()' },
       { op: 'update', id: 'x', patch: {} },
       { op: 'update', id: 'x', patch: [] },

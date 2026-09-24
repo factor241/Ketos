@@ -53,15 +53,17 @@ export const MEMORY_STATUSES = ['active', 'candidate', 'archived'] as const sati
 
 /**
  * Longest accepted value per memory field, and the only source of these
- * numbers: the route validates them on the wire and the tools validate them
- * before their write, because a tool schema can express neither `maxLength`
- * nor `maxItems`.
+ * numbers: the route validates them on the wire, the tools validate them
+ * before their write, and `MemoryRepository.search` refuses an over-long
+ * query, because a tool schema can express neither `maxLength` nor
+ * `maxItems`.
  */
 export const MEMORY_LIMITS = {
   content: 4000,
   tag: 100,
   tagCount: 50,
   searchLimit: 20,
+  query: 1000,
 } as const
 
 /** One `memories` row as SQLite returns it. */
@@ -191,6 +193,16 @@ function requireStatus(value: string): MemoryStatus {
   return value as MemoryStatus
 }
 
+/**
+ * Refuse search text longer than the route accepts, measured on the trimmed
+ * query so the store and the wire refuse the same value.
+ */
+function requireQuery(query: string): void {
+  if (query.trim().length > MEMORY_LIMITS.query) {
+    throw new MemoryInvalidError(`query exceeds ${String(MEMORY_LIMITS.query)} characters`)
+  }
+}
+
 /** Refuse a search limit outside the documented range. */
 function requireSearchLimit(limit: number): void {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > MEMORY_LIMITS.searchLimit) {
@@ -254,9 +266,11 @@ export class MemoryRepository {
    * @param limit - largest number of rows to return.
    * @param status - restrict to one status; absent searches every status but `archived`.
    * @returns the matching records.
-   * @throws MemoryInvalidError when the query holds no searchable token or the limit is out of range.
+   * @throws MemoryInvalidError when the query holds no searchable token, exceeds its
+   * length bound, or the limit is out of range.
    */
   search(cloneId: CloneId, query: string, limit: number = MEMORY_LIMITS.searchLimit, status?: MemoryStatus): MemoryRecord[] {
+    requireQuery(query)
     requireSearchLimit(limit)
     const expression = memoryMatchExpression(query)
     const statusClause = status === undefined ? "m.status != 'archived'" : 'm.status = ?'

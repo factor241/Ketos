@@ -19,6 +19,19 @@ export const METHODOLOGY_SECTIONS = [
 export type MethodologySection = (typeof METHODOLOGY_SECTIONS)[number]
 
 /**
+ * Stable dictionary id of every canonical methodology section, keyed by stored
+ * heading. Interface copy addresses a section through its id, so a localized
+ * label never depends on the canonical heading text; the stored methodology and
+ * the interview instruction keep the headings themselves.
+ */
+export const METHODOLOGY_SECTION_IDS = {
+  'Принципы': 'principles',
+  'Порядок работы': 'workflow',
+  'Критерии качества': 'quality',
+  'Чего не делать': 'avoid',
+} as const satisfies Record<MethodologySection, string>
+
+/**
  * The canonical template: every section heading with an empty body, separated
  * by a blank line. The interview fills the same headings in the text it saves.
  */

@@ -22,6 +22,15 @@ import { INTERRUPTED_TASK_REASON, TaskRepository } from './task-repository.ts'
    identity, schema, and version policy, so a shared medium helper would couple
    independently released packages. */
 /**
+ * Lock wait, in milliseconds, of every connection this module opens. The wait
+ * is set before the migration runs and stays on the connection for every later
+ * statement, so a second process that opens the same fresh file waits for the
+ * first instead of failing with `SQLITE_BUSY` on the header pragmas or the
+ * migration's `BEGIN IMMEDIATE`.
+ */
+export const LOCK_WAIT_MS = 5000
+
+/**
  * Exclusively create a missing database file with owner-only permissions.
  * Existing files retain their modes, and errors other than `EEXIST` propagate.
  * @param path - resolved database path.
@@ -39,7 +48,9 @@ async function createDatabaseFile(path: string): Promise<void> {
  * Open the clone database, creating its directory (`0700`) and file (`0600`)
  * when they are missing, and bring it to the current schema version. A foreign
  * application id or a newer schema version is refused, so an unrelated SQLite
- * file is never written to.
+ * file is never written to. The connection waits up to {@link LOCK_WAIT_MS}
+ * for another process's lock, both during the migration and for every later
+ * statement it runs.
  * @param path - database path from the profile config, or `:memory:`.
  * @returns the open handle with the journal mode and schema applied.
  */
@@ -52,6 +63,7 @@ export async function openDatabase(path: string): Promise<DatabaseSync> {
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(actual)
   try {
+    db.exec(`PRAGMA busy_timeout = ${String(LOCK_WAIT_MS)}`)
     migrate(db)
     db.exec('PRAGMA journal_mode = WAL')
     return db

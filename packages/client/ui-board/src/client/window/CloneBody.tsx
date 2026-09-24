@@ -20,7 +20,8 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CloneSessionBinding, CloneSkill, CloneStatus } from '@ketos/clone-core/types'
 import {
-  METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections,
+  METHODOLOGY_SECTION_IDS, METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections,
+  type MethodologySection,
 } from '@ketos/clone-core/methodology'
 import { CLONE_STATUS_ROWS, TASK_OBJECTIVE_LIMIT, type BoardTaskOutcome, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
@@ -40,7 +41,7 @@ export type CloneBodyProps =
   & InjectFace<BoardWindowInjected>
 
 /** Notice the form shows above its actions after a mutation. */
-type CloneNotice = 'conflict' | 'delete-conflict' | 'missing' | 'failed' | undefined
+type CloneNotice = 'conflict' | 'delete-conflict' | 'missing' | 'failed' | 'ready-incomplete' | undefined
 
 /** Lifecycle status locale key of one status row. */
 const STATUS_KEYS = {
@@ -51,6 +52,25 @@ const STATUS_KEYS = {
 
 /** Chip state of one canonical methodology section in the live draft. */
 type MethodologyState = 'filled' | 'empty' | 'missing'
+
+/** Locale key of one canonical methodology section's label, keyed by its stable id. */
+const METHODOLOGY_LABEL_KEYS = {
+  principles: 'clone.methodology.section.principles',
+  workflow: 'clone.methodology.section.workflow',
+  quality: 'clone.methodology.section.quality',
+  avoid: 'clone.methodology.section.avoid',
+} as const satisfies Record<(typeof METHODOLOGY_SECTION_IDS)[MethodologySection], Parameters<BoardTranslate>[0]>
+
+/**
+ * Localized interface label of one canonical methodology section. The stored
+ * heading stays the canonical marker; only this label is translated.
+ * @param heading - the canonical heading the parser reported.
+ * @param t - the board locale seat.
+ * @returns the label the chips and the gap hint render.
+ */
+function methodologyLabel(heading: MethodologySection, t: BoardTranslate): string {
+  return t(METHODOLOGY_LABEL_KEYS[METHODOLOGY_SECTION_IDS[heading]])
+}
 
 /** Why the skill modal refused to save. */
 type SkillError = 'name' | 'duplicate' | 'limit'
@@ -324,30 +344,41 @@ export function CloneBody({
     // snapshot holds them and the stored record that follows matches the base.
     const draft = editor.draft
     const saved = toStoredDraft(draft)
-    setBusy(true)
-    const outcome = await saveClone(cloneId, toPatch(saved), editor.revision)
-    setBusy(false)
-    if (outcome === 'saved') {
-      // This write is the user's own, so the stored record that follows is not
-      // an agent revision: the accepted snapshot becomes the base and the
-      // revision is the one the route minted, which keeps the form from reading
-      // its own save as a pending agent draft. Text typed while the request ran
-      // stays in the draft.
-      const current = editsRef.current[cloneId]
-      const accepted: CloneEdit = { draft: saved, base: saved, revision: editor.revision + 1, agentFields: [] }
-      if (current === undefined || sameDraft(current.draft, draft)) {
-        writeEdit(accepted)
-      } else {
-        // The user typed while the request ran: the accepted snapshot becomes
-        // the base, the draft keeps their newer text, and the pending agent
-        // revision this save superseded is dropped.
-        const { incoming: _superseded, ...rest } = current
-        writeEdit({ ...rest, base: saved, revision: editor.revision + 1, agentFields: [] })
-      }
+    // The route refuses `ready` on a profile missing one of its authored lines;
+    // the form says so instead of sending a save that can only be refused.
+    if (saved.status === 'ready' && (saved.role.trim() === ''
+      || saved.persona.trim() === ''
+      || saved.methodology.trim() === '')) {
+      setNotice('ready-incomplete')
+      return
     }
-    // Success needs no banner: the revision indicator moves and the drawer of
-    // notices stays reserved for what the user must act on.
-    setNotice(outcome === 'saved' ? undefined : outcome)
+    setBusy(true)
+    try {
+      const outcome = await saveClone(cloneId, toPatch(saved), editor.revision)
+      if (outcome.kind === 'saved') {
+        // This write is the user's own, so the stored record that follows is not
+        // an agent revision: the accepted snapshot becomes the base and the
+        // revision is the one the route minted, which keeps the form from reading
+        // its own save as a pending agent draft. Text typed while the request ran
+        // stays in the draft.
+        const current = editsRef.current[cloneId]
+        const accepted: CloneEdit = { draft: saved, base: saved, revision: outcome.revision, agentFields: [] }
+        if (current === undefined || sameDraft(current.draft, draft)) {
+          writeEdit(accepted)
+        } else {
+          // The user typed while the request ran: the accepted snapshot becomes
+          // the base, the draft keeps their newer text, and the pending agent
+          // revision this save superseded is dropped.
+          const { incoming: _superseded, ...rest } = current
+          writeEdit({ ...rest, base: saved, revision: outcome.revision, agentFields: [] })
+        }
+      }
+      // Success needs no banner: the revision indicator moves and the drawer of
+      // notices stays reserved for what the user must act on.
+      setNotice(outcome.kind === 'saved' ? undefined : outcome.kind)
+    } finally {
+      setBusy(false)
+    }
   }
 
   /** Replace the draft with the stored revision the agent saved. */
@@ -360,27 +391,33 @@ export function CloneBody({
   const onDelete = async (): Promise<void> => {
     if (editor === undefined || cloneId === undefined) return
     setBusy(true)
-    const outcome = await deleteClone(cloneId, editor.revision)
-    setBusy(false)
-    setConfirmingDelete(false)
-    if (outcome === 'deleted') {
-      writeEdit(undefined)
-      return
+    try {
+      const outcome = await deleteClone(cloneId, editor.revision)
+      setConfirmingDelete(false)
+      if (outcome === 'deleted') {
+        writeEdit(undefined)
+        return
+      }
+      // A moved record needs a fresh confirmation, not the save-oriented text.
+      setNotice(outcome === 'conflict' ? 'delete-conflict' : outcome)
+    } finally {
+      setBusy(false)
     }
-    // A moved record needs a fresh confirmation, not the save-oriented text.
-    setNotice(outcome === 'conflict' ? 'delete-conflict' : outcome)
   }
 
   const onStartInterview = async (): Promise<void> => {
     if (clone === undefined) return
     setBusy(true)
-    const outcome = await startCloneInterview(clone, cardWindow.id)
-    setBusy(false)
-    if (outcome === 'failed') {
-      setNotice('failed')
-      return
+    try {
+      const outcome = await startCloneInterview(clone, cardWindow.id)
+      if (outcome === 'failed') {
+        setNotice('failed')
+        return
+      }
+      setSessionEpoch(epoch => epoch + 1)
+    } finally {
+      setBusy(false)
     }
-    setSessionEpoch(epoch => epoch + 1)
   }
 
   /**
@@ -395,14 +432,17 @@ export function CloneBody({
     if (objective === '') return
     setBusy(true)
     setAutopilotOutcome(undefined)
-    const outcome = await createTask(clone.id, objective)
-    setBusy(false)
-    setAutopilotOutcome(outcome)
-    if (outcome !== 'started') return
-    setAutopilotObjective('')
-    // The board resolves the target window: an existing tasks window scoped to
-    // this clone comes forward instead of a second one opening.
-    openTasksWindow(clone.id)
+    try {
+      const outcome = await createTask(clone.id, objective)
+      setAutopilotOutcome(outcome)
+      if (outcome !== 'started') return
+      setAutopilotObjective('')
+      // The board resolves the target window: an existing tasks window scoped to
+      // this clone comes forward instead of a second one opening.
+      openTasksWindow(clone.id)
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (cloneId !== undefined && clone === undefined && !roster.loaded) {
@@ -498,11 +538,11 @@ export function CloneBody({
               return (
                 <span
                   key={section.heading}
-                  data-board-clone-methodology-section={section.heading}
+                  data-board-clone-methodology-section={METHODOLOGY_SECTION_IDS[section.heading]}
                   data-state={state}
                 >
                   <Pill>
-                    {section.heading}
+                    {methodologyLabel(section.heading, t)}
                     {state !== 'filled' && (
                       <span className={css.sectionMark}>
                         {t(state === 'empty' ? 'clone.methodology.section.empty' : 'clone.methodology.section.missing')}
@@ -515,7 +555,7 @@ export function CloneBody({
           </div>
           {methodologyMissing.length > 0 && (
             <span className={css.hint} data-board-clone="methodology-gaps">
-              {t('clone.methodology.gaps', { list: methodologyMissing.join(', ') })}
+              {t('clone.methodology.gaps', { list: methodologyMissing.map(heading => methodologyLabel(heading, t)).join(', ') })}
             </span>
           )}
           {methodologyBlank && (
@@ -748,6 +788,11 @@ export function CloneBody({
         {notice === 'failed' && (
           <div className={clsx(css.notice, css.noticeError)} data-board-clone-notice="failed">
             {t('clone.failed')}
+          </div>
+        )}
+        {notice === 'ready-incomplete' && (
+          <div className={clsx(css.notice, css.noticeError)} data-board-clone-notice="ready-incomplete">
+            {t('clone.ready.incomplete')}
           </div>
         )}
 

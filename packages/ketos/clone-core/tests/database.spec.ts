@@ -1,9 +1,12 @@
 /** clones.db opens owner-only, stamps its identity and version, and refuses foreign files. */
+import { spawn } from 'node:child_process'
 import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import { CloneDatabase, openDatabase } from '../src/db.ts'
+import { setTimeout as delay } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { CloneDatabase, LOCK_WAIT_MS, openDatabase } from '../src/db.ts'
 import { CloneRepository } from '../src/repository.ts'
 import { CLONE_CORE_APPLICATION_ID, CLONE_CORE_SCHEMA_VERSION, migrate, runMigrations } from '../src/schema.ts'
 
@@ -169,6 +172,57 @@ describe('clones.db open sequence', () => {
     const path = join(root, 'clones.db')
     await writeFile(path, 'not a database')
     await expect(openDatabase(path)).rejects.toThrow()
+  })
+
+  it('opens one fresh file from two connections at once and shares the records', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const [first, second] = await Promise.all([openDatabase(path), openDatabase(path)])
+    cleanups.push(() => { first.close() })
+    cleanups.push(() => { second.close() })
+    const created = new CloneRepository(first).createClone({ name: 'Анна', role: 'Аналитик' })
+    expect(new CloneRepository(second).getClone(created.id)?.name).toBe('Анна')
+    expect(new CloneRepository(first).listClones()).toHaveLength(1)
+  })
+
+  it('sets the lock wait on the connection it opens', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    const db = await openDatabase(path)
+    cleanups.push(() => { db.close() })
+    const { timeout } = db.prepare('PRAGMA busy_timeout').get() as { timeout: number }
+    expect(timeout).toBe(LOCK_WAIT_MS)
+  })
+
+  it('waits out another process holding the write lock during migration', { timeout: 20_000 }, async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'clones.db')
+    // A raw handle on the fresh file holds the write lock while a child process
+    // runs the real open sequence against the same file.
+    const { DatabaseSync } = await import('node:sqlite')
+    const holder = new DatabaseSync(path)
+    cleanups.push(() => { holder.close() })
+    holder.exec('BEGIN IMMEDIATE')
+    const child = spawn(process.execPath, [
+      '--import', import.meta.resolve('tsx/esm'),
+      fileURLToPath(new URL('./fixtures/open-database-child.ts', import.meta.url)),
+      path,
+    ], { stdio: ['ignore', 'pipe', 'pipe'] })
+    cleanups.push(() => { child.kill('SIGKILL') })
+    const exited = new Promise<number | null>((resolve) => { child.once('exit', resolve) })
+    let output = ''
+    child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    child.stderr.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    // The child signals before it opens; the lock stays held well past that
+    // point, so its open must wait instead of failing with SQLITE_BUSY.
+    await vi.waitFor(() => { expect(output).toContain('opening') }, { timeout: 10_000, interval: 25 })
+    await delay(300)
+    holder.exec('COMMIT')
+    const code = await exited
+    expect(output).toContain('opened')
+    expect(code).toBe(0)
+    const waited = Number(/opened (\d+)/u.exec(output)?.[1])
+    expect(waited).toBeGreaterThanOrEqual(200)
   })
 })
 

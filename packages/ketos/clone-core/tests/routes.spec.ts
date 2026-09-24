@@ -111,6 +111,26 @@ describe('clone route operations', () => {
     ])
   })
 
+  it('accepts a ready status only on a filled profile', async () => {
+    const { post } = await fixture()
+    const created = await body<CloneAnswerResponse>(await post({
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      status: 'ready',
+    }))
+    expect(created.clone.status).toBe('ready')
+    const updated = await body<CloneAnswerResponse>(await post({
+      op: 'update',
+      id: created.clone.id,
+      revision: 1,
+      patch: { role: 'Старший аналитик', persona: 'Резкая', methodology: 'Сначала цифры', status: 'ready' },
+    }))
+    expect(updated.clone).toMatchObject({ status: 'ready', revision: 2 })
+  })
+
   it('binds a session to a clone and lists the bindings', async () => {
     const { post } = await fixture()
     const created = await body<CloneAnswerResponse>(await post({ op: 'create', name: 'Анна', role: 'Аналитик' }))
@@ -129,6 +149,9 @@ describe('clone route failures', () => {
     for (const request of [
       { op: 'get', id: 'missing' },
       { op: 'update', id: 'missing', revision: 1, patch: { name: 'X' } },
+      // A ready patch on an absent clone is the repository's 404, not a 400:
+      // there is no stored profile to complete.
+      { op: 'update', id: 'missing', revision: 1, patch: { status: 'ready' } },
       { op: 'delete', id: 'missing', revision: 1 },
       { op: 'bindSession', cloneId: 'missing', sessionId: 'session-1' },
     ]) {
@@ -136,6 +159,29 @@ describe('clone route failures', () => {
       expect(response.status).toBe(404)
       expect(await body(response)).toEqual({ ok: false, error: 'ketos/clone-not-found' })
     }
+  })
+
+  it('refuses a ready status on an empty profile', async () => {
+    const { post } = await fixture()
+    const refusedCreate = await post({ op: 'create', name: 'Анна', role: 'Аналитик', status: 'ready' })
+    expect(refusedCreate.status).toBe(400)
+    expect(await body(refusedCreate)).toEqual({ ok: false, error: 'ketos/invalid' })
+
+    const created = await body<CloneAnswerResponse>(await post({ op: 'create', name: 'Анна', role: 'Аналитик' }))
+    for (const patch of [
+      { status: 'ready' },
+      // A partial fill still leaves methodology empty.
+      { persona: 'Спокойная', status: 'ready' },
+      // An empty patch value overrides the stored one.
+      { persona: '   ', status: 'ready' },
+    ]) {
+      const response = await post({ op: 'update', id: created.clone.id, revision: 1, patch })
+      expect(response.status, JSON.stringify(patch)).toBe(400)
+      expect(await body(response)).toEqual({ ok: false, error: 'ketos/invalid' })
+    }
+    // The refusals wrote nothing.
+    expect((await body<CloneAnswerResponse>(await post({ op: 'get', id: created.clone.id }))).clone)
+      .toMatchObject({ status: 'draft', revision: 1 })
   })
 
   it('answers 409 when a caller writes under a stale revision', async () => {
@@ -250,7 +296,9 @@ describe('clone route failures', () => {
     expect(mutations).toBe(0)
     await post({ op: 'get', id: 'missing' })
     expect(mutations).toBe(0)
-    const created = await body<CloneAnswerResponse>(await post({ op: 'create', name: 'Анна', role: 'Аналитик' }))
+    const created = await body<CloneAnswerResponse>(await post({
+      op: 'create', name: 'Анна', role: 'Аналитик', persona: 'Спокойная', methodology: 'Сначала факты',
+    }))
     expect(mutations).toBe(1)
     await post({ op: 'bindSession', cloneId: created.clone.id, sessionId: 'session-1', role: 'interview' })
     expect(mutations).toBe(2)

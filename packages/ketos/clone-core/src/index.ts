@@ -30,14 +30,15 @@ import { CloneTaskRunner } from './task-runner.ts'
 export const name = 'ketos-clone-core'
 
 /**
- * Services the plugin needs: the authenticated Fetch surface it registers on,
- * the live agents whose clone scopes it derives, the projection registry that
- * makes the interview kickoff exactly once per session, and the two registries
- * the per-agent scope contributes to. The goal service the task runner drives
- * is read with `ctx.get`, so a deployment without goals still serves the
- * clone, memory, and interview features and refuses only autonomous tasks.
+ * Services the plugin needs at its root: the authenticated Fetch surface it
+ * registers on, the live agents whose clone scopes it derives, and the
+ * projection registry that makes the interview kickoff exactly once per
+ * session. The per-agent scope injects `tools` and `systemPrompt` itself, and
+ * the goal service the task runner drives is read with `ctx.get`, so a
+ * deployment without those registries still serves the clone, memory, and
+ * interview features and refuses only autonomous tasks.
  */
-export const inject = ['connection', 'agents', 'sessionProjections', 'tools', 'systemPrompt']
+export const inject = ['connection', 'agents', 'sessionProjections']
 
 /** Deployment configuration of the clone domain. */
 export interface Config {

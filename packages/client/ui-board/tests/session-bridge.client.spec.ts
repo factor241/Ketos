@@ -8,9 +8,10 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, type SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { SessionCreateError } from '@deepseek-ai/dsh-api-session-controller/client'
 import { BoardSessionBridge, type BoardSessionBridgeHooks } from '../src/client/session-bridge.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
@@ -158,7 +159,9 @@ describe('BoardSessionBridge', () => {
     expect(channel.getSnapshot().hasMore).toBe(true)
     expect(channel.getSnapshot().loadingOlder).toBe(true)
     expect(channel.getSnapshot().turnError).toBe('model exploded')
-    expect(channel.getSnapshot().promptError).toBe('gateway/internal: refused')
+    // The prompt failure reaches the lane as dictionary copy, never as the
+    // wire's `code: developer message` rendering.
+    expect(channel.getSnapshot().promptError).toBe('An internal service failure')
   })
 
   it('executes command lines and reports their outcome on the channel', async () => {
@@ -172,18 +175,18 @@ describe('BoardSessionBridge', () => {
     ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = execute
 
     execute.mockResolvedValueOnce({ ok: true, value: undefined })
-    bridge.executeCommand(windowId, '/missing')
+    await expect(bridge.executeCommand(windowId, '/missing')).resolves.toBe(false)
     await prepared.runtime.flush()
     expect(execute).toHaveBeenCalledWith(expect.anything(), '/missing', [])
     expect(channel.getSnapshot().commandError).toBe('Unknown command /missing')
 
     execute.mockResolvedValueOnce({ ok: true, value: { commandId: 'c1', result: { kind: 'error', text: 'bad argument' } } })
-    bridge.executeCommand(windowId, '/goal x')
+    await expect(bridge.executeCommand(windowId, '/goal x')).resolves.toBe(false)
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBe('bad argument')
 
     execute.mockResolvedValueOnce({ ok: true, value: { commandId: 'c2', result: { kind: 'success' } } })
-    bridge.executeCommand(windowId, '/compact')
+    await expect(bridge.executeCommand(windowId, '/compact')).resolves.toBe(true)
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBeUndefined()
   })
@@ -197,7 +200,7 @@ describe('BoardSessionBridge', () => {
 
     const execute = vi.fn(async () => ({ ok: true as const, value: undefined }))
     ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = execute
-    bridge.executeCommand(windowId, '/missing')
+    await bridge.executeCommand(windowId, '/missing')
     await prepared.runtime.flush()
     expect(channel.getSnapshot().commandError).toBeDefined()
 
@@ -595,7 +598,7 @@ describe('BoardSessionBridge', () => {
 
     const execute = vi.fn(async () => ({ ok: true as const, value: undefined }))
     ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = execute
-    bridge.executeCommand(windowId, '/missing')
+    await bridge.executeCommand(windowId, '/missing')
     bridge.selectAgentPreset(windowId, 'ptc')
     bridge.updateQueueItem(windowId, 'q1', { kind: 'remove' })
     await prepared.runtime.flush()
@@ -695,7 +698,9 @@ describe('BoardSessionBridge submissions and queue projections', () => {
     const rejected = await sendBench(carrier)
     await expect(rejected.bridge.send(rejected.windowId, 'второе', 'queue')).resolves.toBe(false)
     expect(rejected.abandon).toHaveBeenCalledOnce()
-    expect(rejected.channel.getSnapshot().promptError).toBe('transport down')
+    // A carrier rejection carries no business code, so the lane reads the
+    // internal dictionary text instead of the thrown developer message.
+    expect(rejected.channel.getSnapshot().promptError).toBe('An internal service failure')
   })
 
   it('projects queued occurrences with text and attachments, and echoes without one', async () => {
@@ -816,7 +821,7 @@ describe('BoardSessionBridge submissions and queue projections', () => {
 
     bridge.updateQueueItem(windowId, 'q1', { kind: 'steer' })
     await prepared.runtime.flush()
-    expect(channel.getSnapshot().queueError).toBe('session/queue-item-not-found: gone')
+    expect(channel.getSnapshot().queueError).toBe('The queued message no longer exists')
 
     bridge.updateQueueItem(windowId, 'q1', { kind: 'remove' })
     await prepared.runtime.flush()
@@ -864,6 +869,102 @@ describe('BoardSessionBridge submissions and queue projections', () => {
       placement: 'queued',
       attachments: [],
     }])
+  })
+})
+
+describe('BoardSessionBridge failure copy', () => {
+  /** Bench with the bridge attached to one window over a stubbed remote. */
+  async function failureBench(options: {
+    readonly updateQueue?: (itemId: unknown, action: unknown) => Promise<unknown>
+    readonly execute?: (sessionId: unknown, line: string, attachments: unknown) => Promise<unknown>
+  } = {}) {
+    const prepared = await createBoardBench({
+      session: {
+        prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }),
+        ...(options.updateQueue === undefined ? {} : { updateQueue: options.updateQueue }),
+      },
+    })
+    runtimes.add(prepared.runtime)
+    prepared.runtime.ctx.locale.register(NS, { zh, en })
+    if (options.execute !== undefined) {
+      ;(prepared.runtime.ctx.remote as unknown as { commands: { execute: unknown } }).commands.execute = options.execute
+    }
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx)
+    const windowId = 'a1' as WindowId
+    const channel = bridge.channel(windowId)
+    bridge.ensure(windowId)
+    await prepared.runtime.flush()
+    return { prepared, bridge, windowId, channel }
+  }
+
+  it('renders a refused prompt recorded on the session snapshot as its dictionary text', async () => {
+    const { prepared, channel } = await failureBench()
+    const sessionId = channel.getSnapshot().sessionId
+    if (sessionId === undefined) throw new Error('missing session id')
+    await prepared.runtime.sessions.updateSessionSnapshot(sessionId, (draft) => {
+      draft.promptError = { op: 'send', error: { code: 'session/agent-busy', message: 'prompt rejected' } as never }
+    })
+    await prepared.runtime.flush()
+
+    expect(channel.getSnapshot().promptError).toBe('The agent is busy')
+    expect(channel.getSnapshot().promptError).not.toContain('session/agent-busy:')
+  })
+
+  it('renders a refused command as its dictionary text and reports the refusal', async () => {
+    const { bridge, windowId, channel } = await failureBench({
+      execute: async () => ({ ok: false, error: { code: 'gateway/bad-request', message: 'refused' } }),
+    })
+
+    await expect(bridge.executeCommand(windowId, '/goal x')).resolves.toBe(false)
+    await expect(bridge.executeCommand('missing' as WindowId, '/goal x')).resolves.toBe(false)
+    expect(channel.getSnapshot().commandError).toBe('The request was rejected')
+  })
+
+  it('renders a refused queue mutation as its dictionary text', async () => {
+    const { prepared, bridge, windowId, channel } = await failureBench({
+      updateQueue: async () => ({ ok: false, error: { code: 'session/steer-unavailable', message: 'refused' } }),
+    })
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'steer' })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().queueError).toBe('Steering is unavailable right now')
+    expect(channel.getSnapshot().queueError).not.toContain('session/steer-unavailable:')
+  })
+
+  it('names an unrecognized failure code in the generic text', async () => {
+    const { prepared, bridge, windowId, channel } = await failureBench({
+      updateQueue: async () => ({ ok: false, error: { code: 'session/some-new-code', message: 'refused' } }),
+    })
+
+    bridge.updateQueueItem(windowId, 'q1', { kind: 'steer' })
+    await prepared.runtime.flush()
+    expect(channel.getSnapshot().queueError).toBe('Unknown failure (session/some-new-code)')
+  })
+
+  it('publishes the structured create failure, never the thrown developer message', async () => {
+    const { prepared, bridge } = await failureBench()
+    const failed = bridge.channel('b2' as WindowId)
+    prepared.runtime.sessions.stubCreate(async () => {
+      throw new SessionCreateError(new RemoteError('gateway/bad-request', 'bad request body', {}), undefined)
+    })
+    bridge.ensure('b2' as WindowId)
+    await prepared.runtime.flush()
+
+    expect(failed.getSnapshot().status).toBe('error')
+    expect(failed.getSnapshot().error).toBe('The request was rejected')
+    expect(failed.getSnapshot().error).not.toContain('session create failed')
+    expect(failed.getSnapshot().error).not.toContain('bad request body')
+
+    // A thrown value without a carried failure falls back to the generic
+    // session text instead of its English `Error.message`.
+    const plain = bridge.channel('b3' as WindowId)
+    prepared.runtime.sessions.stubCreate(async () => {
+      throw new Error('board: session is not addressable')
+    })
+    bridge.ensure('b3' as WindowId)
+    await prepared.runtime.flush()
+    expect(plain.getSnapshot().status).toBe('error')
+    expect(plain.getSnapshot().error).toBe('The session is unavailable')
   })
 })
 
@@ -992,7 +1093,7 @@ describe('BoardSessionBridge preset lifecycle', () => {
       ['agent-preset/not-found', 'gone', 'That preset no longer exists.'],
       ['agent-preset/invalid', 'composition rejected', 'That preset cannot be applied: composition rejected'],
       ['agent-preset/read-only', 'ships with the deployment', 'That preset cannot be applied: ships with the deployment'],
-      ['gateway/internal', 'carrier down', 'gateway/internal: carrier down'],
+      ['gateway/internal', 'carrier down', 'An internal service failure'],
     ] as const
     for (const [code, message, expected] of cases) {
       const { prepared } = await presetBench({

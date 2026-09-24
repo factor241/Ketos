@@ -78,11 +78,18 @@ export function DashboardToolbar({
 
   const handleSubmit = (e: FormEvent): void => {
     e.preventDefault()
-    const value = text.trim()
+    const typed = text
+    const value = typed.trim()
     if (value === '') return
     const target = resolveChatWindow(actions, windows, activeWindowId)
-    void sendPrompt(target, value, 'queue')
-    setText('')
+    // The draft leaves the field only once the host accepts it: a refused
+    // prompt keeps what the user typed (the window channel explains the
+    // refusal), and text typed while the round-trip ran is never dropped.
+    void sendPrompt(target, value, 'queue').then((accepted) => {
+      if (accepted) setText(current => current === typed ? '' : current)
+    }, () => {
+      // A rejected admission is a refusal like any other: the draft stays.
+    })
     setNotice(null)
   }
 

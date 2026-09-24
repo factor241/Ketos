@@ -126,8 +126,11 @@ export class SessionCommandController {
   }
 
   /**
-   * Validate and install one Session-local model selection.
-   * @param request - Session identity and requested model selection.
+   * Validate and install one Session-local model selection. A request that
+   * sets `keepDefault` leaves the stored deployment default for new Sessions
+   * untouched; every other request also saves the selection as that default.
+   * @param request - Session identity, requested model selection, and whether
+   * the stored deployment default stays unchanged.
    * @returns the normalized selection installed for the Session.
    */
   async selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
@@ -149,12 +152,14 @@ export class SessionCommandController {
             : { reasoningEffort: resolved.reasoningEffort }),
         }
         this.agents.selectForNextRequest(agent, selected)
-        try {
-          await this.ctx.agentDefaultModel.saveSelection(selected)
-        } catch (error) {
-          this.ctx.logger.warn(
-            `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
-          )
+        if (request.keepDefault !== true) {
+          try {
+            await this.ctx.agentDefaultModel.saveSelection(selected)
+          } catch (error) {
+            this.ctx.logger.warn(
+              `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
+            )
+          }
         }
         return { selected: { ...selected } }
       } catch (error) {

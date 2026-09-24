@@ -64,7 +64,12 @@ function optionalModel(source: Record<string, unknown>): string | null | undefin
   return value
 }
 
-/** Lifecycle status: absent, or one of the stored values. */
+/**
+ * Lifecycle status: absent, or one of the stored values. A request that
+ * results in `ready` is accepted only when the effective role, persona, and
+ * methodology are all non-empty; `create` and `update` enforce that with
+ * {@link requireReadyProfile}.
+ */
 function optionalStatus(source: Record<string, unknown>): CloneStatus | undefined {
   const value = source['status']
   if (value === undefined) return undefined
@@ -163,6 +168,29 @@ function toDto(record: CloneRecord): CloneAnswerResponse['clone'] {
   }
 }
 
+/**
+ * Refuse a write that would store `ready` on a profile missing one of its
+ * authored lines. Completion means `ready` with non-empty role, persona, and
+ * methodology, so the wire refuses the transition instead of storing a ready
+ * clone the board cannot complete.
+ * @param profile - the effective role, persona, and methodology the write would store.
+ * @throws InvalidBody when one of the three is empty after trimming.
+ */
+function requireReadyProfile(profile: {
+  readonly role: string
+  readonly persona?: string
+  readonly methodology?: string
+}): void {
+  const authored: ReadonlyArray<readonly [string, string]> = [
+    ['role', profile.role],
+    ['persona', profile.persona ?? ''],
+    ['methodology', profile.methodology ?? ''],
+  ]
+  for (const [name, value] of authored) {
+    if (value.trim() === '') throw new InvalidBody(`status ready requires a non-empty ${name}`)
+  }
+}
+
 /** The `create` body decoded into the repository input. */
 function parseCreate(source: Record<string, unknown>): CloneCreateInput {
   rejectUnknownFields(source, FIELDS.create)
@@ -202,6 +230,7 @@ async function dispatch(
     }
     case 'create': {
       const input = parseCreate(source)
+      if (input.status === 'ready') requireReadyProfile(input)
       const clone = (await database.repository()).createClone(input)
       onMutated?.()
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
@@ -211,7 +240,20 @@ async function dispatch(
       const id = requiredText(source, 'id', LIMITS.id) as CloneId
       const revision = requiredRevision(source)
       const patch = parsePatch(record(source['patch'], 'patch must be an object'))
-      const clone = (await database.repository()).updateClone(id, patch, revision)
+      const repository = await database.repository()
+      if (patch.status === 'ready') {
+        // The effective profile is the patch over the stored record; a clone
+        // the store does not hold falls through to the repository's 404.
+        const stored = repository.getClone(id)
+        if (stored !== undefined) {
+          requireReadyProfile({
+            role: patch.role ?? stored.role,
+            persona: patch.persona ?? stored.persona,
+            methodology: patch.methodology ?? stored.methodology,
+          })
+        }
+      }
+      const clone = repository.updateClone(id, patch, revision)
       onMutated?.()
       return ok({ ok: true, clone: toDto(clone) } satisfies CloneAnswerResponse)
     }

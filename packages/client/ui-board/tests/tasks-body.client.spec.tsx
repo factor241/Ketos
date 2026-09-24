@@ -3,7 +3,8 @@
  * Tasks window body: the task list reads the shared roster with its clone
  * filter, the row actions start, cancel, and open the task's session, the
  * report expands into Markdown plus the session's artifacts, the create form
- * stores and starts an objective, and the poll runs only while a task is active.
+ * stores and starts an objective, and the poll runs only while a visible task
+ * is active.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -241,6 +242,31 @@ describe('task actions', () => {
     expect(input.value).toBe('Собрать отчёт')
   })
 
+  it('re-enables the task controls when a gesture rejects, so it can be retried', async () => {
+    const rejections: unknown[] = []
+    const onUnhandled = (reason: unknown): void => { rejections.push(reason) }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const startTask = vi.fn()
+        .mockRejectedValueOnce(new Error('host down'))
+        .mockResolvedValueOnce('started')
+      render(<TasksBody {...tasksProps({
+        startTask,
+        roster: { loaded: true, tasks: [task({ id: 'task-1' as TaskId, status: 'pending', sessionId: null })] },
+      })} />)
+      await waitFor(() => { expect(row('task-1')).not.toBeNull() })
+
+      fireEvent.click(rowControl('task-1', 'start'))
+      await waitFor(() => { expect((rowControl('task-1', 'start') as HTMLButtonElement).disabled).toBe(false) })
+      await waitFor(() => { expect(rejections).toHaveLength(1) })
+
+      fireEvent.click(rowControl('task-1', 'start'))
+      await waitFor(() => { expect(startTask).toHaveBeenCalledTimes(2) })
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+
   it('reports a refused cancel as a conflict', async () => {
     const cancelTask = vi.fn(async () => 'conflict')
     render(<TasksBody {...tasksProps({
@@ -333,6 +359,28 @@ describe('task polling', () => {
     const settled = refreshTasks.mock.calls.length
     await act(async () => { vi.advanceTimersByTime(TASK_POLL_INTERVAL_MS * 3) })
     expect(refreshTasks.mock.calls.length).toBe(settled)
+  })
+
+  it("does not poll for another clone's active task outside the window scope", async () => {
+    vi.useFakeTimers()
+    const refreshTasks = vi.fn()
+    render(<TasksBody {...tasksProps({
+      refreshTasks,
+      roster: {
+        loaded: true,
+        tasks: [
+          task({ id: 'task-1' as TaskId, status: 'done' }),
+          task({ id: 'task-2' as TaskId, cloneId: 'clone-2' as CloneId, status: 'running' }),
+        ],
+      },
+    })} />)
+    await act(async () => { await Promise.resolve() })
+    expect(refreshTasks).toHaveBeenCalledTimes(1)
+
+    // The other clone's running task is outside this window's scope, so the
+    // interval never starts.
+    await act(async () => { vi.advanceTimersByTime(TASK_POLL_INTERVAL_MS * 3) })
+    expect(refreshTasks).toHaveBeenCalledTimes(1)
   })
 
   it('clears the poll on unmount', async () => {

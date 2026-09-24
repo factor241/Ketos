@@ -109,6 +109,26 @@ function answered(answer: Record<string, unknown>): CloneAnswerResponse {
 }
 
 /**
+ * Load one cordis.yml through the real Loader with a fixed module map.
+ * @param ctx - context carrying the services the loaded rows inject.
+ * @param configPath - file URL of the cordis.yml to include.
+ * @param modules - loader import map, holding every bare plugin the file names.
+ */
+async function loadThroughLoader(ctx: Context, configPath: string, modules: Map<string, unknown>): Promise<void> {
+  await ctx.plugin(Loader)
+  ctx.loader.builtins.include = Include
+  ctx.loader.internal = {
+    version: 'v2',
+    async import(specifier: string) {
+      if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
+      return modules.get(specifier)
+    },
+  } as unknown as NonNullable<typeof ctx.loader.internal>
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
+  await ctx.loader.await()
+}
+
+/**
  * Boot a temporary cordis.yml carrying the clone package row, against a
  * connection service that records registered routes.
  * @param withPath - whether the row config carries the database path.
@@ -157,22 +177,41 @@ async function boot(
     await ctx.plugin(GoalRoundDriver)
   }
   const connection = new RecordingConnection(ctx)
-  await ctx.plugin(Loader)
-  ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([['@ketos/clone-core', CloneCore]])
   if (withSkills) {
     modules.set('@deepseek-ai/dsh-skill', SkillRegistry)
     modules.set('@deepseek-ai/dsh-tool-skill', ToolSkill)
   }
-  ctx.loader.internal = {
-    version: 'v2',
-    async import(specifier: string) {
-      if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
-      return modules.get(specifier)
-    },
-  } as unknown as NonNullable<typeof ctx.loader.internal>
-  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
-  await ctx.loader.await()
+  await loadThroughLoader(ctx, configPath, modules)
+  return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, path }
+}
+
+/**
+ * Boot the clone package through the real Loader against only the services its
+ * root `inject` names: a connection that records routes, an agent registry with
+ * no live agents, and a projection registry. The tool and prompt registries the
+ * per-agent scope injects are deliberately absent, so activation proves the
+ * root does not depend on them.
+ * @returns the booted context, the recorded routes, and the database path.
+ */
+async function bootWithoutAgentRegistries(): Promise<Booted> {
+  root = await mkdtemp(join(tmpdir(), 'dsh-clone-loader-min-'))
+  const path = join(root, 'clones.db')
+  const configPath = join(root, 'cordis.yml')
+  await writeFile(configPath, [
+    "- name: '@ketos/clone-core'",
+    '  config:',
+    `    path: ${JSON.stringify(path)}`,
+    '',
+  ].join('\n'))
+
+  const ctx = new Context()
+  context = ctx
+  ctx.baseUrl = pathToFileURL(root).href + '/'
+  ctx.provide('agents', { roots: () => [] } as never)
+  ctx.provide('sessionProjections', { register: () => () => {} } as never)
+  const connection = new RecordingConnection(ctx)
+  await loadThroughLoader(ctx, configPath, new Map<string, unknown>([['@ketos/clone-core', CloneCore]]))
   return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, path }
 }
 
@@ -233,6 +272,34 @@ describe('clone package real Loader composition', () => {
 
     const db = await openDatabase(path)
     expect(db.prepare('SELECT name FROM clones').all()).toEqual([{ name: 'Борис' }])
+    db.close()
+  })
+
+  it('activates and serves its routes without the tool and prompt registries', async () => {
+    const { ctx, routes, withdrawn, path } = await bootWithoutAgentRegistries()
+    // Activation completed: every route is registered although no tool or
+    // prompt registry exists in this context.
+    expect(routes.get(CLONES_PATH)?.methods).toEqual(['GET', 'POST'])
+    expect(routes.get(MEMORY_PATH)?.methods).toEqual(['POST'])
+    expect(routes.get(TASKS_PATH)?.methods).toEqual(['POST'])
+    expect(ctx.get('tools')).toBeUndefined()
+    expect(ctx.get('systemPrompt')).toBeUndefined()
+    // Laziness holds: the first request is what opens the database.
+    await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
+    const created = await (routes.get(CLONES_PATH) as ConnectionFetchRoute).fetch(new Request(
+      `http://localhost${CLONES_PATH}`,
+      { method: 'POST', body: JSON.stringify({ op: 'create', name: 'Анна', role: 'Аналитик' }) },
+    ))
+    expect((await created.json() as CloneAnswerResponse).clone).toMatchObject({ name: 'Анна' })
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+
+    await ctx.fiber.dispose()
+    context = undefined
+    expect(withdrawn).toEqual([TASKS_PATH, MEMORY_PATH, CLONES_PATH])
+    expect(routes.size).toBe(0)
+    // Disposal closed the handle: the file reopens with the committed record.
+    const db = await openDatabase(path)
+    expect(db.prepare('SELECT name FROM clones').all()).toEqual([{ name: 'Анна' }])
     db.close()
   })
 
@@ -894,7 +961,14 @@ describe('clone tasks over the shipped composition', () => {
       toolCallResponse('call-report', 'clone_task_report', { summary: 'Отчёт: проверены 3 документа.' }, 'Работа сделана.'),
       textResponse('Отчёт зафиксирован.'),
     ]))
-    const created = answered(await request(clones, { op: 'create', name: 'Анна', role: 'Аналитик', status: 'ready' }))
+    const created = answered(await request(clones, {
+      op: 'create',
+      name: 'Анна',
+      role: 'Аналитик',
+      persona: 'Спокойная и точная',
+      methodology: 'Сначала факты, потом гипотезы',
+      status: 'ready',
+    }))
     const task = (await taskRequest(tasks, { op: 'create', cloneId: created.clone.id, objective: 'Проверить документы' })).task
     const agent = await ctx.agentLoop.create(SessionId('task-1'), { provider: 'mock', model: 'mock' })
     const started = await taskRequest(tasks, { op: 'start', id: task.id, sessionId: 'task-1' })

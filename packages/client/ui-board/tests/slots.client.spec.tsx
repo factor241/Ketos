@@ -76,13 +76,13 @@ describe('board slot composition', () => {
     expect(runtime.slots.spec('board.window.body')).toEqual({ kind: 'keyed', scope: 'root' })
 
     // One frame registration per window type; the conversation body, the clone
-    // card editor, and the clone memory list are the only occupied bodies (no
-    // board window ships mock tool or settings content).
+    // card editor, the clone memory list, and the task list are the occupied
+    // bodies, and the MVP-external kinds share one unavailable notice.
     expect(runtime.slots.entries('board.window').map(entry => entry.options.key)).toEqual([
       'agent', 'clone', 'connectors', 'settings', 'dashboard', 'tasks',
     ])
     expect(runtime.slots.entries('board.window.body').map(entry => entry.options.key)).toEqual([
-      'conversation', 'clone', 'clone-memory', 'tasks',
+      'conversation', 'clone', 'clone-memory', 'tasks', 'connectors', 'settings', 'dashboard',
     ])
 
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
@@ -161,11 +161,12 @@ describe('board slot composition', () => {
     expect(panel.container.querySelector('textarea')).not.toBeNull()
     expect(panel.view.getByText('Write a message to start.')).not.toBeNull()
 
-    // An unoccupied body kind renders the frame with an empty content region.
+    // A kind outside the MVP swaps in the unavailable notice, not an empty region.
     act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'connectors') })
     await runtime.flush()
     expect(panel.container.querySelector('textarea')).toBeNull()
     expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
+    expect(panel.view.getByText('This window is not available in the MVP')).not.toBeNull()
 
     act(() => { board.actions.setWindowBodyKind('a1' as WindowId, 'conversation') })
     await runtime.flush()
@@ -602,7 +603,7 @@ describe('board slot composition', () => {
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
-    expect(runtime.slots.entries('board.window.body')).toHaveLength(4)
+    expect(runtime.slots.entries('board.window.body')).toHaveLength(7)
   })
 
   it('culls a window that leaves the visible canvas and keeps its draft', async () => {
@@ -1270,7 +1271,7 @@ describe('board slot composition', () => {
       expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
       expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
       expect(runtime.slots.entries('board.window')).toHaveLength(6)
-      expect(runtime.slots.entries('board.window.body')).toHaveLength(4)
+      expect(runtime.slots.entries('board.window.body')).toHaveLength(7)
       await vi.waitFor(() => {
         expect(panel.container.querySelector('[data-surface="canvas"]')).not.toBeNull()
       })

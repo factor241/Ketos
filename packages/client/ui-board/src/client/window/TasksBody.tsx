@@ -5,9 +5,10 @@
  *
  * A row reads the stored task; the report expands in place with the task's
  * Markdown summary and the file artifacts folded from its session transcript.
- * While any task is `pending` or `running` the body re-reads the roster on the
- * shared poll interval, so a task started in another window appears and a
- * running one reaches its terminal status without a manual refresh.
+ * While any task in the window's visible scope is `pending` or `running` the
+ * body re-reads the roster on the shared poll interval, so a task started in
+ * another window appears and a running one reaches its terminal status without
+ * a manual refresh.
  */
 import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
@@ -105,11 +106,11 @@ export function TasksBody({
     () => (scoped ? roster.tasks.filter(task => task.cloneId === cloneId) : roster.tasks),
     [roster.tasks, scoped, cloneId],
   )
-  const active = roster.tasks.some(task => task.status === 'pending' || task.status === 'running')
+  const active = tasks.some(task => task.status === 'pending' || task.status === 'running')
 
-  // The shared roster is read on mount; while any task is active the same read
-  // repeats on the poll interval. The interval stops with the last active task
-  // and on unmount.
+  // The shared roster is read on mount; while any visible task is active the
+  // same read repeats on the poll interval. The interval stops with the last
+  // active visible task and on unmount.
   useEffect(() => {
     refreshTasks()
   }, [refreshTasks])
@@ -153,9 +154,12 @@ export function TasksBody({
     if (busy) return
     setBusy(true)
     setNotice(undefined)
-    const outcome = await gesture()
-    setBusy(false)
-    if (isFailure(outcome)) setNotice(outcome)
+    try {
+      const outcome = await gesture()
+      if (isFailure(outcome)) setNotice(outcome)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const onCreate = async (): Promise<void> => {
@@ -163,13 +167,16 @@ export function TasksBody({
     if (cloneId === undefined || value === '' || busy) return
     setBusy(true)
     setNotice(undefined)
-    const outcome = await createTask(cloneId, value)
-    setBusy(false)
-    if (isFailure(outcome)) {
-      setNotice(outcome)
-      return
+    try {
+      const outcome = await createTask(cloneId, value)
+      if (isFailure(outcome)) {
+        setNotice(outcome)
+        return
+      }
+      setObjective('')
+    } finally {
+      setBusy(false)
     }
-    setObjective('')
   }
 
   const toggleReport = (id: string): void => {

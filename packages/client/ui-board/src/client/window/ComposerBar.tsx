@@ -389,8 +389,16 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     }))
 
     if (command !== undefined) {
-      injected.executeCommand(windowId, text, images, promptFiles)
-      clearDraft()
+      // The command clears optimistically like a prompt, and a refusal returns
+      // the same draft: its staged receipts and retry sources included.
+      void injected.executeCommand(windowId, text, images, promptFiles).then((accepted) => {
+        if (!accepted) {
+          restoreDraft(outgoing)
+          return
+        }
+        for (const file of outgoing.files) fileSources.current.delete(file.id)
+      }, () => { restoreDraft(outgoing) })
+      resetDraftState()
       onSent()
       return
     }
@@ -468,7 +476,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     }
     const row = session?.commands.find(entry => entry.name === name)
     if (row?.hint === undefined) {
-      injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => ({
+      void injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => ({
         receiptId: file.receiptId as string,
         ...(file.file === undefined ? {} : { file: file.file }),
       })))

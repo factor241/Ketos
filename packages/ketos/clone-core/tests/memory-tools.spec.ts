@@ -1,9 +1,19 @@
-/** The memory snapshot text: rendering, truncation, and the character budget. */
+/** The memory snapshot text and the search tool's repository bound. */
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { describe, expect, it } from 'vitest'
-import { memorySnapshotText } from '../src/memory-tools.ts'
+import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { afterEach, describe, expect, it } from 'vitest'
+import { openDatabase } from '../src/db.ts'
+import { MEMORY_LIMITS, MemoryRepository } from '../src/memory.ts'
+import { cloneMemorySearchTool, memorySnapshotText } from '../src/memory-tools.ts'
+import { CloneRepository } from '../src/repository.ts'
 import type { CloneId, MemoryId, MemoryRecord } from '../src/types.ts'
+
+const cleanups: Array<() => unknown> = []
+afterEach(async () => {
+  for (const cleanup of cleanups.reverse()) await cleanup()
+  cleanups.length = 0
+})
 
 /** One active memory record with the fields the snapshot reads. */
 function memory(id: string, content: string, tags: readonly string[] = []): MemoryRecord {
@@ -80,5 +90,32 @@ describe('memory snapshot text', () => {
       expect(text.length, `budget ${String(budget)}`).toBeLessThanOrEqual(budget)
       expect(text, `budget ${String(budget)}`).toContain('1 more memory is not shown')
     }
+  })
+})
+
+describe('clone_memory_search query bound', () => {
+  it('refuses a query longer than the repository bound', async () => {
+    const db = await openDatabase(':memory:')
+    cleanups.push(() => { db.close() })
+    const clones = new CloneRepository(db)
+    const clone = clones.createClone({ name: 'Анна', role: 'Аналитик' })
+    clones.bindSession({ cloneId: clone.id, sessionId: brandString<SessionId>('session-1') })
+    const memories = new MemoryRepository(db)
+    // The tool callback mirrors the clone session scope: resolve the calling
+    // session's binding, then search through the repository.
+    const tool = cloneMemorySearchTool((sessionId, args) => {
+      const binding = clones.bindingFor(sessionId)
+      if (binding === undefined) throw new Error('session is not bound to a clone')
+      const found = memories.search(binding.cloneId, args.query, args.limit ?? MEMORY_LIMITS.searchLimit)
+      return Promise.resolve(found.map(memory => ({
+        id: memory.id,
+        content: memory.content,
+        tags: [...memory.tags],
+        status: memory.status === 'candidate' ? 'candidate' as const : 'active' as const,
+      })))
+    })
+    const exec = { agent: { id: brandString<SessionId>('session-1') } } as unknown as ToolRunContext
+    await expect(tool.execute({ query: 'x'.repeat(MEMORY_LIMITS.query + 1) }, exec))
+      .rejects.toThrow(`query exceeds ${String(MEMORY_LIMITS.query)} characters`)
   })
 })

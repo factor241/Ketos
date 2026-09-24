@@ -1,7 +1,10 @@
 /**
- * Path validation for workspace registration: isolates ~/.ketos / $DSH_HOME
- * from being used as a workspace folder and warns when registering dangerous
- * system roots or the user home directory.
+ * Path validation for workspace registration: rejects the literal ~/.ketos /
+ * ~/.dsh spellings and a path inside the reported home's runtime directories,
+ * and warns when registering dangerous system roots or the user home directory.
+ * The client knows no DSH_HOME of its own: a deployment whose runtime root
+ * moved elsewhere is refused by the host, whose `workspace/invalid-path`
+ * answer the panel localizes.
  */
 import type { BoardTranslate } from '../locale.ts'
 
@@ -14,10 +17,10 @@ export type PathValidationResult =
   | { readonly kind: 'rejected'; readonly error: string }
   | { readonly kind: 'warning'; readonly warning: string }
 
-/** Options for validating a candidate workspace directory path against home and runtime roots. */
+/** Options for validating a candidate workspace directory path against the known home directory. */
 export interface ValidateWorkspacePathOptions {
+  /** Home directory the folder listing reported; absent when the client holds no listing. */
   readonly hostHome?: string | undefined
-  readonly dshHome?: string | undefined
   readonly t: BoardTranslate
 }
 
@@ -46,9 +49,12 @@ function isSameOrInside(parentNorm: string, childNorm: string): boolean {
 
 /**
  * Validate a candidate workspace path before registration.
- * Rejects paths inside ~/.ketos or ~/.dsh; warns on system roots and user home.
+ * Rejects the literal ~/.ketos and ~/.dsh spellings, and a path inside the
+ * reported home's ~/.ketos or ~/.dsh when `hostHome` is known; warns on system
+ * roots and the user home. A runtime root the client cannot name (a moved
+ * DSH_HOME) is not detectable here and is left to the host.
  * @param rawPath - input path entered or selected by the user.
- * @param options - translation and optional home directory hints.
+ * @param options - translation and the optional reported home directory.
  * @returns validation result with localized error or warning when applicable.
  */
 export function validateWorkspacePath(
@@ -57,14 +63,13 @@ export function validateWorkspacePath(
 ): PathValidationResult {
   const trimmed = rawPath.trim()
   if (trimmed === '') {
-    return { kind: 'rejected', error: options.t('panel.error.ketosHome', { path: rawPath }) }
+    return { kind: 'rejected', error: options.t('panel.error.emptyPath') }
   }
 
   const normalized = normalizeSlashes(trimmed)
   const homeNorm = options.hostHome ? normalizeSlashes(options.hostHome) : undefined
-  const dshHomeNorm = options.dshHome ? normalizeSlashes(options.dshHome) : undefined
 
-  // 1. Check rejection for Ketos / DSH home
+  // 1. Check rejection for the literal Ketos / DSH home spellings
   if (
     normalized === '~/.ketos' || normalized.startsWith('~/.ketos/')
     || normalized === '~/.dsh' || normalized.startsWith('~/.dsh/')
@@ -78,10 +83,6 @@ export function validateWorkspacePath(
     if (isSameOrInside(ketosHome, normalized) || isSameOrInside(dshHome, normalized)) {
       return { kind: 'rejected', error: options.t('panel.error.ketosHome', { path: rawPath }) }
     }
-  }
-
-  if (dshHomeNorm && isSameOrInside(dshHomeNorm, normalized)) {
-    return { kind: 'rejected', error: options.t('panel.error.ketosHome', { path: rawPath }) }
   }
 
   // 2. Check warning for filesystem root or user home directory

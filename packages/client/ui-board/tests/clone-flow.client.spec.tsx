@@ -590,7 +590,7 @@ describe('clone interview', () => {
       fireEvent.click(field('interview') as Element)
     })
     await waitFor(() => {
-      expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' })
+      expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' }, { keepDefault: true })
     })
   })
 
@@ -766,7 +766,7 @@ describe('clone autopilot', () => {
     act(() => { fireEvent.click(field('autopilot') as Element) })
 
     await waitFor(() => {
-      expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' })
+      expect(select).toHaveBeenCalledWith({ provider: 'deepseek', model: 'deepseek-reasoner' }, { keepDefault: true })
     })
   })
 

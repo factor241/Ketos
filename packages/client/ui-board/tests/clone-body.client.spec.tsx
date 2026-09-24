@@ -15,8 +15,14 @@ import { createBoardStore } from '../src/client/store.ts'
 import { CLONE_LIMITS } from '../src/client/clone-draft.ts'
 import { CloneBody, type CloneBodyProps } from '../src/client/window/CloneBody.tsx'
 import type { BoardState } from '../src/client/store.ts'
-import type { BoardWindowState, CloneModelOption, WindowId } from '../src/client/contract/slots.ts'
+import type { BoardWindowState, CloneModelOption, CloneSaveOutcome, WindowId } from '../src/client/contract/slots.ts'
+import { zh, type BoardTranslate } from '../src/client/locale.ts'
 import { chatSnapshot, sessionState, t } from './fixtures.client.ts'
+
+/** One accepted save outcome carrying the revision the route minted. */
+function savedAt(revision: number): CloneSaveOutcome {
+  return { kind: 'saved', revision }
+}
 
 afterEach(() => { cleanup() })
 
@@ -84,7 +90,7 @@ function cloneProps(overrides: Partial<Record<string, unknown>> = {}): CloneBody
     useCloneList: (selector: (roster: { clones: readonly CloneDto[]; loaded: boolean }) => unknown) =>
       selector({ clones, loaded: overrides['cloneRosterLoaded'] !== false }),
     useWindowSession: () => undefined,
-    saveClone: vi.fn(async () => 'saved'),
+    saveClone: vi.fn(async () => savedAt(4)),
     deleteClone: vi.fn(async () => 'deleted'),
     loadCloneModels: vi.fn(async () => MODELS),
     loadCloneSessions: vi.fn(async () => []),
@@ -126,9 +132,20 @@ function saveSkill(): void {
   fireEvent.click(document.querySelector('[data-board-clone-action="skill-save"]') as HTMLElement)
 }
 
-/** One methodology structure chip by its heading. */
-function methodologyChip(heading: string): HTMLElement {
-  return document.querySelector(`[data-board-clone-methodology-section="${heading}"]`) as HTMLElement
+/** One methodology structure chip by its stable section id. */
+function methodologyChip(id: string): HTMLElement {
+  return document.querySelector(`[data-board-clone-methodology-section="${id}"]`) as HTMLElement
+}
+
+/** Locale seat over one dictionary, mirroring the fixture's en seat. */
+function dictionarySeat(dictionary: Record<string, string>): BoardTranslate {
+  return (key, params) => {
+    const values: Record<string, unknown> = params ?? {}
+    return (dictionary[key] ?? key).replace(/\{(\w+)\}/g, (_match, name: string) => {
+      const value = values[name]
+      return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+    })
+  }
 }
 
 /** Click one skill row-menu action by its localized label. */
@@ -138,7 +155,7 @@ async function clickSkillMenuAction(label: string): Promise<void> {
 
 describe('clone editor form', () => {
   it('seeds the form from the stored record and saves the edited card under its revision', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     expect(value('role')).toBe('Аналитик')
@@ -175,14 +192,14 @@ describe('clone editor form', () => {
   })
 
   it('reports a revision conflict and a vanished clone instead of overwriting', async () => {
-    const saveClone = vi.fn(async () => 'conflict' as const)
+    const saveClone = vi.fn(async () => ({ kind: 'conflict' } as const))
     const { unmount } = render(<CloneBody {...cloneProps({ saveClone })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     fireEvent.click(field('save'))
     await waitFor(() => { expect(document.querySelector('[data-board-clone-notice="conflict"]')).not.toBeNull() })
     unmount()
 
-    const missing = vi.fn(async () => 'missing' as const)
+    const missing = vi.fn(async () => ({ kind: 'missing' } as const))
     render(<CloneBody {...cloneProps({ saveClone: missing })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     fireEvent.click(field('save'))
@@ -190,7 +207,7 @@ describe('clone editor form', () => {
   })
 
   it('keeps unsaved edits when the stored revision moves and saves them on the next attempt', async () => {
-    const saveClone = vi.fn(async () => 'conflict' as const)
+    const saveClone = vi.fn(async () => ({ kind: 'conflict' } as const))
     const instance = createBoardStore().create()
     const { rerender } = render(<CloneBody {...cloneProps({ saveClone, instance })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
@@ -236,7 +253,7 @@ describe('clone editor form', () => {
   })
 
   it('picks a preferred model route and clears it back to the deployment default', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, preferredModel: null }] })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     expect(field('model').textContent).toBe('Deployment default')
@@ -253,7 +270,7 @@ describe('clone editor form', () => {
   })
 
   it('moves the lifecycle status through the pills', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     fireEvent.click(screen.getByText('Interviewing'))
@@ -267,6 +284,62 @@ describe('clone editor form', () => {
     // The accepted save minted revision 4, and the form carries it without
     // waiting for the roster read.
     expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ status: 'ready' }), 4)
+  })
+
+  it('bases the next save on the revision the server minted, not the read one', async () => {
+    const saveClone = vi.fn(async () => savedAt(7))
+    render(<CloneBody {...cloneProps({ saveClone })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    fireEvent.change(field('name'), { target: { value: 'Анна П.' } })
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
+    expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ name: 'Анна П.' }), 3)
+    await waitFor(() => { expect(document.querySelector('[data-board-clone-revision="7"]')).not.toBeNull() })
+
+    // The roster still reads revision 3; the next save must carry what the
+    // route answered, or it would race its own write.
+    fireEvent.change(field('name'), { target: { value: 'Анна В.' } })
+    fireEvent.click(field('save'))
+    await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(2) })
+    expect(saveClone).toHaveBeenLastCalledWith('clone-1', expect.objectContaining({ name: 'Анна В.' }), 7)
+  })
+
+  it('refuses to mark a profile ready while a required line is blank', async () => {
+    const saveClone = vi.fn(async () => savedAt(4))
+    render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, persona: '' }] })} />)
+    await waitFor(() => { expect(value('name')).toBe('Анна') })
+
+    fireEvent.click(screen.getByText('Ready'))
+    fireEvent.click(field('save'))
+    await waitFor(() => {
+      expect(document.querySelector('[data-board-clone-notice="ready-incomplete"]')?.textContent)
+        .toBe('Cannot mark the profile ready until the role, persona, and methodology are filled in')
+    })
+    // The route refuses the transition, so the form never sends it.
+    expect(saveClone).not.toHaveBeenCalled()
+  })
+
+  it('re-enables the form when a save rejects, so the gesture can be retried', async () => {
+    const rejections: unknown[] = []
+    const onUnhandled = (reason: unknown): void => { rejections.push(reason) }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const saveClone = vi.fn()
+        .mockRejectedValueOnce(new Error('host down'))
+        .mockResolvedValueOnce(savedAt(4))
+      render(<CloneBody {...cloneProps({ saveClone })} />)
+      await waitFor(() => { expect(value('name')).toBe('Анна') })
+      fireEvent.click(field('save'))
+
+      await waitFor(() => { expect(disabled('save')).toBe(false) })
+      await waitFor(() => { expect(rejections).toHaveLength(1) })
+
+      fireEvent.click(field('save'))
+      await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(2) })
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
   })
 
   it('adopts a clean newer revision and marks exactly the fields that moved', async () => {
@@ -311,7 +384,7 @@ describe('clone editor form', () => {
   })
 
   it('keeps text typed while a save runs and raises no phantom agent revision', async () => {
-    const deferred = Promise.withResolvers<'saved'>()
+    const deferred = Promise.withResolvers<CloneSaveOutcome>()
     const saveClone = vi.fn(async () => await deferred.promise)
     const instance = createBoardStore().create()
     const { rerender } = render(<CloneBody {...cloneProps({ saveClone, instance })} />)
@@ -320,7 +393,7 @@ describe('clone editor form', () => {
     fireEvent.click(field('save'))
     // The user keeps typing while the route works.
     fireEvent.change(field('description'), { target: { value: 'Пока идёт сохранение' } })
-    deferred.resolve('saved')
+    deferred.resolve(savedAt(4))
     await waitFor(() => { expect(saveClone).toHaveBeenCalledTimes(1) })
 
     // The stored record the accepted save produced is the user's own: it must
@@ -337,7 +410,7 @@ describe('clone editor form', () => {
   })
 
   it('does not mark the user\'s own save as an agent revision', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     const instance = createBoardStore().create()
     const { rerender } = render(<CloneBody {...cloneProps({ saveClone, instance })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
@@ -378,25 +451,49 @@ describe('clone editor form', () => {
 })
 
 describe('clone methodology structure', () => {
-  it('marks the live methodology sections and lists the gaps', async () => {
+  it('marks the live methodology sections, labels them in the interface language, and lists the gaps', async () => {
     const methodology = '## Принципы\n## Порядок работы\nСначала факты'
     render(<CloneBody {...cloneProps({ clones: [{ ...CLONE, methodology }] })} />)
     await waitFor(() => { expect(value('methodology')).toBe(methodology) })
 
-    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('empty')
-    expect(methodologyChip('Принципы').textContent).toContain('empty')
-    expect(methodologyChip('Порядок работы').getAttribute('data-state')).toBe('filled')
-    expect(methodologyChip('Критерии качества').getAttribute('data-state')).toBe('missing')
-    expect(methodologyChip('Критерии качества').textContent).toContain('missing')
-    expect(methodologyChip('Чего не делать').getAttribute('data-state')).toBe('missing')
+    expect(methodologyChip('principles').getAttribute('data-state')).toBe('empty')
+    expect(methodologyChip('principles').textContent).toContain('Principles')
+    expect(methodologyChip('principles').textContent).toContain('empty')
+    expect(methodologyChip('workflow').getAttribute('data-state')).toBe('filled')
+    expect(methodologyChip('quality').getAttribute('data-state')).toBe('missing')
+    expect(methodologyChip('quality').textContent).toContain('Quality criteria')
+    expect(methodologyChip('quality').textContent).toContain('missing')
+    expect(methodologyChip('avoid').getAttribute('data-state')).toBe('missing')
     expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent)
-      .toBe('Not filled: Принципы, Критерии качества, Чего не делать')
+      .toBe('Not filled: Principles, Quality criteria, What not to do')
     expect(field('methodology-template')).toBeNull()
+    // The chips and the hint carry the interface language alone: the canonical
+    // headings live in the stored text, never in the rendered labels.
+    const rendered = document.querySelector('[data-board-clone="methodology-sections"]')?.textContent ?? ''
+    for (const heading of ['Принципы', 'Порядок работы', 'Критерии качества', 'Чего не делать']) {
+      expect(rendered).not.toContain(heading)
+      expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent).not.toContain(heading)
+    }
 
     fireEvent.change(field('methodology'), { target: { value: '## Принципы\nСначала факты\n## Порядок работы\nСначала факты' } })
-    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('filled')
+    expect(methodologyChip('principles').getAttribute('data-state')).toBe('filled')
     expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent)
-      .toBe('Not filled: Критерии качества, Чего не делать')
+      .toBe('Not filled: Quality criteria, What not to do')
+  })
+
+  it('renders the section labels and the gap hint in the zh interface language', async () => {
+    render(<CloneBody {...cloneProps({
+      t: dictionarySeat(zh),
+      clones: [{ ...CLONE, methodology: '' }],
+    })} />)
+    await waitFor(() => { expect(value('methodology')).toBe('') })
+
+    expect(methodologyChip('principles').textContent).toContain('原则')
+    expect(methodologyChip('workflow').textContent).toContain('工作顺序')
+    expect(methodologyChip('quality').textContent).toContain('质量标准')
+    expect(methodologyChip('avoid').textContent).toContain('不要做的事')
+    expect(document.querySelector('[data-board-clone="methodology-gaps"]')?.textContent)
+      .toBe('未填写：原则, 工作顺序, 质量标准, 不要做的事')
   })
 
   it('offers the template only on a blank methodology and inserts it through the draft', async () => {
@@ -407,8 +504,8 @@ describe('clone methodology structure', () => {
     fireEvent.change(field('methodology'), { target: { value: '' } })
     fireEvent.click(field('methodology-template'))
     expect(value('methodology')).toBe(METHODOLOGY_TEMPLATE)
-    expect(methodologyChip('Принципы').getAttribute('data-state')).toBe('empty')
-    expect(methodologyChip('Критерии качества').getAttribute('data-state')).toBe('empty')
+    expect(methodologyChip('principles').getAttribute('data-state')).toBe('empty')
+    expect(methodologyChip('quality').getAttribute('data-state')).toBe('empty')
   })
 })
 
@@ -429,7 +526,7 @@ describe('clone skills', () => {
   })
 
   it('adds a skill through the modal and sends the skill object in the patch', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
     expect(document.querySelector('[data-board-clone="skills"]')?.textContent).toContain('No skills yet.')
@@ -455,7 +552,7 @@ describe('clone skills', () => {
   })
 
   it('edits a skill through the row menu and sends the new description', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, skills: [REPORT_SKILL] }] })} />)
     await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
 
@@ -582,7 +679,7 @@ describe('clone skills', () => {
   it('trims a stored padded name in the draft so its own save marks nothing', async () => {
     const padded: CloneSkill = { name: ' sql ', description: 'Разбор', instructions: '' }
     const instance = createBoardStore().create()
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     const { rerender } = render(<CloneBody {...cloneProps({ instance, saveClone, clones: [{ ...CLONE, skills: [padded] }] })} />)
     await waitFor(() => {
       expect(document.querySelector('[data-board-clone-skill-row="sql"]')).not.toBeNull()
@@ -606,7 +703,7 @@ describe('clone skills', () => {
   })
 
   it('adopts a save with a padded name as the stored value so it marks nothing', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     const instance = createBoardStore().create()
     const { rerender } = render(<CloneBody {...cloneProps({ instance, saveClone })} />)
     await waitFor(() => { expect(value('name')).toBe('Анна') })
@@ -694,7 +791,7 @@ describe('clone skills', () => {
   })
 
   it('deletes a skill through the row menu and the next save reflects it', async () => {
-    const saveClone = vi.fn(async () => 'saved' as const)
+    const saveClone = vi.fn(async () => savedAt(4))
     render(<CloneBody {...cloneProps({ saveClone, clones: [{ ...CLONE, skills: [REPORT_SKILL, DRAFT_SKILL] }] })} />)
     await waitFor(() => { expect(document.querySelector('[data-board-clone-skill-row="weekly-report"]')).not.toBeNull() })
 

@@ -466,9 +466,11 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
     expect(outcomes[3]).toBe(true)
     expect(outcomes[4]).toBe(true)
 
-    // Window 3 reports its prompt error on channel
+    // Window 3 reports its prompt error on channel: a rejection without a
+    // business code reads as the internal dictionary text, never the thrown
+    // developer message.
     const w3State = bridge.channel('w3' as WindowId).getSnapshot()
-    expect(w3State.promptError).toBe('Network gateway timeout')
+    expect(w3State.promptError).toBe('An internal service failure')
 
     // Windows 1, 2, 4, 5 and 6..10 have NO prompt errors
     for (const id of ['w1', 'w2', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'w10'] as WindowId[]) {

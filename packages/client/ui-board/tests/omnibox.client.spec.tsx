@@ -63,7 +63,7 @@ function openActionMenu(panel: SlotView<'main'>): void {
 }
 
 describe('board omnibox', () => {
-  it("sends the trimmed draft into the active chat window's session and clears the input", async () => {
+  it("sends the trimmed draft into the active chat window's session and clears the input once accepted", async () => {
     const { runtime, panel, board, prompt } = await bench()
     act(() => { board.actions.openWindow(agentWindow('a1' as WindowId)) })
     await runtime.flush()
@@ -71,13 +71,42 @@ describe('board omnibox', () => {
     const input = panel.container.querySelector('[data-board-action="omnibar-input"]') as HTMLInputElement
     fireEvent.change(input, { target: { value: '  hello omnibox  ' } })
     fireEvent.click(panel.container.querySelector('[data-board-action="omnibar-send"]') as Element)
-    // The draft leaves the Omnibox at once; delivery reaches the bridge next.
-    expect(input.value).toBe('')
 
     await runtime.flush()
     expect(prompt).toHaveBeenCalledWith(
       [{ type: 'text', text: 'hello omnibox' }], 'queue', undefined, expect.anything(),
     )
+    // The draft leaves the field only after the host accepted it.
+    expect(input.value).toBe('')
+  })
+
+  it('keeps the typed draft when the host refuses the prompt and returns it on the next send', async () => {
+    let refuse = true
+    const prompt = vi.fn(async () => refuse
+      ? { ok: false as const, error: { code: 'session/agent-busy', message: 'busy' } }
+      : { ok: true as const, value: { accepted: true } })
+    const prepared = await createBoardBench({ session: { prompt } })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = prepared.runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(agentWindow('a1' as WindowId)) })
+    await prepared.runtime.flush()
+
+    const input = panel.container.querySelector('[data-board-action="omnibar-input"]') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'refused draft' } })
+    fireEvent.click(panel.container.querySelector('[data-board-action="omnibar-send"]') as Element)
+    await prepared.runtime.flush()
+
+    // A refusal is not a send: the field still holds what the user typed.
+    expect(prompt).toHaveBeenCalledOnce()
+    expect(input.value).toBe('refused draft')
+
+    refuse = false
+    fireEvent.click(panel.container.querySelector('[data-board-action="omnibar-send"]') as Element)
+    await prepared.runtime.flush()
+    expect(prompt).toHaveBeenCalledTimes(2)
+    expect(input.value).toBe('')
   })
 
   it('opens a new agent window when no chat window is active and sends there', async () => {

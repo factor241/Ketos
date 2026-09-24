@@ -87,6 +87,37 @@ function queueAttachments(content: QueuedMessage['content']): readonly BoardQueu
 const ADD_SECTION = ['file', 'goal', 'plan', 'feedback'] as const
 const COMMANDS_SECTION = ['compact', 'permission', 'model', 'export'] as const
 
+/** Dictionary text of every Remote failure code the board's prompt and command paths carry. */
+const FAILURE_KEYS = {
+  'session/agent-busy': 'failure.agentBusy',
+  'session/model-unavailable': 'failure.modelUnavailable',
+  'session/attachment-invalid': 'failure.attachmentInvalid',
+  'session/not-found': 'failure.sessionMissing',
+  'session/queue-item-not-found': 'failure.queueMissing',
+  'session/steer-unavailable': 'failure.steerUnavailable',
+  'session/conflict': 'failure.sessionConflict',
+  'agent-preset/conflict': 'failure.presetConflict',
+  'workspace/not-found': 'failure.workspaceMissing',
+  'gateway/bad-request': 'failure.rejected',
+  'gateway/internal': 'failure.internal',
+} as const satisfies Record<string, Parameters<BoardTranslate>[0]>
+
+/**
+ * The Remote failure a thrown create error carries, when it has one:
+ * `SessionCreateError` and `WorkspaceCreateError` expose the Host's structured
+ * failure, while any other thrown value has no business code to map.
+ * @param error - the caught value.
+ * @returns the carried `{ code, message }`, or undefined without one.
+ */
+function carriedFailure(error: unknown): { code: string; message: string } | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const { rpcError } = error as { rpcError?: unknown }
+  if (typeof rpcError !== 'object' || rpcError === null) return undefined
+  const { code, message } = rpcError as { code?: unknown; message?: unknown }
+  if (typeof code !== 'string' || typeof message !== 'string') return undefined
+  return { code, message }
+}
+
 /** Empty composer state shared as the initial snapshot. */
 function emptyState(): BoardWindowSessionState {
   return {
@@ -303,7 +334,7 @@ export class BoardSessionBridge {
       // A carrier rejection reaches no settlement of its own: the echo is
       // abandoned here so a refused prompt never leaves a phantom message.
       submission.abandon()
-      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
+      this.patch(windowId, { promptError: this.thrownFailureText(error) })
       return false
     }
   }
@@ -334,15 +365,17 @@ export class BoardSessionBridge {
    * @param line - full command line, leading slash included.
    * @param images - inline images carried with the command.
    * @param files - staged file receipts carried with the command.
+   * @returns whether the host accepted the command, so the composer can return
+   * a refused draft.
    */
-  executeCommand(
+  async executeCommand(
     windowId: WindowId,
     line: string,
     images: readonly BoardDraftImage[] = [],
     files: readonly BoardPromptFile[] = [],
-  ): void {
+  ): Promise<boolean> {
     const sessionId = this.windows.get(windowId)?.sessionId
-    if (sessionId === undefined) return
+    if (sessionId === undefined) return false
     const attachments = [
       ...images.map(image => ({
         type: 'image' as const,
@@ -353,19 +386,26 @@ export class BoardSessionBridge {
       ...files.map(file => ({ type: 'file' as const, receiptId: file.receiptId as never })),
     ]
     this.patch(windowId, { commandError: undefined, promptError: undefined })
-    void this.ctx.remote.commands.execute(sessionId, line, attachments).then((result) => {
+    try {
+      const result = await this.ctx.remote.commands.execute(sessionId, line, attachments)
       if (!result.ok) {
         this.patch(windowId, { commandError: this.failureText(result.error) })
-        return
+        return false
       }
       if (result.value === undefined) {
         this.patch(windowId, { commandError: this.t('command.unknown', { name: line.trim().split(/\s/, 1)[0] ?? line }) })
-        return
+        return false
       }
-      this.patch(windowId, { commandError: result.value.result.kind === 'error' ? result.value.result.text : undefined })
-    }).catch((error: unknown) => {
-      this.patch(windowId, { commandError: error instanceof Error ? error.message : String(error) })
-    })
+      if (result.value.result.kind === 'error') {
+        this.patch(windowId, { commandError: result.value.result.text })
+        return false
+      }
+      this.patch(windowId, { commandError: undefined })
+      return true
+    } catch (error) {
+      this.patch(windowId, { commandError: this.thrownFailureText(error) })
+      return false
+    }
   }
 
   /**
@@ -398,9 +438,25 @@ export class BoardSessionBridge {
     return this.ctx.locale.bind(NS)(key, params)
   }
 
-  /** One-line rendering of a remote failure. */
+  /**
+   * One-line rendering of a remote failure: the dictionary text of a known
+   * code, or the generic text naming an unrecognized one. The wire message is
+   * developer English, so it is never what the user reads.
+   */
   private failureText(error: { code: string; message: string }): string {
-    return `${error.code}: ${error.message}`
+    const key = (FAILURE_KEYS as Record<string, Parameters<BoardTranslate>[0] | undefined>)[error.code]
+    return key === undefined ? this.t('failure.unknown', { code: error.code }) : this.t(key)
+  }
+
+  /**
+   * One-line rendering of a failure that was thrown rather than returned: a
+   * value carrying the Host's structured failure maps by code, while anything
+   * else is the internal text, because a thrown carrier error's message is
+   * developer English no user should read.
+   */
+  private thrownFailureText(error: unknown): string {
+    const carried = carriedFailure(error)
+    return carried === undefined ? this.t('failure.internal') : this.failureText(carried)
   }
 
   /**
@@ -492,12 +548,18 @@ export class BoardSessionBridge {
    * Switch the model or the reasoning effort of the window's session.
    * @param windowId - window identity.
    * @param selection - complete selection (provider, model, optional effort).
+   * @param options - `keepDefault` applies the selection to this Session only and leaves the
+   * stored deployment default for new Sessions untouched; absent saves it as that default.
    */
-  selectModel(windowId: WindowId, selection: { provider: string; model: string; reasoningEffort?: string }): void {
+  selectModel(
+    windowId: WindowId,
+    selection: { provider: string; model: string; reasoningEffort?: string },
+    options?: { readonly keepDefault?: boolean },
+  ): void {
     const sessionId = this.record(windowId).sessionId
     if (sessionId === undefined) return
-    void this.ctx.modelDirectories.directoryFor(sessionId).select(selection).catch((error: unknown) => {
-      this.patch(windowId, { promptError: error instanceof Error ? error.message : String(error) })
+    void this.ctx.modelDirectories.directoryFor(sessionId).select(selection, options).catch((error: unknown) => {
+      this.patch(windowId, { promptError: this.thrownFailureText(error) })
     })
   }
 
@@ -542,7 +604,7 @@ export class BoardSessionBridge {
       if (result.ok) return
       this.patch(windowId, { queueError: this.failureText(result.error) })
     }).catch((error: unknown) => {
-      this.patch(windowId, { queueError: error instanceof Error ? error.message : String(error) })
+      this.patch(windowId, { queueError: this.thrownFailureText(error) })
     })
   }
 
@@ -936,7 +998,7 @@ export class BoardSessionBridge {
       // The live event stream exists only for the session opened as current.
       this.ctx.sessions.open(sessionId)
       const owner = this.ctx.sessions.binding(sessionId)
-      if (owner === undefined) throw new Error(`board: session "${sessionId}" is not addressable when the window attaches`)
+      if (owner === undefined) throw new Error(this.t('failure.session'))
       const chat = this.ctx.uiConversation.binding(sessionId).target('chat')
       const { session } = owner
       const { projections } = session
@@ -1011,7 +1073,6 @@ export class BoardSessionBridge {
           goal: goal == null ? undefined : {
             objective: goal.goal.objective,
             phase: goal.goal.phase,
-            activation: 'armed',
           },
           queue,
           pending,
@@ -1254,14 +1315,19 @@ export class BoardSessionBridge {
     this.applyDefaultPreset(windowId, sessionId)
   }
 
-  /** Publish one failure onto the window's channel. */
+  /**
+   * Publish one creation failure onto the window's channel: the mapped text of
+   * the Remote failure a create error carries, or the generic session text.
+   * Raw `Error.message` is developer English and never reaches the user.
+   */
   private fail(windowId: WindowId, error: unknown): void {
     const channel = this.record(windowId).channel
+    const carried = carriedFailure(error)
     channel.publish({
       ...channel.getSnapshot(),
       status: 'error',
       running: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: carried === undefined ? this.t('failure.session') : this.failureText(carried),
     })
   }
 

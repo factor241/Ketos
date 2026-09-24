@@ -60,7 +60,7 @@ kind: "package-reference"
 
 失败应答为 HTTP 状态码加 `{ ok: false, error }`：`400` `ketos/invalid`、`404` `ketos/clone-not-found`、`409` `ketos/clone-conflict`。请求体在路由处逐字段校验，且校验先于数据库打开，因此畸形请求不会创建文件。意外的内部故障（例如数据库无法打开）以 `500` 加纯文本正文应答、不带错误码，客户端不会把它当作领域错误码。
 
-`patch` 接受 `name`、`role`、`description`、`persona`、`methodology`、`preferredModel`、`skills` 与 `status`；`status` 是 `draft`、`interviewing`、`ready` 之一，绑定中的 `role` 是 `main`、`interview` 之一。每个技能是一个 `{ name, description, instructions }` 对象：名称在列表内唯一并符合 skill 注册表的 kebab-case 语法（`^[a-z0-9]+(?:-[a-z0-9]+)*$`，至多 64 字符），描述至多 500 字符，指令至多 20000 字符，列表至多 100 个技能——路由在数据库打开之前，随请求体其余部分一起校验全部这些约束。每次获准的写入都会通知克隆会话协调器，后者重新派生每个存活顶层 agent 的 scope，并刷新其档案文本与记忆快照。
+`patch` 接受 `name`、`role`、`description`、`persona`、`methodology`、`preferredModel`、`skills` 与 `status`；`status` 是 `draft`、`interviewing`、`ready` 之一，绑定中的 `role` 是 `main`、`interview` 之一。只有生效的 `role`、`persona` 与 `methodology` 均非空时，存储 `ready` 的请求才会被接受（`update` 的每个字段在有补丁值时取补丁值，否则取存储记录的值）。每个技能是一个 `{ name, description, instructions }` 对象：名称在列表内唯一并符合 skill 注册表的 kebab-case 语法（`^[a-z0-9]+(?:-[a-z0-9]+)*$`，至多 64 字符），描述至多 500 字符，指令至多 20000 字符，列表至多 100 个技能——路由在数据库打开之前，随请求体其余部分一起校验全部这些约束。每次获准的写入都会通知克隆会话协调器，后者重新派生每个存活顶层 agent 的 scope，并刷新其档案文本与记忆快照。
 
 ### 记忆路由
 
@@ -73,7 +73,7 @@ kind: "package-reference"
 | `POST` | `{ op: 'update', id, patch }` | `{ ok: true, memory }` |
 | `POST` | `{ op: 'delete', id }` | `{ ok: true, id }` |
 
-失败应答为 `400` `ketos/invalid` 与 `404` `ketos/memory-not-found`。`patch` 接受 `content`（至多 4000 字符）、`tags`（至多 50 个单行标签、每个 100 字符，且不得含逗号——逗号是记忆窗口的分隔符）与 `status`（`active`、`candidate`、`archived`）；仓库拒绝同样的边界，因此绕过路由的工具会以完全相同的方式被拒绝为 `ketos/invalid-memory`。搜索查询必须至少含一个字母或数字，且不得含控制字符；路由在打开数据库之前构建 MATCH 表达式，因此被拒绝的查询绝不会创建文件。不带 `status` 的 `list` 返回所有状态；不带 `status` 的 `search` 返回除 `archived` 外的所有状态，显式指定 `status` 则限定结果。每次获准的写入都会通知克隆会话协调器，因此受影响 agent 的下一个轮次会带上该变更。
+失败应答为 `400` `ketos/invalid` 与 `404` `ketos/memory-not-found`。`patch` 接受 `content`（至多 4000 字符）、`tags`（至多 50 个单行标签、每个 100 字符，且不得含逗号——逗号是记忆窗口的分隔符）与 `status`（`active`、`candidate`、`archived`）；仓库拒绝同样的边界，因此绕过路由的工具会以完全相同的方式被拒绝为 `ketos/invalid-memory`。搜索查询至多 1000 字符，必须至少含一个字母或数字，且不得含控制字符；仓库拒绝同样的边界，因此 `clone_memory_search` 会以完全相同的方式被拒绝为 `ketos/invalid-memory`。路由在打开数据库之前构建 MATCH 表达式，因此被拒绝的查询绝不会创建文件。不带 `status` 的 `list` 返回所有状态；不带 `status` 的 `search` 返回除 `archived` 外的所有状态，显式指定 `status` 则限定结果。每次获准的写入都会通知克隆会话协调器，因此受影响 agent 的下一个轮次会带上该变更。
 
 ### 任务路由
 
@@ -92,8 +92,8 @@ kind: "package-reference"
 ### 可观察行为
 
 - **打开是惰性的。** 配置会挂载插件并注册路由，但 `node:sqlite` 的导入与文件打开发生在首次克隆请求或首个恢复的会话时——从磁盘恢复的会话可能是一场访谈，因此必须查询它。所有聊天都是新的、且从不触碰克隆的进程绝不会打开该文件。
-- **文件仅属主可访问。** 父目录以 `0700` 创建，缺失的数据库文件以 `0600` 创建；已存在的文件保留其权限。数据库以 WAL 模式运行，`application_id` 为 `KTCL`，`user_version` 为 `5`。
-- **克隆有三种生命周期状态。** `draft` 是手工创建的记录，`interviewing` 是访谈会话正在草拟其档案的克隆，`ready` 是已保存、等待人检查的档案。只有 `interviewing` 会组合访谈模式。
+- **文件仅属主可访问。** 父目录以 `0700` 创建，缺失的数据库文件以 `0600` 创建；已存在的文件保留其权限。数据库以 WAL 模式运行，`application_id` 为 `KTCL`，`user_version` 为 `5`；每个连接在失败前最多等待 5000 毫秒以获取其他进程的锁。
+- **克隆有三种生命周期状态。** `draft` 是手工创建的记录，`interviewing` 是访谈会话正在草拟其档案的克隆，`ready` 是完整档案——角色、角色设定与方法论均非空——已保存并等待人检查。只有 `interviewing` 会组合访谈模式。
 - **外来数据库被拒绝。** 由其他应用写入的 `application_id`、比本构建更新的 `user_version`，或不是 SQLite 数据库的文件，都会在打开时被拒绝而不是被改写。没有戳记的空 SQLite 文件会被采用。
 - **写入按修订号校验。** 仅当存储的 `revision` 仍等于调用方读到的值时，`update` 与 `delete` 才会生效；否则应答 `ketos/clone-conflict`，存储记录保持不变。一个会话最多绑定一个克隆，且同一会话的最新绑定生效。
 - **访谈只自行开启一次。** 会话进入该模式时，包通过 `agent.followup` 排入一条开场消息，并带来源种类 `ketos-clone-interview`。待处理收件箱、排队闩锁与持久会话日志共同回答开场是否存在：仍在等待轮次的开场，或已经记录过的那一条，都会抑制第二次——包括在驱动器认领该消息与把它追加到日志之间的那段窗口——而被取消的轮次丢弃的开场会被再次排队。重启后仍处于待处理的那条消息会在恢复时被认领，且同一条消息会被复用，因此恢复的会话绝不会被访谈两次。

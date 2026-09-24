@@ -84,8 +84,13 @@ export class ModelDirectory {
    * projection frame updates the shared current; failures surface on the store
    * and throw so each entry's own retry surface engages.
    * @param selection - provider, provider-owned model id, and optional adapter-owned effort.
- */
-  async select(selection: ModelSelection): Promise<void> {
+   * @param options - `keepDefault` applies the selection to this Session only and leaves the
+   * stored deployment default for new Sessions untouched; absent saves it as that default.
+   */
+  async select(
+    selection: ModelSelection,
+    options?: { readonly keepDefault?: boolean },
+  ): Promise<void> {
     this.assertAvailable()
     const generation = ++this.generation
     this.store.update((s) => { s.status = 'selecting'; s.error = null })
@@ -96,6 +101,7 @@ export class ModelDirectory {
       ...selection.reasoningEffort === undefined
         ? {}
         : { reasoningEffort: selection.reasoningEffort },
+      ...options?.keepDefault === true ? { keepDefault: true } : {},
     })
     if (this.disposed || generation !== this.generation) {
       if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)

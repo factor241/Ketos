@@ -51,6 +51,7 @@ import { ConversationBody } from './window/ConversationBody.tsx'
 import { CloneBody } from './window/CloneBody.tsx'
 import { CloneMemoryBody } from './window/CloneMemoryBody.tsx'
 import { TasksBody } from './window/TasksBody.tsx'
+import { MvpUnavailableBody } from './window/MvpUnavailableBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
 import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
@@ -218,9 +219,9 @@ export function apply(ctx: ClientContext): void {
     }
     const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
     if (route !== undefined) {
-      // The selection is best effort, as the clone window's own model chip is:
-      // a refused route leaves the deployment default and the task still runs.
-      await ctx.modelDirectories.directoryFor(sessionId).select(route).catch(() => undefined)
+      // The clone's preferred model applies to this task's session only: the
+      // deployment default new chats use must not move because a clone ran.
+      await ctx.modelDirectories.directoryFor(sessionId).select(route, { keepDefault: true }).catch(() => undefined)
     }
     const result = await startTaskRequest(taskId, sessionId)
     refreshTasks()
@@ -345,10 +346,10 @@ export function apply(ctx: ClientContext): void {
     openWorkspacePath: (path, action) => bridge.openWorkspacePath(path, action),
     selectAgentPreset: (windowId, presetId) => { bridge.selectAgentPreset(windowId, presetId) },
     selectPermission: (windowId, presetId) => { bridge.selectPermission(windowId, presetId) },
-    selectModel: (windowId, selection) => { bridge.selectModel(windowId, selection) },
+    selectModel: (windowId, selection, options) => { bridge.selectModel(windowId, selection, options) },
     exitPlanMode: (windowId) => { bridge.exitPlanMode(windowId) },
     runCommand: (windowId, line) => { bridge.runCommand(windowId, line) },
-    executeCommand: (windowId, line, images, files) => { bridge.executeCommand(windowId, line, images, files) },
+    executeCommand: (windowId, line, images, files) => bridge.executeCommand(windowId, line, images, files),
     uploadFile: (windowId, name, bytes) => bridge.uploadFile(windowId, name, bytes),
     updateQueueItem: (windowId, itemId, action) => { bridge.updateQueueItem(windowId, itemId, action) },
     loadQueueImage: (windowId, attachment) => bridge.loadQueueImage(windowId, attachment),
@@ -369,19 +370,20 @@ export function apply(ctx: ClientContext): void {
       const result = await updateCloneRequest(cloneId, patch, revision)
       if (result.ok) {
         refreshClones()
-        return 'saved'
+        // The route mints the revision; the form bases its next save on it.
+        return { kind: 'saved', revision: result.value.revision }
       }
       if (result.code === 'ketos/clone-conflict') {
         // The stored record moved; re-read it so the form's next save carries
         // the current revision and the banner can name what happened.
         refreshClones()
-        return 'conflict'
+        return { kind: 'conflict' }
       }
       if (result.code === 'ketos/clone-not-found') {
         refreshClones()
-        return 'missing'
+        return { kind: 'missing' }
       }
-      return 'failed'
+      return { kind: 'failed' }
     },
     deleteClone: async (cloneId: CloneId, revision: number) => {
       const result = await deleteCloneRequest(cloneId, revision)
@@ -502,7 +504,9 @@ export function apply(ctx: ClientContext): void {
           return 'failed'
         }
         const route = clone.preferredModel === null ? undefined : parseModelRoute(clone.preferredModel)
-        if (route !== undefined) bridge.selectModel(windowId, route)
+        // The interview's preferred model applies to its session only; the
+        // deployment default new chats use stays where the user left it.
+        if (route !== undefined) bridge.selectModel(windowId, route, { keepDefault: true })
         // The status write is the user's own gesture, so the form must not show
         // it as a revision the agent made: re-base the stored status it holds.
         const edit = instance.getSnapshot().cloneEdits[clone.id]
@@ -648,7 +652,9 @@ export function apply(ctx: ClientContext): void {
   })
 
   // The conversation body serves every chat window; the clone body is the
-  // clone card editor inside a clone window.
+  // clone card editor inside a clone window. The connectors, settings, and
+  // dashboard windows are outside the MVP, so they share one unavailable body
+  // instead of rendering an empty content region.
   ctx.slots.inject('board.window.body', function* () {
     yield ctx.slots.register({
       name: 'board.window.body',
@@ -678,6 +684,27 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: injected,
     }, TasksBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'connectors',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, MvpUnavailableBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'settings',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, MvpUnavailableBody)
+    yield ctx.slots.register({
+      name: 'board.window.body',
+      key: 'dashboard',
+      store: boardStore,
+      locale: NS,
+      inject: injected,
+    }, MvpUnavailableBody)
   })
 
   ctx.slots.inject('board.dock', () => ctx.slots.register({

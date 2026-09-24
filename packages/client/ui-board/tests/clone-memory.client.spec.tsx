@@ -138,6 +138,32 @@ describe('clone memory editing', () => {
     expect(document.querySelector('[data-board-memory="content"]')).not.toBeNull()
   })
 
+  it('re-enables the row when a save rejects, so the gesture can be retried', async () => {
+    const rejections: unknown[] = []
+    const onUnhandled = (reason: unknown): void => { rejections.push(reason) }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const saveMemory = vi.fn()
+        .mockRejectedValueOnce(new Error('host down'))
+        .mockResolvedValueOnce('saved' as const)
+      render(<CloneMemoryBody {...memoryProps({
+        loadMemories: vi.fn(async () => ({ ok: true as const, memories: [memory('m1', 'Факт')] })),
+        saveMemory,
+      })} />)
+      await waitFor(() => { expect(screen.getByText('Факт')).not.toBeNull() })
+
+      fireEvent.click(control('edit'))
+      fireEvent.click(control('save'))
+      await waitFor(() => { expect((control('save') as HTMLButtonElement).disabled).toBe(false) })
+      await waitFor(() => { expect(rejections).toHaveLength(1) })
+
+      fireEvent.click(control('save'))
+      await waitFor(() => { expect(saveMemory).toHaveBeenCalledTimes(2) })
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+
   it('removes a memory only after the confirmation and drops it from the list', async () => {
     const rows = [memory('m1', 'Временный факт')]
     const loadMemories = vi.fn(async () => ({ ok: true as const, memories: [...rows] }))

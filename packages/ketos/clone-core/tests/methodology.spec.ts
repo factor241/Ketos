@@ -1,6 +1,35 @@
-/** The canonical methodology vocabulary: the template, the parser, and the gap list. */
+/** The canonical methodology vocabulary: the headings, the template, the parser, and the gap list. */
 import { describe, expect, it } from 'vitest'
-import { METHODOLOGY_SECTIONS, METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections } from '../src/methodology.ts'
+import {
+  METHODOLOGY_SECTION_IDS, METHODOLOGY_SECTIONS, METHODOLOGY_TEMPLATE, methodologyGaps, methodologySections,
+} from '../src/methodology.ts'
+
+describe('the canonical methodology vocabulary', () => {
+  it('pins the canonical headings and the template literal, so a rename fails', () => {
+    expect(METHODOLOGY_SECTIONS).toEqual(['Принципы', 'Порядок работы', 'Критерии качества', 'Чего не делать'])
+    expect(METHODOLOGY_TEMPLATE).toBe([
+      '## Принципы',
+      '',
+      '## Порядок работы',
+      '',
+      '## Критерии качества',
+      '',
+      '## Чего не делать',
+      '',
+    ].join('\n'))
+  })
+
+  it('maps every canonical heading to one unique stable interface id', () => {
+    expect(METHODOLOGY_SECTION_IDS).toEqual({
+      'Принципы': 'principles',
+      'Порядок работы': 'workflow',
+      'Критерии качества': 'quality',
+      'Чего не делать': 'avoid',
+    })
+    expect(Object.keys(METHODOLOGY_SECTION_IDS)).toEqual([...METHODOLOGY_SECTIONS])
+    expect(new Set(Object.values(METHODOLOGY_SECTION_IDS)).size).toBe(METHODOLOGY_SECTIONS.length)
+  })
+})
 
 describe('the canonical methodology template', () => {
   it('carries every canonical heading, in canonical order, with unfilled bodies', () => {

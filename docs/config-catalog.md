@@ -3442,7 +3442,7 @@ Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages
 
 ## `@ketos/clone-core`
 
-Requires: `connection` · `agents` · `sessionProjections` · `tools` · `systemPrompt`
+Requires: `connection` · `agents` · `sessionProjections`
 
 ```ts config-catalog
 /** Deployment configuration of the clone domain. */
@@ -3470,7 +3470,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/ketos/clone-core/src/index.ts:43`](../packages/ketos/clone-core/src/index.ts)
+Source: [`packages/ketos/clone-core/src/index.ts:44`](../packages/ketos/clone-core/src/index.ts)
 
 ## Loadable plugins with no config
 

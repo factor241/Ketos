@@ -24,9 +24,6 @@ import { fail, InvalidBody, NO_STORE, ok, optionalStringList, optionalText, reco
 /** Exact Fetch route path owning the clone memory domain. */
 export const MEMORY_PATH = '/api/ketos.memory'
 
-/** Longest accepted search text; the repository refuses the same bound. */
-const QUERY_LIMIT = 1000
-
 /** Longest accepted memory identity and clone identity on the wire. */
 const ID_LIMIT = 200
 
@@ -120,7 +117,7 @@ async function dispatchMemory(request: {
     case 'search': {
       rejectUnknownFields(source, FIELDS.search)
       const cloneId = requiredText(source, 'cloneId', ID_LIMIT) as CloneId
-      const query = requiredText(source, 'query', QUERY_LIMIT)
+      const query = requiredText(source, 'query', MEMORY_LIMITS.query)
       // Build the MATCH expression before the repository opens the database: an
       // unsearchable query must be refused without creating the file.
       memoryMatchExpression(query)

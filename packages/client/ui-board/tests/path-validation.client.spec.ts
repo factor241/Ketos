@@ -8,11 +8,10 @@ const mockT: BoardTranslate = (key, params) => {
 
 describe('validateWorkspacePath', () => {
   const hostHome = '/Users/testuser'
-  const dshHome = '/custom/dsh/home'
 
-  it('rejects empty paths', () => {
+  it('rejects an empty path with the empty-path message', () => {
     const result = validateWorkspacePath('  ', { hostHome, t: mockT })
-    expect(result.kind).toBe('rejected')
+    expect(result).toEqual({ kind: 'rejected', error: 'panel.error.emptyPath:{}' })
   })
 
   it('rejects ~/.ketos and subpaths', () => {
@@ -27,7 +26,10 @@ describe('validateWorkspacePath', () => {
   })
 
   it('rejects hostHome/.ketos and subpaths', () => {
-    expect(validateWorkspacePath('/Users/testuser/.ketos', { hostHome, t: mockT }).kind).toBe('rejected')
+    expect(validateWorkspacePath('/Users/testuser/.ketos', { hostHome, t: mockT })).toEqual({
+      kind: 'rejected',
+      error: 'panel.error.ketosHome:{"path":"/Users/testuser/.ketos"}',
+    })
     expect(validateWorkspacePath('/Users/testuser/.ketos/workspace', { hostHome, t: mockT }).kind).toBe('rejected')
   })
 
@@ -36,9 +38,11 @@ describe('validateWorkspacePath', () => {
     expect(validateWorkspacePath('/Users/testuser/.dsh/data', { hostHome, t: mockT }).kind).toBe('rejected')
   })
 
-  it('rejects custom dshHome and subpaths', () => {
-    expect(validateWorkspacePath('/custom/dsh/home', { dshHome, t: mockT }).kind).toBe('rejected')
-    expect(validateWorkspacePath('/custom/dsh/home/sub', { dshHome, t: mockT }).kind).toBe('rejected')
+  it('leaves a runtime home the client cannot name to the host', () => {
+    // The client knows no DSH_HOME: without hostHome the moved-root path is
+    // not detectable here and stays valid for the host's own refusal.
+    expect(validateWorkspacePath('/custom/dsh/home', { t: mockT }).kind).toBe('valid')
+    expect(validateWorkspacePath('/custom/dsh/home/sub', { t: mockT }).kind).toBe('valid')
   })
 
   it('warns on filesystem root', () => {

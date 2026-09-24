@@ -61,6 +61,8 @@ git merge --no-ff <тег> -m "Merge upstream <тег> into main"
 
 | Файл | Правка | Зачем | Проверка |
 |---|---|---|---|
+| `packages/api/session-controller/src/types.ts`, `src/commands.ts` | `SessionSelectModelRequest.keepDefault?: boolean`: `selectModel` сохраняет системный дефолт `agent-default-model` только когда признак не выставлен | Старт интервью и автономной задачи клона выбирает предпочтительную модель клона, не меняя модель новых обычных чатов (этап 21, пункт П4) | `packages/api/session-controller/tests/session-models.host.spec.ts` — «keeps the stored default when a selection asks to keep it» |
+| `packages/client/ui-model-selection/src/client/directory.ts` | `select(selection, options?: { keepDefault?: boolean })` — признак доходит до запроса `session.selectModel` и передаётся только при `true` | Вторая половина правки П4: выбор модели клона доски идёт тем же путём `ModelDirectory`, что и чип композера, но просит не сохранять системный дефолт (этап 21) | `packages/client/ui-model-selection/tests/browser-plugin.client.spec.ts` — «sends keepDefault only when the caller asks to leave the deployment default alone» |
 | `packages/client/ui-primitives/src/Tooltip.tsx` | Пока пузырь видим, движение указателя за пределами якоря снимает hover и скрывает пузырь (`pointermove` на `document`, фаза захвата) | Якорь, уехавший из-под неподвижного указателя (смена режима окна, перекладка раскладки), не получает `mouseleave`, и пузырь оставался навсегда — живой репро на кнопке полного экрана (`ketos-6kt`) | `packages/client/ui-primitives/tests/tooltip.client.spec.tsx` — «hides the bubble when its anchor relocates under a still pointer» (падает без правки), «keeps the bubble while the pointer moves inside the anchor» |
 
 ## Правило

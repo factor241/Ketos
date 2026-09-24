@@ -60,6 +60,20 @@ type DropKey = string | null
 /** Inert selector equality: a collapsed panel ignores every store change. */
 const alwaysEqual = (): boolean => true
 
+/**
+ * Whether a caught workspace-create failure is the host's refusal of a runtime
+ * path: `WorkspaceCreateError` carries the Host's `rpcError.code`, while any
+ * other thrown value has no business code to map.
+ * @param error - the caught value.
+ * @returns whether the failure carries the host's `workspace/invalid-path` code.
+ */
+function isInvalidPathRefusal(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const { rpcError } = error as { rpcError?: unknown }
+  if (typeof rpcError !== 'object' || rpcError === null) return false
+  return (rpcError as { code?: unknown }).code === 'workspace/invalid-path'
+}
+
 /** Relative age of one chat row, in the board's short units. */
 function ageLabel(updatedAt: number, t: WindowChatsPanelProps['t']): string {
   const { unit, n } = relativeTime(updatedAt, Date.now())
@@ -185,13 +199,30 @@ function WindowChatsPanelView({
         setPathCopied(false)
         pathTimeoutRef.current = null
       }, 1500)
+    }, () => {
+      setError(t('panel.copy.failed'))
     })
-  }, [projectPath])
+  }, [projectPath, t])
 
   const openFolder = useCallback(() => {
     if (!projectPath) return
     void openWorkspacePath(projectPath).catch(report)
   }, [projectPath, openWorkspacePath, report])
+
+  /**
+   * Register one workspace path and return to the projects level. The host
+   * refuses a runtime path the client could not name (a moved DSH_HOME); that
+   * refusal shows the localized ketos-home text, every other failure reports.
+   */
+  const registerWorkspace = (path: string): void => {
+    void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch((failure: unknown) => {
+      if (isInvalidPathRefusal(failure)) {
+        setError(t('panel.error.ketosHome', { path }))
+        return
+      }
+      report(failure)
+    })
+  }
 
   const handleSelectFolder = (path: string, home?: string): void => {
     const res = validateWorkspacePath(path, { hostHome: home, t })
@@ -203,7 +234,7 @@ function WindowChatsPanelView({
       setEdit({ step: 'confirm-path', kind: 'path', path, warning: res.warning })
       return
     }
-    void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch(report)
+    registerWorkspace(path)
   }
 
   useEffect(() => {
@@ -377,7 +408,7 @@ function WindowChatsPanelView({
     setEdit(null)
     if (current === null) return
     if (current.step === 'confirm-path') {
-      void createWorkspace(current.path).then(() => { setLevel({ kind: 'projects' }) }).catch(report)
+      registerWorkspace(current.path)
       return
     }
     if (current.step !== 'confirm') return
@@ -673,6 +704,7 @@ function WindowChatsPanelView({
               createDirectory={createDirectory}
               pickDirectory={pickDirectory}
               useFolder={handleSelectFolder}
+              onFailure={setError}
             />
           )}
 
@@ -882,12 +914,14 @@ function WindowChatsPanelView({
  * boot mounted the native picker serve no directory listing, so a failed load
  * falls back to that host chooser instead of leaving the level unusable.
  */
-function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFolder }: {
+function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFolder, onFailure }: {
   readonly t: WindowChatsPanelProps['t']
   readonly listDirectory: (path?: string) => Promise<BoardDirectoryListing>
   readonly createDirectory: (path: string, name: string) => Promise<string>
   readonly pickDirectory: () => Promise<string | null>
   readonly useFolder: (path: string, home?: string) => void
+  /** Show one host refusal on the panel's error surface. */
+  readonly onFailure: (message: string) => void
 }): ReactNode {
   const [listing, setListing] = useState<BoardDirectoryListing | null>(null)
   const [folderName, setFolderName] = useState<string | null>(null)
@@ -912,7 +946,9 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
 
   const pickInSystem = (): void => {
     void pickDirectory().then((path) => {
-      if (path !== null) useFolder(path, listing?.home)
+      if (path !== null) useFolder(path)
+    }, () => {
+      onFailure(t('panel.pick.failed'))
     })
   }
 

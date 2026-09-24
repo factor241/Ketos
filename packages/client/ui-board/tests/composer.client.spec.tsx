@@ -53,7 +53,7 @@ function injectedStub(overrides: Partial<BoardWindowInjectProps> = {}): Omit<Boa
     selectModel: vi.fn(),
     exitPlanMode: vi.fn(),
     runCommand: vi.fn(),
-    executeCommand: vi.fn(),
+    executeCommand: vi.fn(async () => true),
     uploadFile: vi.fn(),
     updateQueueItem: vi.fn(),
     loadQueueImage: vi.fn(async () => ''),
@@ -99,20 +99,30 @@ const imageFile = (name: string, bytes: number, type = 'image/png'): File =>
 describe('ComposerBar states', () => {
   it('offers only the goal verb the host accepts', () => {
     const active = renderComposer(sessionState(undefined, {
-      goal: { objective: 'Ship the report', phase: 'active', activation: 'armed' },
+      goal: { objective: 'Ship the report', phase: 'active' },
     }))
     expect(active.container.querySelector('button[aria-label="Pause the goal"]')).not.toBeNull()
     expect(active.container.querySelector('button[aria-label="Resume the goal"]')).toBeNull()
 
     const paused = renderComposer(sessionState(undefined, {
-      goal: { objective: 'Ship the report', phase: 'paused', activation: 'armed' },
+      goal: { objective: 'Ship the report', phase: 'paused' },
     }))
     expect(paused.container.querySelector('button[aria-label="Resume the goal"]')).not.toBeNull()
     expect(paused.container.querySelector('button[aria-label="Pause the goal"]')).toBeNull()
 
+    // A blocked goal accepts no verb either: the strip keeps only Clear.
+    const blocked = renderComposer(sessionState(undefined, {
+      goal: { objective: 'Ship the report', phase: 'blocked' },
+    }))
+    expect(blocked.container.textContent).toContain('Goal blocked')
+    expect(blocked.container.textContent).toContain('Ship the report')
+    expect(blocked.container.querySelector('button[aria-label="Pause the goal"]')).toBeNull()
+    expect(blocked.container.querySelector('button[aria-label="Resume the goal"]')).toBeNull()
+    expect(blocked.container.querySelector('button[aria-label="Clear the goal"]')).not.toBeNull()
+
     // A terminal goal has no pause to give: the strip keeps only Clear.
     const complete = renderComposer(sessionState(undefined, {
-      goal: { objective: 'Ship the report', phase: 'complete', activation: 'armed' },
+      goal: { objective: 'Ship the report', phase: 'complete' },
     }))
     expect(complete.container.querySelector('button[aria-label="Pause the goal"]')).toBeNull()
     expect(complete.container.querySelector('button[aria-label="Resume the goal"]')).toBeNull()
@@ -609,7 +619,7 @@ describe('ComposerBar commands and mentions', () => {
   })
 
   it('executes a command with its arguments instead of prompting', () => {
-    const executeCommand = vi.fn()
+    const executeCommand = vi.fn(async () => true)
     const sendPrompt = vi.fn(async () => true)
     const { container } = renderComposer(
       sessionState(undefined, { commands: [{ name: 'goal', description: 'Set the goal', hint: 'objective' }] }),
@@ -625,7 +635,7 @@ describe('ComposerBar commands and mentions', () => {
   })
 
   it('runs an argument-free command at pick time and fills the draft for a hinted one', () => {
-    const executeCommand = vi.fn()
+    const executeCommand = vi.fn(async () => true)
     const { container, getByText } = renderComposer(
       sessionState(undefined, {
         commands: [
@@ -645,7 +655,7 @@ describe('ComposerBar commands and mentions', () => {
   })
 
   it('carries the draft attachments into a command execution', async () => {
-    const executeCommand = vi.fn()
+    const executeCommand = vi.fn(async () => true)
     const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-5' }))
     const { container } = renderComposer(
       sessionState(undefined, { commands: [{ name: 'goal', description: 'Set the goal', hint: 'objective' }] }),
@@ -659,6 +669,37 @@ describe('ComposerBar commands and mentions', () => {
     fireEvent.change(input, { target: { value: '/goal ship it' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(executeCommand).toHaveBeenCalledWith(WINDOW, '/goal ship it', [], [{ receiptId: 'receipt-5' }])
+  })
+
+  it('returns a refused command draft and its chips and clears an accepted one', async () => {
+    let accept = false
+    const executeCommand = vi.fn(async () => accept)
+    const uploadFile = vi.fn(async () => ({ receiptId: 'receipt-7' }))
+    const { container, getByText } = renderComposer(
+      sessionState(undefined, { commands: [{ name: 'goal', description: 'Set the goal', hint: 'objective' }] }),
+      { executeCommand, uploadFile },
+    )
+    fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [new File(['x'], 'report.pdf', { type: 'application/pdf' })] },
+    })
+    await waitFor(() => { expect(getByText('Ready')).not.toBeNull() })
+
+    const input = textarea(container)
+    fireEvent.change(input, { target: { value: '/goal ship it' } })
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    // The command clears optimistically; the refusal then returns the draft.
+    expect(executeCommand).toHaveBeenCalledWith(WINDOW, '/goal ship it', [], [{ receiptId: 'receipt-7' }])
+    await waitFor(() => { expect(input.value).toBe('/goal ship it') })
+    expect(container.querySelector('[data-board-file="ready"]')).not.toBeNull()
+
+    accept = true
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement)
+    await waitFor(() => { expect(executeCommand).toHaveBeenCalledTimes(2) })
+    // The returned chip keeps its retry source, so the accepted command carries
+    // the same receipt; acceptance then owns the chips.
+    expect(executeCommand).toHaveBeenLastCalledWith(WINDOW, '/goal ship it', [], [{ receiptId: 'receipt-7' }])
+    await waitFor(() => { expect(container.querySelector('[data-board-file]')).toBeNull() })
+    expect(input.value).toBe('')
   })
 
   it('opens the model menu for the board-owned /model command', () => {
@@ -897,6 +938,9 @@ describe('ComposerBar preset and model semantics', () => {
     fireEvent.click(getByText('Model'))
     fireEvent.click(getByText('DeepSeek-V4-Pro'))
     expect(selectModel).toHaveBeenCalledWith(WINDOW, { provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+    // The chip passes no keepDefault: a pick here still saves the selection as
+    // the deployment default for new chats.
+    expect(selectModel.mock.calls[0]).toHaveLength(2)
     expect(selectAgentPreset).not.toHaveBeenCalled()
   })
 

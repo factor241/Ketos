@@ -9,8 +9,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { ChatSnapshot, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { WorkspaceCreateError } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { BoardDirectoryListing, WindowId } from '../src/client/contract/slots.ts'
 import { createBoardStore } from '../src/client/store.ts'
 import { createBoardBench } from './fixtures.client.ts'
@@ -168,6 +170,113 @@ describe('WindowChatsPanel project path and artifacts', () => {
     fireEvent.click(openBtn)
     await runtime.flush()
     expect(openedPath).toBe('/work/my-project')
+  })
+
+  it('reports a refused clipboard write instead of claiming the path was copied', async () => {
+    const prepared = await createBoardBench({
+      session: {},
+      sessionSummary: { cwd: '/work/my-project' },
+    })
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/my-project', ['session-1'], 'MyProject')]
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.view.getByText('MyProject'))
+    await runtime.flush()
+
+    // A host that denies clipboard access fails the accessor itself; the panel
+    // must say so rather than claiming the path was copied.
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      get() { throw new Error('clipboard denied') },
+    })
+    try {
+      fireEvent.click(panel.container.querySelector('[data-board-action="panel-copy-path"]') as Element)
+      await runtime.flush()
+    } finally {
+      Reflect.deleteProperty(navigator, 'clipboard')
+    }
+
+    expect(panel.container.textContent).toContain('Could not copy the path')
+  })
+
+  it('reports a refused system picker on the browse-failed fallback', async () => {
+    const prepared = await createBoardBench({
+      session: {},
+      sessionSummary: { cwd: '/work/my-project' },
+      uiWorkspace: {
+        listDirectory: async () => { throw new Error('listing refused') },
+        pickDirectory: async () => { throw new Error('picker refused') },
+      },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await prepared.runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await prepared.runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
+    await prepared.runtime.flush()
+
+    // The listing is unavailable, so the level offers the host chooser; a
+    // refused chooser must be said out loud, not swallowed.
+    const pick = panel.container.querySelector('[data-board-action="panel-pick-system"]') as Element
+    expect(pick).not.toBeNull()
+    fireEvent.click(pick)
+    await prepared.runtime.flush()
+
+    expect(panel.container.textContent).toContain('Could not choose a folder in the system')
+  })
+
+  it('localizes the host refusal of a runtime path picked through the native fallback', async () => {
+    const prepared = await createBoardBench({
+      session: {},
+      sessionSummary: { cwd: '/work/my-project' },
+      uiWorkspace: {
+        listDirectory: async () => { throw new Error('listing refused') },
+        pickDirectory: async () => '/home/user/.ketos',
+      },
+    })
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    // The host refuses the runtime home with its structured code; the panel must
+    // show its own localized text rather than the server's English message.
+    runtime.workspaces.stub('create', async () => {
+      throw new WorkspaceCreateError(
+        new RemoteError('workspace/invalid-path', 'Host refusal: /home/user/.ketos is a runtime directory', {
+          path: '/home/user/.ketos',
+        }),
+      )
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
+    await runtime.flush()
+
+    const pick = panel.container.querySelector('[data-board-action="panel-pick-system"]') as Element
+    expect(pick).not.toBeNull()
+    fireEvent.click(pick)
+    await runtime.flush()
+
+    expect(runtime.workspaces.calls.some(call => call.method === 'create'
+      && (call.args[0] as { path: string }).path === '/home/user/.ketos')).toBe(true)
+    expect(panel.container.textContent).toContain('Cannot use Ketos home directory as a workspace: /home/user/.ketos')
+    expect(panel.container.textContent).not.toContain('Host refusal')
   })
 
   it('renders artifacts tab, empty state, and artifact list derived from tool results', async () => {

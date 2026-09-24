@@ -172,7 +172,6 @@ export type BoardQueueAction =
 export interface BoardGoalState {
   readonly objective: string
   readonly phase: 'active' | 'paused' | 'blocked' | 'complete'
-  readonly activation: 'armed' | 'disarmed'
 }
 
 /** One todo row the window renders above the composer. */
@@ -277,8 +276,15 @@ export interface BoardArtifactRow {
 /** What creating a clone did. */
 export type CloneCreateOutcome = 'created' | 'failed'
 
-/** What one clone save did, for the form's notice. */
-export type CloneSaveOutcome = 'saved' | 'conflict' | 'missing' | 'failed'
+/**
+ * What one clone save did, for the form's notice and revision base: the
+ * revision the route minted on acceptance, or the reason it refused.
+ */
+export type CloneSaveOutcome =
+  | { readonly kind: 'saved'; readonly revision: number }
+  | { readonly kind: 'conflict' }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'failed' }
 
 /** What one clone deletion did, for the form's notice. */
 export type CloneDeleteOutcome = 'deleted' | 'conflict' | 'missing' | 'failed'
@@ -546,8 +552,18 @@ export interface BoardWindowInjected {
   selectAgentPreset: (windowId: WindowId, presetId: string) => void
   /** Switch the permission preset of the window's session. */
   selectPermission: (windowId: WindowId, presetId: string) => void
-  /** Switch the model or the reasoning effort of the window's session. */
-  selectModel: (windowId: WindowId, selection: { provider: string; model: string; reasoningEffort?: string }) => void
+  /**
+   * Switch the model or the reasoning effort of the window's session.
+   * @param windowId - window identity.
+   * @param selection - complete selection (provider, model, optional effort).
+   * @param options - `keepDefault` applies the selection to this Session only and leaves the
+   * stored deployment default for new Sessions untouched; absent saves it as that default.
+   */
+  selectModel: (
+    windowId: WindowId,
+    selection: { provider: string; model: string; reasoningEffort?: string },
+    options?: { readonly keepDefault?: boolean },
+  ) => void
   /** Leave plan mode through the host command. */
   exitPlanMode: (windowId: WindowId) => void
   /** Run one slash-command line against the window's session. */
@@ -558,13 +574,20 @@ export interface BoardWindowInjected {
    * The draft's images and staged file receipts ride along, so a command that
    * accepts attachments receives them and one that does not is refused by the
    * host with its own reason.
+   * @param windowId - window identity.
+   * @param line - full command line, leading slash included.
+   * @param images - inline images carried with the command.
+   * @param files - staged file receipts carried with the command.
+   * @returns whether the host accepted the command; false when the session is
+   * missing, the command is unknown, or the handler refused, so the composer
+   * can return the refused draft.
    */
   executeCommand: (
     windowId: WindowId,
     line: string,
     images?: readonly BoardDraftImage[],
     files?: readonly BoardPromptFile[],
-  ) => void
+  ) => Promise<boolean>
   /**
    * Stage one non-image file for the window's session through the background
    * upload service.

@@ -176,6 +176,7 @@ describe('memory search', () => {
     expect(memories.search(clone.id, 'навык', 2)).toHaveLength(2)
     expect(() => memories.search(clone.id, 'навык', 0)).toThrow(MemoryInvalidError)
     expect(() => memories.search(clone.id, 'навык', MEMORY_LIMITS.searchLimit + 1)).toThrow(/limit/u)
+    expect(() => memories.search(clone.id, 'x'.repeat(MEMORY_LIMITS.query + 1))).toThrow(/query exceeds/u)
     expect(() => memories.search(clone.id, '   ')).toThrow(/non-whitespace/u)
     expect(() => memories.search(clone.id, '()')).toThrow(/non-whitespace/u)
   })

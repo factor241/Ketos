@@ -123,42 +123,48 @@ export function CloneMemoryBody({
     }
     setBusy(true)
     setNotice(undefined)
-    const outcome = await saveMemory(edit.id, {
-      content: edit.content.trim(),
-      tags,
-      status: edit.status,
-    })
-    setBusy(false)
-    if (outcome === 'saved') {
-      setEditing(undefined)
-      reload()
-      return
+    try {
+      const outcome = await saveMemory(edit.id, {
+        content: edit.content.trim(),
+        tags,
+        status: edit.status,
+      })
+      if (outcome === 'saved') {
+        setEditing(undefined)
+        reload()
+        return
+      }
+      // A row that left the store needs no editor and no notice: the re-read is
+      // what removes it from the list.
+      if (outcome === 'missing') {
+        setEditing(undefined)
+        reload()
+        return
+      }
+      setNotice(outcome)
+    } finally {
+      setBusy(false)
     }
-    // A row that left the store needs no editor and no notice: the re-read is
-    // what removes it from the list.
-    if (outcome === 'missing') {
-      setEditing(undefined)
-      reload()
-      return
-    }
-    setNotice(outcome)
   }
 
   const onDelete = async (id: MemoryId): Promise<void> => {
     setBusy(true)
     setNotice(undefined)
-    const outcome = await removeMemory(id)
-    setBusy(false)
-    setConfirming(undefined)
-    if (outcome === 'deleted') {
-      reload()
-      return
+    try {
+      const outcome = await removeMemory(id)
+      setConfirming(undefined)
+      if (outcome === 'deleted') {
+        reload()
+        return
+      }
+      if (outcome === 'missing') {
+        reload()
+        return
+      }
+      setNotice('failed')
+    } finally {
+      setBusy(false)
     }
-    if (outcome === 'missing') {
-      reload()
-      return
-    }
-    setNotice('failed')
   }
 
   return (

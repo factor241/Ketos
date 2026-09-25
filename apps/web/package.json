@@ -41,7 +41,7 @@
     "@deepseek-ai/dsh-pwsh-local": "workspace:^",
     "@deepseek-ai/dsh-experimental-webworker-packer": "workspace:^",
     "@deepseek-ai/dsh-experimental-webworker-runtime": "workspace:^",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.2.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "@types/ws": "8.18.1",

@@ -28,7 +28,7 @@ import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
 import {
-  dockedPanelRect, panelPresentation, panelWidthFor, railRect, windowedPanelRect,
+  dockedPanelRect, panelPresentation, panelWidthFor, PANEL_RAIL_HEIGHT, PANEL_RAIL_WIDTH, railRect, windowedPanelRect,
 } from './panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
@@ -182,7 +182,13 @@ function WindowChatsPanelView({
   const rect = fullscreen
     ? dockedPanelRect(viewportWidth, viewportHeight, width)
     : windowedPanelRect(cardWindow, view, width)
-  const rail = railRect(cardWindow, side)
+  // Fullscreen docks the panel to the board panel's left edge, so its collapsed
+  // rail hugs that edge instead of the window's floating rectangle; the frame's
+  // own chats button is gone, and this rail is the one control that brings the
+  // panel back in either presentation.
+  const rail = fullscreen
+    ? { left: 0, top: (viewportHeight - PANEL_RAIL_HEIGHT) / 2, width: PANEL_RAIL_WIDTH, height: PANEL_RAIL_HEIGHT }
+    : railRect(cardWindow, side)
 
   const startGesture = useBoardPointerGesture()
 
@@ -440,7 +446,7 @@ function WindowChatsPanelView({
 
   return (
     <>
-      {!fullscreen && !open && (
+      {!open && (
         <div
           data-board-panel-rail=""
           data-board-culled={hidden ? '' : undefined}

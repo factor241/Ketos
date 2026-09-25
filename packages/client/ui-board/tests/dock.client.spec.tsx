@@ -267,7 +267,7 @@ describe('board dock', () => {
     const chrome = () => panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]')
     expect(chrome()).toHaveLength(3)
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     expect(dock()).toBeNull()
     expect(chrome()).toHaveLength(0)

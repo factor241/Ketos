@@ -56,7 +56,7 @@ describe('minimap layer gating', () => {
 
     // An expanded panel is a management surface: the minimap stands down with
     // the rest of the floating chrome.
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-minimap]')).toBeNull()
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)

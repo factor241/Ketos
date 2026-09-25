@@ -101,7 +101,7 @@ async function openChatsPanel(options: Parameters<typeof createBoardBench>[0] = 
   const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
   act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
   await prepared.runtime.flush()
-  fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+  fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
   await prepared.runtime.flush()
   return { prepared, panel, board }
 }
@@ -146,7 +146,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
 
     // Navigate to MyProject group
@@ -187,7 +187,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('MyProject'))
     await runtime.flush()
@@ -223,7 +223,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await prepared.runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
     await prepared.runtime.flush()
@@ -263,7 +263,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
     await runtime.flush()
@@ -325,7 +325,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel and go to MyProject
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('MyProject'))
     await runtime.flush()
@@ -473,7 +473,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel and browse folder
-    fireEvent.click(panel.container.querySelector('button[aria-label="Chats"]') as Element)
+    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
     await runtime.flush()

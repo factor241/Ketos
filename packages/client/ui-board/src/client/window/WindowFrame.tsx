@@ -1,10 +1,12 @@
 /**
  * Shared frame for every board window kind: the floating-panel chrome, the
- * header drag, the eight resize handles, and the optional chats-panel and
- * fullscreen controls. Board controls automation drives carry a stable
- * `data-board-action` id next to their localized label, so live audits address
- * them whatever the active locale. A kind differs only in which of those two controls it
- * offers and in the `board.window.body` occupant its `renderBody` dispatches.
+ * header drag, the eight resize handles, and the optional fullscreen control.
+ * The chats panel is a window body of its own (`board.window.panel`), and its
+ * own rail and header carry the controls that open and collapse it. Board
+ * controls automation drives carry a stable `data-board-action` id next to
+ * their localized label, so live audits address them whatever the active
+ * locale. A kind differs only in whether it offers the fullscreen control and
+ * in the `board.window.body` occupant its `renderBody` dispatches.
  *
  * The two gestures live in leaf components that read the canvas zoom
  * themselves, so a pan or zoom re-renders the handle strips and the header —
@@ -13,7 +15,7 @@
  */
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
@@ -23,7 +25,7 @@ import { isBoardEditingTarget } from '../editing-target.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { startWindowResizeGesture } from '../resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
-import { panelWidthFor } from './panel-geometry.ts'
+import { PANEL_RAIL_WIDTH, panelWidthFor } from './panel-geometry.ts'
 import { windowTitle } from '../window-title.ts'
 import { CloneWindowBar } from './CloneWindowBar.tsx'
 import css from './WindowFrame.module.css'
@@ -213,11 +215,16 @@ function WindowFrameView({
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
   const isSelectingElement = useStore(s => s.isSelectingElement)
+  const hasPanel = features?.panel === true
   const isFullscreen = features?.fullscreen === true && fullscreenWindowId === cardWindow.id
   // A collapsed panel is a rail: it takes no width, and Escape leaves it alone.
-  const isPanelOpen = features?.panel === true && panelWindowId === cardWindow.id && !panelCollapsed
-  // Fullscreen docks the chats panel and gives up its width to the chat column.
-  const dockedWidth = isPanelOpen ? panelWidthFor(viewportWidth, panelWidth) : 0
+  const isPanelOpen = hasPanel && panelWindowId === cardWindow.id && !panelCollapsed
+  // Fullscreen docks the chats panel and gives up its width to the chat column;
+  // a collapsed panel keeps its rail's width, so the rail owns a column of its
+  // own instead of floating above the chat.
+  const panelInset = isPanelOpen
+    ? panelWidthFor(viewportWidth, panelWidth)
+    : isFullscreen && hasPanel ? PANEL_RAIL_WIDTH : 0
 
   // Escape closes the chats panel first and leaves fullscreen second: one
   // handler owns the key so the two modes never fight over it. The board's
@@ -249,7 +256,7 @@ function WindowFrameView({
         // The canvas drops its pan/zoom while a window is fullscreen, so the
         // inset rectangle maps to the visible board panel; an open chats panel
         // docks along its left edge and takes that width from the chat.
-        ? { inset: `0 0 0 ${String(dockedWidth)}px`, zIndex: 1000 }
+        ? { inset: `0 0 0 ${String(panelInset)}px`, zIndex: 1000 }
         : {
           left: cardWindow.x,
           top: cardWindow.y,
@@ -287,23 +294,6 @@ function WindowFrameView({
               <IconCloseOutline16 />
             </button>
           </Tooltip>
-          {features?.panel === true && (
-            <Tooltip label={t('window.chats')} side="bottom">
-              <button
-                type="button"
-                data-board-action="window-chats"
-                onClick={() => {
-                  if (isPanelOpen) actions.closeWindowPanel()
-                  else actions.openWindowPanel(cardWindow.id)
-                }}
-                className={css.headerButton}
-                aria-label={t('window.chats')}
-                aria-expanded={isPanelOpen}
-              >
-                <IconPanelLeftOutline16 />
-              </button>
-            </Tooltip>
-          )}
           <WindowTitleControl
             window={cardWindow}
             t={t}

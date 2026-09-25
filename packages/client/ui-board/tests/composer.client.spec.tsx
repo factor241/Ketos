@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { ComposerBar, type ComposerBarProps } from '../src/client/window/ComposerBar.tsx'
+import composerCss from '../src/client/window/ComposerBar.module.css'
 import { createBoardStore, type BoardState } from '../src/client/store.ts'
 import type { BoardWindowInjectProps, BoardWindowSessionState, WindowId } from '../src/client/contract/slots.ts'
 import { sessionState, t } from './fixtures.client.ts'
@@ -16,6 +17,13 @@ import { sessionState, t } from './fixtures.client.ts'
 afterEach(() => { cleanup() })
 
 const WINDOW = 'a1' as WindowId
+
+/** Resolve a CSS Module class; a class the stylesheet must define fails loudly at the call site. */
+function classOf(classes: Record<string, string>, name: string): string {
+  const resolved = classes[name]
+  if (resolved === undefined) throw new Error(`missing CSS class "${name}"`)
+  return resolved
+}
 
 const IMAGE_LIMITS = {
   maxImageBytes: 1024,
@@ -863,6 +871,33 @@ describe('ComposerBar preset and model semantics', () => {
     expect(tooltip).toContain('DeepSeek-V41-Flash')
     expect(tooltip).toContain('High')
     expect(tooltip).toMatch(/system default/)
+  })
+
+  it('splits both setup chip labels into a lead word and an elided rest, with a model glyph for the icon-only floor', () => {
+    const state = sessionState(undefined, {
+      permission: 'workspace-write',
+      permissions: [{ id: 'workspace-write', dangerous: false }],
+      model: {
+        provider: 'deepseek-official',
+        model: 'muse-spark',
+        modelName: 'Muse Spark 1.3 Contributor',
+        effort: 'low',
+        effortName: 'Low',
+        efforts: [{ id: 'low', name: 'Low' }],
+        groups: [],
+        loading: false,
+      },
+    })
+    const { container } = renderComposer(state)
+    const permission = container.querySelector('[data-board-action="composer-permission"]') as HTMLElement
+    expect(permission.querySelector(`.${classOf(composerCss, 'chipLead')}`)?.textContent).toBe('Workspace')
+    expect(permission.querySelector(`.${classOf(composerCss, 'chipRest')}`)?.textContent).toBe('Write')
+    const model = container.querySelector('[data-board-action="composer-model"]') as HTMLElement
+    expect(model.querySelector(`.${classOf(composerCss, 'chipLead')}`)?.textContent).toBe('Muse')
+    expect(model.querySelector(`.${classOf(composerCss, 'chipRest')}`)?.textContent).toBe('Spark 1.3 Contributor')
+    expect(model.querySelector(`.${classOf(composerCss, 'effortLabel')}`)?.textContent).toBe('Low')
+    // The glyph ships hidden and the container query reveals it in the icon-only state.
+    expect(model.querySelector(`.${classOf(composerCss, 'modelIcon')}`)).not.toBeNull()
   })
 
   it('shows a model catalog failure inside the model menu and keeps the window usable', () => {

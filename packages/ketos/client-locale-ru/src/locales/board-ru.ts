@@ -45,7 +45,6 @@ export const ru = {
   'toolbar.composerPlaceholder': 'Спросите что угодно...',
   'window.close': 'Закрыть',
   'window.fullscreen': 'Открыть во весь экран',
-  'window.chats': 'Чаты',
   'window.exitFullscreen': 'Выйти из полноэкранного режима',
   'window.rename': 'Переименовать окно',
   'window.unavailable': 'Это окно недоступно в MVP',

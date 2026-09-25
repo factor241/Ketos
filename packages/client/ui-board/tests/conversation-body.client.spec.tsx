@@ -576,9 +576,13 @@ describe('ConversationBody', () => {
     const { getByText, container } = render(
       <ConversationBody {...bodyProps(state, { selectPermission })} />,
     )
-    expect(getByText('Workspace Write')).not.toBeNull()
+    // The chip splits its label into a lead word and an elided rest, so the
+    // full text is asserted on the trigger rather than as one text node.
+    const permissionChip = container.querySelector('button[aria-label="Permission preset"]') as HTMLElement
+    expect(permissionChip.textContent).toContain('Workspace')
+    expect(permissionChip.textContent).toContain('Write')
 
-    fireEvent.click(container.querySelector('button[aria-label="Permission preset"]') as Element)
+    fireEvent.click(permissionChip)
     fireEvent.click(getByText('Read Only'))
     expect(selectPermission).toHaveBeenCalledWith('a1', 'read-only')
   })

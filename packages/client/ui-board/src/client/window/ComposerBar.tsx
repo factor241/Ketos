@@ -27,6 +27,7 @@ import {
   IconCheckOutline16,
   IconChevronDownOutline14,
   IconCloseOutline16,
+  IconDataOutline16,
   IconEditOutline16,
   IconGoalOutline16,
   IconPaperclipOutline16,
@@ -117,6 +118,19 @@ function permissionLabel(t: BoardTranslate, id: string): string {
     case 'danger-full-access': return t('permission.fullAccess')
     default: return id
   }
+}
+
+/**
+ * Split a chip label into its first word and the remaining text. A label
+ * without a space (every Chinese label) keeps the whole text as the lead, so
+ * the narrow state still shows it until the label drops to an icon.
+ * @param text - the chip's rendered label.
+ * @returns the first word and the rest, either possibly empty.
+ */
+function splitChipLabel(text: string): { lead: string; rest: string } {
+  const space = text.indexOf(' ')
+  if (space <= 0) return { lead: text, rest: '' }
+  return { lead: text.slice(0, space), rest: text.slice(space + 1) }
 }
 
 /** The slash-command label per built-in command name. */
@@ -689,6 +703,14 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       ? t('model.hintPlain', { model: modelName })
       : t('model.hint', { model: modelName, effort: effortName })
 
+  // Both setup chips stay on the tool row at every width: the first word never
+  // shrinks, the remainder elides, and the label drops to its icon only at the
+  // narrowest card (the permission chip keeps its shield; the model chip shows
+  // its own icon in that state).
+  const permissionParts = splitChipLabel(permissionLabel(t, session?.permission ?? ''))
+  const modelParts = splitChipLabel(modelName
+    ?? (session?.model.loading === true ? t('model.loading') : t('model.none')))
+
   const todoDone = (session?.todos ?? []).filter(todo => todo.status === 'completed').length
   const todoActive = (session?.todos ?? []).filter(todo => todo.status === 'in_progress').length
   const todoPending = (session?.todos ?? []).filter(todo => todo.status === 'pending').length
@@ -1158,7 +1180,8 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   >
                     <span className={css.chipIcon}><IconShieldOutline16 /></span>
                     <span className={css.chipLabel}>
-                      {permissionLabel(t, session?.permission ?? '')}
+                      <span className={css.chipLead}>{permissionParts.lead}</span>
+                      {permissionParts.rest !== '' && <span className={css.chipRest}>{permissionParts.rest}</span>}
                     </span>
                     <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
                   </button>
@@ -1238,9 +1261,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 data-board-action="composer-model"
                 aria-label={t('model.aria')}
               >
+                <span className={clsx(css.chipIcon, css.modelIcon)}><IconDataOutline16 /></span>
                 <span className={css.chipLabel}>
-                  {session?.model.modelName ?? session?.model.model
-                    ?? (session?.model.loading === true ? t('model.loading') : t('model.none'))}
+                  <span className={css.chipLead}>{modelParts.lead}</span>
+                  {modelParts.rest !== '' && <span className={css.chipRest}>{modelParts.rest}</span>}
                 </span>
                 {session?.model.effortName !== undefined && (
                   <span className={clsx(css.chipLabel, css.effortLabel)}>{session.model.effortName}</span>

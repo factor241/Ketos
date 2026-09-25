@@ -43,13 +43,13 @@ describe('describeElement description', () => {
   it('joins the window, action, accessible name, tooltip, and text in order', () => {
     document.body.innerHTML = [
       '<div data-board-window="dashboard" data-board-title="Ops">',
-      '<button data-board-action="window-chats" aria-label="Chats" title="Open chats">',
+      '<button data-board-action="panel-rail-expand" aria-label="Expand the chats panel" title="Expand the chats panel">',
       'Two <em>words</em>',
       '</button>',
       '</div>',
     ].join('')
     const capture = describeElement(document.querySelector('button') as Element)
-    expect(capture.description).toBe('button · window dashboard Ops · window-chats · Chats · Open chats · Two words')
+    expect(capture.description).toBe('button · window dashboard Ops · panel-rail-expand · Expand the chats panel · Expand the chats panel · Two words')
   })
 
   it('names the window kind alone when the window carries no title', () => {

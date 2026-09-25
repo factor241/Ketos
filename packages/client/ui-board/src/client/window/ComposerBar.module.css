@@ -220,20 +220,64 @@
   flex: 0 1 auto;
 }
 
+.modelChip {
+  /* The model name never takes more than 45% of the card, so the permission
+     chip keeps its word even when the provider name is long. */
+  max-width: min(360px, 45cqw);
+}
+
 /* The label takes the space its chip leaves, so the elision budget follows the
-   row instead of the label's own rendered content (which would feed back). */
+   row instead of the label's own rendered content (which would feed back). It
+   holds the first word and the remainder as separate runs: the lead never
+   shrinks, the remainder elides, and the gap keeps the word spacing while both
+   are visible. */
 .chipLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
   flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.chipLead {
+  flex: none;
+  white-space: nowrap;
+}
+
+.chipRest {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* The effort yields first, then the model name's remainder, then the
+   permission remainder, so both chips keep their first word. */
+.permissionChip .chipLabel {
+  flex-shrink: 1;
+}
+
+.modelChip .chipLabel {
+  flex-shrink: 2;
+}
+
+.effortLabel {
+  flex-shrink: 1000;
+}
+
 .chipIcon {
   flex: none;
   display: flex;
   align-items: center;
+}
+
+/* The model chip's own glyph appears only in the icon-only state, where its
+   label is gone; the permission chip already carries its shield. */
+.modelIcon {
+  display: none;
 }
 
 .card {
@@ -383,12 +427,12 @@
   overflow-wrap: anywhere;
 }
 
-/* Tool row: a wrapping line. The leading group holds the actions and the
-   mode chips; the trailing group (context, model, send/stop) is pinned to the
-   right and never shrinks below its controls. */
+/* Tool row: one line at every width. The leading group holds the actions and
+   the mode chips and absorbs the squeeze; the trailing group (context, model,
+   send/stop) is pinned to the right and never shrinks below its controls. */
 .toolRow {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--board-gap-row);
@@ -407,7 +451,10 @@
   display: flex;
   align-items: center;
   gap: var(--board-gap-row);
-  flex: none;
+  /* The trailing controls may shrink through the model chip; the ring and the
+     send button keep their own `flex: none`, so the send control never moves. */
+  flex: 0 1 auto;
+  min-width: 0;
   margin-left: auto;
 }
 
@@ -616,29 +663,15 @@
 /* Compact configurations, measured against the card's own width at the window
    scale (the thresholds are the base design's 430/360/320 grown with it and
    with the text size).
-   - <= 545px: the tool row splits into two lines; the trailing group keeps the
-     right edge on its own line so send/stop is always visible.
-   - <= 455px: the mode chips drop their labels (icons + tooltips remain) and
-     the effort label leaves the model chip.
-   - <= 405px: the context ring hides; the mode chips become icon-only. */
-@container (max-width: 545px) {
-  .toolRow {
-    justify-content: flex-end;
-    row-gap: 8px;
-  }
-
-  .toolGroup {
-    flex: 1 1 100%;
-  }
-
-  .trailing {
-    flex: 1 1 100%;
-    justify-content: flex-end;
-  }
-}
-
+   - <= 455px: the chip labels keep their first word alone (the effort label
+     and every remainder go) and the preset/plan labels drop to icons.
+   - <= 405px: the context ring hides and the permission/model labels go
+     entirely — the permission chip keeps its shield, the model chip shows its
+     own glyph. */
 @container (max-width: 455px) {
-  .permissionChip .chipLabel,
+  .permissionChip .chipRest,
+  .modelChip .chipRest,
+  .presetChip .chipLabel,
   .planChip .chipLabel,
   .effortLabel {
     display: none;
@@ -646,6 +679,15 @@
 }
 
 @container (max-width: 405px) {
+  .permissionChip .chipLabel,
+  .modelChip .chipLabel {
+    display: none;
+  }
+
+  .modelIcon {
+    display: flex;
+  }
+
   .context {
     display: none;
   }

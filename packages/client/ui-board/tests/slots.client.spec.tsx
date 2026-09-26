@@ -755,7 +755,7 @@ describe('board slot composition', () => {
     expect(board.store.getSnapshot().windows).toEqual(before.windows)
   })
 
-  it('zooms from the canvas and the chrome and leaves the window its own wheel', async () => {
+  it('pans on a plain wheel, zooms on ctrl+wheel from the canvas and the chrome, and leaves the window its own wheel', async () => {
     const prepared = await createBoardBench()
     runtimes.add(prepared.runtime)
     const { runtime } = prepared
@@ -768,16 +768,202 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
 
-    fireEvent.wheel(panel.container.querySelector('[data-surface="canvas"]') as Element, { deltaY: -100, clientX: 100, clientY: 100 })
-    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.1)
+    // R-4 default: an unmodified wheel pans and leaves the scale alone.
+    act(() => { board.actions.setPan(100, 100) })
+    fireEvent.wheel(panel.container.querySelector('[data-surface="canvas"]') as Element, { deltaX: 40, deltaY: -100, clientX: 100, clientY: 100 })
+    expect(board.store.getSnapshot().zoom).toBe(1)
+    expect(board.store.getSnapshot().panX).toBe(60)
+    expect(board.store.getSnapshot().panY).toBe(200)
 
-    // A window lane keeps its own scrolling: the canvas zoom stays put.
+    // Ctrl+wheel (a trackpad pinch) zooms around the pointer; Δ is clamped to
+    // 50px, so the factor is exp(50 · 0.0023).
+    fireEvent.wheel(panel.container.querySelector('[data-surface="canvas"]') as Element, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
+    const zoomed = board.store.getSnapshot().zoom
+    expect(zoomed).toBeCloseTo(Math.exp(50 * 0.0023))
+
+    // A window lane keeps its own plain wheel: the lane scrolls, the view stays.
+    const panBefore = board.store.getSnapshot().panX
     fireEvent.wheel(panel.container.querySelector('textarea') as Element, { deltaY: -100, clientX: 100, clientY: 100 })
-    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.1)
+    expect(board.store.getSnapshot().zoom).toBeCloseTo(zoomed)
+    expect(board.store.getSnapshot().panX).toBe(panBefore)
 
-    // The floating chrome sits beside the canvas: its wheel still zooms.
-    fireEvent.wheel(panel.container.querySelector('[data-board-layer="dock"] button') as Element, { deltaY: -100, clientX: 40, clientY: 400 })
-    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.21)
+    // A pinch (ctrl+wheel) over the lane zooms only the board (П-01).
+    fireEvent.wheel(panel.container.querySelector('textarea') as Element, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
+    expect(board.store.getSnapshot().zoom).toBeGreaterThan(zoomed)
+
+    // The floating chrome sits beside the canvas: ctrl+wheel zooms it too.
+    fireEvent.wheel(panel.container.querySelector('[data-board-layer="dock"] button') as Element, { ctrlKey: true, deltaY: -100, clientX: 40, clientY: 400 })
+    expect(board.store.getSnapshot().zoom).toBeGreaterThan(zoomed)
+  })
+
+  it('applies Safari pinch gestures and ignores the duplicate ctrl+wheel mid-gesture', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+
+    const root = panel.container.querySelector('[data-surface="board"]') as Element
+    const canvas = panel.container.querySelector('[data-surface="canvas"]') as Element
+    const gesture = (type: string, scale: number): Event => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, { scale, clientX: 100, clientY: 100 })
+      root.dispatchEvent(event)
+      return event
+    }
+
+    expect(gesture('gesturestart', 1).defaultPrevented).toBe(true)
+    expect(gesture('gesturechange', 1.5).defaultPrevented).toBe(true)
+    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.5)
+
+    // One pinch reported twice: the ctrl+wheel spelling must not compound it.
+    fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
+    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.5)
+
+    gesture('gestureend', 1.5)
+    fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
+    expect(board.store.getSnapshot().zoom).toBeGreaterThan(1.5)
+  })
+
+  it('anchors a Safari pinch on the board root, not on the screen (П-04)', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+
+    const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
+    // An expanded app sidebar offsets the board root, exactly as on the stand:
+    // screen and board coordinates differ by the root's box origin.
+    root.getBoundingClientRect = () => new DOMRect(280, 40, 1000, 800)
+    act(() => {
+      board.actions.setZoom(1)
+      board.actions.setPan(60, 30)
+    })
+    const clientX = 500
+    const clientY = 300
+    const before = board.store.getSnapshot()
+    const worldX = (clientX - 280 - before.panX) / before.zoom
+    const worldY = (clientY - 40 - before.panY) / before.zoom
+    const gesture = (type: string, scale: number): Event => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, { scale, clientX, clientY })
+      root.dispatchEvent(event)
+      return event
+    }
+
+    gesture('gesturestart', 1)
+    gesture('gesturechange', 2)
+    const after = board.store.getSnapshot()
+    expect(after.zoom).toBeCloseTo(2)
+    // The world point under the gesture stays fixed: the handler subtracts the
+    // root box exactly as the wheel branch does.
+    expect((clientX - 280 - after.panX) / after.zoom).toBeCloseTo(worldX)
+    expect((clientY - 40 - after.panY) / after.zoom).toBeCloseTo(worldY)
+    gesture('gestureend', 2)
+  })
+
+  it('blocks the board zoom in fullscreen while still preventing the page zoom', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
+    await runtime.flush()
+
+    const canvas = panel.container.querySelector('[data-surface="canvas"]') as Element
+    const before = board.store.getSnapshot().zoom
+    const prevented = !fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
+    expect(prevented).toBe(true)
+    expect(board.store.getSnapshot().zoom).toBe(before)
+  })
+
+  it('leaves the board view alone for Safari gestures in fullscreen (П-04)', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
+    await runtime.flush()
+
+    const root = panel.container.querySelector('[data-surface="board"]') as Element
+    act(() => {
+      board.actions.setZoom(1.3)
+      board.actions.setPan(40, 25)
+    })
+    const before = board.store.getSnapshot()
+    const gesture = (type: string, scale: number): Event => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, { scale, clientX: 500, clientY: 300 })
+      root.dispatchEvent(event)
+      return event
+    }
+
+    // The fullscreen frame is not part of the canvas: its gesture only blocks
+    // the page pinch, which would otherwise scale the whole shell.
+    expect(gesture('gesturestart', 1).defaultPrevented).toBe(true)
+    expect(gesture('gesturechange', 2).defaultPrevented).toBe(true)
+    expect(gesture('gestureend', 2).defaultPrevented).toBe(true)
+    const after = board.store.getSnapshot()
+    expect(after.zoom).toBe(before.zoom)
+    expect(after.panX).toBe(before.panX)
+    expect(after.panY).toBe(before.panY)
+  })
+
+  it('handles Cmd+0, +=, and − only while the pointer or focus is on the board', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
+    runtime.sessions.stubCreate(async () => created)
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+    const root = panel.container.querySelector('[data-surface="board"]') as Element
+
+    // Outside the board (pointer not inside, nothing focused) the key is the browser's.
+    act(() => {
+      board.actions.setZoom(1.5)
+      board.actions.setPan(20, 30)
+    })
+    fireEvent.keyDown(document, { key: '0', metaKey: true })
+    expect(board.store.getSnapshot().zoom).toBe(1.5)
+
+    // The pointer over the board engages the shortcuts: += steps the zoom up.
+    fireEvent.pointerEnter(root)
+    fireEvent.keyDown(document, { key: '=', metaKey: true })
+    expect(board.store.getSnapshot().zoom).toBeCloseTo(1.5 * 1.25)
+
+    // Focus inside the board engages them too, the pointer aside.
+    fireEvent.pointerLeave(root)
+    const editor = panel.container.querySelector('textarea') as HTMLTextAreaElement
+    editor.focus()
+    fireEvent.keyDown(document, { key: '0', metaKey: true })
+    expect(board.store.getSnapshot().zoom).toBe(1)
+    expect(board.store.getSnapshot().panX).toBe(0)
+    editor.blur()
   })
 
   it('drags a frame header and resizes through a frame handle', async () => {

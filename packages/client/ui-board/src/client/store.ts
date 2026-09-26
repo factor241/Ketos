@@ -39,8 +39,13 @@ export interface ComposerIntent {
 
 type BoardActions = {
   setPan: (draft: BoardState, panX: number, panY: number) => void
+  /** Shift the view by one screen-pixel pan delta; the stored pan moves by its negation. */
+  panBy: (draft: BoardState, deltaX: number, deltaY: number) => void
   setZoom: (draft: BoardState, zoom: number) => void
-  zoomTowardPointer: (draft: BoardState, delta: number, pointerX: number, pointerY: number) => void
+  /** Multiply the zoom by `factor` around the pointer, clamped to the layout limits. */
+  zoomBy: (draft: BoardState, factor: number, pointerX: number, pointerY: number) => void
+  /** Return the view to pan (0, 0) and zoom 1. */
+  resetView: (draft: BoardState) => void
   setViewport: (draft: BoardState, width: number, height: number) => void
   addWindow: (draft: BoardState, window: BoardWindowState) => void
   openWindow: (draft: BoardState, spec: OpenWindowSpec) => void
@@ -332,16 +337,26 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panX = panX
         draft.panY = panY
       },
+      panBy: (draft, deltaX, deltaY) => {
+        draft.panX -= deltaX
+        draft.panY -= deltaY
+      },
       setZoom: (draft, zoom) => {
         draft.zoom = Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, zoom))
       },
-      zoomTowardPointer: (draft, delta, pointerX, pointerY) => {
-        const factor = delta < 0 ? 1.1 : 0.9
+      zoomBy: (draft, factor, pointerX, pointerY) => {
+        // The world point under the pointer stays fixed: pan is recomputed for
+        // the new scale, and a clamped zoom leaves the pan untouched.
         const newZoom = Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, draft.zoom * factor))
         if (newZoom === draft.zoom) return
         draft.panX = pointerX - (pointerX - draft.panX) * (newZoom / draft.zoom)
         draft.panY = pointerY - (pointerY - draft.panY) * (newZoom / draft.zoom)
         draft.zoom = newZoom
+      },
+      resetView: (draft) => {
+        draft.panX = 0
+        draft.panY = 0
+        draft.zoom = 1
       },
       setViewport: (draft, width, height) => {
         draft.viewportWidth = width

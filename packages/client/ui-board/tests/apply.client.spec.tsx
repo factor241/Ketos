@@ -6,7 +6,7 @@ import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import { createBoardBench } from './fixtures.client.ts'
-import { inject } from '../src/client/index.ts'
+import { Config, inject } from '../src/client/index.ts'
 
 const runtimes = new Set<SlotTestRuntime>()
 
@@ -197,5 +197,9 @@ describe('board apply services', () => {
     // context: without this declaration the window's model directory fails and
     // the chip stays empty (the defect stage 10 recorded and stage 11 fixed).
     expect(inject).toContain('remote.session')
+  })
+
+  it('validates the wheel defaults: pan on a plain wheel, twofold pinch sensitivity', () => {
+    expect(Config({})).toEqual({ wheelMode: 'pan', zoomSensitivity: 0.0023 })
   })
 })

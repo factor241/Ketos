@@ -145,34 +145,69 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().zoom).toBe(1.25)
   })
 
-  it('zooms toward pointer preserving cursor focus', () => {
+  it('zooms by a factor around the pointer, keeping the world point under the cursor', () => {
     const { store, actions } = createBoardStore().create()
     actions.setPan(100, 100)
-    actions.setZoom(1.0)
 
-    // Zoom in toward pointer at (200, 200)
-    actions.zoomTowardPointer(-1, 200, 200)
+    // The world point under (200, 200): (200 - 100) / 1 = 100.
+    actions.zoomBy(1.1, 200, 200)
     const snap = store.getSnapshot()
     expect(snap.zoom).toBeCloseTo(1.1)
     // T_new = P - (P - T_old) * (S_new / S_old) = 200 - (200 - 100) * 1.1 = 90
     expect(snap.panX).toBeCloseTo(90)
     expect(snap.panY).toBeCloseTo(90)
+    expect((200 - snap.panX) / snap.zoom).toBeCloseTo(100)
+
+    // A factor of one is a no-op, pan included.
+    actions.zoomBy(1, 200, 200)
+    expect(store.getSnapshot().panX).toBeCloseTo(90)
+    expect(store.getSnapshot().zoom).toBeCloseTo(1.1)
   })
 
-  it('zooms out toward the pointer and keeps pan when the clamp holds the zoom', () => {
+  it('is monotone and symmetric, and keeps pan when the clamp holds the zoom', () => {
     const { store, actions } = createBoardStore().create()
     actions.setPan(100, 100)
-    actions.zoomTowardPointer(1, 200, 200)
-    expect(store.getSnapshot().zoom).toBeCloseTo(0.9)
-    // T_new = P - (P - T_old) * (S_new / S_old) = 200 - (200 - 100) * 0.9
-    expect(store.getSnapshot().panX).toBeCloseTo(110)
 
-    // At the lower clamp the zoom cannot move, so the pan must stay untouched.
-    actions.setZoom(0.2)
+    // A larger factor never yields a smaller zoom, in either direction.
+    let previous = store.getSnapshot().zoom
+    for (const factor of [1.1, 1.25, 1.5, 1 / 1.1, 1 / 1.25, 1 / 1.5]) {
+      actions.zoomBy(factor, 200, 200)
+      const current = store.getSnapshot().zoom
+      expect(current).not.toBe(previous)
+      previous = current
+    }
+
+    // A factor and its reciprocal return the exact view they started from.
     actions.setPan(100, 100)
-    actions.zoomTowardPointer(1, 200, 200)
-    expect(store.getSnapshot().zoom).toBe(0.2)
-    expect(store.getSnapshot().panX).toBe(100)
+    actions.setZoom(1)
+    actions.zoomBy(1.25, 200, 200)
+    actions.zoomBy(1 / 1.25, 200, 200)
+    expect(store.getSnapshot().zoom).toBeCloseTo(1)
+    expect(store.getSnapshot().panX).toBeCloseTo(100)
+
+    // At a clamp the zoom cannot move, so the pan must stay untouched.
+    for (const [limit, factor] of [[0.2, 0.5], [2, 2]] as const) {
+      actions.setZoom(limit)
+      actions.setPan(100, 100)
+      actions.zoomBy(factor, 200, 200)
+      expect(store.getSnapshot().zoom).toBe(limit)
+      expect(store.getSnapshot().panX).toBe(100)
+    }
+  })
+
+  it('pans by a screen-pixel delta and resets the view to pan 0 and zoom 1', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setPan(150, -80)
+    actions.panBy(40, 2)
+    expect(store.getSnapshot().panX).toBe(110)
+    expect(store.getSnapshot().panY).toBe(-82)
+
+    actions.setZoom(1.5)
+    actions.panBy(-10, 5)
+    actions.resetView()
+    expect(store.getSnapshot().panX).toBe(0)
+    expect(store.getSnapshot().panY).toBe(0)
+    expect(store.getSnapshot().zoom).toBe(1)
   })
 
   it('records the viewport the canvas layer measures', () => {

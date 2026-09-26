@@ -309,7 +309,7 @@ describe('DashboardCanvas Component', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800)
     const state: BoardState = { ...baseState, panX: 40, zoom: 1.5 }
-    const actions = { setViewport: vi.fn(), setPan: vi.fn(), zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
+    const actions = { setViewport: vi.fn(), setPan: vi.fn(), zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']
     const renderSlot = vi.fn(() => <span data-testid="windows-layer" />)
 
     const { container } = render(
@@ -337,7 +337,7 @@ describe('DashboardCanvas Component', () => {
 
   it('pans from the bare canvas and finishes the gesture through the shared cleanup', () => {
     const setPan = vi.fn<(x: number, y: number) => void>()
-    const actions = { setViewport: vi.fn(), setPan, zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
+    const actions = { setViewport: vi.fn(), setPan, zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']
     const { container } = render(
       <DashboardCanvas {...canvasProps({ ...baseState, panX: 30, panY: -20 }, actions, vi.fn(() => null))} />,
     )
@@ -362,7 +362,7 @@ describe('DashboardCanvas Component', () => {
 
   it('leaves a fullscreen window its identity transform instead of panning', () => {
     const setPan = vi.fn<(x: number, y: number) => void>()
-    const actions = { setViewport: vi.fn(), setPan, zoomTowardPointer: vi.fn() } as unknown as DashboardCanvasProps['actions']
+    const actions = { setViewport: vi.fn(), setPan, zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']
     const state: BoardState = { ...baseState, fullscreenWindowId: 'a1' as WindowId }
     const { container } = render(
       <DashboardCanvas {...canvasProps(state, actions, vi.fn(() => null))} />,

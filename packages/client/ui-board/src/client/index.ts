@@ -14,6 +14,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
+import z from '@deepseek-ai/schemastery'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type {
@@ -41,7 +42,8 @@ import type {
   BoardCloneRoster, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
   BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
-import { BoardRoot, BoardIcon } from './BoardViews.tsx'
+import { BoardRoot, BoardIcon, type BoardRootInjected } from './BoardViews.tsx'
+import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
@@ -77,12 +79,32 @@ export const inject = [
   'remote.session',
 ]
 
+/** Board runtime configuration. */
+export interface Config {
+  /** What an unmodified wheel does over the canvas and the floating chrome (R-4). */
+  wheelMode?: BoardWheelMode
+  /** Exponential zoom sensitivity `k` (`factor = exp(−Δ·k)`). */
+  zoomSensitivity?: number
+}
+
+/**
+ * Validated board runtime configuration. The default `k = 0.0023 ≈ ln 2 / 300`
+ * makes a fingertip-to-palm pinch (≈300 CSS px at 96 dpi) change the scale
+ * about twofold, while one 100px mouse notch stays a small step.
+ */
+export const Config: z<Config> = z.object({
+  wheelMode: z.union(['pan', 'zoom']).default('pan'),
+  // Number.MIN_VALUE expresses "any positive double": zero would freeze the zoom.
+  zoomSensitivity: z.number().min(Number.MIN_VALUE).default(0.0023),
+})
+
 /**
  * Register the board main panel, its sidebar panel-list entry, and the
  * `board.*` layer, frame, and body occupants that compose the canvas.
  * @param ctx - Client root context.
+ * @param config - validated runtime configuration.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // One live instance backs every registration: the handle handed to the slot
   // seat answers every create() with the same instance, so the persistence
   // layer and the components observe one store.
@@ -606,6 +628,11 @@ export function apply(ctx: ClientContext): void {
     key: 'board',
     store: boardStore,
     locale: NS,
+    inject: (): BoardRootInjected => ({
+      // Schemastery materializes the field defaults before Cordis calls apply.
+      wheelMode: config.wheelMode as BoardWheelMode,
+      zoomSensitivity: config.zoomSensitivity as number,
+    }),
     children: {
       'board.canvas': { kind: 'single', scope: 'root' },
       'board.dock': { kind: 'single', scope: 'root' },

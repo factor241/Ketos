@@ -17,18 +17,26 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { computeColumns, RIGHTBAR_DEFAULT_RATIO, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
+import { installPagePinchGuard } from './pinch-guard.ts'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
-/** Full composed props: runtime share + child-slot render share + store share. */
+/** Shell behavior the plugin Config injects into the frame. */
+export interface AppFrameInjected {
+  /** Whether the frame blocks the browser's page pinch-zoom outside the board. */
+  readonly blockPagePinchZoom: boolean
+}
+
+/** Full composed props: runtime share + child-slot render share + store share + injected config. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
   & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
+  & InjectFace<AppFrameInjected>
   & PropsLocale<'common'>
 
 /** Center column grid item (session-body building block). */
@@ -124,6 +132,7 @@ export function AppFrame({
   usePanelInfo,
   actions,
   renderSlot,
+  blockPagePinchZoom,
   t,
 }: AppFrameProps) {
   const layoutInfo = useStore(state => state.layoutInfo)
@@ -156,6 +165,15 @@ export function AppFrame({
       if (raf !== null) cancelAnimationFrame(raf)
     }
   }, [actions])
+
+  // The frame root owns the page pinch-zoom guard (R-2): a pinch outside the
+  // board must not scale the whole shell; the board handles its own.
+  useEffect(() => {
+    const frame = frameRef.current
+    /* v8 ignore next -- the ref is always attached by effect time: the frame div renders unconditionally. */
+    if (frame === null) return
+    return installPagePinchGuard(frame, blockPagePinchZoom)
+  }, [blockPagePinchZoom])
 
   const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
   const sidebarCollapsed = narrow ? !layoutInfo.narrowExpanded : layoutInfo.sidebar === 0

@@ -60,12 +60,16 @@ function resize(width: number): void {
   })
 }
 
-function mountFrame(windowWidth = frameWidth) {
+function mountFrame(windowWidth = frameWidth, blockPagePinchZoom = true) {
   vi.stubGlobal('innerWidth', windowWidth)
   const instance = createLayoutStore().create()
   const slotCalls: { key: string; props: object; options: RenderOpts | undefined }[] = []
   const renderSlot: AppFrameProps['renderSlot'] = (key, owner, options) => {
     slotCalls.push({ key, props: owner, options })
+    if (key === 'main') {
+      // The main panel hosts the board, whose surface owns its own pinch.
+      return <div data-testid="main-content" data-entry-key={options?.entryKey}><div data-surface="board" /></div>
+    }
     return <div data-testid={`${key}-content`} data-entry-key={options?.entryKey} />
   }
   const useSessions: AppFrameProps['useSessions'] = sel => sel({
@@ -101,6 +105,7 @@ function mountFrame(windowWidth = frameWidth) {
       useSessionPendingInteraction={useSessionPendingInteraction}
       useResource={useResource}
       useWorkspaces={sel => sel(workspaceState)}
+      blockPagePinchZoom={blockPagePinchZoom}
       t={key => key === 'brand.localBuild' ? 'Ketos Local Build' : key}
     />
   )
@@ -203,6 +208,29 @@ describe('AppFrame', () => {
     expect(sidebarOwner()).toEqual({ collapsed: false, width: 280 })
     expect(rightOwner()).toEqual({ width: 864, viewportWidth: 1920, canShow: true })
     expect(slotCalls.find(c => c.key === 'main')).toEqual({ key: 'main', props: {}, options: { entryKey: 'conversation' } })
+  })
+
+  it('blocks the page pinch outside the board and leaves the board its own pinch (R-2)', () => {
+    const { getByTestId } = mountFrame()
+    const wheel = (target: Element, ctrlKey: boolean): boolean => {
+      const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ctrlKey })
+      target.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(wheel(getByTestId('sidebar-content'), true)).toBe(true)
+    expect(wheel(getByTestId('sidebar-content'), false)).toBe(false)
+    expect(wheel(getByTestId('main-content').querySelector('[data-surface="board"]') as Element, true)).toBe(false)
+
+    const gesture = new Event('gesturechange', { bubbles: true, cancelable: true })
+    getByTestId('sidebar-content').dispatchEvent(gesture)
+    expect(gesture.defaultPrevented).toBe(true)
+  })
+
+  it('leaves the page pinch to the browser when blockPagePinchZoom is off', () => {
+    const { getByTestId } = mountFrame(frameWidth, false)
+    const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ctrlKey: true })
+    getByTestId('sidebar-content').dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
   })
 
   it('renders the main, sidebar, and root-scoped rightbar outlets without a current Session', () => {

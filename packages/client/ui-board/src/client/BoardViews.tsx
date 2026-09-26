@@ -12,7 +12,9 @@
  * chrome.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type {
+  InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+} from '@deepseek-ai/dsh-client-ui-slots'
 import clsx from 'clsx'
 import type { BoardStoreHandle } from './store.ts'
 import { BOARD_PANEL_ID } from './contract/slots.ts'
@@ -23,20 +25,49 @@ import { describeElement } from './element-capture.ts'
 import { resolveChatWindow } from './open-window.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './HandleRing.tsx'
-import { wheelZoomsBoard } from './wheel-zoom.ts'
+import { classifyBoardZoomKey } from './keyboard-zoom.ts'
+import { createBoardPinchGesture, type BoardPinchEvent } from './pinch.ts'
+import { resolveBoardWheel, wheelPanDelta, wheelZoomFactor, type BoardWheelMode } from './wheel-zoom.ts'
 import css from './BoardViews.module.css'
 
-/** Props of the board main-panel body: the child render share, the store share, and the locale seat. */
+/** Wheel behavior the plugin Config injects into the board root. */
+export interface BoardRootInjected {
+  /** What an unmodified wheel does over the canvas and the floating chrome. */
+  readonly wheelMode: BoardWheelMode
+  /** Exponential zoom sensitivity `k` (`factor = exp(−Δ·k)`). */
+  readonly zoomSensitivity: number
+}
+
+/** Props of the board main-panel body: the child render share, the store share, the injected runtime config, and the locale seat. */
 export type BoardRootProps =
   PropsRuntime<'main'>
   & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.omnibar' | 'board.minimap'>
   & PropsStore<BoardStoreHandle>
+  & InjectFace<BoardRootInjected>
   & PropsLocale<'board'>
 
 /** How long the window the user returns to stays highlighted. */
 const RETURN_HIGHLIGHT_MS = 1600
 
-export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo }: BoardRootProps) {
+/** Read the Safari gesture fields from a DOM event the board's listener receives. */
+function readPinchEvent(event: Event): BoardPinchEvent {
+  const gesture = event as Event & BoardPinchEvent
+  return { scale: gesture.scale, clientX: gesture.clientX, clientY: gesture.clientY }
+}
+
+/**
+ * Board-root coordinates of a screen point: the wheel and the Safari pinch
+ * share this mapping, so `zoomBy` anchors on the board root even when an
+ * expanded sidebar offsets it from the viewport.
+ * @param box - the board root's screen rectangle.
+ * @param event - the event carrying screen-pixel client coordinates.
+ * @returns the point in board-root pixels.
+ */
+function boardPoint(box: DOMRect, event: { readonly clientX: number; readonly clientY: number }): { x: number; y: number } {
+  return { x: event.clientX - box.left, y: event.clientY - box.top }
+}
+
+export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity }: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const pointerInsideRef = useRef(false)
   const spaceRef = useRef(false)
@@ -69,33 +100,83 @@ export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo }: Bo
     return () => { window.clearTimeout(timer) }
   }, [returnWindowId, activePanelId, actions])
 
-  // Wheel zoom toward the pointer. React's `onWheel` is a passive listener,
-  // so zooming logs a preventDefault error through it; a native non-passive
-  // listener on the root also covers the floating chrome, which sits beside
-  // the canvas rather than inside it.
+  // Wheel and pinch decisions. React's `onWheel` is a passive listener, so
+  // they log a preventDefault error through it; native non-passive listeners
+  // on the root also cover the floating chrome, which sits beside the canvas
+  // rather than inside it. A wheel over a window lane or an open chats panel
+  // keeps its own scrolling unless ctrl/meta (a trackpad pinch) is held; a
+  // plain wheel pans, or zooms in `wheelMode: 'zoom'` (R-4).
   useEffect(() => {
     const root = rootRef.current
     if (root === null) return
+    const pinch = createBoardPinchGesture((factor, clientX, clientY) => {
+      const point = boardPoint(root.getBoundingClientRect(), { clientX, clientY })
+      actions.zoomBy(factor, point.x, point.y)
+    })
     const onWheel = (event: WheelEvent): void => {
-      if (fullscreen || !wheelZoomsBoard(event.target)) return
+      const decision = resolveBoardWheel(event, event.target, wheelMode, fullscreen)
+      if (!decision.preventDefault) return
       event.preventDefault()
+      // A browser reporting one pinch twice applies the gesture's ratio only.
+      if (!decision.apply || (decision.classification === 'zoom' && pinch.active())) return
       const box = root.getBoundingClientRect()
-      actions.zoomTowardPointer(event.deltaY, event.clientX - box.left, event.clientY - box.top)
+      if (decision.classification === 'zoom') {
+        const point = boardPoint(box, event)
+        actions.zoomBy(wheelZoomFactor(event, box.height, zoomSensitivity), point.x, point.y)
+        return
+      }
+      const pan = wheelPanDelta(event)
+      actions.panBy(pan.x, pan.y)
+    }
+    // A fullscreen window fills the panel and is not part of the canvas, so its
+    // Safari gesture blocks the page pinch exactly as its wheel zoom does:
+    // preventDefault only, never `zoomBy` or a pinch-state change.
+    const onGestureStart = (event: Event): void => {
+      event.preventDefault()
+      if (fullscreen) return
+      pinch.start(readPinchEvent(event))
+    }
+    const onGestureChange = (event: Event): void => {
+      event.preventDefault()
+      if (fullscreen) return
+      pinch.change(readPinchEvent(event))
+    }
+    const onGestureEnd = (event: Event): void => {
+      event.preventDefault()
+      if (fullscreen) return
+      pinch.end()
     }
     root.addEventListener('wheel', onWheel, { passive: false })
-    return () => { root.removeEventListener('wheel', onWheel) }
-  }, [fullscreen, actions])
+    root.addEventListener('gesturestart', onGestureStart)
+    root.addEventListener('gesturechange', onGestureChange)
+    root.addEventListener('gestureend', onGestureEnd)
+    return () => {
+      root.removeEventListener('wheel', onWheel)
+      root.removeEventListener('gesturestart', onGestureStart)
+      root.removeEventListener('gesturechange', onGestureChange)
+      root.removeEventListener('gestureend', onGestureEnd)
+    }
+  }, [fullscreen, actions, wheelMode, zoomSensitivity])
 
   // Space arms panning while the pointer is over the board — including over a
   // window, whose own gesture then stands down for the capture phase — and a
-  // focused editor keeps the key. Ctrl/Cmd+0 resets the view instead of the
-  // browser's page zoom.
+  // focused editor keeps the key. Cmd/Ctrl+0, +=, and − are board view
+  // commands only while the pointer or focus is inside the board; everywhere
+  // else the browser keeps its page zoom.
   useEffect(() => {
+    const root = rootRef.current
+    /* v8 ignore next -- the ref is always attached by effect time: the board root renders unconditionally. */
+    if (root === null) return
     const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key === '0') {
+      const command = classifyBoardZoomKey(event, pointerInsideRef.current || root.contains(document.activeElement))
+      if (command !== null) {
         event.preventDefault()
-        actions.setPan(0, 0)
-        actions.setZoom(1)
+        if (command.kind === 'reset') {
+          actions.resetView()
+          return
+        }
+        const box = root.getBoundingClientRect()
+        actions.zoomBy(command.factor, box.width / 2, box.height / 2)
         return
       }
       if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return

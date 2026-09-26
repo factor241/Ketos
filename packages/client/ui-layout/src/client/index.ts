@@ -8,13 +8,14 @@
  * presenter, which projects ctx.theme snapshots onto document.body.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PanelInfo } from './service.ts'
-import { AppFrame } from './AppFrame.tsx'
+import { AppFrame, type AppFrameInjected } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import { ThemePresenter } from './theme-presenter.ts'
@@ -122,13 +123,25 @@ export interface RightbarOwnerProps {
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme', 'locale']
 
+/** Shell runtime configuration. */
+export interface Config {
+  /** Whether the frame blocks the browser's page pinch-zoom outside the board (R-2). */
+  blockPagePinchZoom?: boolean
+}
+
+/** Validated shell runtime configuration. */
+export const Config: z<Config> = z.object({
+  blockPagePinchZoom: z.boolean().default(true),
+})
+
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
  * into 'root' with the four child-slot declarations, the layout store seat,
  * and the shared root instance supplying commands and the panel-info source.
  * @param ctx - client root context.
+ * @param config - validated runtime configuration.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config: Config = Config({})): void {
   ctx.effect(() => {
     const handle = createLayoutStore()
     const instance = handle.create()
@@ -154,6 +167,10 @@ export function apply(ctx: ClientContext): void {
         'rightbar': { kind: 'single', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
+      inject: (): AppFrameInjected => ({
+        // Schemastery materializes the field default before Cordis calls apply.
+        blockPagePinchZoom: config.blockPagePinchZoom as boolean,
+      }),
       store,
     }, AppFrame)
     const disposePanels = ctx.slots.subscribe('main', retainMainPanels)

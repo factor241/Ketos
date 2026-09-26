@@ -25,6 +25,7 @@ import {
 } from '@ketos/clone-core/methodology'
 import { CLONE_STATUS_ROWS, TASK_OBJECTIVE_LIMIT, type BoardTaskOutcome, type BoardWindowInjected, type CloneModelOption } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { useBoardMenuDismiss } from '../board-popover.tsx'
 import type { BoardTranslate } from '../locale.ts'
 import { relativeAge } from '../relative-age.ts'
 import { formatModelRoute } from '../clone-model.ts'
@@ -175,6 +176,10 @@ export function CloneBody({
   const [skillModal, setSkillModal] = useState<SkillModalState | undefined>(undefined)
   const modelAnchor = useRef<HTMLButtonElement>(null)
   const skillAnchor = useRef<HTMLButtonElement | null>(null)
+  // Window move, resize, fullscreen, culling, and close dismiss both clone
+  // menus; pan and zoom only move them with the window.
+  useBoardMenuDismiss(() => { setModelMenuOpen(false) })
+  useBoardMenuDismiss(() => { setSkillMenu(null) })
 
   const cloneId = cardWindow.cloneId
   const storedRevision = clone?.revision

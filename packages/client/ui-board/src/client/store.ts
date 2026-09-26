@@ -165,14 +165,24 @@ const GRID_STEP = 24
 /**
  * Bottom of the window z-index band. Windows paint above the canvas grid and
  * below every floating layer of the board: the chrome (dock, omnibar, minimap)
- * sits at 100, the element-selection overlay at 500, and the fullscreen frame
- * and an overlay chats panel at 1000. The band tops out below the chrome, so a
- * window can never paint over it however many windows are open.
+ * sits at 100, the active handle ring at 150, the screen-space popover layer
+ * (tooltips and menus) at {@link BOARD_POPOVER_Z}, the element-selection
+ * overlay at 500, and the fullscreen frame and an overlay chats panel at 1000.
+ * The band tops out below the chrome, so a window can never paint over it
+ * however many windows are open.
  */
 export const WINDOW_Z_BASE = 10
 
 /** Top of the window z-index band; the chrome above it starts at 100. */
 export const WINDOW_Z_MAX = 99
+
+/**
+ * Z-index of the board's popover layer. Tooltips and menus of the windows, the
+ * chats rail and panel, and the floating chrome portal into that layer, so
+ * they paint above the chrome and the handle ring while the element-selection
+ * overlay still covers them.
+ */
+export const BOARD_POPOVER_Z = 300
 
 /**
  * Snap one position component to the board grid.

@@ -52,6 +52,7 @@ Status: implemented
 
 ## Related
 
+- [Board input and the popover layer](2026-09-25-ketos-board-input-and-popover-layer.zh.md) —— 部分取代本记录的 wheel 段落与 `Ctrl/Cmd+0` 一句；指针手势、裁剪与 z 带决策仍然有效。
 - [Board windows own Harness sessions and rebuild the chat composer](2026-09-16-ketos-board-window-sessions.zh.md) —— 其记录现在跟随打开集合的桥。
 - [Board windows fill the panel in fullscreen instead of handing off to the main panel](2026-09-16-ketos-board-window-fullscreen.zh.md) —— 已更新：全屏改为隐藏邻居，而不是卸载它们。
 - [`packages/client/ui-board/README.md`](../../../../packages/client/ui-board/README.zh.md) —— 本阶段更新的交互与限制。

@@ -52,6 +52,7 @@ import type {
 import type { BoardStoreHandle } from '../store.ts'
 import { contextReading, contextRingState, type ContextRingState } from '../context-ring.ts'
 import { menuPlacement } from '../menu-placement.ts'
+import { useBoardMenuDismiss, useBoardPopoverBoundary } from '../board-popover.tsx'
 import type { BoardTranslate } from '../locale.ts'
 import { MicGlyph, useDictation } from '../dictation.tsx'
 import css from './ComposerBar.module.css'
@@ -273,16 +274,21 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
 
   /**
    * Open one popover, or close it when its own trigger is clicked again. The
-   * placement follows the trigger's position: the side with more room wins and
-   * a trigger past the middle of the viewport aligns its list to the end.
+   * placement follows the trigger's position: the side with more room inside
+   * the board boundary wins and a trigger past its middle aligns the list to
+   * the end.
    */
+  const boundary = useBoardPopoverBoundary()
   const openMenu = useCallback((kind: MenuKind, trigger: HTMLElement | null): void => {
     setMenu((current) => {
       if (current?.kind === kind) return null
-      return { kind, ...menuPlacement(trigger ?? cardRef.current) }
+      return { kind, ...menuPlacement(trigger ?? cardRef.current, boundary()) }
     })
-  }, [])
+  }, [boundary])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
+  // Moving or resizing the window, fullscreening it, culling it, or closing it
+  // dismisses the open list; panning and zooming keep it following the chip.
+  useBoardMenuDismiss(closeMenu)
   const isOpen = (kind: MenuKind): boolean => menu?.kind === kind
   const sideOf = (kind: MenuKind): 'top' | 'bottom' => menu?.kind === kind ? menu.side : 'top'
   const alignOf = (kind: MenuKind): 'start' | 'end' => menu?.kind === kind ? menu.align : 'start'

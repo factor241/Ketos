@@ -37,8 +37,8 @@
   max-width: 360px;
 }
 
-/* Portal mode: fixed in the viewport, coordinates supplied inline from the
- * anchor rect (side/align resolved in JS, the in-place offset rules above
+/* Portal mode: fixed in the host container, coordinates supplied inline from
+ * the anchor rect (side/align resolved in JS, the in-place offset rules above
  * don't apply). Portaled lists must layer above modal overlays (z 1000) —
  * an anchor inside a dialog still expects its menu on top. */
 .portal {
@@ -59,22 +59,14 @@
   right: 0;
 }
 
-/* Viewport fit: the card stops 12px short of the viewport's top/bottom edges
- * (24 = 2 × the portal MARGIN in Menu.tsx) and taller content scrolls inside
- * .viewport, so a pinned .footer stays visible. Menus with submenu rows skip
- * this class — the overflow clip would crop the side card, so they rely on
- * staying short. */
-.scrollable {
-  max-height: calc(100vh - 24px);
-}
-
+/* Taller content scrolls inside .viewport, so a pinned .footer stays visible.
+ * The height cap is set inline from the popover host's boundary — every menu
+ * is capped now that submenus render outside this card. */
 .viewport {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
-}
-
-.scrollable .viewport {
   overflow-y: auto;
 }
 
@@ -223,26 +215,39 @@
   background: var(--dsw-alias-border-l1);
 }
 
-/* Nested card to the right of the parent row (figma 419:16920).
- * Bottom-aligned with the parent menu card (grows upward): itemWrap sits in
- * .list's 4px pad, so bottom: -4px matches the list's outer bottom edge.
- * Horizontal: list pad (4px) + 6px card gap = 10px past itemWrap — plain
- * `100% + 6px` collapses to ~2px between outer card edges.
- * ::before bridges the full gap so the pointer can cross without mouseLeave. */
+/* Nested card beside its row (figma 419:16920), portaled into the popover
+ * host: position, scale, and the chosen side come from the placement effect,
+ * and the inner viewport scrolls under the inline height cap. The card itself
+ * stays overflow-visible so the gap bridge below can sit outside its box. */
 .submenu {
-  position: absolute;
+  position: fixed;
   top: auto;
-  bottom: -4px;
-  left: calc(100% + 10px);
-  z-index: 101;
+  left: auto;
+  z-index: 1101;
   min-width: 163px;
+  max-width: 360px;
 }
 
-.submenu::before {
+/* Bridge the row->submenu gap so the pointer crosses without a mouseleave.
+ * The pseudo-element belongs to the portaled card, which React's enter/leave
+ * traversal still counts inside the row's subtree. Width mirrors SUBMENU_GAP
+ * in Menu.tsx. */
+.submenu[data-placement='right-bottom']::before,
+.submenu[data-placement='right-top']::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -10px;
-  width: 10px;
+  left: -4px;
+  width: 4px;
+}
+
+.submenu[data-placement='left-bottom']::before,
+.submenu[data-placement='left-top']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 4px;
 }

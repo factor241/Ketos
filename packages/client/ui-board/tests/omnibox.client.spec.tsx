@@ -220,12 +220,13 @@ describe('board omnibox', () => {
     expect(runtime.sessions.calls.filter(call => call.method === 'open')).toHaveLength(1)
   })
 
-  it('renders the open menu through the portal, outside the board panel', async () => {
+  it('renders the open menu through the portal into the board popover layer', async () => {
     const { panel } = await bench()
 
     openActionMenu(panel)
 
-    expect(panel.container.querySelector('[role="menu"]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-layer="omnibar"] [role="menu"]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-layer="popover"] [role="menu"]')).not.toBeNull()
     expect(document.querySelector('[role="menu"]')).not.toBeNull()
   })
 })

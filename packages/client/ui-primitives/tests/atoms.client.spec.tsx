@@ -402,19 +402,22 @@ describe('Menu', () => {
     expect(onSelect).toHaveBeenCalledWith('new')
   })
 
-  it('caps the list height for internal scrolling unless a submenu row is present', () => {
+  it('caps the list height for internal scrolling, including menus with submenu rows', () => {
     const { rerender } = render(
       <Menu open anchor={<span>trigger</span>} items={items} onSelect={() => {}} onClose={() => {}} />)
-    expect(screen.getByRole('menu').className).toMatch(/scrollable/)
+    // jsdom's 768px viewport less the 12px margin on each edge; taller content
+    // scrolls in the viewport, pinned rows stay below it.
+    expect(screen.getByRole('menu').style.maxHeight).toBe('744px')
+    expect(screen.getByRole('menu').querySelector('div[class*="viewport"]')).not.toBeNull()
     rerender(
       <Menu
         open
         anchor={<span>trigger</span>}
         items={[{ id: 'p', label: 'Parent', submenu: [{ id: 's', label: 'Sub' }] }]}
         onSelect={() => {}}
-        onClose={() => {}}
-      />)
-    expect(screen.getByRole('menu').className).not.toMatch(/scrollable/)
+        onClose={() => {}} />)
+    // Submenus are portaled now, so the scrolling viewport no longer crops them.
+    expect(screen.getByRole('menu').style.maxHeight).toBe('744px')
   })
 })
 

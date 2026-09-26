@@ -52,6 +52,7 @@ Verification: `tests/pointer-gesture.client.spec.tsx` (cancel, disposal, unmount
 
 ## Related
 
+- [Board input and the popover layer](2026-09-25-ketos-board-input-and-popover-layer.md) — partially supersedes this note's wheel paragraph and its `Ctrl/Cmd+0` sentence; the pointer-gesture, culling, and z-band decisions stand.
 - [Board windows own Harness sessions and rebuild the chat composer](2026-09-16-ketos-board-window-sessions.md) — the bridge whose records now follow the open set.
 - [Board windows fill the panel in fullscreen instead of handing off to the main panel](2026-09-16-ketos-board-window-fullscreen.md) — updated: fullscreen hides its neighbours instead of unmounting them.
 - [`packages/client/ui-board/README.md`](../../../../packages/client/ui-board/README.md) — the interactions and limitations this stage updates.

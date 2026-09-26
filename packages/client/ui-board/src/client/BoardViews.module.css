@@ -8,19 +8,21 @@
   height: 100%;
   overflow: hidden;
   /* One stacking context for the whole board: the window band, the floating
-     chrome (100), the selection overlay (500), and the fullscreen layer (1000)
-     stay inside the board box, so shell-level overlays above the box keep
-     painting and hit-testing above every board layer. NOTE: the frames and the
-     chats panel live inside the canvas transform, so their z-index values order
-     them within that subtree; the chrome (root-level, 100) paints above the
-     panel's overlay presentation. */
+     chrome (100), the handle ring (150), the popover layer (300), the
+     selection overlay (500), and the fullscreen layer (1000) stay inside the
+     board box, so shell-level overlays above the box keep painting and
+     hit-testing above every board layer. NOTE: the frames and the chats panel
+     live inside the canvas transform, so their z-index values order them
+     within that subtree; the chrome (root-level, 100) paints above the panel's
+     overlay presentation. */
   isolation: isolate;
 
   /* Window UI scale: a floating window renders above the base design
      (13-14px text, 28px controls, 16px body padding) so its chat stays readable
      beside the app's 14px content axis. The frames, lanes, and composer read
-     these; the dock, omnibar, and minimap keep the app's sizes, and portalled
-     primitives (Menu, Tooltip) keep the app's sizes too. */
+     these; the dock, omnibar, and minimap keep the app's sizes, and the
+     popover layer hosts menus and tooltips that scale with the surface that
+     opened them. */
   --board-font-title: 17px;
   --board-font-content: 17px;
   --board-font-label: 15px;
@@ -37,6 +39,19 @@
   --board-control-small: 26px;
   --board-control-send: 36px;
   --board-chip-pad: 4px 10px;
+}
+
+/* Screen-space portal target for the board's tooltips and menus: positioned
+   for coordinates but never a gesture target itself, so only the portaled
+   popovers intercept the pointer. */
+.popoverHost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.popoverHost > * {
+  pointer-events: auto;
 }
 
 .icon {

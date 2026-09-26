@@ -1,8 +1,11 @@
-// Cloning the anchor preserves its layout context. Fixed positioning lets the
-// bubble escape ancestor overflow clipping without a portal.
+// Cloning the anchor preserves its layout context. The bubble always renders
+// through the popover host: a fixed bubble left in place would be positioned
+// against a transformed ancestor (the board canvas) instead of the viewport.
 
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEventHandler, MouseEventHandler, MutableRefObject, ReactElement, Ref } from 'react'
+import { createPortal } from 'react-dom'
+import { usePopoverHost } from './PopoverHost.tsx'
 import css from './Tooltip.module.css'
 
 /** Bubble placement relative to the anchor. */
@@ -29,9 +32,11 @@ type TooltipLabel = string | (() => string)
  * @param props.maxWidth - bubble width cap in pixels, for labels long enough that the default
  * half-viewport cap would render a slab wider than the surface the anchor sits on.
  * @param props.children - a single anchor element; its own ref (callback or object) is forwarded alongside the tooltip's.
- * @returns the cloned anchor plus a fixed-position bubble while hovered/focused.
+ * @returns the cloned anchor plus a bubble while hovered/focused, portaled into
+ * the popover host's container at its scale and clamped to its boundary.
  */
 export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, maxWidth, children }: { label: TooltipLabel; side?: TooltipSide; delayMs?: number; disabled?: boolean; maxWidth?: number; children: ReactElement<AnchorProps> }) {
+  const host = usePopoverHost()
   const anchor = useRef<HTMLElement | null>(null)
   // React 18 keeps the element's ref outside props; forward it so wrapping an
   // anchor in Tooltip never silently severs the owner's ref.
@@ -56,38 +61,55 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     : placement === 'right'
       ? pos.top + (pos.bottom - pos.top) / 2
       : placement === 'top' ? pos.top - 8 : pos.bottom + 8
+  // Scaling about the edge that faces the anchor keeps the visual gap constant
+  // while the label grows with the hosted surface. At scale 1 the stylesheet's
+  // data-side transform stands alone.
+  const sideTransform = placement === 'right'
+    ? 'translateY(-50%)'
+    : placement === 'top' ? 'translate(-50%, -100%)' : 'translateX(-50%)'
+  const transformOrigin = placement === 'right' ? 'left center' : placement === 'top' ? 'bottom center' : 'top center'
   const EDGE_MARGIN = 12
-  // Viewport fit: fixed positioning knows nothing about edges, so a centered
-  // bubble near the right edge would clip and a long label under an anchor low
-  // on the page would run off the bottom. Horizontally the bubble slides back
-  // inside; vertically it flips to the opposite side, which is the only move
-  // that does not cover the anchor being read. Each measurement resets the base
-  // position first, so a shorter label or a larger viewport releases a previous
+  // Fit against the host boundary: fixed positioning knows nothing about edges,
+  // so a centered bubble near the right edge would clip and a long label under
+  // an anchor low on the page would run off the bottom. Horizontally the bubble
+  // slides back inside; vertically it flips to the opposite side, which is the
+  // only move that does not cover the anchor being read. Every host signal
+  // re-reads the anchor too, so the bubble follows a pan or zoom instead of
+  // keeping the coordinates captured on show. Each measurement resets the base
+  // position first, so a shorter label or a larger boundary releases a previous
   // adjustment without another render.
   useLayoutEffect(() => {
     if (pos === null) return
     const fit = () => {
       const el = bubble.current
-      /* v8 ignore next -- pos is set only while the bubble is mounted. */
-      if (el === null) return
-      el.style.left = `${pos.x}px`
+      const anchorEl = anchor.current
+      /* v8 ignore next -- pos is set only while the bubble and its anchor are mounted. */
+      if (el === null || anchorEl === null) return
+      const a = anchorEl.getBoundingClientRect()
+      const x = side === 'right' ? a.right + 10 : a.left + a.width / 2
+      // Only a real anchor move schedules a render: a same-value update still
+      // costs one render pass, which would re-resolve a lazy label.
+      if (pos.x !== x || pos.top !== a.top || pos.bottom !== a.bottom) {
+        setPos({ x, top: a.top, bottom: a.bottom })
+      }
+      el.style.left = `${x}px`
+      const b = host.boundary()
       const r = el.getBoundingClientRect()
       let dx = 0
-      if (r.right > window.innerWidth - EDGE_MARGIN) dx = window.innerWidth - EDGE_MARGIN - r.right
-      if (r.left + dx < EDGE_MARGIN) dx = EDGE_MARGIN - r.left
-      el.style.left = `${pos.x + dx}px`
+      if (r.right > b.right - EDGE_MARGIN) dx = b.right - EDGE_MARGIN - r.right
+      if (r.left + dx < b.left + EDGE_MARGIN) dx = b.left + EDGE_MARGIN - r.left
+      el.style.left = `${x + dx}px`
       if (side === 'right') return
       // Flip only into a side that genuinely fits, so an anchor with room on
       // neither side keeps the requested placement instead of oscillating.
-      const fitsBelow = pos.bottom + 8 + r.height <= window.innerHeight - EDGE_MARGIN
-      const fitsAbove = pos.top - 8 - r.height >= EDGE_MARGIN
+      const fitsBelow = a.bottom + 8 + r.height <= b.bottom - EDGE_MARGIN
+      const fitsAbove = a.top - 8 - r.height >= b.top + EDGE_MARGIN
       if (placement === 'bottom' && !fitsBelow && fitsAbove) setPlacement('top')
       if (placement === 'top' && !fitsAbove && fitsBelow) setPlacement('bottom')
     }
     fit()
-    window.addEventListener('resize', fit)
-    return () => { window.removeEventListener('resize', fit) }
-  }, [placement, pos, resolvedLabel, side])
+    return host.subscribe(fit)
+  }, [host, placement, pos, resolvedLabel, side])
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Hover and focus are independent triggers: the bubble hides only after
   // BOTH clear (hovering away from a focused anchor must not drop it).
@@ -163,16 +185,22 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
         onFocus: (e) => { children.props.onFocus?.(e); triggers.current.focus = true; cancelShow(); show() },
         onBlur: (e) => { children.props.onBlur?.(e); triggers.current.focus = false; hide() },
       })}
-      {pos !== null && (
+      {pos !== null && createPortal(
         <span
           ref={bubble}
           className={css.bubble}
           data-side={placement}
-          style={{ left: pos.x, top: y, ...maxWidth === undefined ? {} : { maxWidth } }}
+          style={{
+            left: pos.x,
+            top: y,
+            ...host.scale === 1 ? {} : { transform: `${sideTransform} scale(${host.scale})`, transformOrigin },
+            ...maxWidth === undefined ? {} : { maxWidth },
+          }}
           role="tooltip"
         >
           {resolvedLabel}
-        </span>
+        </span>,
+        host.container,
       )}
     </>
   )

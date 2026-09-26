@@ -23,6 +23,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BoardDirectoryListing, BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { isWindowHidden } from '../culling.ts'
+import { useBoardMenuDismiss } from '../board-popover.tsx'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
@@ -120,6 +121,10 @@ function WindowChatsPanelView({
   const menuAnchor = useRef<HTMLButtonElement | null>(null)
   const viewAnchor = useRef<HTMLButtonElement | null>(null)
   const dragged = useRef(false)
+  // Window move, resize, fullscreen, culling, and close dismiss both panel
+  // menus; pan and zoom only move them with the panel.
+  useBoardMenuDismiss(() => { setViewOpen(false) })
+  useBoardMenuDismiss(() => { setRowMenu(null) })
 
   useEffect(() => () => {
     if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)

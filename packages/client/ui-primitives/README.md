@@ -49,6 +49,7 @@ Check this table before writing a control in a feature package. A plugin cannot 
 | `RiskConfirmation` | Sensitive action gated behind an explicit checkbox. |
 | `OnboardingSurface` | First-run stage that holds the application root inert. |
 | `Tooltip` | Hover text on a cloned anchor, placed right, bottom, or top. |
+| `PopoverHostProvider`, `usePopoverHost` | Screen-space host for portaled `Tooltip` bubbles and `Menu` cards: portal `container`, render `scale`, clamp `boundary()`, and the `subscribe(listener)` geometry signal (`PopoverHost` is the context value type). |
 | `HoverCard` | Hover preview the pointer can rest on and select from; optional copy button. |
 | `Toast` | Transient top-center banner held for the owner's `holdMs`. |
 | `JsonTree`, `JsonBlock` | Read-only JSON inspection. |
@@ -62,6 +63,8 @@ Three pairs are easy to confuse:
 - **`Tag` against `Pill`.** Reach for `Tag` for a read-only badge at the 11px capsule size, and for `Pill` when the capsule is selectable (`active` and `onClick`, as view switchers and filters use) or when it must sit on a 24px text line — `TerminalBlock` renders its exit status as a static `Pill` for exactly that reason. Size decides as much as interactivity here; the two are not interchangeable.
 - **`DisclosureRow` against a card.** The row lays its title and content side by side at a fixed 24px. A card that stacks a name over a description is a different layout, and belongs in the feature package — `ui-settings-plugins`' `PluginCard` is the precedent and records why.
 - **`FoldToggle` against the exported surface.** It is package-internal and not exported; the output cards use it for their head-tail fold.
+
+`PopoverHostProvider` fixes where a portaled `Tooltip` bubble or `Menu` card mounts, at what scale it renders, and which screen-pixel rectangle it stays inside; `usePopoverHost` reads that host. Without a provider the host is `document.body` at scale 1 inside the browser window — exactly the pre-host behavior, so a consumer that never mounts one is unaffected. Both primitives re-read their anchor and re-clamp when the host's `subscribe` fires, and both cap their scrolling area to the host boundary. The board's popover layer mounts this provider so window menus and tooltips draw in the board's screen coordinates, at the board's zoom, and clamp to the board area; dock and omnibar tooltips stay on the default host.
 
 Writing your own component in your own package is fine when the need is genuinely specific. What is not fine is copying a control that already exists here — and once a second package needs the same control, it belongs in this package ([decision](../../../.agents/notes/implemented/architecture/2026-09-05-shared-client-control-primitives.md)).
 
@@ -100,6 +103,7 @@ The package enforces one separation: presentational React atoms with zero Cordis
 | [`src/icons/`](src/icons/) | `ic_ds_*` glyph components and brand marks |
 | [`src/code-file-icon-artwork.ts`](src/code-file-icon-artwork.ts) | Embedded inner SVG markup for the 48 detailed code-file categories |
 | [`src/code-file-icon-artwork.manifest.json`](src/code-file-icon-artwork.manifest.json) | Design-export digests, included categories, and intentionally excluded artwork |
+| [`src/PopoverHost.tsx`](src/PopoverHost.tsx) | Popover host context, provider, and hook for portaled overlays |
 | [`src/useAnchoredPosition.ts`](src/useAnchoredPosition.ts) / [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | Floating-panel and overlay geometry hooks |
 
 ### Streaming markdown

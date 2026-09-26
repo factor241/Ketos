@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { PopoverHostProvider, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 
 afterEach(cleanup)
 
@@ -397,5 +397,101 @@ describe('Tooltip', () => {
       </Tooltip>,
     )
     expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+})
+
+describe('Tooltip with a popover host', () => {
+  const rect = (left: number, right: number): DOMRect =>
+    new DOMRect(left, 0, right - left, 20)
+
+  it('portals the bubble into the host container at the host scale', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    try {
+      render(
+        <PopoverHostProvider container={container} scale={2}>
+          <Tooltip label="Scaled">
+            <button type="button">anchor</button>
+          </Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      const bubble = screen.getByRole('tooltip')
+      expect(container.contains(bubble)).toBe(true)
+      // Scaling about the anchor-facing edge keeps the 10px gutter visual.
+      expect(bubble.style.transform).toBe('translateY(-50%) scale(2)')
+      expect(bubble.style.transformOrigin).toBe('left center')
+    } finally {
+      container.remove()
+    }
+  })
+
+  it('leaves the bubble in document.body when no host designates the container', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    try {
+      render(
+        <Tooltip label="Default">
+          <button type="button">anchor</button>
+        </Tooltip>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      const bubble = screen.getByRole('tooltip')
+      // Negative case: the container assertion only holds under a provider.
+      expect(container.contains(bubble)).toBe(false)
+      expect(bubble.parentElement).toBe(document.body)
+    } finally {
+      container.remove()
+    }
+  })
+
+  it('clamps the bubble to the host boundary instead of the browser window', () => {
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'tooltip' ? rect(250, 350) : rect(280, 300)
+    })
+    try {
+      render(
+        <PopoverHostProvider boundary={() => new DOMRect(0, 0, 250, 200)}>
+          <Tooltip label="Wide" side="bottom">
+            <button type="button">anchor</button>
+          </Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      // x = 290 (anchor center); the measured 250..350 bubble overflows the
+      // boundary's 238 limit by 112, so it shifts to 178 — without the host
+      // the 1024-wide window would leave it at 290.
+      expect(screen.getByRole('tooltip').style.left).toBe('178px')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('follows the anchor when the host reports a geometry change', () => {
+    let anchor = rect(100, 120)
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'tooltip' ? new DOMRect(0, 0, 0, 20) : anchor
+    })
+    let listener: (() => void) | null = null
+    const subscribe = (l: () => void) => {
+      listener = l
+      return () => { listener = null }
+    }
+    try {
+      render(
+        <PopoverHostProvider subscribe={subscribe}>
+          <Tooltip label="Follow" side="bottom">
+            <button type="button">anchor</button>
+          </Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      expect(screen.getByRole('tooltip').style.left).toBe('122px')
+      anchor = rect(200, 220)
+      act(() => { listener?.() })
+      expect(screen.getByRole('tooltip').style.left).toBe('222px')
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

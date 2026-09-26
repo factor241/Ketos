@@ -13,6 +13,7 @@ import { Fragment, useCallback, useEffect, useRef } from 'react'
 import type { InjectFace, PropsRenderSlots, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardWindowInjected, BoardWindowState, WindowId } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { BoardPopoverProvider } from '../board-popover.tsx'
 
 export type BoardWindowLayerProps =
   PropsRenderSlots<'board.window' | 'board.window.body' | 'board.window.panel'>
@@ -46,9 +47,16 @@ export function BoardWindowLayer({ renderSlot, useStore, releaseWindow }: BoardW
         return (
           <Fragment key={window.id}>
             {/* The chats panel is a companion under the frame: same layer order,
-                earlier in the DOM, so the frame always paints above it. */}
-            {renderSlot('board.window.panel', { window }, { entryKey: window.kind })}
-            {renderSlot('board.window', { window, renderBody }, { entryKey: window.kind })}
+                earlier in the DOM, so the frame always paints above it. Each
+                side gets its own popover host, so window tooltips and menus
+                portal into the board layer at the window's scale and dismiss
+                on the window's lifecycle. */}
+            <BoardPopoverProvider useStore={useStore} windowId={window.id}>
+              {renderSlot('board.window.panel', { window }, { entryKey: window.kind })}
+            </BoardPopoverProvider>
+            <BoardPopoverProvider useStore={useStore} windowId={window.id}>
+              {renderSlot('board.window', { window, renderBody }, { entryKey: window.kind })}
+            </BoardPopoverProvider>
           </Fragment>
         )
       })}

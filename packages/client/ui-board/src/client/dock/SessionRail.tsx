@@ -23,6 +23,7 @@ import type { BoardWindowInjected, BoardWindowSessionState, BoardWindowState, Wi
 import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
+import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
 import { windowTitle } from '../window-title.ts'
 import css from './SessionRail.module.css'
@@ -116,6 +117,7 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
   const [draft, setDraft] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuPlacement | null>(null)
   const rowRef = useRef<HTMLButtonElement>(null)
+  const boundary = useBoardPopoverBoundary()
 
   const commit = (value: string): void => {
     actions.setWindowCustomTitle(win.id, value)
@@ -158,7 +160,7 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
                 onDoubleClick={() => { setDraft(win.customTitle ?? '') }}
                 onContextMenu={(event) => {
                   event.preventDefault()
-                  setMenu(menuPlacement(event.currentTarget))
+                  setMenu(menuPlacement(event.currentTarget, boundary()))
                 }}
                 className={clsx(css.windowButton, active && css.active)}
                 aria-label={t('rail.statusLabel', { title, status: t(STATUS_KEY[status]) })}
@@ -219,6 +221,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   const clones = useCloneList(roster => roster.clones)
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
+  const boundary = useBoardPopoverBoundary()
 
   const openAgent = () => {
     openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
@@ -230,7 +233,10 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
     icon: windowGlyph(kind),
   }))
 
-  return (
+  // The dock is screen-space chrome: its tooltips and menus portal into the
+  // board's popover layer at scale 1, outside the dock's own centring
+  // transform (a containing block for fixed offspring until then).
+  const dock = (
     <div data-board-layer="dock" className={css.rail}>
       {windowOrder.map((id) => {
         const win = windows[id as string]
@@ -259,7 +265,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
           onClick={openAgent}
           onContextMenu={(event) => {
             event.preventDefault()
-            setAddMenu(menuPlacement(event.currentTarget))
+            setAddMenu(menuPlacement(event.currentTarget, boundary()))
           }}
           className={css.addButton}
           aria-label={t('rail.addAgent')}
@@ -289,10 +295,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
         <button
           type="button"
           data-board-action="dock-reset-view"
-          onClick={() => {
-            actions.setPan(0, 0)
-            actions.setZoom(1)
-          }}
+          onClick={() => { actions.resetView() }}
           className={css.control}
           aria-label={t('rail.resetView')}
         >
@@ -323,4 +326,5 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
       )}
     </div>
   )
+  return <BoardPopoverProvider useStore={useStore}>{dock}</BoardPopoverProvider>
 }

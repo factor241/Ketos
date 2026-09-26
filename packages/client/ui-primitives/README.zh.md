@@ -49,6 +49,7 @@ kind: "package-library"
 | `RiskConfirmation` | 以显式复选框把关的敏感操作确认。 |
 | `OnboardingSurface` | 首次运行的引导舞台，期间保持应用根节点 inert。 |
 | `Tooltip` | 克隆锚点上的悬停文本，可置于右、下、上三个方向。 |
+| `PopoverHostProvider`、`usePopoverHost` | 采用 portal 的 `Tooltip` 气泡与 `Menu` 卡片的屏幕坐标宿主：portal `container`、渲染 `scale`、钳制 `boundary()`，以及 `subscribe(listener)` 几何信号（上下文值类型为 `PopoverHost`）。 |
 | `HoverCard` | 指针可停留、可选中的悬停预览；可选带复制按钮。 |
 | `Toast` | 顶部居中的瞬时横幅，保持时长由所有者的 `holdMs` 决定。 |
 | `JsonTree`、`JsonBlock` | 只读 JSON 查看。 |
@@ -62,6 +63,8 @@ kind: "package-library"
 - **`Tag` 与 `Pill`。** 11px 胶囊尺寸的只读徽章用 `Tag`；胶囊可选中（`active` 与 `onClick`，视图切换与筛选器就是这样用的），或者必须落在 24px 文本行上时用 `Pill`——`TerminalBlock` 把退出状态渲染成静态 `Pill` 正是后一种情况。这里尺寸和是否可交互同样是判据，两者不可互换。
 - **`DisclosureRow` 与卡片。** 该行以固定 24px 把标题与内容左右排列。把名称叠在描述之上的卡片是另一种布局，属于功能包——`ui-settings-plugins` 的 `PluginCard` 是先例，并记录了原因。
 - **`FoldToggle` 与对外导出面。** 它是包内组件，未导出；输出卡片用它做头尾折叠。
+
+`PopoverHostProvider` 决定采用 portal 的 `Tooltip` 气泡与 `Menu` 卡片挂载到哪里、以什么缩放渲染、以及停留在哪个屏幕像素矩形内；`usePopoverHost` 读取该宿主。没有 provider 时，宿主就是 `document.body`、缩放 1、边界为浏览器窗口——与引入宿主之前完全一致，因此从不挂载 provider 的使用方不受影响。宿主 `subscribe` 触发时，两者都会重新读取锚点并重新钳制，且都把可滚动区域限制在宿主边界内。看板的浮层会挂载该 provider，使窗口菜单与提示以看板的屏幕坐标、看板缩放渲染，并钳制在看板区域内；dock 与 omnibar 的提示仍使用默认宿主。
 
 需求确实特殊时，在自己的包里写自己的组件没有问题。不可以的是复制这里已有的控件——而当第二个包需要同一个控件时，它就该住进本包（[决定](../../../.agents/notes/implemented/architecture/2026-09-05-shared-client-control-primitives.zh.md)）。
 
@@ -100,6 +103,7 @@ kind: "package-library"
 | [`src/icons/`](src/icons/) | `ic_ds_*` 字形组件与品牌标记 |
 | [`src/code-file-icon-artwork.ts`](src/code-file-icon-artwork.ts) | 48 个细分代码文件类别的内嵌内层 SVG markup |
 | [`src/code-file-icon-artwork.manifest.json`](src/code-file-icon-artwork.manifest.json) | 设计导出摘要、已纳入类别与有意排除的图稿 |
+| [`src/PopoverHost.tsx`](src/PopoverHost.tsx) | 采用 portal 浮层的宿主上下文、provider 与 hook |
 | [`src/useAnchoredPosition.ts`](src/useAnchoredPosition.ts) / [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | 浮动面板与浮层几何钩子 |
 
 ### 流式 Markdown

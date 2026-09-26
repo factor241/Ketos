@@ -109,6 +109,7 @@
     "tests/turn-tail-actions.e2e.ts",
     "tests/goal-multi-turn-actions.e2e.ts",
     "tests/chat-scroll-fixture.ts",
+    "tests/board-geometry.e2e.ts",
     "tests/chat-scroll-contract.e2e.ts",
     "tests/chat-long-interactions.e2e.ts",
     "tests/chat-continuous-conversation.e2e.ts",

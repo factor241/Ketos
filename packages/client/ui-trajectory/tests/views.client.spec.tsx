@@ -797,9 +797,10 @@ describe('timeline projection', () => {
 
       fireEvent.mouseEnter(span as HTMLElement)
       act(() => { vi.advanceTimersByTime(499) })
-      expect(view.container.querySelector('[role="tooltip"]')).toBeNull()
+      // The bubble portals into the popover host (document.body by default).
+      expect(document.querySelector('[role="tooltip"]')).toBeNull()
       act(() => { vi.advanceTimersByTime(1) })
-      const tooltip = view.container.querySelector<HTMLElement>('[role="tooltip"]')
+      const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
       expect(tooltip?.textContent).toContain('Total 2,000 ms')
       expect(tooltip?.textContent).toContain('TTFT 500 ms')
       expect(tooltip?.textContent).toContain('Decoding 1,500 ms')

@@ -3,20 +3,22 @@
  *
  * The root owns the board's layer ladder: the canvas grid and its windows
  * (z-index 10–99, see `WINDOW_Z_MAX`), the floating chrome — dock, omnibar,
- * minimap — at 100, the element-selection overlay at 500, and the fullscreen
- * frame (with an overlay chats panel) at 1000. An expanded chats panel and a
- * fullscreen window stand the floating chrome down, so no root-level layer can
- * cover the panel's edge or the fullscreen frame. `isolation: isolate`
- * contains that ladder inside the board box, so an app-level overlay above the
- * box stays above every board layer instead of losing hit-testing to the
- * chrome.
+ * minimap — at 100, the active handle ring at 150, the screen-space popover
+ * layer (tooltips and menus, see `BOARD_POPOVER_Z`) at 300, the
+ * element-selection overlay at 500, and the fullscreen frame (with an overlay
+ * chats panel) at 1000. An expanded chats panel and a fullscreen window stand
+ * the floating chrome down, so no root-level layer can cover the panel's edge
+ * or the fullscreen frame. `isolation: isolate` contains that ladder inside
+ * the board box, so an app-level overlay above the box stays above every board
+ * layer instead of losing hit-testing to the chrome.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import clsx from 'clsx'
-import type { BoardStoreHandle } from './store.ts'
+import { BOARD_POPOVER_Z, type BoardStoreHandle } from './store.ts'
+import { BoardPopoverSurfaceContext, type BoardPopoverSurface } from './board-popover.tsx'
 import { BOARD_PANEL_ID } from './contract/slots.ts'
 import { isBoardEditingTarget } from './editing-target.ts'
 import { useBoardPointerGesture } from './pointer-gesture.ts'
@@ -68,10 +70,22 @@ function boardPoint(box: DOMRect, event: { readonly clientX: number; readonly cl
 }
 
 export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity }: BoardRootProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const pointerInsideRef = useRef(false)
   const spaceRef = useRef(false)
   const [panArmed, setPanArmed] = useState(false)
+  const [boardRoot, setBoardRoot] = useState<HTMLDivElement | null>(null)
+  const [popoverLayer, setPopoverLayer] = useState<HTMLDivElement | null>(null)
+  // The elements exist one commit after mount, so the surface stays null until
+  // both ref callbacks have run; consumers render without a host until then.
+  const surface = useMemo<BoardPopoverSurface | null>(
+    () => boardRoot === null || popoverLayer === null ? null : { layer: popoverLayer, root: boardRoot },
+    [boardRoot, popoverLayer],
+  )
+  const captureRoot = useCallback((element: HTMLDivElement | null) => {
+    rootRef.current = element
+    setBoardRoot(element)
+  }, [])
   const startGesture = useBoardPointerGesture()
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
@@ -223,27 +237,38 @@ export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, whee
 
   return (
     <div
-      ref={rootRef}
+      ref={captureRoot}
       data-surface="board"
       onPointerEnter={() => { pointerInsideRef.current = true }}
       onPointerLeave={() => { pointerInsideRef.current = false }}
       onPointerDownCapture={handlePointerDownCapture}
       className={clsx(css.root, panArmed && css.panArmed)}
     >
-      {renderSlot('board.canvas', {})}
-      {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
-      {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}
-      {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
-      {/* The active window's handle ring rides above the chrome, so a resize
-          handle stays grabbable when its window edge sits under a floating
-          layer; the selection overlay still paints above both. */}
-      {!fullscreen && <HandleRing useStore={useStore} actions={actions} />}
-      <ElementSelectionOverlay
-        t={t}
-        active={selecting}
-        onCancel={() => { actions.setSelectingElement(false) }}
-        onPick={handlePick}
-      />
+      <BoardPopoverSurfaceContext.Provider value={surface}>
+        {renderSlot('board.canvas', {})}
+        {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
+        {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}
+        {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
+        {/* The active window's handle ring rides above the chrome, so a resize
+            handle stays grabbable when its window edge sits under a floating
+            layer; the selection overlay still paints above both. */}
+        {!fullscreen && <HandleRing useStore={useStore} actions={actions} />}
+        <ElementSelectionOverlay
+          t={t}
+          active={selecting}
+          onCancel={() => { actions.setSelectingElement(false) }}
+          onPick={handlePick}
+        />
+        {/* Screen-space portal target for the board's tooltips and menus: it
+            sits outside the canvas transform, takes no pointer events itself,
+            and paints above the chrome but below the selection overlay. */}
+        <div
+          ref={setPopoverLayer}
+          data-board-layer="popover"
+          className={css.popoverHost}
+          style={{ zIndex: BOARD_POPOVER_Z }}
+        />
+      </BoardPopoverSurfaceContext.Provider>
     </div>
   )
 }

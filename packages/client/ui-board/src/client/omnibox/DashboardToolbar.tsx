@@ -27,6 +27,7 @@ import type { BoardWindowInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { nextWindowOrdinal } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
+import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { openBoardWindow, resolveChatWindow } from '../open-window.ts'
 import { folderName, recentChats } from '../chat-list-model.ts'
 import { useDictation } from '../dictation.tsx'
@@ -63,17 +64,18 @@ export function DashboardToolbar({
   const dictation = useDictation((transcript) => {
     setText(current => current === '' ? transcript : `${current} ${transcript}`)
   })
+  const boundary = useBoardPopoverBoundary()
 
   // The portal positions from the trigger rect, so the side and alignment read
-  // the trigger's viewport position once and the list tracks it afterwards.
+  // the trigger's board position once and the list tracks it afterwards.
   const openMenu = useCallback((trigger: HTMLElement | null): void => {
     // Refresh the presets and the clone roster on every open, so a row the
     // host added or removed since the last visit is offered or dropped rather
     // than stored stale.
     refreshAgentPresets()
     refreshClones()
-    setMenu(current => current !== null ? null : menuPlacement(trigger))
-  }, [refreshAgentPresets, refreshClones])
+    setMenu(current => current !== null ? null : menuPlacement(trigger, boundary()))
+  }, [refreshAgentPresets, refreshClones, boundary])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
 
   const handleSubmit = (e: FormEvent): void => {
@@ -198,7 +200,10 @@ export function DashboardToolbar({
     { id: 'selectElement', label: t('menu.selectElement'), icon: <IconInspectOutline12 /> },
   ]
 
-  return (
+  // The Omnibox is screen-space chrome: its tooltips and menus portal into the
+  // board's popover layer at scale 1, outside the bar's own centring transform
+  // (a containing block for fixed offspring until then).
+  const bar = (
     <div data-board-layer="omnibar" className={css.omnibar}>
       {notice !== null && <div data-board-omnibar-notice className={css.notice}>{notice}</div>}
       <form onSubmit={handleSubmit} className={css.form}>
@@ -253,4 +258,5 @@ export function DashboardToolbar({
       </form>
     </div>
   )
+  return <BoardPopoverProvider useStore={useStore}>{bar}</BoardPopoverProvider>
 }

@@ -198,7 +198,7 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
 
     // All 10 sessions were opened via ctx.sessions.open
     const opened = runtime.sessions.calls
-      .filter(call => call.method === 'open')
+      .filter(call => call.method === 'openStream')
       .map(call => call.args[0])
     for (let i = 1; i <= 10; i++) {
       expect(opened).toContain(`session-${i}`)

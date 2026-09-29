@@ -33,6 +33,14 @@ export interface ILayout {
    */
   selectPanel(panelId: MainPanelId | null): void
   /**
+   * Declare whether a main panel keeps the shell's sidebar column. A panel
+   * declaring false hides the column, its rail, and its resize handle while
+   * it is selected, so the panel owns the whole frame (Т2.7).
+   * @param panelId - registered main key.
+   * @param sidebar - false hides the sidebar for that panel.
+   */
+  setPanelSidebar(panelId: MainPanelId, sidebar: boolean): void
+  /**
    * Start an asynchronous navigation, superseding any earlier pending navigation.
    * @returns a signal aborted by the next navigation or layout disposal; check it before committing UI state.
    */
@@ -71,6 +79,11 @@ export class LayoutController implements ILayout {
     }
     this.navigation.abort()
     this.panels.selectPanel(panelId)
+  }
+
+  /** Declare one panel's sidebar visibility (false hides the column). */
+  setPanelSidebar(panelId: MainPanelId, sidebar: boolean): void {
+    this.panels.setPanelSidebar(panelId, sidebar)
   }
 
   /** @returns the new pending navigation's cancellation signal. */

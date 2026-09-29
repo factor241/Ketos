@@ -75,9 +75,10 @@ function renderComposer(
   session: BoardWindowSessionState,
   overrides: Partial<BoardWindowInjectProps> = {},
   onSent = vi.fn(),
+  sharedInstance?: ReturnType<ReturnType<typeof createBoardStore>['create']>,
 ) {
   const injected = injectedStub(overrides)
-  const instance = createBoardStore().create()
+  const instance = sharedInstance ?? createBoardStore().create()
   const props = {
     windowId: WINDOW,
     session,
@@ -599,6 +600,21 @@ describe('ComposerBar queue strip', () => {
     expect(getByText(/The queue change failed/)).not.toBeNull()
     expect(getByText(/session\/queue-item-not-found: gone/)).not.toBeNull()
   })
+
+  it('keeps the draft across a composer remount through the board store (А4)', () => {
+    // The board unmounts when the standard interface takes the main panel;
+    // the draft lives in the store, so the composer returns with it.
+    const shared = createBoardStore().create()
+    const readySession = sessionState(undefined, {})
+    const first = renderComposer(readySession, {}, vi.fn(), shared)
+    fireEvent.change(textarea(first.container), { target: { value: 'unsent draft' } })
+    expect(textarea(first.container).value).toBe('unsent draft')
+    first.unmount()
+
+    const second = renderComposer(readySession, {}, vi.fn(), shared)
+    expect(textarea(second.container).value).toBe('unsent draft')
+  })
+
 })
 
 describe('ComposerBar commands and mentions', () => {

@@ -49,7 +49,7 @@ import type {
   BoardCommandRow, BoardDraftFile, BoardDraftImage, BoardMentionRow, BoardPromptFile, BoardPromptMode,
   BoardWindowInjectProps, BoardWindowSessionState, WindowId,
 } from '../contract/slots.ts'
-import type { BoardStoreHandle } from '../store.ts'
+import type { BoardStoreHandle, BoardWindowDraft, BoardWindowDraftFile } from '../store.ts'
 import { contextReading, contextRingState, type ContextRingState } from '../context-ring.ts'
 import { menuPlacement } from '../menu-placement.ts'
 import { useBoardMenuDismiss, useBoardPopoverBoundary } from '../board-popover.tsx'
@@ -81,8 +81,11 @@ interface OpenMenu {
 interface OutgoingDraft {
   readonly text: string
   readonly images: readonly BoardDraftImage[]
-  readonly files: readonly BoardDraftFile[]
+  readonly files: readonly BoardWindowDraftFile[]
 }
+
+/** The empty draft a window without one reads; a stable reference for selectors. */
+const NO_DRAFT: BoardWindowDraft = { text: '', images: [], files: [] }
 
 /**
  * One durable queued image rendered as a fixed-size thumbnail. The read is
@@ -238,9 +241,11 @@ export interface ComposerBarProps {
 }
 
 export function ComposerBar({ windowId, session, t, injected, onSent, useStore, actions }: ComposerBarProps) {
-  const [draft, setDraft] = useState('')
-  const [images, setImages] = useState<readonly BoardDraftImage[]>([])
-  const [files, setFiles] = useState<readonly BoardDraftFile[]>([])
+  // The draft lives in the board store (see `BoardWindowDraft`): switching the
+  // main panel away from the board unmounts the whole board, and the store is
+  // what carries the text, images, and staged files through that trip.
+  const windowDraft = useStore(s => s.drafts[windowId as string] ?? NO_DRAFT)
+  const { text: draft, images, files } = windowDraft
   const [intakeError, setIntakeError] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [menu, setMenu] = useState<OpenMenu | null>(null)
@@ -261,8 +266,6 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   // Arms on `compositionend` and clears on the next timer tick, covering the
   // Enter Safari delivers after the event (the composition already ended).
   const compositionGuard = useRef(false)
-  // Source files of non-image chips, kept for retry after a failed upload.
-  const fileSources = useRef(new Map<string, File>())
   const dragDepth = useRef(0)
   // Admission round-trips still in flight; the composer's unmount cancels them.
   const inflight = useRef(new Set<AbortController>())
@@ -294,14 +297,15 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   const alignOf = (kind: MenuKind): 'start' | 'end' => menu?.kind === kind ? menu.align : 'start'
 
   const dictation = useDictation((text) => {
-    setDraft(current => current === '' ? text : `${current} ${text}`)
+    actions.setDraftText(windowId, draft === '' ? text : `${draft} ${text}`)
   })
 
   const ready = session?.status === 'ready'
   const running = session?.running === true
   const blocked = session?.blocked
-  const uploading = files.some(file => file.status === 'uploading')
-  const readyFiles = files.filter(file => file.status === 'ready' && file.receiptId !== undefined)
+  const uploading = files.some(entry => entry.record.status === 'uploading')
+  const readyFiles = files.filter(entry => entry.record.status === 'ready' && entry.record.receiptId !== undefined)
+    .map(entry => entry.record)
   const hasDraft = draft.trim() !== '' || images.length > 0 || readyFiles.length > 0
   const canSend = ready && blocked === undefined && !uploading && hasDraft
   const canAcceptDrop = ready && blocked === undefined
@@ -318,11 +322,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       if (intent.pickFiles === true) fileInput.current?.click()
       const text = intent.text
       if (text !== undefined) {
-        setDraft(current => current === '' ? text : `${current} ${text}`)
+        actions.setDraftText(windowId, draft === '' ? text : `${draft} ${text}`)
       }
       actions.consumeComposerIntent(intent.id)
     }
-  }, [intents, windowId, canAcceptDrop, actions])
+  }, [intents, windowId, canAcceptDrop, actions, draft])
 
   const slashQuery = commandsDismissed ? null : slashCommandMatch(draft)
   const slashRows = useMemo(() => {
@@ -356,21 +360,14 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     setMentionQuery(tail === null ? null : (tail[1] ?? ''))
   }, [])
 
-  /** Clear every visible draft field; staged file sources stay until their send settles. */
+  /** Clear the window's stored draft and the local composer view around it. */
   const resetDraftState = (): void => {
-    setDraft('')
-    setImages([])
-    setFiles([])
+    actions.clearDraft(windowId)
     setIntakeError(null)
     closeMenu()
     setMentionQuery(null)
     // Sending ends dictation: the transcript belongs to the message it fed.
     dictation.stop()
-  }
-
-  const clearDraft = (): void => {
-    resetDraftState()
-    fileSources.current.clear()
   }
 
   /**
@@ -380,9 +377,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
    * overwrites what the user wrote. Chips already present are not duplicated.
    */
   const restoreDraft = (outgoing: OutgoingDraft): void => {
-    setDraft(current => current === '' ? outgoing.text : `${current}\n\n${outgoing.text}`)
-    setImages(current => [...current, ...outgoing.images.filter(image => !current.some(held => held.id === image.id))])
-    setFiles(current => [...current, ...outgoing.files.filter(file => !current.some(held => held.id === file.id))])
+    actions.appendDraftText(windowId, outgoing.text)
+    actions.addDraftImages(windowId, outgoing.images)
+    actions.addDraftFiles(windowId, outgoing.files)
   }
 
   const submit = (mode: BoardPromptMode): void => {
@@ -391,11 +388,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     const name = leadingCommand(text)
     if (name === 'file') {
       if (canAcceptDrop) fileInput.current?.click()
-      clearDraft()
+      resetDraftState()
       return
     }
     if (name === 'model') {
-      clearDraft()
+      resetDraftState()
       openMenu('model', modelAnchor.current)
       return
     }
@@ -403,20 +400,16 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     // Every chip returns with a refused draft, a failed upload's included: its
     // retry source is the only way to re-stage the file.
     const outgoing: OutgoingDraft = { text, images, files }
-    const promptFiles: BoardPromptFile[] = readyFiles.map(file => ({
-      receiptId: file.receiptId as string,
-      ...(file.file === undefined ? {} : { file: file.file }),
+    const promptFiles: BoardPromptFile[] = readyFiles.map(record => ({
+      receiptId: record.receiptId as string,
+      ...(record.file === undefined ? {} : { file: record.file }),
     }))
 
     if (command !== undefined) {
       // The command clears optimistically like a prompt, and a refusal returns
       // the same draft: its staged receipts and retry sources included.
       void injected.executeCommand(windowId, text, images, promptFiles).then((accepted) => {
-        if (!accepted) {
-          restoreDraft(outgoing)
-          return
-        }
-        for (const file of outgoing.files) fileSources.current.delete(file.id)
+        if (!accepted) restoreDraft(outgoing)
       }, () => { restoreDraft(outgoing) })
       resetDraftState()
       onSent()
@@ -429,12 +422,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     inflight.current.add(controller)
     void injected.sendPrompt(windowId, text, running ? mode : 'queue', images, promptFiles, controller.signal)
       .then((accepted) => {
-        if (!accepted) {
-          restoreDraft(outgoing)
-          return
-        }
-        // An accepted send owns its staged bytes: the retry sources go with it.
-        for (const file of outgoing.files) fileSources.current.delete(file.id)
+        if (!accepted) restoreDraft(outgoing)
       }, () => { restoreDraft(outgoing) })
       .finally(() => { inflight.current.delete(controller) })
     resetDraftState()
@@ -486,28 +474,28 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       // A disabled picker cannot open, so a blocked session keeps its draft.
       if (!canAcceptDrop) return
       fileInput.current?.click()
-      setDraft('')
+      actions.setDraftText(windowId, '')
       return
     }
     if (name === 'model') {
-      setDraft('')
+      actions.setDraftText(windowId, '')
       openMenu('model', modelAnchor.current)
       return
     }
     const row = session?.commands.find(entry => entry.name === name)
     if (row?.hint === undefined) {
-      void injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(file => ({
-        receiptId: file.receiptId as string,
-        ...(file.file === undefined ? {} : { file: file.file }),
+      void injected.executeCommand(windowId, `/${name}`, images, readyFiles.map(record => ({
+        receiptId: record.receiptId as string,
+        ...(record.file === undefined ? {} : { file: record.file }),
       })))
-      clearDraft()
+      resetDraftState()
     } else {
-      setDraft(`/${name} `)
+      actions.setDraftText(windowId, `/${name} `)
     }
   }
 
   const pickMention = (row: BoardMentionRow): void => {
-    setDraft(current => `${current.replace(/@[^\s@]*$/, '')}${row.insert} `)
+    actions.setDraftText(windowId, `${draft.replace(/@[^\s@]*$/, '')}${row.insert} `)
     setMentionQuery(null)
   }
 
@@ -528,36 +516,34 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   /** Stage one non-image file through the background upload service. */
   const stageFile = useCallback(async (file: File, existingId?: string): Promise<void> => {
     const id = existingId ?? `${file.name}:${file.size}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`
-    fileSources.current.set(id, file)
-    setFiles(current => existingId === undefined
-      ? [...current, { id, name: file.name, status: 'uploading' }]
-      : current.map(item => item.id === existingId ? { ...item, status: 'uploading' as const } : item))
+    if (existingId === undefined) {
+      actions.addDraftFiles(windowId, [{ record: { id, name: file.name, status: 'uploading' }, source: file }])
+    } else {
+      actions.updateDraftFile(windowId, existingId, { status: 'uploading' })
+    }
     try {
       const bytes = new Uint8Array(await file.arrayBuffer())
       const result = await injected.uploadFile(windowId, file.name, bytes)
-      setFiles(current => current.map(item => item.id === id
-        ? result.receiptId !== undefined
-          // A ready chip carries no failure text: a retry that succeeded must
-          // drop the previous attempt's error rather than keep it as a title.
-          ? { id: item.id, name: item.name, status: 'ready' as const, receiptId: result.receiptId }
-          : { ...item, status: 'error' as const, error: result.error ?? t('attachment.error') }
-        : item))
+      // A ready chip carries no failure text: a retry that succeeded must drop
+      // the previous attempt's error rather than keep it as a title.
+      actions.updateDraftFile(windowId, id, result.receiptId !== undefined
+        ? { status: 'ready', receiptId: result.receiptId, error: undefined }
+        : { status: 'error', error: result.error ?? t('attachment.error') })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      setFiles(current => current.map(item => item.id === id ? { ...item, status: 'error' as const, error: message } : item))
+      actions.updateDraftFile(windowId, id, { status: 'error', error: message })
     }
-  }, [injected, t, windowId])
+  }, [injected, t, windowId, actions])
 
   /** Retry one failed upload from its retained source file. */
   const retryFile = (id: string): void => {
-    const source = fileSources.current.get(id)
-    if (source === undefined) return
-    void stageFile(source, id)
+    const entry = files.find(candidate => candidate.record.id === id)
+    if (entry === undefined) return
+    void stageFile(entry.source, id)
   }
 
   const removeFile = (id: string): void => {
-    fileSources.current.delete(id)
-    setFiles(current => current.filter(item => item.id !== id))
+    actions.removeDraftItem(windowId, 'file', id)
   }
 
   /**
@@ -597,8 +583,8 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
         const url = typeof reader.result === 'string' ? reader.result : ''
         const comma = url.indexOf(',')
         if (comma < 0) return
-        setImages(current => [...current, {
-          id: `${file.name}:${file.size}:${current.length}`,
+        actions.addDraftImages(windowId, [{
+          id: `${file.name}:${file.size}:${images.length}`,
           name: file.name,
           mediaType: file.type,
           data: url.slice(comma + 1),
@@ -1023,28 +1009,28 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   type="button"
                   className={css.attachmentRemove}
                   aria-label={t('attachment.remove', { name: image.name })}
-                  onClick={() => { setImages(current => current.filter(item => item.id !== image.id)) }}
+                  onClick={() => { actions.removeDraftItem(windowId, 'image', image.id) }}
                 >
                   <IconCloseOutline16 />
                 </button>
               </div>
             ))}
-            {files.map(file => (
+            {files.map(({ record }) => (
               <div
-                key={file.id}
-                className={clsx(css.fileChip, file.status === 'error' && css.fileChipError)}
-                data-board-file={file.status}
-                title={file.error}
+                key={record.id}
+                className={clsx(css.fileChip, record.status === 'error' && css.fileChipError)}
+                data-board-file={record.status}
+                title={record.error}
               >
                 <IconPaperclipOutline16 />
-                <span className={css.fileName}>{file.name}</span>
-                <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[file.status])}</span>
-                {file.status === 'error' && (
+                <span className={css.fileName}>{record.name}</span>
+                <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[record.status])}</span>
+                {record.status === 'error' && (
                   <button
                     type="button"
                     className={css.fileAction}
                     aria-label={t('attachment.retry')}
-                    onClick={() => { retryFile(file.id) }}
+                    onClick={() => { retryFile(record.id) }}
                   >
                     {t('attachment.retry')}
                   </button>
@@ -1052,8 +1038,8 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 <button
                   type="button"
                   className={css.fileAction}
-                  aria-label={t('attachment.remove', { name: file.name })}
-                  onClick={() => { removeFile(file.id) }}
+                  aria-label={t('attachment.remove', { name: record.name })}
+                  onClick={() => { removeFile(record.id) }}
                 >
                   <IconCloseOutline16 />
                 </button>
@@ -1070,7 +1056,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
           aria-label={t('composer.placeholder')}
           data-board-action="composer-input"
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
-            setDraft(e.target.value)
+            actions.setDraftText(windowId, e.target.value)
             setCommandsDismissed(false)
             trackMention(e.target.value)
           }}

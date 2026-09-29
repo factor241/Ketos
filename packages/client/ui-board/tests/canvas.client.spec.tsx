@@ -55,8 +55,11 @@ const baseState: BoardState = {
   zoom: 1,
   viewportWidth: 1920,
   viewportHeight: 1080,
+  chromeInsets: { top: 0, bottom: 0, left: 0, right: 0 },
   windows: {},
   windowOrder: [],
+  dockOrder: [],
+  cloneOrder: [],
   activeWindowId: null,
   fullscreenWindowId: null,
   panelWindowId: null,
@@ -72,6 +75,7 @@ const baseState: BoardState = {
   returnWindowId: null,
   highlightWindowId: null,
   cloneEdits: {},
+  drafts: {},
 }
 
 describe('Minimap Component', () => {

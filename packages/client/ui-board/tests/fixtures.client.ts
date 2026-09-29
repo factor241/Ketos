@@ -234,6 +234,13 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     }
     return target
   }
+  // The board declares its panel as sidebar-less through ctx.layout (Т2.7);
+  // the double records the declaration and keeps selection inert unless a
+  // test overrides it.
+  runtime.ctx.provide('layout', {
+    selectPanel: () => {},
+    setPanelSidebar: () => {},
+  } as never)
   // The board declares the uiWorkspace service for its panel actions; the
   // directory verbs stay inert until a test stubs them.
   runtime.ctx.provide('uiWorkspace', {

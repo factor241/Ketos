@@ -18,6 +18,13 @@ type LayoutState = {
     /** Null selects the Conversation; global panels keep the current Session intact. */
     activePanelId: MainPanelId | null
   }
+  /**
+   * Sidebar visibility declared per main panel. A panel absent from the map
+   * keeps the sidebar; a panel declaring false hides the column, its rail, and
+   * its resize handle while it is selected (Т2.7). Pruned with the panel
+   * registry.
+   */
+  panelSidebar: Record<string, boolean>
   layoutInfo: LayoutInfo
 }
 
@@ -57,6 +64,7 @@ type LayoutInfo = {
  */
 type LayoutActions = {
   selectPanel: (draft: LayoutState, panelId: MainPanelId | null) => void
+  setPanelSidebar: (draft: LayoutState, panelId: MainPanelId, sidebar: boolean) => void
   retainMainPanels: (draft: LayoutState, panelIds: readonly string[]) => void
   setSidebar: (draft: LayoutState, px: number) => void
   toggleSidebar: (draft: LayoutState) => void
@@ -79,6 +87,7 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
   const handle = defineStore({
     init: (): LayoutState => ({
       panelInfo: { activePanelId: null },
+      panelSidebar: {},
       layoutInfo: {
         sidebar: SIDEBAR_DEFAULT,
         viewportWidth: window.innerWidth,
@@ -94,9 +103,15 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       selectPanel: (d, panelId: MainPanelId | null) => {
         d.panelInfo.activePanelId = panelId
       },
+      setPanelSidebar: (d, panelId: MainPanelId, sidebar: boolean) => {
+        d.panelSidebar[panelId] = sidebar
+      },
       retainMainPanels: (d, panelIds: readonly string[]) => {
         if (d.panelInfo.activePanelId !== null && !panelIds.includes(d.panelInfo.activePanelId)) {
           d.panelInfo.activePanelId = null
+        }
+        for (const id of Object.keys(d.panelSidebar)) {
+          if (!panelIds.includes(id)) Reflect.deleteProperty(d.panelSidebar, id)
         }
       },
       setSidebar: (d, px: number) => {

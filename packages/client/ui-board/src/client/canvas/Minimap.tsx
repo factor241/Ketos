@@ -93,6 +93,7 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
   return (
     <div
       data-board-layer="minimap"
+      data-board-chrome=""
       data-board-minimap=""
       className={css.minimap}
       role="img"

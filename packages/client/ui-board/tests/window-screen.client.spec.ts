@@ -28,8 +28,11 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     zoom: 1,
     viewportWidth: 1000,
     viewportHeight: 800,
+    chromeInsets: { top: 0, bottom: 0, left: 0, right: 0 },
     windows: { w1: WINDOW },
     windowOrder: ['w1' as WindowId],
+    dockOrder: ['w1' as WindowId],
+    cloneOrder: [],
     activeWindowId: 'w1' as WindowId,
     fullscreenWindowId: null,
     panelWindowId: null,
@@ -45,6 +48,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     returnWindowId: null,
     highlightWindowId: null,
     cloneEdits: {},
+    drafts: {},
     ...overrides,
   }
 }

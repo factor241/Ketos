@@ -182,6 +182,55 @@ describe('sanitizeBoardLayout', () => {
     })
   })
 
+  it('captures the dock and clone orders, appending windows the live order misses', () => {
+    const instance = createBoardStore().create()
+    instance.actions.addWindow({
+      id: 'agent-1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1,
+      x: 0, y: 0, width: 552, height: 648, zIndex: WINDOW_Z_BASE,
+    })
+    instance.actions.addWindow({
+      id: 'clone-2' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-b' as CloneId, ordinal: 2,
+      x: 0, y: 0, width: 648, height: 768, zIndex: WINDOW_Z_BASE,
+    })
+    instance.actions.addWindow({
+      id: 'clone-1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-a' as CloneId, ordinal: 3,
+      x: 0, y: 0, width: 648, height: 768, zIndex: WINDOW_Z_BASE,
+    })
+    // The user put clone-a first; clone-b was never dragged, so it keeps the
+    // end of the order it was opened in.
+    instance.actions.reorderDock('clone-1' as WindowId, 'agent-1' as WindowId)
+    instance.actions.reorderClones('clone-a' as CloneId, null)
+
+    const captured = captureBoardLayout(instance.getSnapshot())
+    expect(captured.dockOrder).toEqual(['clone-1', 'agent-1', 'clone-2'])
+    expect(captured.cloneOrder).toEqual(['clone-a', 'clone-b'])
+  })
+
+  it('fills the orders of an old document from the window ordinals (A6)', () => {
+    const layout = sanitizeBoardLayout(document({
+      windows: [
+        window({ id: 'late', ordinal: 5 }),
+        window({ id: 'early', ordinal: 1 }),
+      ],
+      windowOrder: ['late', 'early'],
+    }))
+    // The document carries no dock order: the repair appends every window by
+    // ordinal, so an old layout restores in its creation order.
+    expect(layout?.dockOrder).toEqual(['early', 'late'])
+    expect(layout?.cloneOrder).toEqual([])
+  })
+
+  it('drops unknown ids from a stored order and appends the missing windows', () => {
+    const layout = sanitizeBoardLayout(document({
+      windows: [window({ id: 'agent-1', ordinal: 2 }), window({ id: 'agent-2', ordinal: 1 })],
+      windowOrder: ['agent-1', 'agent-2'],
+      dockOrder: ['ghost', 'agent-1'],
+      cloneOrder: ['clone-ghost'],
+    }))
+    expect(layout?.dockOrder).toEqual(['agent-1', 'agent-2'])
+    expect(layout?.cloneOrder).toEqual([])
+  })
+
   it('keeps stored sizes below the old default that still clear the floor', () => {
     const layout = sanitizeBoardLayout(document({
       windows: [window({ width: 480, height: 500 })],

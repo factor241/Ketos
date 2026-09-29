@@ -8,8 +8,9 @@ import {
   BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
-import type { BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
+import type { BoardDraftFile, BoardDraftImage, BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
 import { isWindowOnScreen } from './window-screen.ts'
+import { NO_CHROME_INSETS, safeArea, type ChromeInsets } from './chrome-insets.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -19,6 +20,29 @@ export type BoardStoreInstance = EngineStoreInstance<BoardState, BoardActions>
 
 /** A window the board opens from its own chrome: everything except the placement it computes. */
 export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex'>
+
+/**
+ * One staged file of a window draft: the visible record plus the local source
+ * the retry re-stages. The source stays beside the record so a refused prompt
+ * or a failed upload returns both together.
+ */
+export interface BoardWindowDraftFile {
+  readonly record: BoardDraftFile
+  readonly source: File
+}
+
+/**
+ * One window's unsent composer draft. It lives in the board store, not in the
+ * composer's React state, so switching the main panel away from the board —
+ * which unmounts the whole board — keeps the text, images, and staged files
+ * until the window sends or closes. The layout never carries it: a reload
+ * starts from an empty composer.
+ */
+export interface BoardWindowDraft {
+  text: string
+  images: BoardDraftImage[]
+  files: BoardWindowDraftFile[]
+}
 
 /**
  * One command the board chrome pushes into a window's composer, consumed where
@@ -47,6 +71,8 @@ type BoardActions = {
   /** Return the view to pan (0, 0) and zoom 1. */
   resetView: (draft: BoardState) => void
   setViewport: (draft: BoardState, width: number, height: number) => void
+  /** Publish the measured floating-chrome insets (the safe area follows). */
+  setChromeInsets: (draft: BoardState, insets: ChromeInsets) => void
   addWindow: (draft: BoardState, window: BoardWindowState) => void
   openWindow: (draft: BoardState, spec: OpenWindowSpec) => void
   moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
@@ -70,8 +96,27 @@ type BoardActions = {
   closeWindow: (draft: BoardState, id: WindowId) => void
   hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
+  /**
+   * Move one window's dock icon before another (or to the end with `null`).
+   * The paint order never changes: the dock has its own order (A6).
+   */
+  reorderDock: (draft: BoardState, id: WindowId, before: WindowId | null) => void
+  /** Move one clone's dock icon before another (or to the end with `null`). */
+  reorderClones: (draft: BoardState, id: CloneId, before: CloneId | null) => void
   pushComposerIntent: (draft: BoardState, windowId: WindowId, intent: { text?: string; pickFiles?: boolean }) => void
   consumeComposerIntent: (draft: BoardState, id: number) => void
+  setDraftText: (draft: BoardState, windowId: WindowId, text: string) => void
+  /**
+   * Append one paragraph to the window's draft: an empty draft takes the text
+   * verbatim, a non-empty one gains it after a blank line. The store owns the
+   * rule so a refused submission never doubles text against a stale read.
+   */
+  appendDraftText: (draft: BoardState, windowId: WindowId, text: string) => void
+  addDraftImages: (draft: BoardState, windowId: WindowId, images: readonly BoardDraftImage[]) => void
+  addDraftFiles: (draft: BoardState, windowId: WindowId, files: readonly BoardWindowDraftFile[]) => void
+  updateDraftFile: (draft: BoardState, windowId: WindowId, fileId: string, patch: Partial<BoardDraftFile>) => void
+  removeDraftItem: (draft: BoardState, windowId: WindowId, kind: 'image' | 'file', itemId: string) => void
+  clearDraft: (draft: BoardState, windowId: WindowId) => void
   expectReturnWindow: (draft: BoardState, id: WindowId) => void
   clearReturnWindow: (draft: BoardState) => void
   setHighlightWindow: (draft: BoardState, id: WindowId | null) => void
@@ -85,8 +130,23 @@ export interface BoardState {
   /** Canvas box the minimap and window placement measure against; written by the canvas layer. */
   viewportWidth: number
   viewportHeight: number
+  /**
+   * Screen-pixel insets the floating chrome occupies on each edge; written by
+   * the chrome probe. Zero while no chrome renders (fullscreen, open panel).
+   */
+  chromeInsets: ChromeInsets
   windows: Record<string, BoardWindowState>
+  /** Window ids in paint order, bottom to top. */
   windowOrder: WindowId[]
+  /**
+   * Window ids in dock order, left to right (A6). Independent of the paint
+   * order, so focusing a window never moves its dock icon; every open window
+   * appears exactly once, and {@link BoardActions.reorderDock} is the only
+   * writer besides window open and close.
+   */
+  dockOrder: WindowId[]
+  /** Clone ids in dock order (A6); membership stays the clone roster's. */
+  cloneOrder: CloneId[]
   activeWindowId: WindowId | null
   /**
    * The window filling the board panel, or null. A fullscreen window keeps its
@@ -116,6 +176,12 @@ export interface BoardState {
   composerIntents: ComposerIntent[]
   /** Monotonic source of composer-intent identities. */
   composerIntentSeq: number
+  /**
+   * Unsent composer drafts per window, in memory only. Keyed by window id, so
+   * a session change inside the window keeps the draft while closing the
+   * window drops it.
+   */
+  drafts: Record<string, BoardWindowDraft>
   /**
    * Window the board must bring forward when its panel next becomes visible,
    * or null. Set when the lane sends the user to the main panel for a pending
@@ -239,12 +305,20 @@ export function mintWindowId(kind: WindowKind): WindowId {
   return `${kind}-${Date.now().toString(36)}-${entropy}` as WindowId
 }
 
-/** Center a new window in the current viewport (world coordinates). */
+/** Center a new window in the board's safe area (world coordinates, Т1.15). */
 function placeWindow(draft: BoardState, width: number, height: number): { x: number; y: number } {
+  const area = safeArea(draft).world
   return {
-    x: (-draft.panX + draft.viewportWidth / 2 - width / 2) / draft.zoom,
-    y: (-draft.panY + draft.viewportHeight / 2 - height / 2) / draft.zoom,
+    x: area.left + (area.right - area.left - width) / 2,
+    y: area.top + (area.bottom - area.top - height) / 2,
   }
+}
+
+/** Pan the view so one window's centre lands on the safe area's centre (Т1.15). */
+function centerInSafeArea(draft: BoardState, window: BoardWindowState): void {
+  const area = safeArea(draft).screen
+  draft.panX = (area.left + area.right) / 2 - (window.x + window.width / 2) * draft.zoom
+  draft.panY = (area.top + area.bottom) / 2 - (window.y + window.height / 2) * draft.zoom
 }
 
 /** The highest z-index among the windows other than `except`. */
@@ -255,6 +329,36 @@ function topWindowZ(draft: BoardState, except: WindowId): number {
     top = Math.max(top, window.zIndex)
   }
   return top
+}
+
+/**
+ * Move one id before another inside an order list, or to the end when `before`
+ * is null or absent. A missing `id` is appended; the result never drops an
+ * entry.
+ * @param order - the current order.
+ * @param id - the id being moved.
+ * @param before - the id it lands before, or null for the end.
+ * @returns the reordered list.
+ */
+function moveBefore<T extends string>(order: readonly T[], id: T, before: T | null): T[] {
+  const without = order.filter(candidate => candidate !== id)
+  if (before === null || before === id) return [...without, id]
+  const index = without.indexOf(before)
+  if (index < 0) return [...without, id]
+  return [...without.slice(0, index), id, ...without.slice(index)]
+}
+
+/**
+ * The window's draft entry, created empty on the first write. The read-back
+ * returns the immer draft over the fresh entry, so the caller's mutations are
+ * tracked; mutating the assigned literal would not be.
+ */
+function draftWindowDraft(draft: BoardState, windowId: WindowId): BoardWindowDraft {
+  const key = windowId as string
+  const existing = draft.drafts[key]
+  if (existing !== undefined) return existing
+  draft.drafts[key] = { text: '', images: [], files: [] }
+  return draft.drafts[key]
 }
 
 /**
@@ -283,6 +387,11 @@ function insertWindow(draft: BoardState, window: BoardWindowState): void {
   draft.windows[placed.id as string] = placed
   if (!draft.windowOrder.includes(placed.id)) {
     draft.windowOrder.push(placed.id)
+  }
+  // The dock shows the window at the end of its own order until the user
+  // drags it elsewhere; focusing never touches this list.
+  if (!draft.dockOrder.includes(placed.id)) {
+    draft.dockOrder.push(placed.id)
   }
   draft.activeWindowId = placed.id
 }
@@ -322,8 +431,11 @@ export function createBoardStore(): BoardStoreHandle {
       zoom: 1,
       viewportWidth: 1920,
       viewportHeight: 1080,
+      chromeInsets: NO_CHROME_INSETS,
       windows: {},
       windowOrder: [],
+      dockOrder: [],
+      cloneOrder: [],
       activeWindowId: null,
       fullscreenWindowId: null,
       panelWindowId: null,
@@ -336,6 +448,7 @@ export function createBoardStore(): BoardStoreHandle {
       isSelectingElement: false,
       composerIntents: [],
       composerIntentSeq: 0,
+      drafts: {},
       returnWindowId: null,
       highlightWindowId: null,
       cloneEdits: {},
@@ -369,6 +482,13 @@ export function createBoardStore(): BoardStoreHandle {
       setViewport: (draft, width, height) => {
         draft.viewportWidth = width
         draft.viewportHeight = height
+      },
+      setChromeInsets: (draft, insets) => {
+        if (
+          draft.chromeInsets.top === insets.top && draft.chromeInsets.bottom === insets.bottom
+          && draft.chromeInsets.left === insets.left && draft.chromeInsets.right === insets.right
+        ) return
+        draft.chromeInsets = { ...insets }
       },
       addWindow: (draft, window) => {
         insertWindow(draft, window)
@@ -431,8 +551,7 @@ export function createBoardStore(): BoardStoreHandle {
         const win = draft.windows[id as string]
         if (!win) return
         raiseWindow(draft, id)
-        draft.panX = -(win.x + win.width / 2 - draft.viewportWidth / (2 * draft.zoom)) * draft.zoom
-        draft.panY = -(win.y + win.height / 2 - draft.viewportHeight / (2 * draft.zoom)) * draft.zoom
+        centerInSafeArea(draft, win)
       },
       revealWindow: (draft, id) => {
         const win = draft.windows[id as string]
@@ -441,8 +560,7 @@ export function createBoardStore(): BoardStoreHandle {
         // Raising a window the view has left would be a dead gesture: the
         // window becomes active but stays out of sight.
         if (isWindowOnScreen(draft, win)) return
-        draft.panX = -(win.x + win.width / 2 - draft.viewportWidth / (2 * draft.zoom)) * draft.zoom
-        draft.panY = -(win.y + win.height / 2 - draft.viewportHeight / (2 * draft.zoom)) * draft.zoom
+        centerInSafeArea(draft, win)
       },
       setWindowFullscreen: (draft, id) => {
         if (!draft.windows[id as string]) return
@@ -493,9 +611,12 @@ export function createBoardStore(): BoardStoreHandle {
         // opaque, so the record key is only reachable dynamically.
         Reflect.deleteProperty(draft.windows, id)
         draft.windowOrder = draft.windowOrder.filter(wId => wId !== id)
+        draft.dockOrder = draft.dockOrder.filter(wId => wId !== id)
         // A queued composer command for the closed window can never land: its
         // composer is gone, so the queue must not grow with orphans.
         draft.composerIntents = draft.composerIntents.filter(intent => intent.windowId !== id)
+        // A closed window's draft goes with it: nothing may resurrect it.
+        Reflect.deleteProperty(draft.drafts, id)
         if (draft.fullscreenWindowId === id) {
           draft.fullscreenWindowId = null
         }
@@ -522,6 +643,7 @@ export function createBoardStore(): BoardStoreHandle {
             Reflect.deleteProperty(draft.cloneEdits, dropped.cloneId)
           }
           draft.composerIntents = draft.composerIntents.filter(intent => intent.windowId !== id)
+          Reflect.deleteProperty(draft.drafts, id)
         }
         draft.panX = layout.panX
         draft.panY = layout.panY
@@ -538,6 +660,8 @@ export function createBoardStore(): BoardStoreHandle {
           return [window.id, state]
         }))
         draft.windowOrder = layout.windowOrder as WindowId[]
+        draft.dockOrder = layout.dockOrder as WindowId[]
+        draft.cloneOrder = layout.cloneOrder as CloneId[]
         draft.activeWindowId = layout.activeWindowId === '' ? null : layout.activeWindowId as WindowId
         draft.fullscreenWindowId = null
         draft.panelWindowId = layout.panelWindowId === '' ? null : layout.panelWindowId as WindowId
@@ -551,12 +675,56 @@ export function createBoardStore(): BoardStoreHandle {
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting
       },
+      reorderDock: (draft, id, before) => {
+        draft.dockOrder = moveBefore(draft.dockOrder, id, before)
+      },
+      reorderClones: (draft, id, before) => {
+        draft.cloneOrder = moveBefore(draft.cloneOrder, id, before)
+      },
       pushComposerIntent: (draft, windowId, intent) => {
         draft.composerIntentSeq += 1
         draft.composerIntents.push({ id: draft.composerIntentSeq, windowId, ...intent })
       },
       consumeComposerIntent: (draft, id) => {
         draft.composerIntents = draft.composerIntents.filter(intent => intent.id !== id)
+      },
+      setDraftText: (draft, windowId, text) => {
+        draftWindowDraft(draft, windowId).text = text
+      },
+      appendDraftText: (draft, windowId, text) => {
+        const windowDraft = draftWindowDraft(draft, windowId)
+        windowDraft.text = windowDraft.text === '' ? text : `${windowDraft.text}\n\n${text}`
+      },
+      addDraftImages: (draft, windowId, images) => {
+        const windowDraft = draftWindowDraft(draft, windowId)
+        // The running list carries the batch's own earlier entries, so one
+        // batch cannot stage the same chip twice.
+        for (const image of images) {
+          if (windowDraft.images.some(held => held.id === image.id)) continue
+          windowDraft.images.push(image)
+        }
+      },
+      addDraftFiles: (draft, windowId, files) => {
+        const windowDraft = draftWindowDraft(draft, windowId)
+        for (const file of files) {
+          if (windowDraft.files.some(held => held.record.id === file.record.id)) continue
+          windowDraft.files.push(file)
+        }
+      },
+      updateDraftFile: (draft, windowId, fileId, patch) => {
+        const windowDraft = draftWindowDraft(draft, windowId)
+        windowDraft.files = windowDraft.files.map(entry => entry.record.id === fileId
+          ? { ...entry, record: { ...entry.record, ...patch } }
+          : entry)
+      },
+      removeDraftItem: (draft, windowId, kind, itemId) => {
+        const windowDraft = draftWindowDraft(draft, windowId)
+        if (kind === 'image') windowDraft.images = windowDraft.images.filter(image => image.id !== itemId)
+        else windowDraft.files = windowDraft.files.filter(entry => entry.record.id !== itemId)
+      },
+      clearDraft: (draft, windowId) => {
+        // Immer draft: the window id is the opaque record key.
+        Reflect.deleteProperty(draft.drafts, windowId)
       },
       expectReturnWindow: (draft, id) => {
         if (!draft.windows[id as string]) return

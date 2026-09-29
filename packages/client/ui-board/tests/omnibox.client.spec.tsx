@@ -205,7 +205,7 @@ describe('board omnibox', () => {
     const state = board.store.getSnapshot()
     expect(state.windowOrder).toHaveLength(1)
     expect(Object.values(state.windows)[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
-    expect(runtime.sessions.calls.filter(call => call.method === 'open').map(call => call.args[0]))
+    expect(runtime.sessions.calls.filter(call => call.method === 'openStream').map(call => call.args[0]))
       .toEqual(['session-1'])
 
     // The same chat selected again comes forward instead of opening twice.
@@ -217,7 +217,7 @@ describe('board omnibox', () => {
 
     expect(board.store.getSnapshot().windowOrder).toEqual([opened])
     expect(board.store.getSnapshot().panX).not.toBe(100)
-    expect(runtime.sessions.calls.filter(call => call.method === 'open')).toHaveLength(1)
+    expect(runtime.sessions.calls.filter(call => call.method === 'openStream')).toHaveLength(1)
   })
 
   it('renders the open menu through the portal into the board popover layer', async () => {

@@ -26,6 +26,7 @@ import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './st
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import { openBoardWindow, resolveChatWindow } from './open-window.ts'
+import { BOARD_PANEL_ID } from './contract/slots.ts'
 import {
   bindSessionToClone, createClone as createCloneRequest, deleteClone as deleteCloneRequest,
   listCloneSessions, listClones, updateClone as updateCloneRequest,
@@ -70,7 +71,7 @@ export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec }
 
 /** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
-  'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories',
+  'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories', 'layout',
   'fileUpload', 'settingsScope',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
@@ -629,6 +630,10 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       return sessionArtifacts(target.getSnapshot())
     },
   })
+
+  // The board owns the whole frame: its main panel hides the shell's sidebar
+  // column while it is selected (Т2.7).
+  ctx.layout.setPanelSidebar(BOARD_PANEL_ID, false)
 
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main',

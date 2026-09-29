@@ -60,8 +60,13 @@ async function twoChatBench(hooks: BoardSessionBridgeHooks = {}) {
   return { prepared, bridge }
 }
 
-/** Session ids the service double was asked to open, in call order. */
+/** Session ids the service double was asked to stream-open, in call order. */
 function openedSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
+  return prepared.runtime.sessions.calls.filter(call => call.method === 'openStream').map(call => call.args[0])
+}
+
+/** Session ids the service double was asked to select as current, in call order. */
+function selectedSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
   return prepared.runtime.sessions.calls.filter(call => call.method === 'open').map(call => call.args[0])
 }
 
@@ -338,6 +343,23 @@ describe('BoardSessionBridge', () => {
     await prepared.runtime.flush()
     expect(channel.getSnapshot().status).toBe('ready')
     expect(openedSessions(prepared)).toEqual(['session-1', 'session-1'])
+  })
+
+  it('restores windows without changing the application current session (A5)', async () => {
+    const { prepared, bridge } = await twoChatBench()
+    const first = 'a1' as WindowId
+    const second = 'a2' as WindowId
+
+    const before = prepared.runtime.sessions.list.getSnapshot().current
+    bridge.restore({ a1: 'session-1', a2: 'session-2' }, [first, second])
+    await prepared.runtime.flush()
+
+    // Each window's stream opened in place, and the shell's selection never
+    // moved: the board is not the user, so restoring it must not pick a chat.
+    expect(openedSessions(prepared)).toEqual(['session-1', 'session-2'])
+    expect(selectedSessions(prepared)).toEqual([])
+    expect(prepared.runtime.sessions.list.getSnapshot().current).toBe(before)
+    expect(bridge.channel(first).getSnapshot().status).toBe('ready')
   })
 
   it('drops duplicate and stale pairs on restore, persisting the reconciled map', async () => {

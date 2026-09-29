@@ -35,6 +35,27 @@ function memberOf<T extends string>(value: unknown, allowed: readonly T[]): T | 
     : undefined
 }
 
+/**
+ * Fill one stored order list: keep the ids it names that still exist, in its
+ * order, then append every missing id sorted by its window's ordinal (A6).
+ * @param order - the stored order (or the live one when capturing).
+ * @param ids - every id the repaired layout keeps.
+ * @param ordinalOf - the ordinal of one kept id.
+ * @returns the complete order.
+ */
+function fillOrder(order: readonly string[], ids: readonly string[], ordinalOf: (id: string) => number): string[] {
+  const known = new Set(ids)
+  const seen = new Set<string>()
+  const filled: string[] = []
+  for (const id of order) {
+    if (!known.has(id) || seen.has(id)) continue
+    seen.add(id)
+    filled.push(id)
+  }
+  const missing = ids.filter(id => !seen.has(id)).sort((a, b) => ordinalOf(a) - ordinalOf(b))
+  return [...filled, ...missing]
+}
+
 /** A non-empty identity string, or undefined. */
 function identity(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
@@ -96,6 +117,8 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
     })
   }
   const kept = new Set(order)
+  const ordinalOf = (id: string): number => state.windows[id]?.ordinal ?? 0
+  const cloneIds = windows.flatMap(entry => entry.cloneId === undefined ? [] : [entry.cloneId])
   return {
     version: BOARD_SETTINGS_VERSION,
     panX: state.panX,
@@ -103,6 +126,9 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
     zoom: state.zoom,
     windows,
     windowOrder: order,
+    dockOrder: fillOrder(state.dockOrder, order, ordinalOf),
+    cloneOrder: fillOrder(state.cloneOrder, cloneIds, cloneId =>
+      ordinalOf(windows.find(entry => entry.cloneId === cloneId)?.id ?? '')),
     activeWindowId: state.activeWindowId !== null && kept.has(state.activeWindowId) ? state.activeWindowId : '',
     panelWindowId: state.panelWindowId !== null && kept.has(state.panelWindowId) ? state.panelWindowId : '',
     panelCollapsed: state.panelCollapsed,
@@ -179,6 +205,14 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
   const active = identity(raw.activeWindowId)
   const panel = identity(raw.panelWindowId)
   const panelWindowId = panel !== undefined && kept.has(panel) ? panel : undefined
+  const ordinalOf = (id: string): number => byId.get(id)?.ordinal ?? 0
+  const cloneIds = [...new Set(windows.flatMap(entry => entry.cloneId === undefined ? [] : [entry.cloneId]))]
+  const requestedDock = Array.isArray(raw.dockOrder)
+    ? raw.dockOrder.filter((id): id is string => typeof id === 'string')
+    : []
+  const requestedClones = Array.isArray(raw.cloneOrder)
+    ? raw.cloneOrder.filter((id): id is string => typeof id === 'string')
+    : []
   const candidate: BoardSettings = {
     version: BOARD_SETTINGS_VERSION,
     bindings: sanitizeBindings(raw.bindings, kept),
@@ -187,6 +221,9 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
     zoom: bounded(raw.zoom, 1, BOARD_ZOOM_MIN, BOARD_ZOOM_MAX),
     windows,
     windowOrder,
+    dockOrder: fillOrder(requestedDock, windowOrder, ordinalOf),
+    cloneOrder: fillOrder(requestedClones, cloneIds, cloneId =>
+      ordinalOf(windows.find(entry => entry.cloneId === cloneId)?.id ?? '')),
     activeWindowId: active !== undefined && kept.has(active) ? active : '',
     // A collapsed panel without an owner window is indistinguishable from a
     // closed one (both are the initial state), so hydration reads it as closed.

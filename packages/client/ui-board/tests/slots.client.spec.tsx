@@ -414,7 +414,7 @@ describe('board slot composition', () => {
 
     // The window's session is the picked chat: the panel marks that row current.
     expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Second chat')
-    expect(runtime.sessions.calls.some(call => call.method === 'open' && call.args[0] === 'chat-2')).toBe(true)
+    expect(runtime.sessions.calls.some(call => call.method === 'openStream' && call.args[0] === 'chat-2')).toBe(true)
   })
 
   it('manages projects from the panel: rename, reorder, delete', async () => {
@@ -735,6 +735,36 @@ describe('board slot composition', () => {
     expect(board.store.getSnapshot().zoom).toBe(0.4)
     expect(frame.querySelector('[data-board-action="window-simplified-card"]')).toBeNull()
     expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(8)
+  })
+
+  it('publishes the measured chrome insets through the probe (Д3.1)', async () => {
+    const callbacks: Array<() => void> = []
+    class FakeResizeObserver {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+    try {
+      const { runtime } = await bench()
+      const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+      const board = runtime.storeOf('board.dock') as BoardInstance
+      const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
+      const dock = panel.container.querySelector('[data-board-layer="dock"]') as HTMLElement
+      const box = (left: number, top: number, right: number, bottom: number): DOMRect => ({
+        left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}),
+      })
+      root.getBoundingClientRect = () => box(0, 0, 1000, 800)
+      dock.getBoundingClientRect = () => box(20, 300, 64, 500)
+
+      // The probe measured at mount; the observer signal re-measures the live
+      // boxes, which is how a chrome resize or move reaches the store.
+      act(() => { callbacks.at(-1)?.() })
+      await runtime.flush()
+      expect(board.store.getSnapshot().chromeInsets).toEqual({ top: 0, bottom: 0, left: 64, right: 0 })
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('arms will-change only while a board gesture is live (Д6.2)', async () => {

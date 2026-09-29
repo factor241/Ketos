@@ -272,6 +272,16 @@ export class ClientSessions implements ISessions {
   }
 
   /**
+   * Open one listed session's live stream without selecting it as current.
+   * Resolution is quiet like {@link binding}: an id neither listed nor already
+   * scoped is ignored, and the shell's selection never moves.
+   * @param id - listed session id.
+   */
+  openStream(id: SessionId): void {
+    void this.resolve(id)?.session.open()
+  }
+
+  /**
    * Open a healthy catalog child through its direct-parent address.
    * @param address - catalog-derived parent and child ids.
    */

@@ -258,6 +258,44 @@ describe('AppFrame', () => {
     expect(frame.querySelector('[data-side="sidebar"]')).toBeNull()
   })
 
+  it('hides the sidebar column for a panel declaring no sidebar (Т2.7)', () => {
+    const { instance, rerenderFrame, frame, container } = mountFrame()
+    act(() => {
+      instance.actions.setPanelSidebar('board' as MainPanelId, false)
+      instance.actions.selectPanel('board' as MainPanelId)
+    })
+    rerenderFrame()
+
+    // The track collapses to zero, the sidebar occupant and its handle stand
+    // down, and the frame marks the state for the border rule.
+    expect(tracks(frame)[0]).toBe(0)
+    expect(frame.hasAttribute('data-sidebar-hidden')).toBe(true)
+    expect(container.querySelector('[data-testid="sidebar-content"]')).toBeNull()
+    expect(container.querySelector('[data-side="sidebar"]')).toBeNull()
+    // The centre column still owns the middle track (the empty column keeps
+    // the grid placement).
+    expect(container.querySelector('[data-testid="main-content"]')).not.toBeNull()
+
+    // Selecting a normal panel brings the sidebar back.
+    act(() => {
+      instance.actions.setPanelSidebar('board' as MainPanelId, true)
+      instance.actions.selectPanel('panel-a' as MainPanelId)
+    })
+    rerenderFrame()
+    expect(tracks(frame)[0]).toBeGreaterThan(0)
+    expect(frame.hasAttribute('data-sidebar-hidden')).toBe(false)
+    expect(container.querySelector('[data-testid="sidebar-content"]')).not.toBeNull()
+  })
+
+  it('prunes a declared sidebar flag when its panel leaves the registry', () => {
+    const { instance } = mountFrame()
+    act(() => {
+      instance.actions.setPanelSidebar('board' as MainPanelId, false)
+      instance.actions.retainMainPanels(['conversation'])
+    })
+    expect(instance.getSnapshot().panelSidebar).toEqual({})
+  })
+
   it('switches only the keyed main outlet when the active panel changes', () => {
     selectedSessionTitle = 'Session title'
     const { instance, frame, slotCalls, getByTestId } = mountFrame()

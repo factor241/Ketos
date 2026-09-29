@@ -31,6 +31,8 @@ function emptyLayout(): BoardLayoutDocument {
     zoom: 1,
     windows: [],
     windowOrder: [],
+    dockOrder: [],
+    cloneOrder: [],
     activeWindowId: '',
     panelWindowId: '',
     panelCollapsed: true,
@@ -277,9 +279,11 @@ describe('createBoardStore', () => {
     })
 
     const snap = store.getSnapshot()
-    // Floored to 408x480: x = (200 + 1000/2 - 204) / 2, y = (100 + 800/2 - 240) / 2
-    expect(snap.windows['open-2']?.x).toBe(248)
-    expect(snap.windows['open-2']?.y).toBe(130)
+    // Floored to 408x480 and centred under the view transform: the world
+    // point under the viewport centre is ((500 + 200) / 2, (400 + 100) / 2),
+    // so x = 350 - 204 = 146 and y = 250 - 240 = 10.
+    expect(snap.windows['open-2']?.x).toBe(146)
+    expect(snap.windows['open-2']?.y).toBe(10)
   })
 
   it('clamps every insertion into the window band, whatever z the caller passes', () => {
@@ -554,5 +558,92 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().composerIntents).toEqual([
       expect.objectContaining({ windowId: 'w2' }),
     ])
+  })
+
+  it('places and centres windows inside the safe area the chrome leaves (Т1.15)', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.setChromeInsets({ top: 0, bottom: 120, left: 80, right: 40 })
+    actions.openWindow({
+      id: 'w1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 400, height: 300,
+    })
+    // Floored to 408×480 and centred in the safe rect x 80..960, y 0..680.
+    const opened = store.getSnapshot().windows['w1'] as BoardWindowState
+    expect(opened.x).toBe(316)
+    expect(opened.y).toBe(100)
+
+    // Centring puts the window's centre on the safe area's centre, not the
+    // viewport's (the dock keeps its strip free).
+    actions.moveWindow('w1' as WindowId, 0, 1000, false)
+    actions.centerOnWindow('w1' as WindowId)
+    const snapshot = store.getSnapshot()
+    const centred = snapshot.windows['w1'] as BoardWindowState
+    const screenCentreX = snapshot.panX + (centred.x + centred.width / 2) * snapshot.zoom
+    const screenCentreY = snapshot.panY + (centred.y + centred.height / 2) * snapshot.zoom
+    expect(screenCentreX).toBeCloseTo((80 + 960) / 2, 6)
+    expect(screenCentreY).toBeCloseTo((0 + 680) / 2, 6)
+  })
+
+  it('keeps the dock order independent of focus and maintains it on open and close', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, ordinal: 1 }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId, ordinal: 2 }))
+    actions.addWindow(makeWindow({ id: 'w3' as WindowId, ordinal: 3 }))
+    expect(store.getSnapshot().dockOrder).toEqual(['w1', 'w2', 'w3'])
+
+    // Raising a window reorders the paint stack, not the dock (A6).
+    actions.focusWindow('w1' as WindowId)
+    expect(store.getSnapshot().windowOrder).toEqual(['w2', 'w3', 'w1'])
+    expect(store.getSnapshot().dockOrder).toEqual(['w1', 'w2', 'w3'])
+
+    // Reordering moves the icon before the target, or to the end with null.
+    actions.reorderDock('w3' as WindowId, 'w1' as WindowId)
+    expect(store.getSnapshot().dockOrder).toEqual(['w3', 'w1', 'w2'])
+    actions.reorderDock('w3' as WindowId, null)
+    expect(store.getSnapshot().dockOrder).toEqual(['w1', 'w2', 'w3'])
+
+    // Closing drops the icon; the paint order and the dock stay in step.
+    actions.closeWindow('w2' as WindowId)
+    expect(store.getSnapshot().dockOrder).toEqual(['w1', 'w3'])
+
+    actions.reorderClones('c1' as CloneId, null)
+    actions.reorderClones('c2' as CloneId, 'c1' as CloneId)
+    expect(store.getSnapshot().cloneOrder).toEqual(['c2', 'c1'])
+  })
+
+  it('keeps window drafts in memory, dedupes their chips, and drops them on close', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    actions.addWindow(makeWindow({ id: 'w2' as WindowId }))
+
+    actions.setDraftText('w1' as WindowId, 'hello')
+    actions.appendDraftText('w1' as WindowId, 'world')
+    expect(store.getSnapshot().drafts['w1']?.text).toBe('hello\n\nworld')
+    // An empty draft takes the appended paragraph verbatim.
+    actions.appendDraftText('w2' as WindowId, 'first')
+    expect(store.getSnapshot().drafts['w2']?.text).toBe('first')
+
+    const image = { id: 'img-1', name: 'a.png', mediaType: 'image/png', data: 'AA', preview: 'data:image/png;base64,AA' }
+    actions.addDraftImages('w1' as WindowId, [image, image])
+    expect(store.getSnapshot().drafts['w1']?.images).toHaveLength(1)
+
+    const source = new File([new Uint8Array(1)], 'a.txt', { type: 'text/plain' })
+    actions.addDraftFiles('w1' as WindowId, [{ record: { id: 'f1', name: 'a.txt', status: 'uploading' }, source }])
+    actions.updateDraftFile('w1' as WindowId, 'f1', { status: 'ready', receiptId: 'r1', error: undefined })
+    const file = store.getSnapshot().drafts['w1']?.files[0]
+    expect(file?.record).toMatchObject({ status: 'ready', receiptId: 'r1' })
+    expect(file?.record.error).toBeUndefined()
+    // The retained source is the same File the composer staged.
+    expect(file?.source).toBe(source)
+
+    actions.removeDraftItem('w1' as WindowId, 'image', 'img-1')
+    expect(store.getSnapshot().drafts['w1']?.images).toEqual([])
+
+    // Closing a window drops its draft; the other window's stays.
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().drafts['w1']).toBeUndefined()
+    expect(store.getSnapshot().drafts['w2']?.text).toBe('first')
+    actions.clearDraft('w2' as WindowId)
+    expect(store.getSnapshot().drafts).toEqual({})
   })
 })

@@ -7,8 +7,10 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ConversationBody, type ConversationBodyProps } from '../src/client/window/ConversationBody.tsx'
+import { createBoardStore, type BoardState } from '../src/client/store.ts'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, t } from './fixtures.client.ts'
 import type { ChatSnapshot, ConversationNode, RunningToolCall } from '@deepseek-ai/dsh-client-ui-chat/client'
@@ -89,19 +91,19 @@ function bodyProps(
   overrides: Partial<Record<string, unknown>> = {},
   pending: SessionPendingInteractionSnapshot = new Map(),
 ): ConversationBodyProps {
+  // The body and its composer read the window modes, the intent queue, and
+  // the drafts from a real store instance, so a write re-renders the seat.
+  const instance = createBoardStore().create()
   return {
     window: CARD,
     t,
     useSessionPendingInteraction: (selector: (snapshot: SessionPendingInteractionSnapshot) => unknown) => selector(pending),
-    // The body and its composer read the window modes and the intent queue
-    // from the store; the stub answers every selector they ask for.
-    useStore: (selector: (state: {
-      fullscreenWindowId: null
-      panelWindowId: null
-      composerIntents: readonly never[]
-    }) => unknown) =>
-      selector({ fullscreenWindowId: null, panelWindowId: null, composerIntents: [] }),
-    actions: { consumeComposerIntent: vi.fn() },
+    useStore: <S,>(selector: (state: BoardState) => S): S =>
+      useSyncExternalStore(
+        onChange => instance.subscribe(onChange),
+        () => selector(instance.getSnapshot()),
+      ),
+    actions: instance.actions,
     useWindowSession: () => session,
     ensureWindowSession: vi.fn(),
     sendPrompt: vi.fn(async () => true),

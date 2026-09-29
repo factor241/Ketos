@@ -197,7 +197,7 @@ export class TestSessions implements ISessions {
 
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
-    method: 'create' | 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
+    method: 'create' | 'open' | 'openStream' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
       | 'clear' | 'refresh' | 'search' | 'fork'
     args: unknown[]
   }[] = []
@@ -441,6 +441,16 @@ export class TestSessions implements ISessions {
       draft.current = id
       draft.currentAddress = undefined
     })
+  }
+
+  /**
+   * Service-level stream-open call (recorded; the selection stays untouched,
+   * which is the production contract this double exists to observe).
+   * @param id - session id.
+   */
+  openStream(id: SessionId): void {
+    this.calls.push({ method: 'openStream', args: [id] })
+    this.require(id)
   }
 
   /** Open an existing fixture through its catalog address. */

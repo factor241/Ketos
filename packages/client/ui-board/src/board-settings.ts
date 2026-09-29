@@ -91,6 +91,17 @@ export type BoardLayout = {
   windows: BoardLayoutWindow[]
   /** Window ids in paint order; every id names a window in {@link windows}. */
   windowOrder: string[]
+  /**
+   * Window ids in dock order, left to right (A6). Independent of the paint
+   * order: focusing a window raises it without moving its dock icon. Missing
+   * ids are appended by ordinal when a document is repaired.
+   */
+  dockOrder: string[]
+  /**
+   * Clone ids in dock order (A6). Membership stays the clone roster's; this
+   * list only orders the clone icons the user rearranged.
+   */
+  cloneOrder: string[]
   /** Focused window id, or '' when none is. */
   activeWindowId: string
   /** Window whose chats panel was open, or '' when none was. */
@@ -154,6 +165,8 @@ export const BoardSettingsSchema: z<BoardSettings> = z.object({
   windows: z.array(BoardLayoutWindowSchema).max(BOARD_LAYOUT_MAX_WINDOWS).default([]),
   bindings: z.dict(z.string()).default({}),
   windowOrder: z.array(z.string()).default([]),
+  dockOrder: z.array(z.string()).default([]),
+  cloneOrder: z.array(z.string()).default([]),
   activeWindowId: z.string().default(''),
   panelWindowId: z.string().default(''),
   panelCollapsed: z.boolean().default(true),

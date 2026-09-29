@@ -5,6 +5,7 @@ import type { MainPanelId, PanelActions } from '../src/client/service.ts'
 function fakePanels(): PanelActions {
   return {
     selectPanel: vi.fn(),
+    setPanelSidebar: vi.fn(),
     retainMainPanels: vi.fn(),
     setSidebar: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -41,6 +42,13 @@ describe('LayoutController', () => {
 
     expect(panels.toggleSidebar).toHaveBeenCalledTimes(1)
     expect(panels.setSidebar).not.toHaveBeenCalled()
+  })
+
+  it('delegates a sidebar declaration to the panel store', () => {
+    const panels = fakePanels()
+    const service = new LayoutController(panels, () => true)
+    service.setPanelSidebar('board' as MainPanelId, false)
+    expect(panels.setPanelSidebar).toHaveBeenCalledWith('board', false)
   })
 
   it('forwards panel selection and returning to the Conversation without changing geometry', () => {

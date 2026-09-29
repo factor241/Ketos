@@ -44,11 +44,11 @@ export interface BoardDraftFile {
   readonly name: string
   readonly status: 'uploading' | 'ready' | 'error'
   /** Staged receipt the prompt sends once the upload is ready. */
-  readonly receiptId?: string
+  readonly receiptId?: string | undefined
   /** Durable reference the local echo shows beside the receipt; absent when the host's answer omitted it. */
-  readonly file?: FileAttachmentRef
-  /** Failure text of the last upload attempt. */
-  readonly error?: string
+  readonly file?: FileAttachmentRef | undefined
+  /** Failure text of the last upload attempt; a successful retry clears it. */
+  readonly error?: string | undefined
 }
 
 /** One staged file a prompt or command carries: the host receipt plus its durable reference. */

@@ -178,7 +178,9 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
 }
 
 export function SessionRail({ useStore, actions, t, useWindowSession, useCloneList, openClone }: SessionRailProps) {
-  const windowOrder = useStore(s => s.windowOrder)
+  // The dock reads its own order (A6): raising a window reorders the paint
+  // stack, never the icons.
+  const dockOrder = useStore(s => s.dockOrder)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
   const clones = useCloneList(roster => roster.clones)
@@ -200,8 +202,8 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   // board's popover layer at scale 1, outside the dock's own centring
   // transform (a containing block for fixed offspring until then).
   const dock = (
-    <div data-board-layer="dock" className={css.rail}>
-      {windowOrder.map((id) => {
+    <div data-board-layer="dock" data-board-chrome="" className={css.rail}>
+      {dockOrder.map((id) => {
         const win = windows[id as string]
         if (!win) return null
 

@@ -43,6 +43,15 @@ export interface ISessions {
    */
   open(id: SessionId): void
   /**
+   * Open one session's live stream without selecting it as current: the board
+   * windows keep their own streams while the shell's selection stays wherever
+   * the user left it (decision A5). Idempotent, like {@link open}; resolution
+   * is quiet like {@link binding}, so an id neither listed nor already scoped
+   * is ignored.
+   * @param id - listed session id.
+   */
+  openStream(id: SessionId): void
+  /**
    * Open a healthy catalog child through its exact direct-parent address.
    * @param address - catalog-derived parent and child ids.
    */

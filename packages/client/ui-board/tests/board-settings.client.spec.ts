@@ -60,6 +60,8 @@ describe('board settings schema', () => {
       windows: [],
       bindings: {},
       windowOrder: [],
+      dockOrder: [],
+      cloneOrder: [],
       activeWindowId: '',
       panelWindowId: '',
       panelCollapsed: true,

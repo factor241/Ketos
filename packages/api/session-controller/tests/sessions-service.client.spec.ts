@@ -749,6 +749,26 @@ describe('current selection (migrated from ui-layout, arbitrated into the list s
 })
 
 describe('binding and stage lifecycle', () => {
+  it('openStream() opens a session stream without moving the current selection', async () => {
+    const b = bench()
+    await feedList(b, [{ id: 's1' }, { id: 's2' }])
+    b.svc.open(sid('s1'))
+    b.svc.openStream(sid('s2'))
+    await vi.waitFor(() => {
+      expect(b.svc.binding(sid('s2'))?.session.getSnapshot().openState).toBe('open')
+    })
+    // The stream is real, not just the open state: the follow source started,
+    // and live control data lands on the non-current session.
+    expect(b.api.followStarts.map(String)).toContain('s2')
+    b.svc.handleControlFrame({ type: 'projection', sessionId: sid('s2'), key: 'title', value: 'Live title', seq: 3 })
+    await Promise.resolve()
+    expect(b.svc.binding(sid('s2'))?.session.projections.faceOf('title')?.getSnapshot()).toBe('Live title')
+    // The shell's selection stays on s1; only the stream opened.
+    expect(b.svc.list.getSnapshot().current).toBe('s1')
+    // Quiet resolution, like binding(): an unaddressable id is ignored.
+    expect(() => { b.svc.openStream(sid('ghost')) }).not.toThrow()
+  })
+
   it('binding() is pure resolution: no staging, no deferred sweep', async () => {
     const b = bench()
     await feedList(b, [{ id: 's1' }, { id: 's2' }])

@@ -1,15 +1,16 @@
-// Browser geometry of the spatial Board (Д0.2 of docs/ketos/board-audit-plan.md).
+// Browser geometry of the spatial Board (Д0.2 of docs/ketos/board-audit-plan.md
+// and Э0.2 of docs/ketos/board-redesign-plan.md).
 //
-// Every problem the audit measured in a browser is reproduced here: a problem
-// still open keeps an expected-failing assertion (`it.fails`), so the suite
-// stays green while the behaviour is broken, and the stage that fixes it flips
-// the marker to a plain `it`. The Д2 popover problems (П-09 … П-15, П-36) are
-// plain assertions; the Д2.4 sweep additionally measures the close tooltip
-// and the model menu at zoom 0.5/1/2 near all four board edges. The
-// measurements use the built dist through `launchWebScaffold`, seeded
-// sessions, and a deterministic localStorage layout (`dsh.board.layout`), so
-// the seeded windows mount their conversation bodies before anything is
-// measured.
+// Every measured requirement the board does not satisfy yet keeps an
+// expected-failing assertion (`it.fails`), so the suite stays green while the
+// behaviour is missing and the substage that lands it flips the marker to a
+// plain `it`. The audit's input and popover problems (П-01 … П-15, П-36) and
+// the Д3.3/Д6 problems (П-18, П-26/П-27, П-32/П-34) are plain assertions; the
+// redesign requirements (Т1.1 … Т3.13) and the two audit problems carried into
+// stage 24 (П-28, П-31) are the expected-failing set. The measurements use the
+// built dist through `launchWebScaffold`, seeded sessions, and a deterministic
+// localStorage layout (`dsh.board.layout`), so the seeded windows mount their
+// conversation bodies before anything is measured.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,9 +32,8 @@ const WINDOW_B = 'agent-e2e-b'
 /** Third window: seeded off the board's left edge and taller than the board, for П-13 and П-31. */
 const WINDOW_C = 'agent-e2e-c'
 
-/** Board panel used by the audit (1440×900) and the narrow case (1100×700). */
+/** Board panel used by the audit (1440×900). */
 const WIDE_VIEWPORT = { width: 1440, height: 900 }
-const NARROW_VIEWPORT = { width: 1100, height: 700 }
 
 /** A pointer park far from board controls: hovering here clears every tooltip. */
 const NEUTRAL_POINTER = { x: 1435, y: 5 }
@@ -150,53 +150,48 @@ async function dispatchWheel(
   return { prevented, before, after: await readTransform(page) }
 }
 
-/** Index of a window in the board's paint order, shared by its frame and its rail. */
-async function windowIndex(page: Page, windowId: string): Promise<number> {
-  const index = await page.evaluate((id) => {
-    const frames = [...document.querySelectorAll('[data-board-window-id]')]
-    return frames.findIndex(frame => frame.getAttribute('data-board-window-id') === id)
-  }, windowId)
-  if (index < 0) throw new Error(`board window is missing: ${windowId}`)
-  return index
-}
-
 /** Wheel target over one window frame (header and body share the frame element). */
 function frameTarget(windowId: string): WheelTarget {
   return { selector: `[data-board-window-id="${windowId}"]`, index: 0 }
 }
 
 /**
- * Wheel target over one window's collapsed chats rail. Rails carry no window
- * id, so the rail list is paired with the frame list by the shared paint order.
+ * Build the DOMRect of one window frame for geometry assertions. The rail and
+ * omnibar helpers went with their assertions: the redesign removes both
+ * (Т1.12/Т3.1).
  */
-async function railTarget(page: Page, windowId: string): Promise<WheelTarget> {
-  const counts = await page.evaluate(() => ({
-    frames: document.querySelectorAll('[data-board-window-id]').length,
-    rails: document.querySelectorAll('[data-board-panel-rail]').length,
-  }))
-  if (counts.frames !== counts.rails) {
-    throw new Error(`rail/frame association is ambiguous: ${String(counts.frames)} frames, ${String(counts.rails)} rails`)
-  }
-  return { selector: '[data-board-panel-rail]', index: await windowIndex(page, windowId) }
+function measureFrame(page: Page, windowId: string): Promise<Rect> {
+  return page.evaluate((id) => {
+    const frame = document.querySelector(`[data-board-window-id="${id}"]`)
+    if (frame === null) throw new Error(`board window is missing: ${id}`)
+    const box = frame.getBoundingClientRect()
+    return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height }
+  }, windowId)
 }
 
-/** Build the DOMRect of a resolved target for rail assertions. */
-function measureWindowParts(page: Page, windowId: string): Promise<{ frame: Rect; rail: Rect }> {
-  return page.evaluate((id) => {
-    const frames = [...document.querySelectorAll('[data-board-window-id]')]
-    const index = frames.findIndex(frame => frame.getAttribute('data-board-window-id') === id)
-    if (index < 0) throw new Error(`board window is missing: ${id}`)
-    const rails = [...document.querySelectorAll('[data-board-panel-rail]')]
-    const railElement = rails[index]
-    if (railElement === undefined) throw new Error(`chats rail is missing for window: ${id}`)
-    const frameRect = frames[index]!.getBoundingClientRect()
-    const railRect = railElement.getBoundingClientRect()
-    const rect = (source: DOMRect): Rect => ({
-      left: source.left, top: source.top, right: source.right, bottom: source.bottom,
-      width: source.width, height: source.height,
-    })
-    return { frame: rect(frameRect), rail: rect(railRect) }
-  }, windowId)
+/** Rects of the board box and its floating chrome, or null per missing layer. */
+function measureFloating(page: Page): Promise<{ board: Rect | null; dock: Rect | null; omnibar: Rect | null; minimap: Rect | null }> {
+  return page.evaluate(() => {
+    const box = (selector: string): Rect | null => {
+      const element = document.querySelector(selector)
+      if (element === null) return null
+      const rect = element.getBoundingClientRect()
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }
+    }
+    return {
+      board: box('[data-surface="board"]'),
+      dock: box('[data-board-layer="dock"]'),
+      omnibar: box('[data-board-layer="omnibar"]'),
+      minimap: box('[data-board-layer="minimap"]'),
+    }
+  })
+}
+
+/** Return to the board through the shell entry; no-op when already there. */
+async function openBoard(page: Page): Promise<void> {
+  if (await page.locator('[data-surface="board"]').count() > 0) return
+  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
 }
 
 /** Click the dock's reset-view control and settle. */
@@ -242,24 +237,6 @@ async function panBy(page: Page, dx: number, dy: number): Promise<void> {
   await page.mouse.move(startX + dx, startY + dy, { steps: 10 })
   await page.mouse.up({ button: 'middle' })
   await settle(page)
-}
-
-/** Resize the viewport and wait for the board box to settle at the new width. */
-async function resizeViewport(page: Page, viewport: { width: number; height: number }): Promise<void> {
-  await page.setViewportSize(viewport)
-  await page.locator('[data-surface="board"]').evaluate(async (board) => {
-    const deadline = performance.now() + 5_000
-    let previous = board.getBoundingClientRect().width
-    let stable = 0
-    while (performance.now() < deadline) {
-      await new Promise<void>((resolve) => { requestAnimationFrame(() => { resolve() }) })
-      const current = board.getBoundingClientRect().width
-      stable = Math.abs(current - previous) < 0.01 ? stable + 1 : 0
-      if (stable >= 3) return
-      previous = current
-    }
-    throw new Error('board box did not settle after the viewport changed')
-  })
 }
 
 /**
@@ -525,6 +502,8 @@ describe('web e2e: spatial board geometry', () => {
   let page: Page
   let fixtureDir: string
   let tripwire: ReturnType<typeof watchConsole>
+  /** Seeded session identities: the startup assertion restores one as the user's selection. */
+  let sessionAId: string
 
   beforeAll(async () => {
     fixtureDir = mkdtempSync(join(tmpdir(), 'board-geometry-providers-'))
@@ -536,6 +515,7 @@ describe('web e2e: spatial board geometry', () => {
     const sessionA = await seedSession(scaffold, FIXTURE_A.log, 'board-geometry-a')
     const sessionB = await seedSession(scaffold, FIXTURE_B.log, 'board-geometry-b')
     const sessionC = await seedSession(scaffold, FIXTURE_C.log, 'board-geometry-c')
+    sessionAId = String(sessionA)
     browser = await chromium.launch()
     page = await newEnglishPage(browser, WIDE_VIEWPORT.height)
     tripwire = watchConsole(page)
@@ -575,7 +555,7 @@ describe('web e2e: spatial board geometry', () => {
     }))
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-    await page.getByRole('button', { name: 'Board' }).click()
+    await page.getByRole('button', { name: 'Board', exact: true }).click()
     await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
     await page.locator(`[data-board-window-id="${WINDOW_C}"] [data-board-action="composer-model"]`)
       .waitFor({ timeout: 30_000 })
@@ -606,6 +586,22 @@ describe('web e2e: spatial board geometry', () => {
     expect(shape.windowIds).toEqual([WINDOW_A, WINDOW_B, WINDOW_C])
     expect(shape.hasModelChip).toBe(true)
     expect(shape.dockRows).toBe(3)
+
+    // Each window's own history loaded while the shell's current session
+    // stayed elsewhere: the lane carries that session's seeded marker (A5).
+    const lanes = await page.evaluate(({ ids, markers }: { ids: string[]; markers: Record<string, string> }) => {
+      const laneText = (id: string): string =>
+        document.querySelector(`[data-board-window-id="${id}"]`)?.textContent ?? ''
+      return ids.map(id => laneText(id).includes(markers[id] ?? ''))
+    }, {
+      ids: [WINDOW_A, WINDOW_B, WINDOW_C],
+      markers: {
+        [WINDOW_A]: FIXTURE_A.markers.user(1),
+        [WINDOW_B]: FIXTURE_B.markers.user(1),
+        [WINDOW_C]: FIXTURE_C.markers.user(1),
+      },
+    })
+    expect(lanes).toEqual([true, true, true])
   }, 60_000)
 
   it('control: an empty-canvas pinch already zooms the board and is prevented', async () => {
@@ -614,22 +610,16 @@ describe('web e2e: spatial board geometry', () => {
     await clickResetView(page)
     const canvas = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { ctrlKey: true, deltaY: -100 })
     await clickResetView(page)
-    const rail = await dispatchWheel(page, await railTarget(page, WINDOW_A), { ctrlKey: true, deltaY: -100 })
-    await clickResetView(page)
     const dock = await dispatchWheel(page, { selector: '[data-board-layer="dock"]', index: 0 }, { ctrlKey: true, deltaY: -100 })
     await clickResetView(page)
     expect({
       canvasPrevented: canvas.prevented,
       canvasZoomed: canvas.after.scale > canvas.before.scale,
-      railPrevented: rail.prevented,
-      railZoomed: rail.after.scale > rail.before.scale,
       dockPrevented: dock.prevented,
       dockZoomed: dock.after.scale > dock.before.scale,
     }).toEqual({
       canvasPrevented: true,
       canvasZoomed: true,
-      railPrevented: true,
-      railZoomed: true,
       dockPrevented: true,
       dockZoomed: true,
     })
@@ -647,15 +637,15 @@ describe('web e2e: spatial board geometry', () => {
     }).toEqual({ prevented: true, boardZoomed: true })
   }, 60_000)
 
-  it('П-07: a pinch over the app sidebar is blocked app-wide (decision R-2)', async () => {
+  it('П-07: a pinch outside the board is blocked app-wide (decision R-2)', async () => {
     await clickResetView(page)
-    const sidebar = await dispatchWheel(page, { selector: 'nav[aria-label="Global panels"]', index: 0 }, { ctrlKey: true, deltaY: -100 })
+    // The shell overlay is a sibling of the board inside the frame: the pinch
+    // guard must claim it while the board keeps its scale.
+    const outside = await dispatchWheel(page, { selector: '[data-shell-overlay]', index: 0 }, { ctrlKey: true, deltaY: -100 })
     await clickResetView(page)
-    // The shell's page-pinch guard prevents the browser's page zoom outside
-    // the board while the board scale stays put.
     expect({
-      prevented: sidebar.prevented,
-      boardScaleUnchanged: sidebar.after.scale === sidebar.before.scale,
+      prevented: outside.prevented,
+      boardScaleUnchanged: outside.after.scale === outside.before.scale,
     }).toEqual({ prevented: true, boardScaleUnchanged: true })
   }, 60_000)
 
@@ -716,11 +706,19 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('control: a tooltip outside every transformed ancestor stays adjacent', async () => {
-    await clickResetView(page)
-    // The sidebar toggle is outside the canvas and outside the transformed
-    // dock/omnibar containers, so its tooltip is the honest control group.
-    const toggle = await measureTooltip(page, 'button[aria-label="Collapse sidebar"], button[aria-label="Open sidebar"]')
-    expect({ adjacent: toggle.adjacent, axisAligned: toggle.axisAligned }).toEqual({ adjacent: true, axisAligned: true })
+    // The sidebar toggle is the honest control group: it lives outside the
+    // canvas and outside the transformed dock/omnibar containers — and only
+    // while the board is not the active panel, since the board hides the
+    // shell's sidebar (Т2.7).
+    await page.reload({ waitUntil: 'load' })
+    await page.locator('nav[aria-label="Global panels"]').waitFor({ timeout: 30_000 })
+    try {
+      const toggle = await measureTooltip(page, 'button[aria-label="Collapse sidebar"], button[aria-label="Open sidebar"]')
+      expect({ adjacent: toggle.adjacent, axisAligned: toggle.axisAligned }).toEqual({ adjacent: true, axisAligned: true })
+    } finally {
+      await openBoard(page)
+      await clickResetView(page)
+    }
   }, 60_000)
 
   it('П-09: the audit control group is not clean — dock and omnibar tooltips are displaced too', async () => {
@@ -832,68 +830,6 @@ describe('web e2e: spatial board geometry', () => {
     }).toEqual({ mainMenuWithinBoard: true, modelListWithinBoard: true })
   }, 60_000)
 
-  it.fails('П-16: the chats rail stays on the window left edge at every zoom (R4 side from open-panel room)', async () => {
-    await clickResetView(page)
-    const railLeftOfFrame = async (): Promise<boolean> => {
-      const parts = await measureWindowParts(page, WINDOW_A)
-      return parts.rail.right <= parts.frame.left + 1
-    }
-    const atZoom1 = await railLeftOfFrame()
-    let atZoomHalf = false
-    let atZoom2 = false
-    try {
-      await setZoom(page, 0.5)
-      atZoomHalf = await railLeftOfFrame()
-      await setZoom(page, 2)
-      atZoom2 = await railLeftOfFrame()
-    } finally {
-      await clickResetView(page)
-    }
-    // `side` is derived from the free room for the *open* panel, so a window
-    // near the left edge flips its collapsed rail to the right.
-    expect({ atZoom1, atZoomHalf, atZoom2 }).toEqual({ atZoom1: true, atZoomHalf: true, atZoom2: true })
-  }, 90_000)
-
-  it.fails('П-17: the chats rail hugs the window header top at any height (R4 vertical centring)', async () => {
-    await clickResetView(page)
-    const short = await measureWindowParts(page, WINDOW_A)
-    const tall = await measureWindowParts(page, WINDOW_C)
-    const offset = (parts: { frame: Rect; rail: Rect }): number => parts.rail.top - parts.frame.top
-    // railRect centres the strip in the frame, so stretching the window moves
-    // the rail instead of keeping it pinned to the header.
-    expect({
-      shortHugsTop: Math.abs(offset(short)) <= 8,
-      tallHugsTop: Math.abs(offset(tall)) <= 8,
-      independentOfHeight: Math.abs(offset(short) - offset(tall)) <= 8,
-    }).toEqual({ shortHugsTop: true, tallHugsTop: true, independentOfHeight: true })
-  }, 60_000)
-
-  it('П-18: the chats rail stays readable at minimum zoom (Р-3/П-32 simplified view)', async () => {
-    await clickResetView(page)
-    const railWidth = await (async (): Promise<number | null> => {
-      try {
-        await setZoom(page, 0.2)
-        return await page.evaluate((id) => {
-          const frames = [...document.querySelectorAll('[data-board-window-id]')]
-          const rails = [...document.querySelectorAll('[data-board-panel-rail]')]
-          // Below the detail threshold the simplified view hides rails; a
-          // partial list means the cutoff is active, the readable outcome
-          // П-18 asks for.
-          if (rails.length !== frames.length) return null
-          const index = frames.findIndex(frame => frame.getAttribute('data-board-window-id') === id)
-          const rail = rails[index]
-          return rail === undefined ? null : rail.getBoundingClientRect().width
-        }, WINDOW_A)
-      } finally {
-        await clickResetView(page)
-      }
-    })()
-    // Below the threshold the rail is gone, so nothing unreadable stays
-    // clickable at 0.2 (Р-3/П-32).
-    const readable = railWidth === null || railWidth >= 24
-    expect({ railReadableAtMinZoom: readable }).toEqual({ railReadableAtMinZoom: true })
-  }, 60_000)
-
   it('П-32/П-34: below the detail threshold windows show the simplified card and the grid doubles', async () => {
     await clickResetView(page)
     try {
@@ -955,11 +891,11 @@ describe('web e2e: spatial board geometry', () => {
       await settle(page)
     }
     try {
-      const before = (await measureWindowParts(page, WINDOW_A)).frame
+      const before = await measureFrame(page, WINDOW_A)
       // П-26: the corner shrinks both axes; the drag overshoots the floor, so
       // the result is the minimum layout (decision R-5).
       await dragCorner(-200, -200)
-      const floor = (await measureWindowParts(page, WINDOW_A)).frame
+      const floor = await measureFrame(page, WINDOW_A)
       expect(Math.round(floor.width)).toBe(408)
       expect(Math.round(floor.height)).toBe(480)
       expect(floor.width).toBeLessThan(before.width)
@@ -998,13 +934,189 @@ describe('web e2e: spatial board geometry', () => {
       // The same handle grows the window back: the floor is a floor, not a
       // one-way latch.
       await dragCorner(144, 168)
-      const restored = (await measureWindowParts(page, WINDOW_A)).frame
+      const restored = await measureFrame(page, WINDOW_A)
       expect(Math.round(restored.width)).toBe(552)
       expect(Math.round(restored.height)).toBe(648)
     } finally {
       await clickResetView(page)
     }
   }, 90_000)
+
+  it.fails('Т1.1/Т1.2: the dock sits at the board bottom centre and keeps its screen size at every zoom', async () => {
+    await clickResetView(page)
+    const boxAt = (measured: Awaited<ReturnType<typeof measureFloating>>): Rect => {
+      if (measured.board === null || measured.dock === null) throw new Error('board or dock box is missing')
+      return measured.dock
+    }
+    const atZoom1 = await measureFloating(page)
+    const dock1 = boxAt(atZoom1)
+    const board = atZoom1.board
+    if (board === null) throw new Error('board box is missing')
+    const frameAtZoom1 = await measureFrame(page, WINDOW_A)
+    let dock2: Rect | null = null
+    let frameAtZoom2: Rect | null = null
+    try {
+      await setZoom(page, 0.5)
+      boxAt(await measureFloating(page))
+      await setZoom(page, 2)
+      dock2 = boxAt(await measureFloating(page))
+      frameAtZoom2 = await measureFrame(page, WINDOW_A)
+    } finally {
+      await clickResetView(page)
+    }
+    if (dock2 === null || frameAtZoom2 === null) throw new Error('dock or frame box is missing at zoom 2')
+    expect({
+      // Bottom centre: the dock's centre line matches the board's, and its
+      // bottom edge keeps the planned 16px inset.
+      centredX: Math.abs((dock1.left + dock1.right) / 2 - (board.left + board.right) / 2) <= 2,
+      bottomInset: Math.abs(board.bottom - dock1.bottom - 16) <= 4,
+      horizontal: dock1.width > dock1.height,
+      // Screen size: the dock keeps its box across a 4× zoom while a window
+      // frame scales with the canvas.
+      screenSized: Math.abs(dock2.width - dock1.width) <= 4 && Math.abs(dock2.height - dock1.height) <= 4,
+      framesScale: Math.abs(frameAtZoom2.width / frameAtZoom1.width - 4) <= 0.1,
+    }).toEqual({ centredX: true, bottomInset: true, horizontal: true, screenSized: true, framesScale: true })
+  }, 90_000)
+
+  it.fails('Т1.3: the dock orders windows, controls, and clones left to right', async () => {
+    await clickResetView(page)
+    const order = await page.evaluate(() => {
+      const dock = document.querySelector('[data-board-layer="dock"]')
+      if (dock === null) return []
+      return [...dock.querySelectorAll('[data-board-action]')].map((element) => {
+        const action = element.getAttribute('data-board-action') ?? ''
+        return action === 'dock-row' ? 'row' : action
+      })
+    })
+    // The open windows, then the add menu, the element picker, and the view
+    // reset; clone rows follow the second divider (Т1.9).
+    expect(order).toEqual(['row', 'row', 'row', 'dock-add', 'dock-select-element', 'dock-reset-view'])
+  }, 60_000)
+
+  it.fails('Т1.12/Т1.13: the omnibar is gone and the minimap sits at the board top right', async () => {
+    await clickResetView(page)
+    const chrome = await measureFloating(page)
+    if (chrome.board === null || chrome.minimap === null) throw new Error('board or minimap box is missing')
+    expect({
+      omnibarGone: chrome.omnibar === null,
+      topRight: Math.abs(chrome.board.right - chrome.minimap.right - 16) <= 4
+        && Math.abs(chrome.minimap.top - chrome.board.top - 16) <= 4,
+    }).toEqual({ omnibarGone: true, topRight: true })
+  }, 60_000)
+
+  it.fails('Т1.14: the dock stays visible while a window panel is open', async () => {
+    await clickResetView(page)
+    const before = await measureFloating(page)
+    if (before.dock === null) throw new Error('dock box is missing')
+    const dock1 = before.dock
+    try {
+      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="panel-rail-expand"]`)
+        .click({ timeout: 2_000 })
+      await settle(page)
+      const open = await measureFloating(page)
+      expect({
+        dockPresent: open.dock !== null,
+        dockKeepsPlace: open.dock !== null
+          && Math.abs(open.dock.left - dock1.left) <= 2
+          && Math.abs(open.dock.bottom - dock1.bottom) <= 2,
+      }).toEqual({ dockPresent: true, dockKeepsPlace: true })
+    } finally {
+      await page.keyboard.press('Escape')
+      await settle(page)
+    }
+  }, 60_000)
+
+  it.fails('Т3.1/Т3.2: a chat window has no rail and its header carries both panel buttons', async () => {
+    await clickResetView(page)
+    const header = await page.evaluate((id) => {
+      const frame = document.querySelector(`[data-board-window-id="${id}"]`)
+      if (frame === null) throw new Error('frame is missing')
+      const header = frame.querySelector('[class*="header"]')
+      return {
+        railCount: document.querySelectorAll('[data-board-panel-rail]').length,
+        left: header?.querySelector('[data-board-action="window-left-panel"]') !== null,
+        right: header?.querySelector('[data-board-action="window-right-panel"]') !== null,
+      }
+    }, WINDOW_A)
+    expect(header).toEqual({ railCount: 0, left: true, right: true })
+  }, 60_000)
+
+  it.fails('Т3.5: panels slide out from under the window edges, not over the window', async () => {
+    await clickResetView(page)
+    const frame = await measureFrame(page, WINDOW_A)
+    try {
+      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-left-panel"]`)
+        .click({ timeout: 2_000 })
+      await settle(page)
+      const left = await page.evaluate(() => {
+        const panel = document.querySelector('[data-board-panel][data-board-panel-side="left"]')
+        if (panel === null) return null
+        const rect = panel.getBoundingClientRect()
+        return { right: rect.right, height: rect.height }
+      })
+      expect(left).not.toBeNull()
+      expect({
+        outside: left !== null && left.right <= frame.left + 1,
+        fullHeight: left !== null && Math.abs(left.height - frame.height) <= 2,
+      }).toEqual({ outside: true, fullHeight: true })
+    } finally {
+      await page.keyboard.press('Escape')
+      await settle(page)
+    }
+  }, 60_000)
+
+  it.fails('Т2.1: expanding a window hands its session to the standard interface', async () => {
+    await clickResetView(page)
+    try {
+      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-fullscreen"]`)
+        .click({ timeout: 2_000 })
+      await page.waitForTimeout(300)
+      const standard = await page.evaluate(() => ({
+        board: document.querySelector('[data-surface="board"]') !== null,
+        fullscreen: document.querySelector('[data-board-fullscreen]') !== null,
+      }))
+      expect({
+        board: standard.board,
+        fullscreen: standard.fullscreen,
+        showsSession: await page.getByText(FIXTURE_A.title).count() > 0,
+      }).toEqual({ board: false, fullscreen: false, showsSession: true })
+    } finally {
+      await openBoard(page)
+      await clickResetView(page)
+    }
+  }, 90_000)
+
+  it('Т2.9/А5: startup keeps the standard interface and the user\'s last session', async () => {
+    // The user's last selection: session A, the persisted cell the app
+    // restores at boot. The board layout restore must not move it.
+    await page.evaluate((sessionId: string) => {
+      localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId }))
+    }, sessionAId)
+    await page.reload({ waitUntil: 'load' })
+    try {
+      // Boot wipes the persisted cell while the list loads and restores it once
+      // the list is ready; the settled read is what the user sees.
+      await page.getByText(FIXTURE_A.title).first().waitFor({ timeout: 15_000 })
+      await page.waitForTimeout(300)
+      const state = await page.evaluate(() => {
+        const raw = localStorage.getItem('dsh.sessions.current')
+        let current: string | null = null
+        try {
+          current = (JSON.parse(raw ?? '{}') as { sessionId?: string }).sessionId ?? null
+        } catch {
+          current = null
+        }
+        return {
+          boardMounted: document.querySelector('[data-surface="board"]') !== null,
+          current,
+        }
+      })
+      expect(state).toEqual({ boardMounted: false, current: sessionAId })
+    } finally {
+      await openBoard(page)
+      await clickResetView(page)
+    }
+  }, 120_000)
 
   it.fails('П-28: reset view fits every window into the safe area (R5 no safe area)', async () => {
     await clickResetView(page)
@@ -1024,17 +1136,6 @@ describe('web e2e: spatial board geometry', () => {
       minimapClear: !windows.some(rect => intersects(rect, minimap)),
       windowsInsideBoard: windows.every(rect => contains(board, rect)),
     }).toEqual({ dockClear: true, omnibarClear: true, minimapClear: true, windowsInsideBoard: true })
-  }, 60_000)
-
-  it.fails('П-30: the omnibar and minimap do not overlap on a narrow board (R5 hard sizes)', async () => {
-    await resizeViewport(page, NARROW_VIEWPORT)
-    const narrow = await measureSafeArea(page)
-    await resizeViewport(page, WIDE_VIEWPORT)
-    await clickResetView(page)
-    const omnibar = narrow.omnibar
-    const minimap = narrow.minimap
-    if (omnibar === null || minimap === null) throw new Error('narrow floating boxes are missing')
-    expect({ omnibarMinimapOverlap: intersects(omnibar, minimap) }).toEqual({ omnibarMinimapOverlap: false })
   }, 60_000)
 
   it.fails('П-31: centring a window taller than the board fits it inside (R5 no fit-on-center)', async () => {

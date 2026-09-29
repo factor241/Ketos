@@ -995,8 +995,11 @@ export class BoardSessionBridge {
     const channel = record.channel
     record.attaching = true
     try {
-      // The live event stream exists only for the session opened as current.
-      this.ctx.sessions.open(sessionId)
+      // The window owns its live stream without moving the shell's current
+      // selection (A5): `openStream` opens the session's stream in place,
+      // where `open` would select it as the application's current session and
+      // make the standard interface follow the last board window restored.
+      this.ctx.sessions.openStream(sessionId)
       const owner = this.ctx.sessions.binding(sessionId)
       if (owner === undefined) throw new Error(this.t('failure.session'))
       const chat = this.ctx.uiConversation.binding(sessionId).target('chat')

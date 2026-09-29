@@ -29,6 +29,13 @@
   border-right: 0.5px solid var(--dsw-alias-border-l3);
 }
 
+/* A panel declaring no sidebar (the board) zeroes the track: the column keeps
+   the grid placement but paints nothing, border included. */
+.frame[data-sidebar-hidden] .sidebarCol {
+  border-right: none;
+  background: transparent;
+}
+
 .centerCol {
   min-width: 0;
   display: flex;

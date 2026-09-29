@@ -335,6 +335,32 @@ describe('DashboardCanvas Component', () => {
     expect(renderSlot).toHaveBeenCalledWith('board.windows', {})
   })
 
+  it('doubles the dot grid step and fades the dots near the density floor (Д6.3)', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800)
+    const actions = { setViewport: vi.fn(), setPan: vi.fn(), zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']
+    const surfaceStyleAt = (zoom: number): CSSStyleDeclaration => {
+      const { container, unmount } = render(
+        <DashboardCanvas {...canvasProps({ ...baseState, zoom }, actions, vi.fn(() => null))} />,
+      )
+      const canvas = container.querySelector<HTMLElement>('[data-surface="canvas"]')
+      if (canvas === null) throw new Error('canvas surface is missing')
+      unmount()
+      return canvas.style
+    }
+
+    const gridPx = (zoom: number): number => Number.parseFloat(surfaceStyleAt(zoom).getPropertyValue('--board-grid-size'))
+    // At zoom 1 the base 24px step renders as-is and the dots are opaque.
+    expect(gridPx(1)).toBe(24)
+    expect(surfaceStyleAt(1).getPropertyValue('--board-grid-dot-opacity')).toBe('1')
+    // At 0.3 the base step would land at 7.2 screen px: it doubles to 14.4px.
+    expect(gridPx(0.3)).toBeCloseTo(14.4, 5)
+    // At the 0.2 minimum zoom the doubled step is 9.6px, near the 8px floor, so
+    // the dots fade instead of reading as dense ripple.
+    expect(gridPx(0.2)).toBeCloseTo(9.6, 5)
+    expect(Number(surfaceStyleAt(0.2).getPropertyValue('--board-grid-dot-opacity'))).toBeCloseTo(0.4, 5)
+  })
+
   it('pans from the bare canvas and finishes the gesture through the shared cleanup', () => {
     const setPan = vi.fn<(x: number, y: number) => void>()
     const actions = { setViewport: vi.fn(), setPan, zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']

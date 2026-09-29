@@ -253,9 +253,9 @@ describe('createBoardStore', () => {
     const snap = store.getSnapshot()
     expect(snap.windows['open-1']?.width).toBe(MIN_WINDOW_SIZE.width)
     expect(snap.windows['open-1']?.height).toBe(MIN_WINDOW_SIZE.height)
-    // Centered at zoom 1 with no pan: (1000/2 - 552/2, 800/2 - 648/2)
-    expect(snap.windows['open-1']?.x).toBe(224)
-    expect(snap.windows['open-1']?.y).toBe(76)
+    // Centered at zoom 1 with no pan: (1000/2 - 408/2, 800/2 - 480/2)
+    expect(snap.windows['open-1']?.x).toBe(296)
+    expect(snap.windows['open-1']?.y).toBe(160)
     expect(snap.windows['open-1']?.zIndex).toBe(10)
     expect(snap.activeWindowId).toBe('open-1')
     expect(snap.windowOrder).toEqual(['open-1'])
@@ -277,9 +277,9 @@ describe('createBoardStore', () => {
     })
 
     const snap = store.getSnapshot()
-    // Floored to 552x648: x = (200 + 1000/2 - 276) / 2, y = (100 + 800/2 - 324) / 2
-    expect(snap.windows['open-2']?.x).toBe(212)
-    expect(snap.windows['open-2']?.y).toBe(88)
+    // Floored to 408x480: x = (200 + 1000/2 - 204) / 2, y = (100 + 800/2 - 240) / 2
+    expect(snap.windows['open-2']?.x).toBe(248)
+    expect(snap.windows['open-2']?.y).toBe(130)
   })
 
   it('clamps every insertion into the window band, whatever z the caller passes', () => {
@@ -291,20 +291,20 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().windows['w2']?.zIndex).toBe(10)
   })
 
-  it('resizes windows with 24px snap and the default chat size as the floor', () => {
+  it('resizes windows with 24px snap and the minimum layout as the floor', () => {
     const { store, actions } = createBoardStore().create()
     actions.addWindow(makeWindow({ id: 'win-1' as WindowId }))
 
-    // The floor is the size the window is created with, not a smaller guess.
-    expect(MIN_WINDOW_SIZE).toEqual({ width: 552, height: 648 })
+    // The floor is the minimum working layout (decision R-5).
+    expect(MIN_WINDOW_SIZE).toEqual({ width: 408, height: 480 })
     actions.resizeWindow('win-1' as WindowId, 100, 50, false)
     expect(store.getSnapshot().windows['win-1']?.width).toBe(MIN_WINDOW_SIZE.width)
     expect(store.getSnapshot().windows['win-1']?.height).toBe(MIN_WINDOW_SIZE.height)
 
-    // Snapping never lands below the floor either (24 * 23 = 552 < 648).
-    actions.resizeWindow('win-1' as WindowId, 485, 552, true)
-    expect(store.getSnapshot().windows['win-1']?.width).toBe(552)
-    expect(store.getSnapshot().windows['win-1']?.height).toBe(648)
+    // Snapping never lands below the floor either (a snapped 456 is raised).
+    actions.resizeWindow('win-1' as WindowId, 485, 460, true)
+    expect(store.getSnapshot().windows['win-1']?.width).toBe(480)
+    expect(store.getSnapshot().windows['win-1']?.height).toBe(480)
 
     // Growth is unbounded.
     actions.resizeWindow('win-1' as WindowId, 1000, 900, false)
@@ -317,8 +317,8 @@ describe('createBoardStore', () => {
     expect(snapPosition(125, false)).toBe(125)
     expect(snapPosition(-13, true)).toBe(-24)
     expect(clampWindowSize(1000, 900, true)).toEqual({ width: 1008, height: 912 })
-    expect(clampWindowSize(100, 100, true)).toEqual({ width: 552, height: 648 })
-    expect(clampWindowSize(100, 100, false)).toEqual({ width: 552, height: 648 })
+    expect(clampWindowSize(100, 100, true)).toEqual({ width: 408, height: 480 })
+    expect(clampWindowSize(100, 100, false)).toEqual({ width: 408, height: 480 })
   })
 
   it('switches the body kind of one window and ignores unknown ids', () => {

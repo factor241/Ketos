@@ -41,6 +41,13 @@
   --board-chip-pad: 4px 10px;
 }
 
+/* Crisp text at rest (Д6.2): the canvas holds GPU rasterization only while a
+   board gesture is live; `BoardRoot` arms the attribute on pointerdown and on
+   each wheel or Safari gesture event and drops it after 150 ms of quiet. */
+.root[data-board-gesture] [data-surface='canvas-layer'] {
+  will-change: transform;
+}
+
 /* Screen-space portal target for the board's tooltips and menus: positioned
    for coordinates but never a gesture target itself, so only the portaled
    popovers intercept the pointer. */

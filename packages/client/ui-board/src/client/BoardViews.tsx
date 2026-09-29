@@ -38,6 +38,8 @@ export interface BoardRootInjected {
   readonly wheelMode: BoardWheelMode
   /** Exponential zoom sensitivity `k` (`factor = exp(−Δ·k)`). */
   readonly zoomSensitivity: number
+  /** Zoom below which windows render their simplified card (R-6). */
+  readonly detailZoomThreshold: number
 }
 
 /** Props of the board main-panel body: the child render share, the store share, the injected runtime config, and the locale seat. */
@@ -69,7 +71,9 @@ function boardPoint(box: DOMRect, event: { readonly clientX: number; readonly cl
   return { x: event.clientX - box.left, y: event.clientY - box.top }
 }
 
-export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity }: BoardRootProps) {
+export function BoardRoot({
+  renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity, detailZoomThreshold,
+}: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const pointerInsideRef = useRef(false)
   const spaceRef = useRef(false)
@@ -101,6 +105,9 @@ export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, whee
   const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
   const activePanelId = usePanelInfo(info => info.activePanelId)
   const returnWindowId = useStore(s => s.returnWindowId)
+  // The simplified view swaps the frames' contents; the ring's resize handles
+  // stand down with the frame's own handles below the threshold (Д6.1).
+  const simplified = useStore(s => s.zoom < detailZoomThreshold)
 
   // The lane sends the user to the main panel for a pending approval or
   // question; when the board panel comes back, the window they left from is
@@ -171,6 +178,53 @@ export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, whee
       root.removeEventListener('gestureend', onGestureEnd)
     }
   }, [fullscreen, actions, wheelMode, zoomSensitivity])
+
+  // Crisp text at rest (Д6.2): `will-change: transform` holds GPU
+  // rasterization, so the surface keeps it only while a board gesture is live.
+  // Pointer drags arm on the pointerdown anywhere in the board root (header
+  // drags, resizes, panning) and disarm on the pointerup or cancel that ends
+  // them; wheel and Safari gesture streams re-arm on every event and disarm on
+  // a 150 ms trailing timer.
+  useEffect(() => {
+    const root = rootRef.current
+    /* v8 ignore next -- the ref is always attached by effect time: the board root renders unconditionally. */
+    if (root === null) return
+    let idle: number | undefined
+    const arm = (): void => {
+      if (idle !== undefined) {
+        window.clearTimeout(idle)
+        idle = undefined
+      }
+      root.dataset.boardGesture = ''
+    }
+    const schedule = (): void => {
+      if (idle !== undefined) window.clearTimeout(idle)
+      idle = window.setTimeout(() => {
+        idle = undefined
+        delete root.dataset.boardGesture
+      }, 150)
+    }
+    const activity = (): void => { arm(); schedule() }
+    const onPointerDown = (): void => { arm() }
+    const onPointerEnd = (): void => { schedule() }
+    root.addEventListener('pointerdown', onPointerDown, true)
+    globalThis.addEventListener('pointerup', onPointerEnd, true)
+    globalThis.addEventListener('pointercancel', onPointerEnd, true)
+    root.addEventListener('wheel', activity, { passive: true })
+    root.addEventListener('gesturestart', activity)
+    root.addEventListener('gesturechange', activity)
+    root.addEventListener('gestureend', activity)
+    return () => {
+      if (idle !== undefined) window.clearTimeout(idle)
+      root.removeEventListener('pointerdown', onPointerDown, true)
+      globalThis.removeEventListener('pointerup', onPointerEnd, true)
+      globalThis.removeEventListener('pointercancel', onPointerEnd, true)
+      root.removeEventListener('wheel', activity)
+      root.removeEventListener('gesturestart', activity)
+      root.removeEventListener('gesturechange', activity)
+      root.removeEventListener('gestureend', activity)
+    }
+  }, [])
 
   // Space arms panning while the pointer is over the board — including over a
   // window, whose own gesture then stands down for the capture phase — and a
@@ -252,7 +306,7 @@ export function BoardRoot({ renderSlot, useStore, actions, t, usePanelInfo, whee
         {/* The active window's handle ring rides above the chrome, so a resize
             handle stays grabbable when its window edge sits under a floating
             layer; the selection overlay still paints above both. */}
-        {!fullscreen && <HandleRing useStore={useStore} actions={actions} />}
+        {!fullscreen && !simplified && <HandleRing useStore={useStore} actions={actions} />}
         <ElementSelectionOverlay
           t={t}
           active={selecting}

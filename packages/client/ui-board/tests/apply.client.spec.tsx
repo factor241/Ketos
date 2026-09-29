@@ -199,7 +199,7 @@ describe('board apply services', () => {
     expect(inject).toContain('remote.session')
   })
 
-  it('validates the wheel defaults: pan on a plain wheel, twofold pinch sensitivity', () => {
-    expect(Config({})).toEqual({ wheelMode: 'pan', zoomSensitivity: 0.0023 })
+  it('validates the input defaults: pan on a plain wheel, twofold pinch sensitivity, 0.4 detail threshold', () => {
+    expect(Config({})).toEqual({ wheelMode: 'pan', zoomSensitivity: 0.0023, detailZoomThreshold: 0.4 })
   })
 })

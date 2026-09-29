@@ -20,7 +20,7 @@ export type BoardWindowLayerProps =
   & PropsStore<BoardStoreHandle>
   & InjectFace<BoardWindowInjected>
 
-export function BoardWindowLayer({ renderSlot, useStore, releaseWindow }: BoardWindowLayerProps) {
+export function BoardWindowLayer({ renderSlot, useStore, releaseWindow, detailZoomThreshold }: BoardWindowLayerProps) {
   const windowOrder = useStore(s => s.windowOrder)
   const windows = useStore(s => s.windows)
   const openRef = useRef<readonly WindowId[]>([])
@@ -51,10 +51,10 @@ export function BoardWindowLayer({ renderSlot, useStore, releaseWindow }: BoardW
                 side gets its own popover host, so window tooltips and menus
                 portal into the board layer at the window's scale and dismiss
                 on the window's lifecycle. */}
-            <BoardPopoverProvider useStore={useStore} windowId={window.id}>
+            <BoardPopoverProvider useStore={useStore} windowId={window.id} detailZoomThreshold={detailZoomThreshold}>
               {renderSlot('board.window.panel', { window }, { entryKey: window.kind })}
             </BoardPopoverProvider>
-            <BoardPopoverProvider useStore={useStore} windowId={window.id}>
+            <BoardPopoverProvider useStore={useStore} windowId={window.id} detailZoomThreshold={detailZoomThreshold}>
               {renderSlot('board.window', { window, renderBody }, { entryKey: window.kind })}
             </BoardPopoverProvider>
           </Fragment>

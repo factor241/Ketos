@@ -49,9 +49,13 @@ export function startWindowResizeGesture(gesture: WindowResizeGesture): void {
     move: (moveEvt) => {
       const dx = (moveEvt.clientX - startClientX) / zoom
       const dy = (moveEvt.clientY - startClientY) / zoom
-      // The step already snapped and clamped to the minimum; the store's
-      // actions re-apply the same rules idempotently.
-      const next = resizeStep(direction, origin, dx, dy, !moveEvt.shiftKey)
+      // Shift keeps the window's ratio, Alt releases the grid; the step
+      // already snapped and clamped to the minimum, and the store's actions
+      // re-apply the same rules idempotently.
+      const next = resizeStep(direction, origin, dx, dy, {
+        proportional: moveEvt.shiftKey,
+        snap: !moveEvt.altKey,
+      })
       if (next.x !== origin.x || next.y !== origin.y) {
         actions.moveWindow(cardWindow.id, next.x, next.y, false)
       }

@@ -1,10 +1,12 @@
 /**
  * Page pinch-zoom guard of the app shell (decision R-2): page zoom stays on
  * the browser's `Cmd/Ctrl +/−/0` shortcuts, so an accidental trackpad pinch
- * must not scale the whole interface. The guard owns the frame root: it
- * prevents ctrl+wheel (Chromium's pinch) and Safari gesture events outside the
- * board, and leaves everything inside `[data-surface="board"]` alone, because
- * the board handles its own pinch.
+ * must not scale the whole interface. The guard listens on the shell frame's
+ * document — menus, tooltips, and dialogs that portal into `document.body`
+ * sit outside the frame's subtree, so a frame-bound listener would miss them
+ * (П-37) — and prevents ctrl+wheel (Chromium's pinch) and Safari gesture events
+ * outside the board, while everything inside `[data-surface="board"]` keeps its
+ * own pinch handling.
  */
 
 /** Board marker: the one surface that handles its own pinch. */
@@ -16,13 +18,14 @@ function insideBoard(target: EventTarget | null): boolean {
 }
 
 /**
- * Install the page pinch-zoom guard on one app root.
- * @param root - the element the listeners attach to (the shell frame).
+ * Install the page pinch-zoom guard for one app root.
+ * @param root - the shell frame element; listeners attach to its document so body-level portals are covered.
  * @param block - whether the guard is enabled; false installs nothing.
  * @returns a disposer removing every installed listener.
  */
 export function installPagePinchGuard(root: HTMLElement, block: boolean): () => void {
   if (!block) return () => {}
+  const doc = root.ownerDocument
   const onWheel = (event: WheelEvent): void => {
     if (!event.ctrlKey || insideBoard(event.target)) return
     event.preventDefault()
@@ -31,14 +34,14 @@ export function installPagePinchGuard(root: HTMLElement, block: boolean): () => 
     if (insideBoard(event.target)) return
     event.preventDefault()
   }
-  root.addEventListener('wheel', onWheel, { passive: false })
-  root.addEventListener('gesturestart', onGesture)
-  root.addEventListener('gesturechange', onGesture)
-  root.addEventListener('gestureend', onGesture)
+  doc.addEventListener('wheel', onWheel, { passive: false })
+  doc.addEventListener('gesturestart', onGesture)
+  doc.addEventListener('gesturechange', onGesture)
+  doc.addEventListener('gestureend', onGesture)
   return () => {
-    root.removeEventListener('wheel', onWheel)
-    root.removeEventListener('gesturestart', onGesture)
-    root.removeEventListener('gesturechange', onGesture)
-    root.removeEventListener('gestureend', onGesture)
+    doc.removeEventListener('wheel', onWheel)
+    doc.removeEventListener('gesturestart', onGesture)
+    doc.removeEventListener('gesturechange', onGesture)
+    doc.removeEventListener('gestureend', onGesture)
   }
 }

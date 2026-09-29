@@ -150,16 +150,14 @@ export const BOARD_WINDOW_TEMPLATES = {
 } as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
 
 /**
- * The smallest window the board opens: the default chat size. A window never
- * shrinks below it — the composer's rows cannot lay out in less — and grows
- * freely in width, height, or proportionally.
+ * The smallest window the board opens: the minimum working chat layout
+ * (decision R-5). A window never shrinks below it — the header, composer, and
+ * lane cannot lay out in less — and grows freely in width, height, or
+ * proportionally. Both numbers stay on the 24 px grid.
  */
-export const MIN_WINDOW_SIZE = {
-  width: BOARD_WINDOW_TEMPLATES.agent.width,
-  height: BOARD_WINDOW_TEMPLATES.agent.height,
-} as const
+export const MIN_WINDOW_SIZE = { width: 408, height: 480 } as const
 
-/** Grid step the snap rounds to while dragging without Shift. */
+/** Grid step the snap rounds to while dragging without Alt. */
 const GRID_STEP = 24
 
 /**

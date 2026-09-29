@@ -16,16 +16,16 @@ import {
   StateDot,
   Tooltip,
   type MenuEntry,
-  type StateDotState,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { BoardWindowInjected, BoardWindowSessionState, BoardWindowState, WindowKind } from '../contract/slots.ts'
+import type { BoardWindowInjected, BoardWindowState, WindowKind } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
 import { windowTitle } from '../window-title.ts'
+import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
 import css from './SessionRail.module.css'
 
 export type SessionRailProps =
@@ -33,43 +33,6 @@ export type SessionRailProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
-
-/** Status one dock row resolves for its window. */
-type DockStatus = 'idle' | 'running' | 'ready' | 'error'
-
-/** Dot state per resolved dock status. */
-const STATUS_DOT = {
-  idle: 'idle',
-  running: 'ongoing',
-  ready: 'done',
-  error: 'error',
-} as const satisfies Record<DockStatus, StateDotState>
-
-/** Row-status dictionary key per resolved dock status. */
-const STATUS_KEY = {
-  idle: 'rail.status.pending',
-  running: 'rail.status.running',
-  ready: 'rail.status.ready',
-  error: 'rail.status.error',
-} as const satisfies Record<DockStatus, Parameters<BoardTranslate>[0]>
-
-/**
- * Resolve one window's status from its session channel: a session that does
- * not exist yet or is still restoring reads `idle`, a failed creation, turn, or
- * vanished session reads `error` before a running turn does, and any other
- * ready session reads `ready`.
- * @param session - the window's channel state, or absence when it has none.
- * @returns the status the row shows.
- */
-function dockStatus(session: BoardWindowSessionState | undefined): DockStatus {
-  if (session === undefined || session.status === 'pending' || session.status === 'restoring') return 'idle'
-  if (
-    session.status === 'error' || session.status === 'missing'
-    || session.turnError !== undefined || session.promptError !== undefined
-  ) return 'error'
-  if (session.running) return 'running'
-  return 'ready'
-}
 
 /** The dock glyph for one window kind. */
 function windowGlyph(kind: WindowKind) {
@@ -113,7 +76,7 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
     ? undefined
     : roster.clones.find(entry => entry.id === win.cloneId))
   const title = windowTitle(t, win, session?.displayTitle, clone?.name)
-  const status = dockStatus(session)
+  const status = windowStatus(session)
   const [draft, setDraft] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuPlacement | null>(null)
   const rowRef = useRef<HTMLButtonElement>(null)
@@ -163,10 +126,10 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
                   setMenu(menuPlacement(event.currentTarget, boundary()))
                 }}
                 className={clsx(css.windowButton, active && css.active)}
-                aria-label={t('rail.statusLabel', { title, status: t(STATUS_KEY[status]) })}
+                aria-label={t('rail.statusLabel', { title, status: t(WINDOW_STATUS_KEY[status]) })}
               >
                 {windowGlyph(win.kind)}
-                <span className={css.statusDot}><StateDot state={STATUS_DOT[status]} size={8} /></span>
+                <span className={css.statusDot}><StateDot state={WINDOW_STATUS_DOT[status]} size={8} /></span>
               </button>
             </Tooltip>
             <Menu

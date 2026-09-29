@@ -868,7 +868,7 @@ describe('web e2e: spatial board geometry', () => {
     }).toEqual({ shortHugsTop: true, tallHugsTop: true, independentOfHeight: true })
   }, 60_000)
 
-  it.fails('П-18: the chats rail stays readable at minimum zoom (Р-3/П-32 simplified view)', async () => {
+  it('П-18: the chats rail stays readable at minimum zoom (Р-3/П-32 simplified view)', async () => {
     await clickResetView(page)
     const railWidth = await (async (): Promise<number | null> => {
       try {
@@ -876,8 +876,9 @@ describe('web e2e: spatial board geometry', () => {
         return await page.evaluate((id) => {
           const frames = [...document.querySelectorAll('[data-board-window-id]')]
           const rails = [...document.querySelectorAll('[data-board-panel-rail]')]
-          // A simplified view hides rails; a partial list means the cutoff is
-          // already active, which is the readable outcome П-18 asks for.
+          // Below the detail threshold the simplified view hides rails; a
+          // partial list means the cutoff is active, the readable outcome
+          // П-18 asks for.
           if (rails.length !== frames.length) return null
           const index = frames.findIndex(frame => frame.getAttribute('data-board-window-id') === id)
           const rail = rails[index]
@@ -887,12 +888,123 @@ describe('web e2e: spatial board geometry', () => {
         await clickResetView(page)
       }
     })()
-    // Proxy for П-18: the rail has no simplified-view cutoff, so at zoom 0.2
-    // its 44 world units render ~9 screen pixels wide and stay clickable; the
-    // expected fix hides it or keeps it at a readable screen size.
+    // Below the threshold the rail is gone, so nothing unreadable stays
+    // clickable at 0.2 (Р-3/П-32).
     const readable = railWidth === null || railWidth >= 24
     expect({ railReadableAtMinZoom: readable }).toEqual({ railReadableAtMinZoom: true })
   }, 60_000)
+
+  it('П-32/П-34: below the detail threshold windows show the simplified card and the grid doubles', async () => {
+    await clickResetView(page)
+    try {
+      await setZoom(page, 0.2)
+      const zoom = (await readTransform(page)).scale
+      const view = await page.evaluate(() => {
+        const surface = document.querySelector('[data-surface="canvas"]')
+        const frames = [...document.querySelectorAll('[data-board-window-id]')]
+        const cards = [...document.querySelectorAll('[data-board-action="window-simplified-card"]')]
+        const header = frames[0]?.querySelector('[class*="header"]')
+        return {
+          frames: frames.length,
+          cards: cards.length,
+          headerHidden: header !== null && header !== undefined && getComputedStyle(header).visibility === 'hidden',
+          gridSize: surface === null
+            ? 0
+            : Number.parseFloat(getComputedStyle(surface).getPropertyValue('--board-grid-size')),
+          cardFont: cards[0] instanceof HTMLElement ? Number.parseFloat(cards[0].style.fontSize) : 0,
+          statuses: cards.map(card => card.getAttribute('data-board-status')),
+        }
+      })
+      expect(view.frames).toBe(3)
+      expect(view.cards).toBe(3)
+      expect(view.headerHidden).toBe(true)
+      // The 24px step doubles below 8 screen px (П-34): the measured screen
+      // step is the doubled 48 world units at the measured zoom.
+      expect(zoom).toBeGreaterThanOrEqual(0.2)
+      expect(zoom).toBeLessThanOrEqual(0.23)
+      expect(view.gridSize).toBeCloseTo(48 * zoom, 3)
+      // World-sized type for the 0.4 threshold: 12 / 0.4 = 30 world px (П-32).
+      expect(view.cardFont).toBe(30)
+      expect(view.statuses).toEqual(['ready', 'ready', 'ready'])
+
+      // Clicking a card restores the detail view: the zoom rises to the
+      // threshold and every card yields to its frame again.
+      await page.locator('[data-board-action="window-simplified-card"]').first().click()
+      await settle(page)
+      const after = await readTransform(page)
+      const cardsAfter = await page.locator('[data-board-action="window-simplified-card"]').count()
+      expect(after.scale).toBeGreaterThanOrEqual(0.4)
+      expect(cardsAfter).toBe(0)
+    } finally {
+      await clickResetView(page)
+    }
+  }, 90_000)
+
+  it('П-26/П-27: a corner drag shrinks to the minimum layout and the window stays intact', async () => {
+    await clickResetView(page)
+    const handleSelector = `[data-board-window-id="${WINDOW_A}"] [data-board-handle="se"]`
+    const dragCorner = async (dx: number, dy: number): Promise<void> => {
+      const handle = await page.locator(handleSelector).boundingBox()
+      if (handle === null) throw new Error('the south-east frame handle is missing')
+      const startX = handle.x + handle.width / 2
+      const startY = handle.y + handle.height / 2
+      await page.mouse.move(startX, startY)
+      await page.mouse.down()
+      await page.mouse.move(startX + dx, startY + dy, { steps: 8 })
+      await page.mouse.up()
+      await settle(page)
+    }
+    try {
+      const before = (await measureWindowParts(page, WINDOW_A)).frame
+      // П-26: the corner shrinks both axes; the drag overshoots the floor, so
+      // the result is the minimum layout (decision R-5).
+      await dragCorner(-200, -200)
+      const floor = (await measureWindowParts(page, WINDOW_A)).frame
+      expect(Math.round(floor.width)).toBe(408)
+      expect(Math.round(floor.height)).toBe(480)
+      expect(floor.width).toBeLessThan(before.width)
+      expect(floor.height).toBeLessThan(before.height)
+
+      // П-27: the header, lane, and composer still lay out — every visible
+      // button stays inside the frame, the lane does not scroll sideways, and
+      // the composer's send control and the window title stay visible.
+      const intact = await page.evaluate((id) => {
+        const frame = document.querySelector(`[data-board-window-id="${id}"]`)
+        if (frame === null) throw new Error('the frame is missing')
+        const frameRect = frame.getBoundingClientRect()
+        const outsideButtons = [...frame.querySelectorAll('button')].filter((button) => {
+          const rect = button.getBoundingClientRect()
+          return rect.width > 0 && (rect.right > frameRect.right + 1 || rect.left < frameRect.left - 1)
+        }).length
+        const lane = frame.querySelector('[data-board-lane]')
+        const editor = frame.querySelector('textarea')
+        const send = frame.querySelector('[data-board-action="composer-send"]')
+        const sendRect = send?.getBoundingClientRect()
+        const title = frame.querySelector('[class*="title"]')
+        return {
+          outsideButtons,
+          laneOverflow: lane === null ? 0 : lane.scrollWidth - lane.clientWidth,
+          editorWidth: editor === null ? 0 : Math.round(editor.getBoundingClientRect().width),
+          sendVisible: sendRect !== undefined && sendRect.width > 0 && sendRect.right <= frameRect.right + 1,
+          titleVisible: title !== null && title.getBoundingClientRect().width > 0,
+        }
+      }, WINDOW_A)
+      expect(intact.outsideButtons).toBe(0)
+      expect(intact.laneOverflow).toBeLessThanOrEqual(1)
+      expect(intact.sendVisible).toBe(true)
+      expect(intact.titleVisible).toBe(true)
+      expect(intact.editorWidth).toBeGreaterThan(100)
+
+      // The same handle grows the window back: the floor is a floor, not a
+      // one-way latch.
+      await dragCorner(144, 168)
+      const restored = (await measureWindowParts(page, WINDOW_A)).frame
+      expect(Math.round(restored.width)).toBe(552)
+      expect(Math.round(restored.height)).toBe(648)
+    } finally {
+      await clickResetView(page)
+    }
+  }, 90_000)
 
   it.fails('П-28: reset view fits every window into the safe area (R5 no safe area)', async () => {
     await clickResetView(page)

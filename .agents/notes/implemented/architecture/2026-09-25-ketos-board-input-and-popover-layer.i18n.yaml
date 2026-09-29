@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-25-ketos-board-input-and-popover-layer.md
-2026-09-25-ketos-board-input-and-popover-layer.md: 2b59db2442d502684b82d9abeb174f57f5ad5518
-2026-09-25-ketos-board-input-and-popover-layer.zh.md: b2eef7edbf022b473460ee0ee40d226f29152119
+2026-09-25-ketos-board-input-and-popover-layer.md: 09a5b7e14c5375ee621d41a348aaac2a54a6476a
+2026-09-25-ketos-board-input-and-popover-layer.zh.md: 21c882c2becda63cb87b5fb29496db69b3cd9a02

@@ -60,19 +60,21 @@ export function useBoardPopoverBoundary(): () => DOMRect {
 
 /**
  * Token that changes whenever an open window menu must close: the window moved
- * or resized, entered or left fullscreen, left the visible canvas, or closed.
- * Pan and zoom keep the token stable, so menus follow those gestures instead
- * of dismissing for them.
- * @param state - board state holding the window map, fullscreen id, and viewport.
+ * or resized, entered or left fullscreen, left the visible canvas, crossed the
+ * detail threshold, or closed. Pan and zoom inside one detail mode keep the
+ * token stable, so menus follow those gestures instead of dismissing for them.
+ * @param state - board state holding the window map, fullscreen id, and zoom.
  * @param windowId - the window whose menus watch the token.
+ * @param detailZoomThreshold - zoom below which the window shows its simplified card.
  * @returns the current dismissal token.
  */
-export function windowMenuDismissToken(state: BoardState, windowId: WindowId): string {
+export function windowMenuDismissToken(state: BoardState, windowId: WindowId, detailZoomThreshold: number): string {
   const card = state.windows[windowId as string]
   if (card === undefined) return 'closed'
   const mode = state.fullscreenWindowId === windowId ? 'fullscreen' : 'windowed'
   const visibility = isWindowHidden(state, card) ? 'hidden' : 'shown'
-  return `${mode}:${visibility}:${String(card.x)}:${String(card.y)}:${String(card.width)}:${String(card.height)}`
+  const detail = state.zoom < detailZoomThreshold ? 'simplified' : 'detailed'
+  return `${mode}:${visibility}:${detail}:${String(card.x)}:${String(card.y)}:${String(card.width)}:${String(card.height)}`
 }
 
 /** Per-window dismissal token for open menus; null outside a window host. */
@@ -103,6 +105,11 @@ export interface BoardPopoverProviderProps {
   readonly useStore: PropsStore<BoardStoreHandle>['useStore']
   /** Window whose scale and menu lifecycle scope the host; omit for screen-space chrome (dock, omnibar). */
   readonly windowId?: WindowId
+  /**
+   * Zoom below which the window shows its simplified card; crossing it closes
+   * the window's open menus (Д6.1). Omitted for screen-space chrome.
+   */
+  readonly detailZoomThreshold?: number
   /** Hosted subtree. */
   readonly children: ReactNode
 }
@@ -115,7 +122,7 @@ export interface BoardPopoverProviderProps {
  * @param props - the store seat, the optional window id, and the subtree to host.
  * @returns the hosted subtree.
  */
-export function BoardPopoverProvider({ useStore, windowId, children }: BoardPopoverProviderProps) {
+export function BoardPopoverProvider({ useStore, windowId, detailZoomThreshold, children }: BoardPopoverProviderProps) {
   const surface = useBoardPopoverSurface()
   const boundary = useBoardPopoverBoundary()
   const zoom = useStore(s => s.zoom)
@@ -127,7 +134,9 @@ export function BoardPopoverProvider({ useStore, windowId, children }: BoardPopo
     const card = s.windows[windowId as string]
     return card === undefined ? '' : `${String(card.x)}:${String(card.y)}:${String(card.width)}:${String(card.height)}`
   })
-  const token = useStore(s => windowId === undefined ? null : windowMenuDismissToken(s, windowId))
+  const token = useStore(s => windowId === undefined
+    ? null
+    : windowMenuDismissToken(s, windowId, detailZoomThreshold ?? 0))
 
   const listeners = useRef(new Set<() => void>())
   const subscribe = useCallback((listener: () => void) => {

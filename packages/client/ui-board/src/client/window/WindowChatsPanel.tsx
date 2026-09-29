@@ -86,6 +86,7 @@ function WindowChatsPanelView({
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
   listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath, t,
+  detailZoomThreshold,
 }: WindowChatsPanelProps) {
   const mounted = useStore(s => s.panelWindowId === cardWindow.id)
   const collapsed = useStore(s => s.panelCollapsed)
@@ -95,6 +96,9 @@ function WindowChatsPanelView({
   const orderBy = useStore(s => s.panelOrderBy)
   const fullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
+  // Below the detail threshold the frame shows its simplified card; the rail
+  // would be unreadable and untargetable there (Д6.1, П-18).
+  const belowDetail = useStore(s => s.zoom < detailZoomThreshold)
   const open = mounted && !collapsed
   const { panX, zoom, width: viewportWidth, height: viewportHeight } = useStore(
     // Geometry only while the panel is open: a collapsed rail does not follow
@@ -451,7 +455,7 @@ function WindowChatsPanelView({
 
   return (
     <>
-      {!open && (
+      {!open && !belowDetail && (
         <div
           data-board-panel-rail=""
           data-board-culled={hidden ? '' : undefined}

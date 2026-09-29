@@ -229,3 +229,42 @@
 .window.hidden {
   content-visibility: hidden;
 }
+
+/* Simplified view (Д6.1): below the detail threshold the frame shows only the
+   card. The header, clone bar, and body stay mounted — their lane, draft, and
+   attachments survive the trip — and stop both painting and hit-testing;
+   `visibility` is inherited so the card turns itself back on. */
+.window.simplified > :not([data-board-action='window-simplified-card']) {
+  visibility: hidden;
+}
+
+.simplifiedCard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 1em;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.simplifiedTitle {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.simplifiedMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--dsw-alias-label-secondary);
+}

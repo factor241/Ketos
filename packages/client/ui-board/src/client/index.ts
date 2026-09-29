@@ -21,6 +21,7 @@ import type {
   CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch, TaskId,
 } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { BOARD_ZOOM_MIN } from '../board-settings.ts'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
@@ -85,17 +86,22 @@ export interface Config {
   wheelMode?: BoardWheelMode
   /** Exponential zoom sensitivity `k` (`factor = exp(−Δ·k)`). */
   zoomSensitivity?: number
+  /** Zoom below which windows render their simplified card (R-6). */
+  detailZoomThreshold?: number
 }
 
 /**
  * Validated board runtime configuration. The default `k = 0.0023 ≈ ln 2 / 300`
  * makes a fingertip-to-palm pinch (≈300 CSS px at 96 dpi) change the scale
- * about twofold, while one 100px mouse notch stays a small step.
+ * about twofold, while one 100px mouse notch stays a small step. The default
+ * detail threshold 0.4 (R-6) sits above the 0.2 minimum zoom, so the
+ * simplified view covers the lowest quarter of the range.
  */
 export const Config: z<Config> = z.object({
   wheelMode: z.union(['pan', 'zoom']).default('pan'),
   // Number.MIN_VALUE expresses "any positive double": zero would freeze the zoom.
   zoomSensitivity: z.number().min(Number.MIN_VALUE).default(0.0023),
+  detailZoomThreshold: z.number().min(BOARD_ZOOM_MIN).max(1).default(0.4),
 })
 
 /**
@@ -295,6 +301,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
 
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
+    detailZoomThreshold: config.detailZoomThreshold as number,
     keyedHooks: { windowSession },
     hooks: {
       sessionList: ctx.sessions.list,
@@ -632,6 +639,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       // Schemastery materializes the field defaults before Cordis calls apply.
       wheelMode: config.wheelMode as BoardWheelMode,
       zoomSensitivity: config.zoomSensitivity as number,
+      detailZoomThreshold: config.detailZoomThreshold as number,
     }),
     children: {
       'board.canvas': { kind: 'single', scope: 'root' },

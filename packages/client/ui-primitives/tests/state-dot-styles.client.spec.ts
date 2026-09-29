@@ -20,4 +20,8 @@ describe('StateDot.module.css', () => {
     expect(css).not.toContain(".dot[data-state='ongoing']")
     expect(css).toContain('@keyframes dsh-state-dot-chase')
   })
+
+  it('stills the chase into a static ring under reduced motion', () => {
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.cell \{ animation: none;/)
+  })
 })

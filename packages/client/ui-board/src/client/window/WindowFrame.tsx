@@ -15,7 +15,9 @@
  */
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, StateDot, Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
@@ -27,6 +29,7 @@ import { startWindowResizeGesture } from '../resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
 import { PANEL_RAIL_WIDTH, panelWidthFor } from './panel-geometry.ts'
 import { windowTitle } from '../window-title.ts'
+import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
 import { CloneWindowBar } from './CloneWindowBar.tsx'
 import css from './WindowFrame.module.css'
 
@@ -201,8 +204,70 @@ function WindowTitleControl({ window: cardWindow, t, actions, useWindowSession, 
   )
 }
 
+interface WindowSimplifiedCardProps {
+  readonly window: BoardWindowState
+  readonly t: BoardTranslate
+  readonly detailZoomThreshold: number
+  readonly actions: PropsStore<BoardStoreHandle>['actions']
+  readonly useWindowSession: InjectFace<BoardWindowInjected>['useWindowSession']
+  readonly useCloneList: InjectFace<BoardWindowInjected>['useCloneList']
+}
+
+/**
+ * Simplified card shown below the detail threshold (Д6.1): the window's name
+ * and session status, with no interactive chrome. The frame lives inside the
+ * canvas transform, so the type is world-sized as `12 / threshold` — at the
+ * threshold it renders at least 12 screen pixels. Clicking restores the detail
+ * view: the zoom rises to the threshold and the window is centred.
+ */
+function WindowSimplifiedCard({
+  window: cardWindow, t, detailZoomThreshold, actions, useWindowSession, useCloneList,
+}: WindowSimplifiedCardProps) {
+  const session = useWindowSession(cardWindow.id)
+  // A clone window is named by the record it edits, not by the interview
+  // session running inside it.
+  const clone = useCloneList(roster => cardWindow.cloneId === undefined
+    ? undefined
+    : roster.clones.find(entry => entry.id === cardWindow.cloneId))
+  const title = windowTitle(t, cardWindow, session?.displayTitle, clone?.name)
+  const status = session === undefined ? null : windowStatus(session)
+  const fontSize = Math.ceil(12 / detailZoomThreshold)
+  // Restore runs on the pointerdown as well as the click: raising the window
+  // reorders the window layer, and a real click whose button moved in the DOM
+  // between down and up is never delivered. A non-primary button is not an
+  // activation.
+  const restore = (): void => {
+    actions.setZoom(detailZoomThreshold)
+    actions.centerOnWindow(cardWindow.id)
+  }
+  return (
+    <button
+      type="button"
+      data-board-action="window-simplified-card"
+      data-board-status={status ?? undefined}
+      className={css.simplifiedCard}
+      style={{ fontSize: `${String(fontSize)}px` }}
+      aria-label={title}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return
+        restore()
+      }}
+      onClick={restore}
+    >
+      <span className={css.simplifiedTitle}>{title}</span>
+      {status !== null && (
+        <span className={css.simplifiedMeta}>
+          <StateDot state={WINDOW_STATUS_DOT[status]} size={Math.max(8, Math.round(fontSize * 0.75))} />
+          {t(WINDOW_STATUS_KEY[status])}
+        </span>
+      )}
+    </button>
+  )
+}
+
 function WindowFrameView({
   window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession, useCloneList, refreshClones,
+  detailZoomThreshold,
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
@@ -217,6 +282,10 @@ function WindowFrameView({
   const isSelectingElement = useStore(s => s.isSelectingElement)
   const hasPanel = features?.panel === true
   const isFullscreen = features?.fullscreen === true && fullscreenWindowId === cardWindow.id
+  // Below the detail threshold the frame swaps its chrome for the simplified
+  // card (Д6.1); a fullscreen frame renders at scale 1 and keeps its detail.
+  const belowDetail = useStore(s => s.zoom < detailZoomThreshold)
+  const simplified = !isFullscreen && belowDetail
   // A collapsed panel is a rail: it takes no width, and Escape leaves it alone.
   const isPanelOpen = hasPanel && panelWindowId === cardWindow.id && !panelCollapsed
   // Fullscreen docks the chats panel and gives up its width to the chat column;
@@ -250,7 +319,14 @@ function WindowFrameView({
       data-board-window-id={cardWindow.id}
       data-board-fullscreen={isFullscreen ? '' : undefined}
       data-board-culled={hidden ? '' : undefined}
-      className={clsx(css.window, isActive && css.active, returned && css.returned, isFullscreen && css.fullscreen, hidden && css.hidden)}
+      className={clsx(
+        css.window,
+        isActive && css.active,
+        returned && css.returned,
+        isFullscreen && css.fullscreen,
+        simplified && css.simplified,
+        hidden && css.hidden,
+      )}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
       style={isFullscreen
         // The canvas drops its pan/zoom while a window is fullscreen, so the
@@ -265,7 +341,7 @@ function WindowFrameView({
           zIndex: cardWindow.zIndex,
         }}
     >
-      {!isFullscreen && RESIZE_HANDLES.map(([direction, handleClass]) => (
+      {!isFullscreen && !simplified && RESIZE_HANDLES.map(([direction, handleClass]) => (
         <WindowResizeHandle
           key={direction}
           window={cardWindow}
@@ -338,6 +414,19 @@ function WindowFrameView({
       <div className={css.body}>
         {renderBody(cardWindow)}
       </div>
+
+      {/* The detail chrome above stays mounted but hidden (CSS), so the card
+          adds no state changes of its own on the way in and out. */}
+      {simplified && (
+        <WindowSimplifiedCard
+          window={cardWindow}
+          t={t}
+          detailZoomThreshold={detailZoomThreshold}
+          actions={actions}
+          useWindowSession={useWindowSession}
+          useCloneList={useCloneList}
+        />
+      )}
     </div>
   )
 }

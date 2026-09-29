@@ -432,6 +432,11 @@ export interface BoardWindowSessionState {
  * composer's session commands. Components never see the channel itself.
  */
 export interface BoardWindowInjected {
+  /**
+   * Board zoom below which a window renders its simplified card instead of its
+   * header, lane, and composer (decision R-6).
+   */
+  readonly detailZoomThreshold: number
   keyedHooks: {
     /** Per-window session state; the key is the window id. */
     windowSession: (key: string) => HostObservable<BoardWindowSessionState> | undefined

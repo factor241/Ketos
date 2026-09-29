@@ -22,14 +22,14 @@ Status: implemented
 
 **看板拥有唯一的屏幕空间浮层。** 看板根节点发布 `BoardPopoverSurface`（`{ layer, root }`），并在画布变换之外渲染该层，`BOARD_POPOVER_Z = 300`——高于浮层（100）与手柄环（150），低于元素选择覆盖层（500）。`BoardPopoverProvider` 把窗口宿主映射为 `scale = zoom`（全屏为 1）、`boundary` = 看板盒减去 12px 内边距、`subscribe` = 看板平移、缩放与窗口矩形变化；dock 与 omnibar 宿主使用缩放 1。`windowMenuDismissToken` 与 `useBoardMenuDismiss` 在窗口移动、缩放、进入全屏、被裁剪或关闭时关闭打开的菜单，而平移与缩放只让菜单跟随触发按钮。窗口外框、聊天面板、dock 与 omnibar 都挂载该提供者，`menu-placement.ts` 按看板边界而非浏览器视口选择边与对齐。
 
-**外壳阻止看板之外的页面捏合。** `ui-layout` 新增 `pinch-guard.ts`（`installPagePinchGuard(root, block)`）与经校验的 `Config` 字段 `blockPagePinchZoom`（默认 `true`）。`AppFrame` 根节点注册非被动 `wheel`（仅 ctrl）与 `gesture*` 监听器，在 `[data-surface="board"]` 之外的一切位置调用 `preventDefault`；看板自行处理其捏合。看板之外的 `Cmd/Ctrl +/−/0` 保留浏览器页面缩放（决策 R-2）。
+**外壳阻止看板之外的页面捏合。** `ui-layout` 新增 `pinch-guard.ts`（`installPagePinchGuard(root, block)`）与经校验的 `Config` 字段 `blockPagePinchZoom`（默认 `true`）。防线在外壳框架的 document 上注册非被动 `wheel`（仅 ctrl）与 `gesture*` 监听器——菜单、提示与对话框 portal 到 `document.body`，位于框架子树之外，挂在框架上的监听器看不到它们（П-37）——并在 `[data-surface="board"]` 之外的一切位置调用 `preventDefault`；看板自行处理其捏合。看板之外的 `Cmd/Ctrl +/−/0` 保留浏览器页面缩放（决策 R-2）。
 
 ## Alternatives considered
 
 - **补偿固定定位气泡的坐标而不做 portal。** 否决：每个被变换的祖先都是 `fixed` 的包含块，修正必须重新推导整条祖先链；portal 是唯一稳定的坐标空间。
 - **把看板浮层放进画布变换内。** 否决：它会继承平移与缩放、把文本二次缩放，并在画布盒处裁剪卡片。
 - **保留 `Menu` 到 `document.body` 的 portal，改为传入看板矩形。** 否决：一个宿主上下文同时服务浏览器默认与看板；把几何量穿给每个菜单消费者等于重复这份契约。
-- **把外壳捏合防线挂在 `document` 上而不是外框根节点。** 推迟：外框根节点覆盖外壳，且看板例外保持局部；渲染在 `document.body` 的 portal（菜单、模态框）仍未覆盖，记为 П-37，留待 Д6.4。
+- **只把外壳捏合防线挂在外框根节点上。** 否决（П-37）：渲染到 `document.body` 的 portal（菜单、模态框）离开框架子树，其捏合事件永远到不了挂在框架上的监听器；挂到 document 既覆盖这些 portal，又让看板例外保持局部。
 - **用启发式区分鼠标与触控板。** 否决（R-4）：设备信号不可靠，`Config.wheelMode` 明确声明行为。
 - **保留固定 ±10% 步长，只改符号处理。** 否决：惯性尾部一次滑动即可跨越整个缩放范围；带单事件截断的 `exp(−Δ·k)` 与手势成比例。
 - **在全屏中应用捏合。** 否决：全屏外框不属于画布，且其 wheel 已阻止看板缩放并同时阻止页面捏合，gesture 事件遵循同一规则。
@@ -37,11 +37,11 @@ Status: implemented
 
 ## Consequences
 
-在看板的每个位置——画布、窗口、聊天面板与导轨、浮动浮层——捏合现在只围绕手势缩放看板，滑动平移看板，缩放跟随手势幅度；键盘视图命令只在看板上方生效；看板之外的误触捏合不再缩放外壳。窗口的提示与菜单以窗口缩放渲染在看板的屏幕空间，被限制在看板盒内，跟随平移与缩放，并在窗口生命周期变化时关闭；dock 与 omnibar 的浮层以缩放 1 挂到同一层。代价：`ui-primitives` 的行为在整个应用范围改变——`Tooltip` 始终 portal、`Menu` 始终限高并 portal——这些上游包改动作为 fork 分歧记录在 `docs/ketos/upstream-sync.md`，`ui-trajectory` 测试改为在 `document` 中查询气泡；旧的 `zoomTowardPointer`/`setPan`+`setZoom` 复位 API 已移除；外壳防线不覆盖挂到 `document.body` 的浮层（П-37，推迟到 Д6.4）。本记录是阶段的首篇 Agent Note；Д7.2 将以安全区域、窗口聊天面板与 `WorkspaceBrowser` 接缝扩展它。
+在看板的每个位置——画布、窗口、聊天面板与导轨、浮动浮层——捏合现在只围绕手势缩放看板，滑动平移看板，缩放跟随手势幅度；键盘视图命令只在看板上方生效；看板之外的误触捏合不再缩放外壳。窗口的提示与菜单以窗口缩放渲染在看板的屏幕空间，被限制在看板盒内，跟随平移与缩放，并在窗口生命周期变化时关闭；dock 与 omnibar 的浮层以缩放 1 挂到同一层。代价：`ui-primitives` 的行为在整个应用范围改变——`Tooltip` 始终 portal、`Menu` 始终限高并 portal——这些上游包改动作为 fork 分歧记录在 `docs/ketos/upstream-sync.md`，`ui-trajectory` 测试改为在 `document` 中查询气泡；旧的 `zoomTowardPointer`/`setPan`+`setZoom` 复位 API 已移除；外壳防线挂在外壳 document 上，因此也覆盖挂到 `document.body` 的浮层（П-37）。安全区域、窗口聊天面板与 `WorkspaceBrowser` 接缝已移出阶段 23 的验收范围：Д3.1/Д3.2 作为 Э1.4 继续在 [этап 24 计划](../../../../docs/ketos/board-redesign-plan.md)中，而 Д4/Д5 被该计划的窗口面板（Э4）取代。
 
 ## Testing
 
-`packages/client/ui-board/tests/wheel-zoom.client.spec.ts`（目标 × 修饰键 × 模式 × 全屏表格、平移增量、因子归一与截断）、`keyboard-zoom.client.spec.ts`（看板内条件的两侧）、`pinch.client.spec.ts`、`store.client.spec.ts`（`zoomBy` 锚点、对称、上下限；`panBy`；`resetView`）、`slots.client.spec.tsx`（wheel、Safari 手势、带偏移根节点的看板锚点、全屏阻止、按键作用域）与 `board-popover.client.spec.tsx`（菜单跟随平移与缩放，在窗口生命周期变化时关闭）。`packages/client/ui-primitives/tests/popover-host.client.spec.tsx` 与 `menu-host.client.spec.tsx` 覆盖宿主契约、子菜单翻转与高度上限；`tooltip.client.spec.tsx` 覆盖 portal 定位与边界钳制。`packages/client/ui-layout/tests/pinch-guard.client.spec.ts` 与 `app-frame.client.spec.tsx` 覆盖外壳防线。`apps/web/tests/board-geometry.e2e.ts`（Д0.2）测量组装后的行为：窗口、面板、导轨、dock 与侧栏上的捏合；滑动；成比例缩放；缩放 0.5/1/2 下的提示与菜单；子菜单翻转与高度上限。
+`packages/client/ui-board/tests/wheel-zoom.client.spec.ts`（目标 × 修饰键 × 模式 × 全屏表格、平移增量、因子归一与截断）、`keyboard-zoom.client.spec.ts`（看板内条件的两侧）、`pinch.client.spec.ts`、`store.client.spec.ts`（`zoomBy` 锚点、对称、上下限；`panBy`；`resetView`）、`slots.client.spec.tsx`（wheel、Safari 手势、带偏移根节点的看板锚点、全屏阻止、按键作用域）与 `board-popover.client.spec.tsx`（菜单跟随平移与缩放，在窗口生命周期变化时关闭）。`packages/client/ui-primitives/tests/popover-host.client.spec.tsx` 与 `menu-host.client.spec.tsx` 覆盖宿主契约、子菜单翻转与高度上限；`tooltip.client.spec.tsx` 覆盖 portal 定位与边界钳制。`packages/client/ui-layout/tests/pinch-guard.client.spec.ts` 与 `app-frame.client.spec.tsx` 覆盖外壳防线，包括落在 `document.body` portal 上的捏合（П-37）。`apps/web/tests/board-geometry.e2e.ts`（Д0.2）测量组装后的行为：窗口、面板、导轨、dock 与侧栏上的捏合；滑动；成比例缩放；缩放 0.5/1/2 下的提示与菜单；子菜单翻转与高度上限。
 
 ## Related
 

@@ -697,6 +697,72 @@ describe('board slot composition', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
+  it('swaps the detail chrome for the simplified card below the detail threshold (Д6.1)', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
+    })
+    await runtime.flush()
+    const frame = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
+    // Detail mode at zoom 1: the card is absent, the frame handles and the
+    // chats rail are present.
+    expect(frame.querySelector('[data-board-action="window-simplified-card"]')).toBeNull()
+    expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(8)
+    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
+
+    act(() => { board.actions.setZoom(0.3) })
+    await runtime.flush()
+    const card = frame.querySelector('[data-board-action="window-simplified-card"]') as HTMLElement
+    expect(card).not.toBeNull()
+    expect(card.textContent).toContain('Agent')
+    expect(card.textContent).toContain('Idle')
+    expect(card.getAttribute('data-board-status')).toBe('ready')
+    // Type is world-sized for 12 screen pixels at the 0.4 threshold.
+    expect(card.style.fontSize).toBe('30px')
+    // The frame handles, the screen-space ring, and the chats rail stand down.
+    expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(0)
+    expect(panel.container.querySelector('[data-board-handle-ring]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-panel-rail]')).toBeNull()
+
+    // Clicking the card restores the detail view: the zoom rises to the
+    // threshold and the window is centred.
+    fireEvent.click(card)
+    await runtime.flush()
+    expect(board.store.getSnapshot().zoom).toBe(0.4)
+    expect(frame.querySelector('[data-board-action="window-simplified-card"]')).toBeNull()
+    expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(8)
+  })
+
+  it('arms will-change only while a board gesture is live (Д6.2)', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
+    const surface = panel.container.querySelector('[data-surface="canvas"]') as Element
+    expect(root.hasAttribute('data-board-gesture')).toBe(false)
+
+    vi.useFakeTimers()
+    try {
+      fireEvent.pointerDown(surface, { pointerId: 21, clientX: 10, clientY: 10, button: 0 })
+      expect(root.hasAttribute('data-board-gesture')).toBe(true)
+      fireEvent.pointerUp(window, { pointerId: 21 })
+      act(() => { vi.advanceTimersByTime(149) })
+      expect(root.hasAttribute('data-board-gesture')).toBe(true)
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(root.hasAttribute('data-board-gesture')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+      Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+    }
+  })
+
   it('keeps the active window when the bare canvas is clicked', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
@@ -1020,6 +1086,49 @@ describe('board slot composition', () => {
     }
     expect((board.store.getSnapshot().windows['a1'] as BoardWindowState).width).toBe(zoomed.width + 48)
     act(() => { board.actions.setZoom(1) })
+    await runtime.flush()
+
+    // A south-east corner drag shrinks both axes independently (П-26).
+    const corner = board.store.getSnapshot().windows['a1'] as BoardWindowState
+    fireEvent.pointerDown(frame.querySelector('[data-board-handle="se"]') as Element, {
+      pointerId: 16, clientX: 600, clientY: 400,
+    })
+    for (const [type, clientX, clientY] of [['pointermove', 500, 300], ['pointerup', 500, 300]] as const) {
+      const event = new Event(type)
+      Object.assign(event, { clientX, clientY, pointerId: 16 })
+      window.dispatchEvent(event)
+    }
+    await runtime.flush()
+    const shrunk = board.store.getSnapshot().windows['a1'] as BoardWindowState
+    expect(shrunk.width).toBe(Math.round((corner.width - 100) / 24) * 24)
+    expect(shrunk.height).toBe(Math.round((corner.height - 100) / 24) * 24)
+
+    // Shift scales both axes even though the pointer only moved along x.
+    fireEvent.pointerDown(frame.querySelector('[data-board-handle="se"]') as Element, {
+      pointerId: 17, clientX: 600, clientY: 400,
+    })
+    for (const [type, clientX, clientY] of [['pointermove', 700, 400], ['pointerup', 700, 400]] as const) {
+      const event = new Event(type)
+      Object.assign(event, { clientX, clientY, pointerId: 17, shiftKey: true })
+      window.dispatchEvent(event)
+    }
+    await runtime.flush()
+    const scaled = board.store.getSnapshot().windows['a1'] as BoardWindowState
+    expect(scaled.width).toBe(Math.round((shrunk.width + 100) / 24) * 24)
+    expect(scaled.height).toBeGreaterThan(shrunk.height)
+    expect(scaled.width / scaled.height).toBeCloseTo(shrunk.width / shrunk.height, 1)
+
+    // Alt releases the grid snap: the axis follows the pointer exactly.
+    fireEvent.pointerDown(frame.querySelector('[data-board-handle="e"]') as Element, {
+      pointerId: 18, clientX: 500, clientY: 300,
+    })
+    for (const [type, clientX] of [['pointermove', 525], ['pointerup', 525]] as const) {
+      const event = new Event(type)
+      Object.assign(event, { clientX, pointerId: 18, altKey: true })
+      window.dispatchEvent(event)
+    }
+    await runtime.flush()
+    expect((board.store.getSnapshot().windows['a1'] as BoardWindowState).width).toBe(scaled.width + 25)
 
     // A header button keeps its own gesture: the drag stands down for it.
     fireEvent.pointerDown(frame.querySelector('button[aria-label="Close"]') as Element, {

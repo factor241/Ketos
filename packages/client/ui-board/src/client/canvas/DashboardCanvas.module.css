@@ -10,8 +10,14 @@
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
   /* The grid dots ride the theme's border scale, so the mesh stays visible in
-     both palettes without a board-local color. */
-  --board-grid-dot: var(--dsw-alias-border-l3);
+     both palettes without a board-local color. Their opacity fades with the
+     screen-space step near the density floor (Д6.3), so the doubled step at low
+     zoom does not read as a jump. */
+  --board-grid-dot: color-mix(
+    in srgb,
+    var(--dsw-alias-border-l3) calc(var(--board-grid-dot-opacity, 1) * 100%),
+    transparent
+  );
   background-image: radial-gradient(
     circle,
     var(--board-grid-dot) var(--board-grid-dot-radius),
@@ -26,10 +32,12 @@
   cursor: crosshair;
 }
 
+/* No standing `will-change`: the board root arms `will-change: transform` on
+   this surface only while a gesture is live (Д6.2), so text stays crisp after
+   a zoom stops. */
 .surface {
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
   transform: translate3d(var(--board-pan-x), var(--board-pan-y), 0) scale(var(--board-zoom));
-  will-change: transform;
 }

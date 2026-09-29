@@ -54,10 +54,17 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   // pan and zoom under it and the frame's inset rectangle maps to the visible
   // canvas instead of world units.
   const view = isFullscreen ? { panX: 0, panY: 0, zoom: 1 } : { panX, panY, zoom }
-  const grid = 24 * view.zoom
+  // The dot grid never renders denser than 8 screen pixels (Д6.3): below that
+  // the world step doubles (24 → 48 → 96), and the dots fade out as the step
+  // approaches the floor so the density change does not read as a jump.
+  let step = 24
+  while (step < 96 && step * view.zoom < 8) step *= 2
+  const grid = step * view.zoom
+  const dotOpacity = Math.max(0, Math.min(1, (grid - 8) / 4))
   const gridStyle = {
     '--board-grid-dot-radius': `${Math.max(1, 1.5 * view.zoom)}px`,
     '--board-grid-size': `${grid}px`,
+    '--board-grid-dot-opacity': `${dotOpacity}`,
     '--board-grid-x': `${view.panX % grid}px`,
     '--board-grid-y': `${view.panY % grid}px`,
     '--board-pan-x': `${view.panX}px`,

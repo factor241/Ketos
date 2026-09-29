@@ -182,6 +182,13 @@ describe('sanitizeBoardLayout', () => {
     })
   })
 
+  it('keeps stored sizes below the old default that still clear the floor', () => {
+    const layout = sanitizeBoardLayout(document({
+      windows: [window({ width: 480, height: 500 })],
+    }))
+    expect(firstWindow(layout)).toMatchObject({ width: 480, height: 500 })
+  })
+
   it('bounds placement, zoom, and the panel width, and defaults unknown panel modes', () => {
     const layout = sanitizeBoardLayout(document({
       panX: BOARD_LAYOUT_COORD_LIMIT * 2,

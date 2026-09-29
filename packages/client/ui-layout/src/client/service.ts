@@ -33,13 +33,17 @@ export interface ILayout {
    */
   selectPanel(panelId: MainPanelId | null): void
   /**
-   * Declare whether a main panel keeps the shell's sidebar column. A panel
-   * declaring false hides the column, its rail, and its resize handle while
-   * it is selected, so the panel owns the whole frame (Т2.7).
+   * Declare whether a main panel keeps the shell's sidebar column for the
+   * lifetime of the returned disposer. A panel declaring false hides the
+   * column, its rail, and its resize handle while it is selected, so the panel
+   * owns the whole frame (Т2.7). The declarer registers and declares in one
+   * effect: a collapsed declaration clears the flag, and a redeclared slot
+   * (an HMR reload of the declaring plugin) re-applies it.
    * @param panelId - registered main key.
    * @param sidebar - false hides the sidebar for that panel.
+   * @returns the disposer clearing the declaration.
    */
-  setPanelSidebar(panelId: MainPanelId, sidebar: boolean): void
+  declarePanelSidebar(panelId: MainPanelId, sidebar: boolean): () => void
   /**
    * Start an asynchronous navigation, superseding any earlier pending navigation.
    * @returns a signal aborted by the next navigation or layout disposal; check it before committing UI state.
@@ -81,9 +85,10 @@ export class LayoutController implements ILayout {
     this.panels.selectPanel(panelId)
   }
 
-  /** Declare one panel's sidebar visibility (false hides the column). */
-  setPanelSidebar(panelId: MainPanelId, sidebar: boolean): void {
+  /** Declare one panel's sidebar visibility; the returned disposer clears it. */
+  declarePanelSidebar(panelId: MainPanelId, sidebar: boolean): () => void {
     this.panels.setPanelSidebar(panelId, sidebar)
+    return () => { this.panels.clearPanelSidebar(panelId) }
   }
 
   /** @returns the new pending navigation's cancellation signal. */

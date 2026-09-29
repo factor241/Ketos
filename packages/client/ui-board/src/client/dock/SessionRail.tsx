@@ -23,6 +23,7 @@ import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
+import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
 import { windowTitle } from '../window-title.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
@@ -187,6 +188,10 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
+  const [dockElement, setDockElement] = useState<HTMLElement | null>(null)
+  // The dock declares its own board edge: Э3.1 moves it to the bottom and
+  // flips this declaration with the CSS.
+  useBoardChromeInset('left', dockElement, actions)
 
   const openAgent = () => {
     openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
@@ -202,7 +207,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   // board's popover layer at scale 1, outside the dock's own centring
   // transform (a containing block for fixed offspring until then).
   const dock = (
-    <div data-board-layer="dock" data-board-chrome="" className={css.rail}>
+    <div ref={setDockElement} data-board-layer="dock" data-board-chrome="left" className={css.rail}>
       {dockOrder.map((id) => {
         const win = windows[id as string]
         if (!win) return null

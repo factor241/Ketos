@@ -563,7 +563,9 @@ describe('createBoardStore', () => {
   it('places and centres windows inside the safe area the chrome leaves (Т1.15)', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(1000, 800)
-    actions.setChromeInsets({ top: 0, bottom: 120, left: 80, right: 40 })
+    actions.publishChromeInset('dock', 'bottom', 120)
+    actions.publishChromeInset('rail', 'left', 80)
+    actions.publishChromeInset('panel', 'right', 40)
     actions.openWindow({
       id: 'w1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 400, height: 300,
     })

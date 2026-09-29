@@ -22,7 +22,10 @@ const t: BoardTranslate = key => en[key as BoardKey]
 function minimapProps(state: BoardState, actions: MinimapProps['actions']): MinimapProps {
   return {
     useStore: <S,>(selector: (value: BoardState) => S): S => selector(state),
-    actions,
+    // The minimap publishes its chrome contribution on mount; the caller's
+    // action stub only carries the verbs under test, so the chrome verbs are
+    // filled in after it.
+    actions: { ...actions, publishChromeInset: vi.fn(), clearChromeInset: vi.fn() },
     t,
   } as unknown as MinimapProps
 }
@@ -55,7 +58,7 @@ const baseState: BoardState = {
   zoom: 1,
   viewportWidth: 1920,
   viewportHeight: 1080,
-  chromeInsets: { top: 0, bottom: 0, left: 0, right: 0 },
+  chromeInsetSources: {},
   windows: {},
   windowOrder: [],
   dockOrder: [],

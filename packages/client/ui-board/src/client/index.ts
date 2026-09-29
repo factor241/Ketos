@@ -632,27 +632,31 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   })
 
   // The board owns the whole frame: its main panel hides the shell's sidebar
-  // column while it is selected (Т2.7).
-  ctx.layout.setPanelSidebar(BOARD_PANEL_ID, false)
-
-  ctx.slots.inject('main', () => ctx.slots.register({
-    name: 'main',
-    key: 'board',
-    store: boardStore,
-    locale: NS,
-    inject: (): BoardRootInjected => ({
-      // Schemastery materializes the field defaults before Cordis calls apply.
-      wheelMode: config.wheelMode as BoardWheelMode,
-      zoomSensitivity: config.zoomSensitivity as number,
-      detailZoomThreshold: config.detailZoomThreshold as number,
-    }),
-    children: {
-      'board.canvas': { kind: 'single', scope: 'root' },
-      'board.dock': { kind: 'single', scope: 'root' },
-      'board.omnibar': { kind: 'single', scope: 'root' },
-      'board.minimap': { kind: 'single', scope: 'root' },
-    },
-  }, BoardRoot))
+  // column while it is selected (Т2.7). The declaration is one effect with the
+  // registration — a collapsed declaration clears the flag, and a redeclared
+  // slot (an HMR reload of ui-layout) re-applies it.
+  ctx.slots.inject('main', function* () {
+    const disposeSidebar = ctx.layout.declarePanelSidebar(BOARD_PANEL_ID, false)
+    yield ctx.slots.register({
+      name: 'main',
+      key: 'board',
+      store: boardStore,
+      locale: NS,
+      inject: (): BoardRootInjected => ({
+        // Schemastery materializes the field defaults before Cordis calls apply.
+        wheelMode: config.wheelMode as BoardWheelMode,
+        zoomSensitivity: config.zoomSensitivity as number,
+        detailZoomThreshold: config.detailZoomThreshold as number,
+      }),
+      children: {
+        'board.canvas': { kind: 'single', scope: 'root' },
+        'board.dock': { kind: 'single', scope: 'root' },
+        'board.omnibar': { kind: 'single', scope: 'root' },
+        'board.minimap': { kind: 'single', scope: 'root' },
+      },
+    }, BoardRoot)
+    yield disposeSidebar
+  })
 
   ctx.slots.inject('board.canvas', () => ctx.slots.register({
     name: 'board.canvas',

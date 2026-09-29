@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 /**
- * Chrome insets and the board safe area (Д3.1/Т1.15): the floating chrome's
- * screen-pixel insets, their projection into world units, and the DOM
- * measurement that feeds them.
+ * Chrome contributions and the board safe area (Д3.1/Т1.15): each element's
+ * declared edge and depth, the fold into per-edge insets, and the projection
+ * into world units.
  */
 import { describe, expect, it } from 'vitest'
-import { chromeInsetsFor, measureChromeInsets, safeArea, type BoardRect } from '../src/client/chrome-insets.ts'
+import {
+  chromeInsetDepth, chromeInsetsOf, safeArea, type BoardRect, type ChromeInsetContribution,
+} from '../src/client/chrome-insets.ts'
 import { createBoardStore } from '../src/client/store.ts'
 
 const BOARD: BoardRect = { left: 100, top: 50, right: 1100, bottom: 850 }
@@ -15,65 +17,58 @@ function rect(left: number, top: number, right: number, bottom: number): BoardRe
   return { left, top, right, bottom }
 }
 
-/** Attach one measured stub element to a fake board root. */
-function stubRoot(board: BoardRect, elements: readonly BoardRect[]): HTMLElement {
-  const root = document.createElement('div')
-  root.getBoundingClientRect = () => ({
-    left: board.left, top: board.top, right: board.right, bottom: board.bottom,
-    width: board.right - board.left, height: board.bottom - board.top,
-    x: board.left, y: board.top, toJSON: () => ({}),
-  })
-  for (const element of elements) {
-    const node = document.createElement('div')
-    node.setAttribute('data-board-chrome', '')
-    node.getBoundingClientRect = () => ({
-      left: element.left, top: element.top, right: element.right, bottom: element.bottom,
-      width: element.right - element.left, height: element.bottom - element.top,
-      x: element.left, y: element.top, toJSON: () => ({}),
-    })
-    root.append(node)
-  }
-  return root
-}
-
-describe('chromeInsetsFor', () => {
-  it('is zero without chrome', () => {
-    expect(chromeInsetsFor(BOARD, [])).toEqual({ top: 0, bottom: 0, left: 0, right: 0 })
+describe('chromeInsetDepth', () => {
+  it('measures only the declared edge', () => {
+    // A dock stretched to board width minus 48px: bottom-only, however close
+    // its ends come to the left and right edges (Т1.6).
+    const dock = rect(124, 780, 1076, 834)
+    expect(chromeInsetDepth(BOARD, dock, 'bottom')).toBe(70)
+    expect(chromeInsetDepth(BOARD, dock, 'left')).toBe(976)
+    // The declaration, not the geometry, decides.
+    expect(chromeInsetsOf({ dock: { edge: 'bottom', depth: 70 } })).toEqual({ top: 0, bottom: 70, left: 0, right: 0 })
   })
 
-  it('reads a left-anchored dock as a left inset', () => {
-    // The dock hugs the left edge, centred vertically: only the left inset.
-    expect(chromeInsetsFor(BOARD, [rect(120, 400, 164, 500)])).toEqual({ top: 0, bottom: 0, left: 64, right: 0 })
+  it('measures each edge from the board box', () => {
+    const element = rect(120, 60, 210, 96)
+    expect(chromeInsetDepth(BOARD, element, 'top')).toBe(46)
+    expect(chromeInsetDepth(BOARD, element, 'left')).toBe(110)
+    expect(chromeInsetDepth(BOARD, element, 'right')).toBe(980)
+    expect(chromeInsetDepth(BOARD, element, 'bottom')).toBe(790)
   })
 
-  it('reads a bottom-anchored dock as a bottom inset', () => {
-    expect(chromeInsetsFor(BOARD, [rect(520, 780, 680, 834)])).toEqual({ top: 0, bottom: 70, left: 0, right: 0 })
-  })
-
-  it('reads corner chrome on both of its edges', () => {
-    // The mode badge top-left and the minimap top-right.
-    expect(chromeInsetsFor(BOARD, [rect(110, 60, 210, 96), rect(940, 60, 1080, 190)]))
-      .toEqual({ top: 140, bottom: 0, left: 110, right: 160 })
-  })
-
-  it('takes the deepest contribution per edge', () => {
-    expect(chromeInsetsFor(BOARD, [rect(520, 780, 680, 810), rect(300, 760, 900, 840)]))
-      .toEqual({ top: 0, bottom: 90, left: 0, right: 0 })
+  it('never returns a negative depth for an element beyond its edge', () => {
+    // An element past the declared edge contributes nothing, not a negative
+    // strip that would grow the safe area.
+    expect(chromeInsetDepth(BOARD, rect(0, 0, 10, 10), 'top')).toBe(0)
+    expect(chromeInsetDepth(BOARD, rect(0, 900, 10, 910), 'bottom')).toBe(0)
+    expect(chromeInsetDepth(BOARD, rect(0, 300, 10, 310), 'left')).toBe(0)
+    expect(chromeInsetDepth(BOARD, rect(1200, 300, 1210, 310), 'right')).toBe(0)
   })
 })
 
-describe('measureChromeInsets', () => {
-  it('queries the chrome markers and measures them against the root', () => {
-    const root = stubRoot(BOARD, [rect(120, 400, 164, 500)])
-    expect(measureChromeInsets(root)).toEqual({ top: 0, bottom: 0, left: 64, right: 0 })
+describe('chromeInsetsOf', () => {
+  it('folds contributions per declared edge, deepest wins', () => {
+    const sources: Record<string, ChromeInsetContribution> = {
+      dock: { edge: 'bottom', depth: 70 },
+      minimap: { edge: 'bottom', depth: 164 },
+      badge: { edge: 'top', depth: 46 },
+    }
+    expect(chromeInsetsOf(sources)).toEqual({ top: 46, bottom: 164, left: 0, right: 0 })
+  })
+
+  it('is zero without contributions', () => {
+    expect(chromeInsetsOf({})).toEqual({ top: 0, bottom: 0, left: 0, right: 0 })
   })
 })
 
 describe('safeArea', () => {
-  it('subtracts the insets in screen pixels and projects them into world units', () => {
+  it('subtracts the folded insets in screen pixels and projects them into world units', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(1000, 800)
-    actions.setChromeInsets({ top: 20, bottom: 120, left: 80, right: 40 })
+    actions.publishChromeInset('badge', 'top', 20)
+    actions.publishChromeInset('dock', 'bottom', 120)
+    actions.publishChromeInset('left', 'left', 80)
+    actions.publishChromeInset('right', 'right', 40)
     actions.setPan(30, -10)
     actions.setZoom(2)
     const area = safeArea(store.getSnapshot())
@@ -89,7 +84,10 @@ describe('safeArea', () => {
   it('never inverts a board whose insets exceed its box', () => {
     const { store, actions } = createBoardStore().create()
     actions.setViewport(100, 100)
-    actions.setChromeInsets({ top: 80, bottom: 80, left: 60, right: 60 })
+    actions.publishChromeInset('top', 'top', 80)
+    actions.publishChromeInset('bottom', 'bottom', 80)
+    actions.publishChromeInset('left', 'left', 60)
+    actions.publishChromeInset('right', 'right', 60)
     const area = safeArea(store.getSnapshot())
     expect(area.screen).toEqual({ left: 60, top: 80, right: 60, bottom: 80 })
   })

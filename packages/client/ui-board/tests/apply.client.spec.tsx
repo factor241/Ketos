@@ -48,11 +48,19 @@ async function bench(declareSlots = true) {
 }
 
 describe('board plugin registration', () => {
+  /** The layout double's live sidebar declarations (the board's own effect owns one). */
+  function sidebarDeclarations(runtime: SlotTestRuntime): Record<string, boolean> {
+    return (runtime.ctx.get('layout') as unknown as { sidebarDeclarations: Record<string, boolean> }).sidebarDeclarations
+  }
+
   it('occupies the board panel and sidebar row with its metadata, then withdraws both on dispose', async () => {
     const { runtime, mountBoard } = await bench()
     const board = await mountBoard()
 
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
+    // The sidebar declaration is atomic with the registration: present while
+    // the panel is, gone with its disposer (Т2.7).
+    expect(sidebarDeclarations(runtime)).toEqual({ board: false })
     expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
 
     const panelEntry = runtime.slots.entries('main')[0]
@@ -73,6 +81,7 @@ describe('board plugin registration', () => {
 
     expect(runtime.slots.entries('main')).toEqual([])
     expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
+    expect(sidebarDeclarations(runtime)).toEqual({})
     // The declarations belong to the root frame, so they survive the board fiber.
     expect(runtime.slots.spec('main')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.spec('sidebar.panellist')).toEqual({ kind: 'list', scope: 'root' })
@@ -107,11 +116,22 @@ describe('board plugin registration', () => {
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.window')).toHaveLength(6)
     expect(runtime.slots.entries('board.window.body')).toHaveLength(7)
+    expect(sidebarDeclarations(runtime)).toEqual({ board: false })
 
     runtime.root.release()
     expect(runtime.slots.entries('main')).toEqual([])
     expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
     expect(runtime.slots.spec('main')).toBeUndefined()
+    expect(sidebarDeclarations(runtime)).toEqual({})
+
+    // A redeclared slot (an HMR reload of ui-layout) reruns the injection and
+    // re-applies the declaration.
+    await runtime.declare({
+      main: { kind: 'keyed', scope: 'root' },
+      'sidebar.panellist': { kind: 'list', scope: 'root' },
+    })
+    expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
+    expect(sidebarDeclarations(runtime)).toEqual({ board: false })
 
     await board.dispose()
   })

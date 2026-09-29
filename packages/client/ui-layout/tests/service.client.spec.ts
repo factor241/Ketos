@@ -6,6 +6,7 @@ function fakePanels(): PanelActions {
   return {
     selectPanel: vi.fn(),
     setPanelSidebar: vi.fn(),
+    clearPanelSidebar: vi.fn(),
     retainMainPanels: vi.fn(),
     setSidebar: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -44,11 +45,13 @@ describe('LayoutController', () => {
     expect(panels.setSidebar).not.toHaveBeenCalled()
   })
 
-  it('delegates a sidebar declaration to the panel store', () => {
+  it('declares a sidebar and clears it through the returned disposer', () => {
     const panels = fakePanels()
     const service = new LayoutController(panels, () => true)
-    service.setPanelSidebar('board' as MainPanelId, false)
+    const dispose = service.declarePanelSidebar('board' as MainPanelId, false)
     expect(panels.setPanelSidebar).toHaveBeenCalledWith('board', false)
+    dispose()
+    expect(panels.clearPanelSidebar).toHaveBeenCalledWith('board')
   })
 
   it('forwards panel selection and returning to the Conversation without changing geometry', () => {

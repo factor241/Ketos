@@ -27,7 +27,6 @@ import { describeElement } from './element-capture.ts'
 import { resolveChatWindow } from './open-window.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './HandleRing.tsx'
-import { measureChromeInsets } from './chrome-insets.ts'
 import { classifyBoardZoomKey } from './keyboard-zoom.ts'
 import { createBoardPinchGesture, type BoardPinchEvent } from './pinch.ts'
 import { resolveBoardWheel, wheelPanDelta, wheelZoomFactor, type BoardWheelMode } from './wheel-zoom.ts'
@@ -53,33 +52,6 @@ export type BoardRootProps =
 
 /** How long the window the user returns to stays highlighted. */
 const RETURN_HIGHLIGHT_MS = 1600
-
-/**
- * Publish the board's floating-chrome insets: the dock, mode badge, minimap,
- * and omnibar are measured in screen pixels and the safe area follows them, so
- * a new window or a centring move never lands under the chrome (Т1.15). The
- * probe re-measures when the board box or a chrome element resizes and when
- * the chrome set itself changes (`chromeKey`: fullscreen and open-panel stand
- * the chrome down).
- */
-function ChromeInsetsProbe({ root, chromeKey, actions }: {
-  readonly root: HTMLDivElement | null
-  readonly chromeKey: string
-  readonly actions: BoardRootProps['actions']
-}) {
-  useEffect(() => {
-    if (root === null) return
-    const publish = (): void => { actions.setChromeInsets(measureChromeInsets(root)) }
-    publish()
-    // jsdom implements no ResizeObserver; the mount-time publish is the read.
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(publish)
-    observer.observe(root)
-    for (const element of root.querySelectorAll('[data-board-chrome]')) observer.observe(element)
-    return () => { observer.disconnect() }
-  }, [root, chromeKey, actions])
-  return null
-}
 
 /** Read the Safari gesture fields from a DOM event the board's listener receives. */
 function readPinchEvent(event: Event): BoardPinchEvent {
@@ -327,11 +299,6 @@ export function BoardRoot({
       className={clsx(css.root, panArmed && css.panArmed)}
     >
       <BoardPopoverSurfaceContext.Provider value={surface}>
-        <ChromeInsetsProbe
-          root={boardRoot}
-          chromeKey={`${String(fullscreen)}:${String(panelOpen)}`}
-          actions={actions}
-        />
         {renderSlot('board.canvas', {})}
         {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
         {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}

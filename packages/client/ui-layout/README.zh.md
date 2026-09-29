@@ -27,7 +27,7 @@ kind: "package-reference"
 
 本插件在 root slot 中组合侧边栏、主内容和右栏。侧边栏宽度为 264～420px，默认为 280px，收起后保留 56px 控制栏；窗口宽度低于 1024px 时自动收起，打开右侧面板也会收起手动展开的侧边栏。右侧面板首次打开时使用视口宽度的 45%，之后保留用户的像素宽度偏好，上限为 70%。为给中栏保留 400px，框架先将右侧面板缩减至 300px，再报告空间不足，使占用方将其关闭，最后才进一步压缩中栏。拖动没有过渡延迟；右侧手柄在关闭或全屏时不显示。插件的 `Config` 字段 `blockPagePinchZoom`（默认 true）阻止看板之外的浏览器页面捏合缩放（包括 portal 到 `document.body` 的菜单与对话框），看板自负其捏合；在看板之外 `Cmd/Ctrl +/−/0` 仍交给浏览器，把该字段关掉则所有捏合都交给浏览器。
 
-全局面板占据 root 作用域的 `main` keyed slot；`conversation` 是为会话界面保留的 key。`ctx.layout.selectPanel(id)` 选中已注册面板，`null` 则选中会话界面，但不改变当前会话。面板可用 `setPanelSidebar(id, false)` 声明自身不保留侧边栏；该面板被选中时，侧边栏列、其控制栏与宽度手柄一并让位，面板占满整个框架。随附的 web profile 在 `board` key 下注册看板面板。
+全局面板占据 root 作用域的 `main` keyed slot；`conversation` 是为会话界面保留的 key。`ctx.layout.selectPanel(id)` 选中已注册面板，`null` 则选中会话界面，但不改变当前会话。面板可调用 `declarePanelSidebar(id, false)`，其返回的 disposer 拥有该声明；该面板被选中时，侧边栏列、其控制栏与宽度手柄一并让位，面板占满整个框架。随附的 web profile 在 `board` key 下注册看板面板。
 
 ### 主题呈现
 

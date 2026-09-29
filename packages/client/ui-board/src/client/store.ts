@@ -10,7 +10,7 @@ import {
 } from '../board-settings.ts'
 import type { BoardDraftFile, BoardDraftImage, BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
 import { isWindowOnScreen } from './window-screen.ts'
-import { NO_CHROME_INSETS, safeArea, type ChromeInsets } from './chrome-insets.ts'
+import { safeArea, type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -71,8 +71,13 @@ type BoardActions = {
   /** Return the view to pan (0, 0) and zoom 1. */
   resetView: (draft: BoardState) => void
   setViewport: (draft: BoardState, width: number, height: number) => void
-  /** Publish the measured floating-chrome insets (the safe area follows). */
-  setChromeInsets: (draft: BoardState, insets: ChromeInsets) => void
+  /**
+   * Publish one chrome element's contribution for its declared edge; the
+   * element's own key replaces its previous entry.
+   */
+  publishChromeInset: (draft: BoardState, key: string, edge: ChromeEdge, depth: number) => void
+  /** Drop one chrome element's contribution (unmount, or ref change). */
+  clearChromeInset: (draft: BoardState, key: string) => void
   addWindow: (draft: BoardState, window: BoardWindowState) => void
   openWindow: (draft: BoardState, spec: OpenWindowSpec) => void
   moveWindow: (draft: BoardState, id: WindowId, x: number, y: number, snap: boolean) => void
@@ -131,10 +136,11 @@ export interface BoardState {
   viewportWidth: number
   viewportHeight: number
   /**
-   * Screen-pixel insets the floating chrome occupies on each edge; written by
-   * the chrome probe. Zero while no chrome renders (fullscreen, open panel).
+   * Per-element chrome contributions, keyed by the publishing element: each
+   * entry declares one board edge and its depth from it. `safeArea` folds them;
+   * a hidden chrome element clears its entry (fullscreen, open panel).
    */
-  chromeInsets: ChromeInsets
+  chromeInsetSources: Record<string, ChromeInsetContribution>
   windows: Record<string, BoardWindowState>
   /** Window ids in paint order, bottom to top. */
   windowOrder: WindowId[]
@@ -431,7 +437,7 @@ export function createBoardStore(): BoardStoreHandle {
       zoom: 1,
       viewportWidth: 1920,
       viewportHeight: 1080,
-      chromeInsets: NO_CHROME_INSETS,
+      chromeInsetSources: {},
       windows: {},
       windowOrder: [],
       dockOrder: [],
@@ -483,12 +489,14 @@ export function createBoardStore(): BoardStoreHandle {
         draft.viewportWidth = width
         draft.viewportHeight = height
       },
-      setChromeInsets: (draft, insets) => {
-        if (
-          draft.chromeInsets.top === insets.top && draft.chromeInsets.bottom === insets.bottom
-          && draft.chromeInsets.left === insets.left && draft.chromeInsets.right === insets.right
-        ) return
-        draft.chromeInsets = { ...insets }
+      publishChromeInset: (draft, key, edge, depth) => {
+        const previous = draft.chromeInsetSources[key]
+        if (previous !== undefined && previous.edge === edge && previous.depth === depth) return
+        draft.chromeInsetSources[key] = { edge, depth }
+      },
+      clearChromeInset: (draft, key) => {
+        // Immer draft: the hook instance id is the opaque record key.
+        Reflect.deleteProperty(draft.chromeInsetSources, key)
       },
       addWindow: (draft, window) => {
         insertWindow(draft, window)

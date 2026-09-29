@@ -235,11 +235,16 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     return target
   }
   // The board declares its panel as sidebar-less through ctx.layout (Т2.7);
-  // the double records the declaration and keeps selection inert unless a
-  // test overrides it.
+  // the double mirrors the controller: the declaration is visible until its
+  // disposer clears it, and selection stays inert unless a test overrides it.
+  const sidebarDeclarations: Record<string, boolean> = {}
   runtime.ctx.provide('layout', {
     selectPanel: () => {},
-    setPanelSidebar: () => {},
+    sidebarDeclarations,
+    declarePanelSidebar: (panelId: string, sidebar: boolean) => {
+      sidebarDeclarations[panelId] = sidebar
+      return () => { Reflect.deleteProperty(sidebarDeclarations, panelId) }
+    },
   } as never)
   // The board declares the uiWorkspace service for its panel actions; the
   // directory verbs stay inert until a test stubs them.

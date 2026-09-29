@@ -21,8 +21,10 @@ type LayoutState = {
   /**
    * Sidebar visibility declared per main panel. A panel absent from the map
    * keeps the sidebar; a panel declaring false hides the column, its rail, and
-   * its resize handle while it is selected (Т2.7). Pruned with the panel
-   * registry.
+   * its resize handle while it is selected (Т2.7). The declarer owns the
+   * entry: `declarePanelSidebar` returns the disposer that clears it, so a
+   * declaration made before its panel registers is never pruned by registry
+   * churn and a redeclared slot re-applies it.
    */
   panelSidebar: Record<string, boolean>
   layoutInfo: LayoutInfo
@@ -65,6 +67,7 @@ type LayoutInfo = {
 type LayoutActions = {
   selectPanel: (draft: LayoutState, panelId: MainPanelId | null) => void
   setPanelSidebar: (draft: LayoutState, panelId: MainPanelId, sidebar: boolean) => void
+  clearPanelSidebar: (draft: LayoutState, panelId: MainPanelId) => void
   retainMainPanels: (draft: LayoutState, panelIds: readonly string[]) => void
   setSidebar: (draft: LayoutState, px: number) => void
   toggleSidebar: (draft: LayoutState) => void
@@ -106,12 +109,13 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       setPanelSidebar: (d, panelId: MainPanelId, sidebar: boolean) => {
         d.panelSidebar[panelId] = sidebar
       },
+      clearPanelSidebar: (d, panelId: MainPanelId) => {
+        // Immer draft: the panel id is the opaque record key.
+        Reflect.deleteProperty(d.panelSidebar, panelId)
+      },
       retainMainPanels: (d, panelIds: readonly string[]) => {
         if (d.panelInfo.activePanelId !== null && !panelIds.includes(d.panelInfo.activePanelId)) {
           d.panelInfo.activePanelId = null
-        }
-        for (const id of Object.keys(d.panelSidebar)) {
-          if (!panelIds.includes(id)) Reflect.deleteProperty(d.panelSidebar, id)
         }
       },
       setSidebar: (d, px: number) => {

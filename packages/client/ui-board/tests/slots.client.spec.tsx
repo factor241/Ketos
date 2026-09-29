@@ -737,7 +737,7 @@ describe('board slot composition', () => {
     expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(8)
   })
 
-  it('publishes the measured chrome insets through the probe (Д3.1)', async () => {
+  it('publishes chrome contributions per declared edge and clears them on unmount (Д3.1)', async () => {
     const callbacks: Array<() => void> = []
     class FakeResizeObserver {
       constructor(callback: () => void) { callbacks.push(callback) }
@@ -751,17 +751,32 @@ describe('board slot composition', () => {
       const board = runtime.storeOf('board.dock') as BoardInstance
       const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
       const dock = panel.container.querySelector('[data-board-layer="dock"]') as HTMLElement
-      const box = (left: number, top: number, right: number, bottom: number): DOMRect => ({
+      const minimap = panel.container.querySelector('[data-board-layer="minimap"]') as HTMLElement
+      const box = (left: number, top: number, right: number, bottom: number) => ({
         left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}),
       })
       root.getBoundingClientRect = () => box(0, 0, 1000, 800)
       dock.getBoundingClientRect = () => box(20, 300, 64, 500)
+      minimap.getBoundingClientRect = () => box(776, 636, 976, 776)
 
-      // The probe measured at mount; the observer signal re-measures the live
-      // boxes, which is how a chrome resize or move reaches the store.
-      act(() => { callbacks.at(-1)?.() })
+      // The observer signal re-measures the live boxes; the dock declares the
+      // left edge and the minimap the bottom edge, so each takes only its own
+      // strip.
+      act(() => { for (const callback of callbacks) callback() })
       await runtime.flush()
-      expect(board.store.getSnapshot().chromeInsets).toEqual({ top: 0, bottom: 0, left: 64, right: 0 })
+      const sources = board.store.getSnapshot().chromeInsetSources
+      expect(Object.values(sources).map(entry => entry.edge).sort()).toEqual(['bottom', 'left'])
+      expect(Object.values(sources).find(entry => entry.edge === 'left')?.depth).toBe(64)
+      expect(Object.values(sources).find(entry => entry.edge === 'bottom')?.depth).toBe(164)
+
+      // Opening a window panel stands the chrome down: both contributions go
+      // with their unmounted elements.
+      act(() => {
+        board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
+        board.actions.openWindowPanel('a1' as WindowId)
+      })
+      await runtime.flush()
+      expect(board.store.getSnapshot().chromeInsetSources).toEqual({})
     } finally {
       vi.unstubAllGlobals()
     }

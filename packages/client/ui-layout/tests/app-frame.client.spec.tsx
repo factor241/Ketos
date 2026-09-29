@@ -287,12 +287,16 @@ describe('AppFrame', () => {
     expect(container.querySelector('[data-testid="sidebar-content"]')).not.toBeNull()
   })
 
-  it('prunes a declared sidebar flag when its panel leaves the registry', () => {
+  it('keeps a declared sidebar flag until its declarer clears it', () => {
     const { instance } = mountFrame()
     act(() => {
       instance.actions.setPanelSidebar('board' as MainPanelId, false)
+      // Registry churn does not prune the declaration: a panel may declare
+      // before it registers, and the declarer owns the disposer.
       instance.actions.retainMainPanels(['conversation'])
     })
+    expect(instance.getSnapshot().panelSidebar).toEqual({ board: false })
+    act(() => { instance.actions.clearPanelSidebar('board' as MainPanelId) })
     expect(instance.getSnapshot().panelSidebar).toEqual({})
   })
 

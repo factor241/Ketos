@@ -1,10 +1,11 @@
 /**
  * Interactive SVG Minimap for Spatial Board Canvas.
  */
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
+import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import css from './Minimap.module.css'
 
 export type MinimapProps =
@@ -17,6 +18,10 @@ const MINIMAP_HEIGHT = 140
 const PADDING = 20
 
 export function Minimap({ useStore, actions, t }: MinimapProps) {
+  const [minimapElement, setMinimapElement] = useState<HTMLElement | null>(null)
+  // The minimap declares its own board edge; Э3.5 moves it to the top right
+  // and flips this declaration with the CSS.
+  useBoardChromeInset('bottom', minimapElement, actions)
   const isDraggingRef = useRef(false)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
@@ -92,8 +97,9 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
 
   return (
     <div
+      ref={setMinimapElement}
       data-board-layer="minimap"
-      data-board-chrome=""
+      data-board-chrome="bottom"
       data-board-minimap=""
       className={css.minimap}
       role="img"

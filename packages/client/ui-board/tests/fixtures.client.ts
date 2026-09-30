@@ -270,9 +270,21 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     state: { getSnapshot: () => { draft: string } }
     setDraft: (text: string) => void
     addFiles: (files: readonly File[]) => boolean
+    takeDraft: () => Promise<{ text: string; attachments: readonly StandardAttachment[] } | undefined>
+  }
+  type StandardAttachment =
+    | { readonly type: 'image'; readonly mediaType: string; readonly data: string; readonly name: string }
+    | { readonly type: 'file'; readonly receiptId: string; readonly name: string }
+  /** Base64 payload of one browser file, the shape the standard composer serializes. */
+  const base64Of = async (file: File): Promise<string> => {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    return btoa(binary)
   }
   const standardInputs = new Map<string, StandardInputDouble>()
   let addFilesMode: 'ok' | 'busy' | 'throw' = 'ok'
+  let takeDraftMode: 'ok' | 'refuse' = 'ok'
   const ensureStandardInput = (sessionId: string): StandardInputDouble => {
     let input = standardInputs.get(sessionId)
     if (input === undefined) {
@@ -288,6 +300,21 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
           input!.files.push(files)
           return true
         },
+        async takeDraft() {
+          if (takeDraftMode === 'refuse') return undefined
+          const text = input!.current
+          const attachments: StandardAttachment[] = []
+          for (const batch of input!.files) {
+            for (const file of batch) {
+              attachments.push(file.type.startsWith('image/')
+                ? { type: 'image', mediaType: file.type, data: await base64Of(file), name: file.name }
+                : { type: 'file', receiptId: `receipt:${file.name}`, name: file.name })
+            }
+          }
+          input!.current = ''
+          input!.files = []
+          return { text, attachments }
+        },
       }
       standardInputs.set(sessionId, input)
     }
@@ -295,6 +322,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   }
   runtime.ctx.provide('conversation', {
     setAddFilesMode: (mode: 'ok' | 'busy' | 'throw') => { addFilesMode = mode },
+    setTakeDraftMode: (mode: 'ok' | 'refuse') => { takeDraftMode = mode },
     seedStandardDraft: (sessionId: string, text: string) => {
       const input = ensureStandardInput(sessionId)
       input.current = text
@@ -408,6 +436,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     await runtime.declare({
       main: { kind: 'keyed', scope: 'root' },
       'sidebar.brand.actions': { kind: 'list', scope: 'root' },
+      'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
     })
   }
   return {

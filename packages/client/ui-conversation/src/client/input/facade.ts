@@ -23,7 +23,7 @@ import { mergeRegister } from '@lexical/utils'
 import type {
   ArbitrateKey, ArbitrateOutcome, CommandClaim, ComposerKeyboard, ConsumeTokenRequest, DraftAttachmentId,
   InputActions, InputEffect, InputNotice, InputState, InputTriggerController, PickOutcome,
-  Occurrence, QueuedMessage, ReferenceInsert, SessionInput, SubmitAttempt, SubmitAttachment,
+  Occurrence, QueuedMessage, ReferenceInsert, SerializedDraftAttachment, SessionInput, SubmitAttempt, TakenDraft,
   SubmitOutcome, TokenSpan,
 } from '../contract/input.ts'
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
@@ -76,12 +76,17 @@ export interface SessionInputDeps {
   /** Command-plane attachment plumbing (the hub owns the conversation face and the copy). */
   commandAttachments: {
     /** Resolve ordered draft ids to wire payloads without sending them; rejects when an id no longer resolves. */
-    serialize(ids: readonly DraftAttachmentId[]): Promise<readonly SubmitAttachment[]>
+    serialize(ids: readonly DraftAttachmentId[]): Promise<readonly SerializedDraftAttachment[]>
     /** Free consumed draft attachments after a successful command submit. */
     release(ids: readonly DraftAttachmentId[]): void
     /** Localized composer notice for a claimed command that does not accept attachments. */
     unsupportedNotice(token: string): string
   }
+}
+
+/** Whether two ordered draft id lists name the same attachments. */
+function sameAttachmentIds(left: readonly DraftAttachmentId[], right: readonly DraftAttachmentId[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index])
 }
 
 /** Guard tier from the machine phase. */
@@ -341,6 +346,38 @@ export class SessionInputShell implements SessionInput {
     if (next.length === this.attachmentIds.length) return
     this.attachmentIds = next
     this.publish()
+  }
+
+  /**
+   * Take the whole draft out of this composer for another surface: the
+   * clipboard text plus every attachment in draft order (images encoded,
+   * files as receipts), clearing this draft on success. Refuses while an
+   * admission transaction or a submission holds the draft, and while a file
+   * attachment has not finished uploading: the caller gets undefined and the
+   * draft stays whole.
+   * @returns the taken draft, or undefined when the composer cannot give it up.
+   */
+  async takeDraft(): Promise<TakenDraft | undefined> {
+    if (this.snapshot.phase !== 'plain') return undefined
+    const text = this.projection.clipboardText
+    const ids = this.attachmentIds
+    let attachments: readonly SerializedDraftAttachment[] = []
+    if (ids.length > 0) {
+      try {
+        attachments = await this.deps.commandAttachments.serialize(ids)
+      } catch {
+        // A vanished or still-uploading attachment: the draft stays whole.
+        return undefined
+      }
+      // The phase and the attachment list may have moved while the
+      // serialization ran: a stale take must not clear a changed draft.
+      const settled = this.snapshot
+      if (settled.phase !== 'plain') return undefined
+      if (!sameAttachmentIds(this.attachmentIds, ids)) return undefined
+    }
+    this.commitSend(ids)
+    if (ids.length > 0) this.deps.commandAttachments.release(ids)
+    return { text, attachments }
   }
 
   /**

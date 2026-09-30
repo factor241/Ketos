@@ -437,7 +437,8 @@ export class ConversationController extends Service implements IConversation {
   /**
    * Serialize ordered draft attachments to command-submit wire payloads without
    * sending or releasing them. Images are encoded; generic files cite receipts
-   * from their completed background uploads and never reread browser bytes.
+   * from their completed background uploads and never reread browser bytes;
+   * every payload carries its display name when the source file had one.
    * @param attachmentIds - ordered draft-local attachment ids.
    * @returns wire payloads in id order.
    */
@@ -456,7 +457,11 @@ export class ConversationController extends Service implements IConversation {
         if (upload === undefined || upload.status !== 'ready') {
           throw new Error('conversation.serializeDraftAttachments: one or more files have not finished uploading')
         }
-        return { type: 'file' as const, receiptId: upload.receiptId }
+        return {
+          type: 'file' as const,
+          receiptId: upload.receiptId,
+          ...(attachment.file.name === '' ? {} : { name: attachment.file.name }),
+        }
       })),
     }
   }

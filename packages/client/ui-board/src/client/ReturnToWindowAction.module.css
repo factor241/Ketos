@@ -1,0 +1,27 @@
+/*
+ * Sits in the Session header's utility row, level with the log control. The
+ * same 28px icon-button idiom as the header's other utilities.
+ */
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

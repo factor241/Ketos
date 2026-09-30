@@ -147,6 +147,23 @@ export interface WindowSessionChannel extends ObservableSnapshot<BoardWindowSess
   publish(next: BoardWindowSessionState): void
 }
 
+/** Identity-stable counter observable: subscribers re-read the binding map. */
+function createRevision(): ObservableSnapshot<number> & { bump(): void } {
+  let value = 0
+  const listeners = new Set<() => void>()
+  return {
+    getSnapshot: () => value,
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    bump: () => {
+      value += 1
+      for (const listener of listeners) listener()
+    },
+  }
+}
+
 function createChannel(): WindowSessionChannel {
   let snapshot = emptyState()
   const listeners = new Set<() => void>()
@@ -208,6 +225,12 @@ export interface BoardSessionBridgeHooks {
  * store: sessions are object-layer data, and the store carries view state only.
  */
 export class BoardSessionBridge {
+  /**
+   * Binding-change revision: observers (the standard interface's return
+   * control) re-read {@link windowFor} after every rebind, close, or restore.
+   */
+  readonly bindingChanges = createRevision()
+
   private readonly ctx: ClientContext
   private readonly windows = new Map<WindowId, WindowRecord>()
   private readonly pending = new Map<WindowId, Promise<void>>()
@@ -955,6 +978,7 @@ export class BoardSessionBridge {
   private persistBindings(): void {
     if (this.disposed) return
     this.hooks.persistBindings?.(this.bindings())
+    this.bindingChanges.bump()
   }
 
   /**
@@ -1079,6 +1103,7 @@ export class BoardSessionBridge {
           promptError: snapshot.promptError === null
             ? undefined
             : this.failureText(snapshot.promptError.error),
+          promptErrorCode: snapshot.promptError === null ? undefined : snapshot.promptError.error.code,
           chat: chat.getSnapshot(),
           sessionId,
           displayTitle: row?.displayTitle,

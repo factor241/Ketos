@@ -351,6 +351,147 @@ describe('board slot composition', () => {
     expect(board.store.getSnapshot().expandedWindowId).toBe('a1')
   })
 
+  it('returns the standard draft to the window on the return control (Т2.11)', async () => {
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const { runtime } = prepared
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const header = runtime.renderSlot('conversation.session.header.utilities', {})
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    const conversation = runtime.ctx.get('conversation') as unknown as {
+      seedStandardDraft: (sessionId: string, text: string) => { addFiles: (files: readonly File[]) => boolean }
+      standardInputs: Map<string, { current: string; files: readonly (readonly File[])[] }>
+    }
+
+    act(() => {
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
+      board.actions.setDraftText('a1' as WindowId, 'из окна')
+      board.actions.addDraftFiles('a1' as WindowId, [{
+        record: { id: 'f1', name: 'notes.txt', status: 'ready', receiptId: 'r1' },
+        source: new File(['x'], 'notes.txt', { type: 'text/plain' }),
+      }])
+    })
+    await runtime.flush()
+
+    // Expand: the window's whole draft moves into the standard composer.
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    const standard = conversation.standardInputs.get('session-1')
+    expect(standard?.current).toBe('из окна')
+    expect(standard?.files[0]?.map(file => file.name)).toEqual(['notes.txt'])
+
+    // The user keeps typing there and attaches an image; meanwhile the window
+    // acquires a draft of its own.
+    conversation.seedStandardDraft('session-1', 'из окна и ещё')
+      .addFiles([new File([Uint8Array.of(1, 2, 3)], 'pic.png', { type: 'image/png' })])
+    act(() => { board.actions.setDraftText('a1' as WindowId, 'новое в окне') })
+
+    // The return control is present while the Session is bound to the window.
+    const button = header.container.querySelector('[data-board-action="return-to-window"]')
+    expect(button).not.toBeNull()
+    fireEvent.click(button as Element)
+    await runtime.flush()
+
+    // The standard draft moved into the window: the window's text first, the
+    // standard text as a new paragraph, the image beside it, and the file as
+    // a receipt-only entry (no browser bytes, so no retry).
+    const drafts = board.store.getSnapshot().drafts['a1']
+    expect(drafts?.text).toBe('новое в окне\n\nиз окна и ещё')
+    expect(drafts?.images.map(image => image.name)).toEqual(['pic.png'])
+    expect(drafts?.files.map(entry => [entry.record.name, entry.record.status, entry.record.receiptId, entry.source])).toEqual([
+      ['notes.txt', 'ready', 'receipt:notes.txt', undefined],
+    ])
+    // The standard composer was emptied, and the board panel was selected with
+    // the window armed for its return highlight.
+    expect(standard?.current).toBe('')
+    expect(standard?.files).toEqual([])
+    expect((runtime.ctx.get('layout') as unknown as { selectPanelCalls: string[] }).selectPanelCalls).toContain('board')
+    expect(board.store.getSnapshot().returnWindowId).toBe('a1')
+    expect(board.store.getSnapshot().expandedWindowId).toBeNull()
+  })
+
+  it('returns to the window and reports the draft that stayed in the standard interface (Т2.11)', async () => {
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const { runtime } = prepared
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const header = runtime.renderSlot('conversation.session.header.utilities', {})
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    const conversation = runtime.ctx.get('conversation') as unknown as {
+      seedStandardDraft: (sessionId: string, text: string) => unknown
+      setTakeDraftMode: (mode: 'ok' | 'refuse') => void
+    }
+
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    conversation.seedStandardDraft('session-1', 'останется в стандарте')
+    conversation.setTakeDraftMode('refuse')
+
+    fireEvent.click(header.container.querySelector('[data-board-action="return-to-window"]') as Element)
+    await runtime.flush()
+
+    // The navigation happened, the draft stayed where it was, and the window
+    // carries the reason.
+    expect((runtime.ctx.get('layout') as unknown as { selectPanelCalls: string[] }).selectPanelCalls).toContain('board')
+    expect(board.store.getSnapshot().returnWindowId).toBe('a1')
+    expect(board.store.getSnapshot().drafts['a1']).toBeUndefined()
+    expect(panel.container.querySelector('[data-board-action-error]')?.textContent)
+      .toBe('The draft stayed in the standard interface')
+  })
+
+  it('adopts the Session opened in the standard interface while a window is expanded (Т2.13–Т2.16)', async () => {
+    const prepared = await createBoardBench({
+      session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+      sessionSummary: { displayTitle: 'Chat one' },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Chat two' }],
+    })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const { runtime } = prepared
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const brand = runtime.renderSlot('sidebar.brand.actions', { wide: true })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    const title = (): string | null =>
+      panel.container.querySelector('[data-board-action="window-rename"]')?.getAttribute('data-board-title') ?? null
+    expect(title()).toBe('Chat one')
+
+    // Т2.16: the sidebar switch (not an expand) arms no rules — opening
+    // another Session in the standard interface leaves the window alone.
+    fireEvent.click(brand.container.querySelector('[data-board-action="open-board"]') as Element)
+    await runtime.sessions.setCurrent('session-2')
+    await runtime.flush()
+    expect(title()).toBe('Chat one')
+
+    // Back on the window's own Session (the rules run, but the holder guard
+    // keeps the window where it is), then expand to arm them: the next
+    // existing Session the user opens moves the expanded window (Т2.13).
+    await runtime.sessions.setCurrent('session-1')
+    await runtime.flush()
+    expect(title()).toBe('Chat one')
+    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    await runtime.flush()
+    await runtime.sessions.setCurrent('session-2')
+    await runtime.flush()
+    expect(title()).toBe('Chat two')
+
+    // A brand-new blank Session leaves the window alone (Т2.15).
+    await runtime.sessions.add({ id: 'session-3', summary: { displayTitle: 'New chat', blank: true } })
+    await runtime.sessions.setCurrent('session-3')
+    await runtime.flush()
+    expect(title()).toBe('Chat two')
+  })
+
   it('keeps a rail for every chat window and opens the panel beside the frame', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })

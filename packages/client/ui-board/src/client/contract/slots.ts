@@ -374,6 +374,8 @@ export interface BoardWindowSessionState {
   readonly error?: string | undefined
   /** Failure text from the last refused prompt or command. */
   readonly promptError?: string | undefined
+  /** Remote code behind {@link promptError}; the composer reads it to mark the attachments the host rejected. */
+  readonly promptErrorCode?: string | undefined
   /** Failure text of the last turn the agent aborted. */
   readonly turnError?: string | undefined
   /** Assembled chat snapshot, absent until the chat view builder publishes. */

@@ -162,6 +162,50 @@ describe('matrix row: files', () => {
   })
 })
 
+describe('matrix row: take draft', () => {
+  it('takes text and serialized attachments out, clearing the draft and releasing the ids', async () => {
+    const { shell, serialize, release } = bench({
+      createDrafts: files => files.map((file, index) => ({ id: `draft-${String(index)}-${file.name}` as DraftAttachmentId })),
+      serialize: async ids => ids.map(id => ({ type: 'file' as const, receiptId: `receipt-${id}`, name: 'notes.txt' })),
+    })
+    act(() => { shell.setDraft('перенос') })
+    shell.addFiles([new File(['x'], 'notes.txt', { type: 'text/plain' })])
+
+    await expect(shell.takeDraft()).resolves.toEqual({
+      text: 'перенос',
+      attachments: [{ type: 'file', receiptId: 'receipt-draft-0-notes.txt', name: 'notes.txt' }],
+    })
+    expect(serialize).toHaveBeenCalledWith(['draft-0-notes.txt'])
+    expect(release).toHaveBeenCalledWith(['draft-0-notes.txt'])
+    expect(shell.snapshot.draft).toBe('')
+    expect(shell.snapshot.attachmentIds).toEqual([])
+  })
+
+  it('refuses while a file upload has not settled and keeps the whole draft', async () => {
+    const { shell, release } = bench({
+      createDrafts: files => files.map((file, index) => ({ id: `draft-${String(index)}-${file.name}` as DraftAttachmentId })),
+      serialize: async () => { throw new Error('not finished') },
+    })
+    act(() => { shell.setDraft('черновик') })
+    shell.addFiles([new File(['x'], 'notes.txt', { type: 'text/plain' })])
+
+    await expect(shell.takeDraft()).resolves.toBeUndefined()
+    expect(release).not.toHaveBeenCalled()
+    expect(shell.snapshot.draft).toBe('черновик')
+    expect(shell.snapshot.attachmentIds).toEqual(['draft-0-notes.txt'])
+  })
+
+  it('refuses while a command submit holds the admission lock', async () => {
+    const submit = vi.fn(() => new Promise<SubmitOutcome>(() => {})) // never settles
+    const { shell, textarea, claim } = bench({ submit })
+    claim('/goal ', '目标')
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(shell.snapshot.phase).toBe('submitting')
+
+    await expect(shell.takeDraft()).resolves.toBeUndefined()
+  })
+})
+
 describe('matrix row: claimed', () => {
   it('publishes the claim currency, colors the token, hints while args are blank, and edits stay free', () => {
     const { view, textarea, shell, claim } = bench()

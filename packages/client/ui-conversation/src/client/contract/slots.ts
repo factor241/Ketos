@@ -135,7 +135,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
     }
-    /** Right-aligned Session utilities in ascending order. */
+    /**
+     * Right-aligned Session utilities in ascending order. A blank Session
+     * keeps this seat mounted while the rest of the header collapses, so an
+     * occupant that renders for a blank Session stays reachable.
+     */
     'conversation.session.header.utilities': {
       kind: 'list'
       scope: 'session'

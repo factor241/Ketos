@@ -192,8 +192,8 @@ describe('ConversationController', () => {
     try {
       await expect(b.root.serializeDraftAttachments(drafts.map(draft => draft.id))).resolves.toEqual({
         attachments: [
-          { type: 'file', receiptId: 'receipt-one.txt' },
-          { type: 'file', receiptId: 'receipt-two.txt' },
+          { type: 'file', receiptId: 'receipt-one.txt', name: 'one.txt' },
+          { type: 'file', receiptId: 'receipt-two.txt', name: 'two.txt' },
         ],
       })
     } finally {

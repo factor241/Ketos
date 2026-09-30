@@ -48,8 +48,24 @@
 }
 
 /* Blank hero/settling: keep the strict Session header mounted without taking
-   column space; the root-owned scrollport and composer remain below it. */
+   column space; the root-owned scrollport and composer remain below it. The
+   utility seats stay mounted so an occupant that renders something for a
+   blank Session (the board's return control) still reaches the header's
+   trailing edge; with nothing rendered the header collapses to zero height. */
 .headerHidden {
+  min-height: 0;
+  padding: 0 28px 0 20px;
+  border-bottom: none;
+}
+
+.headerBlankUtilities {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.headerBlankUtilities:empty {
   display: none;
 }
 

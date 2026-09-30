@@ -69,11 +69,16 @@ export function ConversationSessionHeader({
   const hideChrome = session.blank && conversationPhase(session, conversation) === 'blank'
 
   return (
-    <header
-      className={clsx(css.header, hideChrome && css.headerHidden)}
-      aria-hidden={hideChrome || undefined}
-    >
-      {!hideChrome && (
+    <header className={clsx(css.header, hideChrome && css.headerHidden)}>
+      {hideChrome ? (
+        // A blank Session keeps only the utility seats mounted: an occupant
+        // that renders nothing for it (the board's return control on an
+        // unbound Session) leaves the header with no box at all.
+        <div className={css.headerBlankUtilities}>
+          {renderSlot('conversation.session.header.utilities', {})}
+          {renderSlot('conversation.session.header.corner', {})}
+        </div>
+      ) : (
         <>
           <div className={css.titleRow}>
             <div className={css.titleCluster}>

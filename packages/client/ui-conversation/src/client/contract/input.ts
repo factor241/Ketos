@@ -30,9 +30,27 @@ export type SubmitAttachment =
   }
   | { readonly type: 'file'; readonly receiptId: string }
 
+/**
+ * One serialized draft attachment leaving a composer for another surface: the
+ * submit payload plus the display name that surface shows on its own chip
+ * (absent when the source file had no name).
+ */
+export type SerializedDraftAttachment =
+  | Extract<SubmitAttachment, { type: 'image' }>
+  | (Extract<SubmitAttachment, { type: 'file' }> & { readonly name?: string })
+
 /** Command serialization result for one ordered attachment draft. */
 export interface DraftAttachmentSerializationResult {
-  readonly attachments: readonly SubmitAttachment[]
+  readonly attachments: readonly SerializedDraftAttachment[]
+}
+
+/**
+ * One draft a surface took off a composer: the clipboard text plus every
+ * serialized attachment in draft order.
+ */
+export interface TakenDraft {
+  readonly text: string
+  readonly attachments: readonly SerializedDraftAttachment[]
 }
 
 /** Settled result of a command or default composer submission. */
@@ -207,6 +225,16 @@ export interface SessionInput extends InputTarget {
    * @returns whether the files were attached.
    */
   addFiles(files: readonly File[]): boolean
+  /**
+   * Take the whole draft out of this composer for another surface: the
+   * clipboard text plus every attachment in draft order (images encoded,
+   * files as receipts), clearing this draft on success. Refuses while an
+   * admission transaction or a submission holds the draft, and while a file
+   * attachment has not finished uploading: the caller gets undefined and the
+   * draft stays whole.
+   * @returns the taken draft, or undefined when the composer cannot give it up.
+   */
+  takeDraft(): Promise<TakenDraft | undefined>
   /** Append ordered browser-owned attachment ids; busy admission phases refuse. */
   addAttachments(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned attachment id; busy admission phases refuse. @returns whether the id was removed. */

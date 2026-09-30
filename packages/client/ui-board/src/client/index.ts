@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // layout persistence reads through.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionInput } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { SessionInput, TakenDraft } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import z from '@deepseek-ai/schemastery'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -22,7 +22,7 @@ import type {
 } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { BOARD_ZOOM_MIN } from '../board-settings.ts'
-import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle } from './store.ts'
+import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardWindowDraftFile } from './store.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import { openBoardWindow, resolveChatWindow } from './open-window.ts'
@@ -41,10 +41,11 @@ import {
 } from './tasks-api.ts'
 import { sessionArtifacts } from './window/artifacts-model.ts'
 import type {
-  BoardCloneRoster, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
+  BoardCloneRoster, BoardDraftImage, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
   BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
 import { BoardRoot, BoardToggle, type BoardRootInjected, type BoardToggleInjected } from './BoardViews.tsx'
+import { ReturnToWindowAction, type ReturnToWindowActionInjected } from './ReturnToWindowAction.tsx'
 import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
@@ -172,6 +173,26 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const stopRosterRefresh = ctx.remote.$on('settings/document-updated', () => { void loadPresetRoster() })
   ctx.effect(() => () => { stopRosterRefresh() }, 'ui-board: preset roster refresh')
   ctx.effect(() => () => { bridge.dispose() }, 'ui-board: window session bridge')
+
+  // Т2.13–Т2.16: while a window was expanded into the standard interface, a
+  // Session the user opens there moves that window onto it — unless another
+  // window already shows the Session (the return control then leads there) or
+  // the Session is still blank (a brand-new Session leaves the window alone).
+  // The rules run only for an expanded window: switching interfaces with the
+  // sidebar control never rebinds anything (Т2.16).
+  let currentSession = ctx.sessions.list.getSnapshot().current
+  ctx.effect(() => ctx.sessions.list.subscribe(() => {
+    const list = ctx.sessions.list.getSnapshot()
+    const next = list.current
+    if (next === currentSession) return
+    currentSession = next
+    if (next === undefined) return
+    const expanded = instance.getSnapshot().expandedWindowId
+    if (expanded === null) return
+    if (list.byId[next]?.blank === true) return
+    if (bridge.windowFor(next) !== undefined) return
+    bridge.bind(expanded, next)
+  }), 'ui-board: expanded-window binding rules')
 
   // Restore: every adopted section — the first-frame cache before the first
   // render, the server document when the mirror answers — hands its bindings
@@ -309,6 +330,87 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     return bytes.buffer
   }
 
+  /**
+   * Take the session's standard draft for the window, or undefined when the
+   * composer cannot give it up (an admission transaction, a submission, or a
+   * file whose upload has not settled).
+   */
+  const takeStandardDraft = async (sessionId: SessionId): Promise<TakenDraft | undefined> => {
+    const actx = ctx.sessions.scope(sessionId)
+    if (actx === undefined) return undefined
+    let input: SessionInput
+    try {
+      input = ctx.conversation.input.for(actx)
+    } catch {
+      return undefined
+    }
+    return await input.takeDraft()
+  }
+
+  /**
+   * Append one taken standard draft to the window's own draft (Т2.11): the
+   * text as a new paragraph, the attachments after the ones already there. A
+   * file arrives as a receipt-only entry — the standard composer hands over
+   * receipts, never browser bytes.
+   */
+  const mergeTakenDraft = (windowId: WindowId, taken: TakenDraft): void => {
+    const actions = instance.actions
+    const held = instance.getSnapshot().drafts[windowId as string]
+    const text = taken.text.trim()
+    const current = held?.text ?? ''
+    if (text !== '') actions.setDraftText(windowId, current.trim() === '' ? text : `${current}\n\n${text}`)
+    const images: BoardDraftImage[] = []
+    const files: BoardWindowDraftFile[] = []
+    taken.attachments.forEach((attachment, index) => {
+      const id = `returned:${index}:${Math.random().toString(36).slice(2, 8)}`
+      if (attachment.type === 'image') {
+        images.push({
+          id,
+          name: attachment.name ?? t('attachment.unnamed'),
+          mediaType: attachment.mediaType,
+          data: attachment.data,
+          preview: `data:${attachment.mediaType};base64,${attachment.data}`,
+        })
+        return
+      }
+      files.push({
+        record: {
+          id,
+          name: attachment.name ?? t('attachment.unnamed'),
+          status: 'ready',
+          receiptId: attachment.receiptId,
+        },
+      })
+    })
+    if (images.length > 0) actions.addDraftImages(windowId, images)
+    if (files.length > 0) actions.addDraftFiles(windowId, files)
+  }
+
+  /**
+   * Return from the standard interface to the window showing the session
+   * (Т2.11): take the standard draft into the window's own draft, select the
+   * board panel, centre the window, and highlight it. A composer that cannot
+   * give the draft up still returns, and the window says the draft stayed
+   * behind.
+   */
+  const returnToWindow = (sessionId: SessionId, windowId: WindowId): void => {
+    instance.actions.expectReturnWindow(windowId)
+    instance.actions.setExpandedWindow(null)
+    ctx.layout.selectPanel(BOARD_PANEL_ID)
+    void takeStandardDraft(sessionId).then((taken) => {
+      if (taken === undefined) {
+        bridge.notifyAction(windowId, t('return.stayedInStandard'))
+        return
+      }
+      mergeTakenDraft(windowId, taken)
+    })
+  }
+
+  // Stable uSES pair for the return control: created once, so the seat never
+  // resubscribes on a re-render.
+  const subscribeBindings = (listener: () => void): (() => void) => bridge.bindingChanges.subscribe(listener)
+  const bindingRevision = (): number => bridge.bindingChanges.getSnapshot()
+
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     detailZoomThreshold: config.detailZoomThreshold as number,
@@ -382,10 +484,15 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       }
       const draft = instance.getSnapshot().drafts[windowId as string]
       // The transferable files are collected outside every try: only the
-      // calls that can throw sit in one, one statement each.
+      // calls that can throw sit in one, one statement each. A receipt-only
+      // file has no bytes to re-stage in the standard composer, so it stays
+      // in the window.
+      const transferable = draft === undefined
+        ? []
+        : draft.files.filter((entry): entry is BoardWindowDraftFile & { source: File } => entry.source !== undefined)
       const files = draft === undefined ? [] : [
         ...draft.images.map(image => new File([imageBytes(image.data)], image.name, { type: image.mediaType })),
-        ...draft.files.map(entry => entry.source),
+        ...transferable.map(entry => entry.source),
       ]
       let input: SessionInput
       try {
@@ -424,9 +531,15 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
         return
       }
       // The handoff landed: the window is the expanded one (the binding rules
-      // Т2.13–Т2.16 run while it is set), and its draft moved with it.
+      // Т2.13–Т2.16 run while it is set), and its transferred parts leave the
+      // window. A receipt-only file stays behind: the standard composer takes
+      // bytes, and it has none.
       instance.actions.setExpandedWindow(windowId)
-      instance.actions.clearDraft(windowId)
+      if (draft === undefined) return
+      instance.actions.setDraftText(windowId, '')
+      for (const image of draft.images) instance.actions.removeDraftItem(windowId, 'image', image.id)
+      for (const entry of transferable) instance.actions.removeDraftItem(windowId, 'file', entry.record.id)
+      if (transferable.length === draft.files.length) instance.actions.clearDraft(windowId)
     },
     createChat: (windowId, target) => { bridge.createChat(conversationWindow(windowId), target) },
     startChat: (windowId, workspaceId) => bridge.startChat(conversationWindow(windowId), workspaceId),
@@ -851,4 +964,18 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       openBoard: () => { ctx.layout.selectPanel(BOARD_PANEL_ID) },
     }),
   }, BoardToggle))
+
+  // The standard interface's way back (Т2.11): one Session-header utility,
+  // shown while the current Session is bound to an open board window.
+  ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
+    name: 'conversation.session.header.utilities',
+    id: 'board-return',
+    locale: NS,
+    inject: (): ReturnToWindowActionInjected => ({
+      subscribeBindings,
+      bindingRevision,
+      windowForSession: sessionId => bridge.windowFor(sessionId),
+      returnToWindow,
+    }),
+  }, ReturnToWindowAction))
 }

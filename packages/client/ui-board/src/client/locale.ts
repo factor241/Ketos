@@ -8,6 +8,8 @@ export const NS = 'board'
 /** Simplified Chinese dictionary and key-set source of truth. */
 export const zh = {
   'switch.toBoard': '前往看板',
+  'return.toWindow': '返回窗口',
+  'return.stayedInStandard': '草稿留在标准界面',
   'expand.failure.session': '会话不可用',
   'expand.failure.busy': '会话正在发送消息 — 请重试',
   'expand.failure.files': '无法转移附件',
@@ -272,6 +274,7 @@ export const zh = {
   'attachment.retry': '重试',
   'attachment.unsupported': '此主机不支持文件上传',
   'attachment.noSession': '会话尚未就绪，无法上传文件',
+  'attachment.unnamed': '附件',
   'image.tooMany': '一条消息最多 {count} 张图片',
   'image.fileTooLarge': '每张图片必须小于 {size}',
   'image.totalTooLarge': '图片总大小超过 {size}；请移除一些后重试',
@@ -429,6 +432,8 @@ export type BoardTranslate = TranslateNS<'board'>
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'switch.toBoard': 'Go to board',
+  'return.toWindow': 'Return to window',
+  'return.stayedInStandard': 'The draft stayed in the standard interface',
   'expand.failure.session': 'Session unavailable',
   'expand.failure.busy': 'The session is sending a message — try again',
   'expand.failure.files': 'Could not transfer the attachments',
@@ -693,6 +698,7 @@ export const en = {
   'attachment.retry': 'Retry',
   'attachment.unsupported': 'File uploads are unavailable on this host',
   'attachment.noSession': 'The session is not ready, so the file cannot be uploaded',
+  'attachment.unnamed': 'Attachment',
   'image.tooMany': 'A message can include up to {count} images',
   'image.fileTooLarge': 'Each image must be smaller than {size}',
   'image.totalTooLarge': 'Images exceed {size} in total; remove some and try again',

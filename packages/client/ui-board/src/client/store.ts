@@ -24,11 +24,13 @@ export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex'>
 /**
  * One staged file of a window draft: the visible record plus the local source
  * the retry re-stages. The source stays beside the record so a refused prompt
- * or a failed upload returns both together.
+ * or a failed upload returns both together. It is absent for a receipt-only
+ * entry — a file the standard composer handed over, whose bytes never enter
+ * the browser: the chip offers no retry, and a refused prompt marks it failed.
  */
 export interface BoardWindowDraftFile {
   readonly record: BoardDraftFile
-  readonly source: File
+  readonly source?: File | undefined
 }
 
 /**

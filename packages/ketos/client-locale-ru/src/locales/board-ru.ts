@@ -9,6 +9,8 @@ import type { BoardKey } from '@deepseek-ai/dsh-client-ui-board/src/client/local
 /** Dictionary registered into `board` for the Ketos canvas, rail, and windows. */
 export const ru = {
   'switch.toBoard': 'Перейти на доску',
+  'return.toWindow': 'Вернуть в окно',
+  'return.stayedInStandard': 'Черновик остался в стандартном интерфейсе',
   'expand.failure.session': 'Сессия недоступна',
   'expand.failure.busy': 'Сессия сейчас отправляет сообщение — повторите',
   'expand.failure.files': 'Не удалось перенести вложения',
@@ -273,6 +275,7 @@ export const ru = {
   'attachment.retry': 'Повторить',
   'attachment.unsupported': 'Загрузка файлов недоступна на этом хосте',
   'attachment.noSession': 'Сессия ещё не готова, файл нельзя загрузить',
+  'attachment.unnamed': 'Вложение',
   'image.tooMany': 'В одном сообщении не больше {count} изображений',
   'image.fileTooLarge': 'Каждое изображение должно быть меньше {size}',
   'image.totalTooLarge': 'Суммарный размер изображений больше {size}; уберите часть и попробуйте снова',

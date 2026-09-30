@@ -446,6 +446,28 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     if (queueEdit !== null && !(session?.queue ?? []).some(row => row.id === queueEdit.id)) setQueueEdit(null)
   }, [queueEdit, session?.queue])
 
+  // A host rejection naming an attachment marks the draft's receipt-only
+  // files failed: they have no bytes to re-upload, so the retryless chip
+  // carries the host's reason. Every send clears the channel error first, so
+  // the marker re-arms for the next refusal.
+  const markedAttachmentRefusal = useRef<string | null>(null)
+  useEffect(() => {
+    const code = session?.promptErrorCode
+    if (code === undefined) {
+      markedAttachmentRefusal.current = null
+      return
+    }
+    if (code !== 'session/attachment-invalid' || markedAttachmentRefusal.current === code) return
+    markedAttachmentRefusal.current = code
+    for (const entry of files) {
+      if (entry.source !== undefined) continue
+      actions.updateDraftFile(windowId, entry.record.id, {
+        status: 'error',
+        error: session?.promptError ?? t('attachment.error'),
+      })
+    }
+  }, [session?.promptErrorCode, session?.promptError, files, actions, windowId, t])
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Escape') {
       closeMenu()
@@ -535,10 +557,10 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     }
   }, [injected, t, windowId, actions])
 
-  /** Retry one failed upload from its retained source file. */
+  /** Retry one failed upload from its retained source file; a receipt-only entry has none. */
   const retryFile = (id: string): void => {
     const entry = files.find(candidate => candidate.record.id === id)
-    if (entry === undefined) return
+    if (entry?.source === undefined) return
     void stageFile(entry.source, id)
   }
 
@@ -1015,22 +1037,24 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 </button>
               </div>
             ))}
-            {files.map(({ record }) => (
+            {files.map(entry => (
               <div
-                key={record.id}
-                className={clsx(css.fileChip, record.status === 'error' && css.fileChipError)}
-                data-board-file={record.status}
-                title={record.error}
+                key={entry.record.id}
+                className={clsx(css.fileChip, entry.record.status === 'error' && css.fileChipError)}
+                data-board-file={entry.record.status}
+                title={entry.record.error}
               >
                 <IconPaperclipOutline16 />
-                <span className={css.fileName}>{record.name}</span>
-                <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[record.status])}</span>
-                {record.status === 'error' && (
+                <span className={css.fileName}>{entry.record.name}</span>
+                <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[entry.record.status])}</span>
+                {/* A receipt-only entry has no bytes to re-stage: its failure
+                    line stands alone, without a retry that cannot work. */}
+                {entry.record.status === 'error' && entry.source !== undefined && (
                   <button
                     type="button"
                     className={css.fileAction}
                     aria-label={t('attachment.retry')}
-                    onClick={() => { retryFile(record.id) }}
+                    onClick={() => { retryFile(entry.record.id) }}
                   >
                     {t('attachment.retry')}
                   </button>
@@ -1038,8 +1062,8 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 <button
                   type="button"
                   className={css.fileAction}
-                  aria-label={t('attachment.remove', { name: record.name })}
-                  onClick={() => { removeFile(record.id) }}
+                  aria-label={t('attachment.remove', { name: entry.record.name })}
+                  onClick={() => { removeFile(entry.record.id) }}
                 >
                   <IconCloseOutline16 />
                 </button>

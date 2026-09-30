@@ -125,6 +125,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** One rendering occupant of the header utilities seat. */
+    headerUtility?: ReactNode
   } = {},
 ) {
   const root = sid('root')
@@ -183,6 +185,7 @@ function mount(
       seatOwners.push({ key, owner })
     }
     if (key === 'conversation.hero.workspace') { pickerOwner = owner; return null }
+    if (key === 'conversation.session.header.utilities') return options.headerUtility ?? null
     if (key === 'conversation.session.header.lineage') {
       lineageOwners.push(owner as ConversationHeaderLineageOwnerProps)
       return opts?.fallback ?? null
@@ -478,11 +481,14 @@ describe('ConversationRoot resident composer', () => {
         { ...workspace('second'), title: 'Selected Folder' },
       ],
     )
-    // Hero chrome is present and the selected View slot remains absent.
+    // Hero chrome is present and the selected View slot remains absent. The
+    // header keeps only its utility seats mounted for a blank Session, so it
+    // collapses to nothing while no occupant renders for it.
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
-    expect(header?.getAttribute('aria-hidden')).toBe('true')
+    expect(header?.querySelector('nav')).toBeNull()
+    expect(header?.textContent).toBe('')
     expect(b.view.getByTestId('hero-headline')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
@@ -500,6 +506,21 @@ describe('ConversationRoot resident composer', () => {
     act(() => { owner.onPick(wid('second')) })
     expect(b.retargetWorkspace).toHaveBeenCalledWith(wid('second'))
     expect(b.view.getByText('Selected Folder')).toBeTruthy()
+  })
+
+  it('keeps a rendering header utility reachable on a blank Session (Т2.11)', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true }),
+      [{ ...workspace('one'), sessionIds: [SID] }],
+      vi.fn(async (_workspaceId: WorkspaceId) => {}),
+      { headerUtility: <button type="button" data-testid="return-control">Return</button> },
+    )
+    // The blank header keeps only the utility seats: the occupant renders,
+    // the title row and tabs stay away.
+    const header = b.view.container.querySelector('header')
+    expect(header).not.toBeNull()
+    expect(b.view.getByTestId('return-control')).toBeTruthy()
+    expect(header?.querySelector('nav')).toBeNull()
   })
 
   it('keeps a rejected first prompt engaging instead of returning to the Hero', () => {

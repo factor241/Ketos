@@ -151,10 +151,34 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* Insertion indicator while a dock drag is live: a 2px accent bar in the gap
+   on the side the icon would land. */
+.row[data-dock-drop]::before,
+.cloneButton[data-dock-drop]::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.row[data-dock-drop='before']::before,
+.cloneButton[data-dock-drop='before']::before {
+  left: -7px;
+}
+
+.row[data-dock-drop='after']::before,
+.cloneButton[data-dock-drop='after']::before {
+  right: -7px;
+}
+
 /* Clone mini-panel rows: compact entries below the add control, one per stored
    clone. They sit on the rail's own surface instead of a floating-button fill,
    so a long roster reads as a list rather than more windows. */
 .cloneButton {
+  position: relative;
   flex: none;
   display: flex;
   align-items: center;

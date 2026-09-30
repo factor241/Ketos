@@ -5,7 +5,7 @@
  * that renames or closes, the add control, and the layer rules that stand the
  * dock down under a chats panel or a fullscreen window.
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
@@ -318,6 +318,108 @@ describe('board dock', () => {
     Object.defineProperty(dock, 'scrollWidth', { value: 200, configurable: true })
     expect(fireEvent.wheel(dock, { deltaY: 120 })).toBe(true)
     expect(dock.scrollLeft).toBe(160)
+  })
+
+  it('reorders dock icons inside their own group and suppresses the click (Т1.5)', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => {
+      store.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First' }))
+      store.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second', ordinal: 2 }))
+      store.actions.openWindow(windowState({ id: 'a3' as WindowId, customTitle: 'Third', ordinal: 3 }))
+    })
+    await runtime.flush()
+    const rows = dockRows(panel)
+    const [first, , third] = rows
+    if (first === undefined || third === undefined) throw new Error('dock rows are missing')
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+    // jsdom lays nothing out: the target row's rect and the hit test are the
+    // gesture's own coordinates.
+    first.getBoundingClientRect = () => ({
+      left: 100, right: 140, top: 0, bottom: 40, width: 40, height: 40, x: 100, y: 0, toJSON: () => ({}),
+    })
+    Object.defineProperty(document, 'elementFromPoint', { value: () => first, configurable: true })
+    const step = (type: 'pointermove' | 'pointerup', x: number): void => {
+      act(() => {
+        const event = new Event(type)
+        Object.assign(event, { clientX: x, clientY: 10, pointerId: 41 })
+        window.dispatchEvent(event)
+      })
+    }
+    try {
+      // Drag the third icon before the first: the indicator appears on the
+      // target's leading side and the release commits the new order.
+      fireEvent.pointerDown(third, { pointerId: 41, clientX: 300, clientY: 10, button: 0 })
+      step('pointermove', 110)
+      expect(first.getAttribute('data-dock-drop')).toBe('before')
+      step('pointerup', 110)
+      expect(store.store.getSnapshot().dockOrder).toEqual(['a3', 'a1', 'a2'])
+      expect(panel.container.querySelector('[data-dock-drop]')).toBeNull()
+
+      // The click the finished drag leaves behind is consumed: the inactive
+      // first window is not centered; the next click still is.
+      expect(store.store.getSnapshot().activeWindowId).toBe('a3')
+      fireEvent.click(first)
+      expect(store.store.getSnapshot().activeWindowId).toBe('a3')
+      fireEvent.click(first)
+      expect(store.store.getSnapshot().activeWindowId).toBe('a1')
+    } finally {
+      Reflect.deleteProperty(document, 'elementFromPoint')
+      Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+    }
+  })
+
+  it('orders the clone strip by the stored order and refuses cross-group drops (Т1.5)', async () => {
+    const cloneDto = (id: string, name: string) => ({
+      id, name, role: 'Analyst', description: '', persona: '', methodology: '',
+      preferredModel: null, skills: [], status: 'ready', revision: 1,
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ ok: true, clones: [cloneDto('c1', 'Anna'), cloneDto('c2', 'Boris')] }),
+      { status: 200 },
+    )))
+    try {
+      const { runtime, panel, store } = await bench()
+      act(() => { store.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+      await runtime.flush()
+      await runtime.flush()
+      const clones = [...panel.container.querySelectorAll('[data-board-clone-row]')] as HTMLElement[]
+      expect(clones.map(button => button.getAttribute('data-board-clone-row'))).toEqual(['c1', 'c2'])
+      const [firstClone, secondClone] = clones
+      if (firstClone === undefined || secondClone === undefined) throw new Error('clone strip is missing')
+      Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { value: () => {}, configurable: true, writable: true })
+      firstClone.getBoundingClientRect = () => ({
+        left: 100, right: 140, top: 0, bottom: 40, width: 40, height: 40, x: 100, y: 0, toJSON: () => ({}),
+      })
+      Object.defineProperty(document, 'elementFromPoint', { value: () => firstClone, configurable: true })
+      const step = (type: 'pointermove' | 'pointerup', x: number, pointerId: number): void => {
+        act(() => {
+          const event = new Event(type)
+          Object.assign(event, { clientX: x, clientY: 10, pointerId })
+          window.dispatchEvent(event)
+        })
+      }
+
+      // Clones reorder inside their own group and persist through the store.
+      fireEvent.pointerDown(secondClone, { pointerId: 42, clientX: 300, clientY: 10, button: 0 })
+      step('pointermove', 110, 42)
+      expect(firstClone.getAttribute('data-dock-drop')).toBe('before')
+      step('pointerup', 110, 42)
+      expect(store.store.getSnapshot().cloneOrder).toEqual(['c2', 'c1'])
+
+      // A window icon over a clone icon never crosses groups.
+      const row = dockRows(panel)[0]
+      if (row === undefined) throw new Error('dock row is missing')
+      fireEvent.pointerDown(row, { pointerId: 43, clientX: 300, clientY: 10, button: 0 })
+      step('pointermove', 110, 43)
+      expect(panel.container.querySelector('[data-dock-drop]')).toBeNull()
+      step('pointerup', 110, 43)
+      expect(store.store.getSnapshot().dockOrder).toEqual(['a1'])
+    } finally {
+      vi.unstubAllGlobals()
+      Reflect.deleteProperty(document, 'elementFromPoint')
+      Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
+    }
   })
 
   it('stays visible under the chats panel while the other chrome stands down (Т1.14)', async () => {

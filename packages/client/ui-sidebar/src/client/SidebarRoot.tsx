@@ -206,6 +206,9 @@ export function SidebarRoot({
             </span>
           </button>
         )}
+        {/* The interface switch beside the brand (Т2.5): a deployment's action
+            slot, rendered while the row is wide. */}
+        {wide && renderSlot('sidebar.brand.actions', { wide: true })}
         {/* Rail resting state is the whale mark; hovering swaps in the panel
             icon (the expand affordance, figma sidebar-hover flow). */}
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
@@ -225,6 +228,14 @@ export function SidebarRoot({
           </button>
         </Tooltip>
       </div>
+
+      {/* The rail's switch (Т2.5): the same action slot as the first icon
+          under the logo, so a collapsed sidebar never strands the user. */}
+      {!wide && (
+        <div className={css.brandActionRail}>
+          {renderSlot('sidebar.brand.actions', { wide: false })}
+        </div>
+      )}
 
       {/* Expanded, the button carries its own label — tooltip only on the rail. */}
       <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>

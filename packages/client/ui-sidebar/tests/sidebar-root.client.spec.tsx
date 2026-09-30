@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type {
-  SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
-  SidebarSettingsOwnerProps,
+  SidebarBrandActionOwnerProps, SidebarFooterActionOwnerProps, SidebarRootComponentProps,
+  SidebarSectionOwnerProps, SidebarSettingsOwnerProps,
 } from '../src/client/contract/slots.ts'
 import { SidebarRoot } from '../src/client/SidebarRoot.tsx'
 import { en } from '../src/client/locales.ts'
@@ -51,10 +51,11 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
       startSession={startSession} toggleSidebar={toggleSidebar} t={t}
       renderSlot={((
         key: string,
-        owner: SidebarFooterActionOwnerProps | SidebarSectionOwnerProps | SidebarSettingsOwnerProps,
+        owner: SidebarBrandActionOwnerProps | SidebarFooterActionOwnerProps | SidebarSectionOwnerProps | SidebarSettingsOwnerProps,
       ) => {
         if (key === 'sidebar.brand.mark') return brandMark
         if (key === 'sidebar.brand.name') return brandName
+        if (key === 'sidebar.brand.actions') return <div data-testid="brand-action-seat" data-wide={String(owner.wide)} />
         if (key === 'sidebar.settings') {
           settingsOwner = owner
           return <div data-testid="settings-seat" data-wide={owner.wide} />
@@ -103,6 +104,23 @@ describe('SidebarRoot shell', () => {
     expect(b.startSession).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
+  })
+
+  it('renders the brand actions beside the brand while wide and under the logo in the rail (Т2.5)', async () => {
+    const b = mountShell()
+    const seat = screen.getByTestId('brand-action-seat')
+    // Wide: the seat follows the brand identity, precedes the collapse
+    // control, and the owner share says so.
+    expect(seat.getAttribute('data-wide')).toBe('true')
+    const brand = screen.getByTestId('custom-brand-name')
+    expect(brand.compareDocumentPosition(seat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' })
+    expect(seat.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // Rail: the seat stays reachable as the first icon under the logo and the
+    // owner share flips, so a collapsed sidebar never strands the switch.
+    b.rerender({ collapsed: true })
+    await waitFor(() => { expect(screen.getByTestId('brand-action-seat').getAttribute('data-wide')).toBe('false') })
   })
 
   it('renders generic brand fallbacks when no package fills the slots', () => {

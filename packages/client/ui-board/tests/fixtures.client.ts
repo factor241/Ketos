@@ -238,9 +238,11 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   // the double mirrors the controller: the declaration is visible until its
   // disposer clears it, and selection stays inert unless a test overrides it.
   const sidebarDeclarations: Record<string, boolean> = {}
+  const selectPanelCalls: string[] = []
   runtime.ctx.provide('layout', {
-    selectPanel: () => {},
+    selectPanel: (panelId: string | null) => { selectPanelCalls.push(panelId ?? 'null') },
     sidebarDeclarations,
+    selectPanelCalls,
     declarePanelSidebar: (panelId: string, sidebar: boolean) => {
       sidebarDeclarations[panelId] = sidebar
       return () => { Reflect.deleteProperty(sidebarDeclarations, panelId) }
@@ -356,7 +358,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   if (options.declareSlots !== false) {
     await runtime.declare({
       main: { kind: 'keyed', scope: 'root' },
-      'sidebar.panellist': { kind: 'list', scope: 'root' },
+      'sidebar.brand.actions': { kind: 'list', scope: 'root' },
     })
   }
   return {

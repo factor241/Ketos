@@ -101,6 +101,12 @@
   overflow: hidden;
 }
 
+.brandActionRail {
+  flex: none;
+  display: flex;
+  margin-bottom: 12px;
+}
+
 .collapsed .logoRow {
   height: 36px;
   padding: 0;

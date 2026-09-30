@@ -1,7 +1,7 @@
 /**
  * Spatial Multi-Window Board Client Plugin.
  * Registers the 'board' main panel, its layer/frame/body occupants, and the
- * sidebar.panellist icon into DeepSeek Harness.
+ * interface switch in the sidebar brand row into DeepSeek Harness.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -44,7 +44,7 @@ import type {
   BoardCloneRoster, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
   BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
-import { BoardRoot, BoardIcon, type BoardRootInjected } from './BoardViews.tsx'
+import { BoardRoot, BoardToggle, type BoardRootInjected, type BoardToggleInjected } from './BoardViews.tsx'
 import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
@@ -106,8 +106,9 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Register the board main panel, its sidebar panel-list entry, and the
- * `board.*` layer, frame, and body occupants that compose the canvas.
+ * Register the board main panel, the interface switch beside the sidebar
+ * brand, and the `board.*` layer, frame, and body occupants that compose the
+ * canvas.
  * @param ctx - Client root context.
  * @param config - validated runtime configuration.
  */
@@ -647,6 +648,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
         wheelMode: config.wheelMode as BoardWheelMode,
         zoomSensitivity: config.zoomSensitivity as number,
         detailZoomThreshold: config.detailZoomThreshold as number,
+        openStandardInterface: () => { ctx.layout.selectPanel(null) },
       }),
       children: {
         'board.canvas': { kind: 'single', scope: 'root' },
@@ -771,11 +773,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     locale: NS,
   }, Minimap))
 
-  // Sidebar panel-list icon (thunked label follows the active locale)
-  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-    name: 'sidebar.panellist',
+  // Interface switch beside the sidebar brand (Т2.5): the standard interface's
+  // half of the pair whose other half is the board's mode badge (Т2.6).
+  ctx.slots.inject('sidebar.brand.actions', () => ctx.slots.register({
+    name: 'sidebar.brand.actions',
     id: 'board',
-    order: 15,
-    label: () => t('sidebar.panel'),
-  }, BoardIcon))
+    locale: NS,
+    inject: (): BoardToggleInjected => ({
+      openBoard: () => { ctx.layout.selectPanel(BOARD_PANEL_ID) },
+    }),
+  }, BoardToggle))
 }

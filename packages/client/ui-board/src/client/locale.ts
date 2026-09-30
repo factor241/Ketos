@@ -7,7 +7,8 @@ export const NS = 'board'
 
 /** Simplified Chinese dictionary and key-set source of truth. */
 export const zh = {
-  'sidebar.panel': '看板',
+  'switch.toBoard': '前往看板',
+  'switch.toStandard': '标准界面',
   'canvas.agentTitle': '代理 #{n}',
   'rail.openClone': '打开克隆：{name}',
   'rail.addAgent': '添加代理卡片',
@@ -425,7 +426,8 @@ export type BoardTranslate = TranslateNS<'board'>
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
-  'sidebar.panel': 'Board',
+  'switch.toBoard': 'Go to board',
+  'switch.toStandard': 'Standard interface',
   'canvas.agentTitle': 'Agent #{n}',
   'rail.openClone': 'Open clone: {name}',
   'rail.addAgent': 'Add Agent Card',

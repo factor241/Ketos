@@ -16,6 +16,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
+import {
+  FishLogo, IconPanelLeftOutline16, Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import clsx from 'clsx'
 import { BOARD_POPOVER_Z, type BoardStoreHandle } from './store.ts'
 import { BoardPopoverSurfaceContext, type BoardPopoverSurface } from './board-popover.tsx'
@@ -27,9 +30,12 @@ import { describeElement } from './element-capture.ts'
 import { resolveChatWindow } from './open-window.ts'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './HandleRing.tsx'
+import { useBoardChromeInset } from './use-board-chrome-inset.ts'
 import { classifyBoardZoomKey } from './keyboard-zoom.ts'
 import { createBoardPinchGesture, type BoardPinchEvent } from './pinch.ts'
 import { resolveBoardWheel, wheelPanDelta, wheelZoomFactor, type BoardWheelMode } from './wheel-zoom.ts'
+import type { BoardTranslate } from './locale.ts'
+import { BoardPopoverProvider } from './board-popover.tsx'
 import css from './BoardViews.module.css'
 
 /** Wheel behavior the plugin Config injects into the board root. */
@@ -40,6 +46,8 @@ export interface BoardRootInjected {
   readonly zoomSensitivity: number
   /** Zoom below which windows render their simplified card (R-6). */
   readonly detailZoomThreshold: number
+  /** Leave the board for the standard interface (the mode badge, Т2.6). */
+  readonly openStandardInterface: () => void
 }
 
 /** Props of the board main-panel body: the child render share, the store share, the injected runtime config, and the locale seat. */
@@ -73,6 +81,7 @@ function boardPoint(box: DOMRect, event: { readonly clientX: number; readonly cl
 
 export function BoardRoot({
   renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity, detailZoomThreshold,
+  openStandardInterface,
 }: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const pointerInsideRef = useRef(false)
@@ -300,6 +309,15 @@ export function BoardRoot({
     >
       <BoardPopoverSurfaceContext.Provider value={surface}>
         {renderSlot('board.canvas', {})}
+        {/* The mode badge is the way back to the standard interface (Т2.6):
+            always rendered, screen-sized, and part of the safe-area chrome. */}
+        <BoardPopoverProvider useStore={useStore}>
+          <BoardModeBadge
+            actions={actions}
+            t={t}
+            openStandardInterface={openStandardInterface}
+          />
+        </BoardPopoverProvider>
         {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
         {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}
         {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
@@ -327,7 +345,75 @@ export function BoardRoot({
   )
 }
 
-export function BoardIcon({ size }: PropsRuntime<'sidebar.panellist'>) {
+/** Injected share of the sidebar brand action: open the board panel. */
+export interface BoardToggleInjected {
+  /** Select the board panel without centring the view (Т2.10). */
+  readonly openBoard: () => void
+}
+
+/** Props of the interface switch in the sidebar brand row. */
+export type BoardToggleProps =
+  PropsRuntime<'sidebar.brand.actions'>
+  & InjectFace<BoardToggleInjected>
+  & PropsLocale<'board'>
+
+/**
+ * The standard-interface half of the switch (Т2.5): one button that selects
+ * the board panel. Beside the wide brand it is a compact icon control; in the
+ * collapsed rail it is the first icon under the logo, in the rail's own
+ * 36px-box idiom with the tooltip on the right. The board's badge is the
+ * other half, at the sidebar logo's position, so switching moves no control
+ * (Т2.6).
+ */
+export function BoardToggle({ wide, openBoard, t }: BoardToggleProps) {
+  const label = t('switch.toBoard')
+  return (
+    <Tooltip label={label} side={wide ? 'bottom' : 'right'} {...(wide ? {} : { delayMs: 500 })}>
+      <button
+        type="button"
+        data-board-action="open-board"
+        aria-label={label}
+        onClick={openBoard}
+        className={wide ? css.brandAction : css.brandActionRail}
+      >
+        <BoardIcon size={wide ? 16 : 18} />
+      </button>
+    </Tooltip>
+  )
+}
+
+/**
+ * The board's mode badge: the logo where the sidebar's logo sits and the
+ * button that returns to the standard interface (Т2.6). It declares the top
+ * chrome edge, so the safe area keeps windows clear of it (Т1.15).
+ */
+function BoardModeBadge({ actions, t, openStandardInterface }: {
+  readonly actions: BoardRootProps['actions']
+  readonly t: BoardTranslate
+  readonly openStandardInterface: () => void
+}) {
+  const [element, setElement] = useState<HTMLElement | null>(null)
+  useBoardChromeInset('top', element, actions)
+  const label = t('switch.toStandard')
+  return (
+    <div ref={setElement} data-board-layer="badge" data-board-chrome="top" className={css.modeBadge}>
+      <FishLogo size={24} />
+      <Tooltip label={label} side="bottom">
+        <button
+          type="button"
+          data-board-action="open-standard"
+          aria-label={label}
+          onClick={openStandardInterface}
+          className={css.modeBadgeButton}
+        >
+          <IconPanelLeftOutline16 />
+        </button>
+      </Tooltip>
+    </div>
+  )
+}
+
+export function BoardIcon({ size }: { readonly size: number }) {
   return (
     <svg
       width={size}

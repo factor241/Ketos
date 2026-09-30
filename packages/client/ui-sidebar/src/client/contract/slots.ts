@@ -26,6 +26,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
     /**
+     * Actions beside the brand row. Declared by this package's `sidebar`
+     * entry; a deployment registers the interface switch here (Т2.5). The
+     * wide row renders the slot between the brand and the collapse control;
+     * the rail renders it as the first icon under the logo, and the owner
+     * share's `wide` flag tells the occupant which presentation to draw.
+     */
+    'sidebar.brand.actions': { kind: 'list'; scope: 'root'; owner: SidebarBrandActionOwnerProps }
+    /**
      * Global panel icons. Each list id addresses the matching main panel;
      * the sidebar owns the button and resolves its label from list metadata.
      */
@@ -61,6 +69,16 @@ export interface SidebarBrandMarkOwnerProps {
 export interface SidebarBrandNameOwnerProps {
   /** Marker field: the occupant owns its own content and width. */
   children?: never
+}
+
+/** Owner share of an action beside the brand row. */
+export interface SidebarBrandActionOwnerProps {
+  /**
+   * Whether the sidebar renders its wide content: true puts the action beside
+   * the brand, false puts it in the rail's icon column under the logo, so the
+   * occupant picks its own presentation.
+   */
+  wide: boolean
 }
 
 /** Icon presentation supplied by the global panel row. */
@@ -136,6 +154,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.brand.actions'
     | 'sidebar.panellist'
     | 'sidebar.workspaces'
     | 'sidebar.settings'

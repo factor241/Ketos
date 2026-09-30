@@ -85,7 +85,9 @@ describe('board slot composition', () => {
       'conversation', 'clone', 'clone-memory', 'tasks', 'connectors', 'settings', 'dashboard',
     ])
 
-    expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
+    // The switch registers in the sidebar brand row; the panel list stays empty (Т2.8).
+    expect(runtime.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toEqual(['board'])
+    expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
   })
 
   it('renders every declared layer and puts the window layer inside the canvas transform', async () => {
@@ -752,12 +754,14 @@ describe('board slot composition', () => {
       const root = panel.container.querySelector('[data-surface="board"]') as HTMLElement
       const dock = panel.container.querySelector('[data-board-layer="dock"]') as HTMLElement
       const minimap = panel.container.querySelector('[data-board-layer="minimap"]') as HTMLElement
+      const badge = panel.container.querySelector('[data-board-layer="badge"]') as HTMLElement
       const box = (left: number, top: number, right: number, bottom: number) => ({
         left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}),
       })
       root.getBoundingClientRect = () => box(0, 0, 1000, 800)
       dock.getBoundingClientRect = () => box(20, 300, 64, 500)
       minimap.getBoundingClientRect = () => box(776, 636, 976, 776)
+      badge.getBoundingClientRect = () => box(4, 18, 40, 46)
 
       // The observer signal re-measures the live boxes; the dock declares the
       // left edge and the minimap the bottom edge, so each takes only its own
@@ -765,18 +769,20 @@ describe('board slot composition', () => {
       act(() => { for (const callback of callbacks) callback() })
       await runtime.flush()
       const sources = board.store.getSnapshot().chromeInsetSources
-      expect(Object.values(sources).map(entry => entry.edge).sort()).toEqual(['bottom', 'left'])
+      expect(Object.values(sources).map(entry => entry.edge).sort()).toEqual(['bottom', 'left', 'top'])
       expect(Object.values(sources).find(entry => entry.edge === 'left')?.depth).toBe(64)
       expect(Object.values(sources).find(entry => entry.edge === 'bottom')?.depth).toBe(164)
+      expect(Object.values(sources).find(entry => entry.edge === 'top')?.depth).toBe(46)
 
-      // Opening a window panel stands the chrome down: both contributions go
-      // with their unmounted elements.
+      // Opening a window panel stands the dock and minimap down: their
+      // contributions go with their unmounted elements, while the badge stays.
       act(() => {
         board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
         board.actions.openWindowPanel('a1' as WindowId)
       })
       await runtime.flush()
-      expect(board.store.getSnapshot().chromeInsetSources).toEqual({})
+      const remaining = board.store.getSnapshot().chromeInsetSources
+      expect(Object.values(remaining).map(entry => entry.edge)).toEqual(['top'])
     } finally {
       vi.unstubAllGlobals()
     }
@@ -1700,7 +1706,7 @@ describe('board slot composition', () => {
 
     for (const key of [
       'board.window', 'board.window.body', 'board.windows', 'board.canvas',
-      'board.dock', 'board.omnibar', 'board.minimap', 'sidebar.panellist', 'main',
+      'board.dock', 'board.omnibar', 'board.minimap', 'sidebar.brand.actions', 'main',
     ] as const) {
       expect(runtime.slots.entries(key)).toEqual([])
     }

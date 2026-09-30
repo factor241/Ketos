@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 /** Board registration smoke: the plugin occupies the `board` panel and sidebar row and withdraws both on dispose. */
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import { createBoardBench } from './fixtures.client.ts'
 import { Config, inject } from '../src/client/index.ts'
@@ -53,6 +52,11 @@ describe('board plugin registration', () => {
     return (runtime.ctx.get('layout') as unknown as { sidebarDeclarations: Record<string, boolean> }).sidebarDeclarations
   }
 
+  /** The panel ids the layout double was asked to select, in call order. */
+  function selectPanelCalls(runtime: SlotTestRuntime): string[] {
+    return (runtime.ctx.get('layout') as unknown as { selectPanelCalls: string[] }).selectPanelCalls
+  }
+
   it('occupies the board panel and sidebar row with its metadata, then withdraws both on dispose', async () => {
     const { runtime, mountBoard } = await bench()
     const board = await mountBoard()
@@ -61,7 +65,10 @@ describe('board plugin registration', () => {
     // The sidebar declaration is atomic with the registration: present while
     // the panel is, gone with its disposer (Т2.7).
     expect(sidebarDeclarations(runtime)).toEqual({ board: false })
-    expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
+    // The switch lives in the sidebar brand row; the panel list has no entry
+    // of its own (Т2.8).
+    expect(runtime.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toEqual(['board'])
+    expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
 
     const panelEntry = runtime.slots.entries('main')[0]
     expect(panelEntry?.options.order).toBeUndefined()
@@ -70,21 +77,33 @@ describe('board plugin registration', () => {
     expect(Object.keys(panelEntry?.children ?? {})).toEqual([
       'board.canvas', 'board.dock', 'board.omnibar', 'board.minimap',
     ])
-    expect(runtime.slots.entries('sidebar.panellist')[0]?.options.order).toBe(15)
-
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const row = runtime.renderSlot('sidebar.panellist', { size: 16, active: false }, { only: 'board' })
+    const row = runtime.renderSlot('sidebar.brand.actions', { wide: true }, { only: 'board' })
     expect(panel.container.querySelector('[data-surface="canvas"]')).not.toBeNull()
     expect(row.container.querySelector('svg')).not.toBeNull()
+    // The badge's button is the board-side half of the switch (Т2.6).
+    expect(panel.container.querySelector('[data-board-action="open-standard"]')).not.toBeNull()
+
+    // The brand button opens the board panel without centring (Т2.5/Т2.10).
+    fireEvent.click(element(row.container, '[data-board-action="open-board"]'))
+    expect(selectPanelCalls(runtime)).toEqual(['board'])
+    // The badge returns to the standard interface.
+    fireEvent.click(element(panel.container, '[data-board-action="open-standard"]'))
+    expect(selectPanelCalls(runtime)).toEqual(['board', 'null'])
+    // The rail presentation of the same slot calls the same action, so a
+    // collapsed sidebar keeps the switch (S1).
+    const rail = runtime.renderSlot('sidebar.brand.actions', { wide: false }, { only: 'board' })
+    fireEvent.click(element(rail.container, '[data-board-action="open-board"]'))
+    expect(selectPanelCalls(runtime)).toEqual(['board', 'null', 'board'])
 
     await board.dispose()
 
     expect(runtime.slots.entries('main')).toEqual([])
-    expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
+    expect(runtime.slots.entries('sidebar.brand.actions')).toEqual([])
     expect(sidebarDeclarations(runtime)).toEqual({})
     // The declarations belong to the root frame, so they survive the board fiber.
     expect(runtime.slots.spec('main')).toEqual({ kind: 'keyed', scope: 'root' })
-    expect(runtime.slots.spec('sidebar.panellist')).toEqual({ kind: 'list', scope: 'root' })
+    expect(runtime.slots.spec('sidebar.brand.actions')).toEqual({ kind: 'list', scope: 'root' })
     // The board's own declarations collapse with the panel entry that made them.
     expect(runtime.slots.spec('board.canvas')).toBeUndefined()
     expect(runtime.slots.spec('board.windows')).toBeUndefined()
@@ -103,14 +122,14 @@ describe('board plugin registration', () => {
     const board = await prepared.mountBoard()
 
     expect(runtime.slots.entries('main')).toEqual([])
-    expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
+    expect(runtime.slots.entries('sidebar.brand.actions')).toEqual([])
 
     await runtime.declare({
       main: { kind: 'keyed', scope: 'root' },
-      'sidebar.panellist': { kind: 'list', scope: 'root' },
+      'sidebar.brand.actions': { kind: 'list', scope: 'root' },
     })
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
-    expect(runtime.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['board'])
+    expect(runtime.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toEqual(['board'])
     // The deferred path registers the whole cascade, not only the panel entry.
     expect(runtime.slots.entriesOfSlot('board.canvas')).toHaveLength(1)
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
@@ -120,7 +139,7 @@ describe('board plugin registration', () => {
 
     runtime.root.release()
     expect(runtime.slots.entries('main')).toEqual([])
-    expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
+    expect(runtime.slots.entries('sidebar.brand.actions')).toEqual([])
     expect(runtime.slots.spec('main')).toBeUndefined()
     expect(sidebarDeclarations(runtime)).toEqual({})
 
@@ -128,7 +147,7 @@ describe('board plugin registration', () => {
     // re-applies the declaration.
     await runtime.declare({
       main: { kind: 'keyed', scope: 'root' },
-      'sidebar.panellist': { kind: 'list', scope: 'root' },
+      'sidebar.brand.actions': { kind: 'list', scope: 'root' },
     })
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['board'])
     expect(sidebarDeclarations(runtime)).toEqual({ board: false })
@@ -136,7 +155,7 @@ describe('board plugin registration', () => {
     await board.dispose()
   })
 
-  it('renders the panel-sized canvas and the panel icon at the owner size', async () => {
+  it('renders the panel-sized canvas and the brand-row switch at its own size', async () => {
     const { runtime, mountBoard } = await bench()
     await mountBoard()
 
@@ -147,10 +166,10 @@ describe('board plugin registration', () => {
     expect(htmlElement(surface, '[data-surface="canvas-layer"]').classList.contains(classOf(canvasCss, 'surface'))).toBe(true)
     expect(surface.style.getPropertyValue('--board-zoom')).toBe('1')
 
-    const row = runtime.renderSlot('sidebar.panellist', { size: 18, active: false }, { only: 'board' })
-    const icon = element(row.container, 'svg')
-    expect(icon.getAttribute('width')).toBe('18')
-    expect(icon.getAttribute('height')).toBe('18')
+    const row = runtime.renderSlot('sidebar.brand.actions', { wide: true }, { only: 'board' })
+    const icon = element(row.container, '[data-board-action="open-board"] svg')
+    expect(icon.getAttribute('width')).toBe('16')
+    expect(icon.getAttribute('height')).toBe('16')
   })
 
   it('restores each stored window session from the adopted settings section', async () => {
@@ -199,15 +218,16 @@ describe('board plugin registration', () => {
       .map(call => call.args[0])).toEqual(['session-1', 'session-2'])
   })
 
-  it('resolves the panel-row label through the board dictionary and follows the active locale', async () => {
+  it('localizes the interface switch through the board dictionary', async () => {
     const { runtime, locale, mountBoard } = await bench()
     await mountBoard()
 
-    const [row] = runtime.slots.entries('sidebar.panellist')
-    expect(resolveSlotLabel(row?.options.label)).toBe('Board')
+    const view = runtime.renderSlot('sidebar.brand.actions', { wide: true }, { only: 'board' })
+    expect(element(view.container, '[data-board-action="open-board"]').getAttribute('aria-label')).toBe('Go to board')
 
     act(() => { locale.setLocale('zh') })
-    expect(resolveSlotLabel(runtime.slots.entries('sidebar.panellist')[0]?.options.label)).toBe('看板')
+    await runtime.flush()
+    expect(element(view.container, '[data-board-action="open-board"]').getAttribute('aria-label')).toBe('前往看板')
   })
 })
 

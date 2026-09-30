@@ -8,7 +8,8 @@ import type { BoardKey } from '@deepseek-ai/dsh-client-ui-board/src/client/local
 
 /** Dictionary registered into `board` for the Ketos canvas, rail, and windows. */
 export const ru = {
-  'sidebar.panel': 'Доска',
+  'switch.toBoard': 'Перейти на доску',
+  'switch.toStandard': 'Стандартный интерфейс',
   'canvas.agentTitle': 'Агент №{n}',
   'rail.openClone': 'Открыть клона: {name}',
   'rail.addAgent': 'Добавить карточку агента',

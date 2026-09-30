@@ -46,6 +46,14 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         />
       </button>
     </div>
+    <div
+      class="brandActionRail"
+    >
+      <div
+        data-slot="sidebar.brand.actions"
+        style="display: contents;"
+      />
+    </div>
     <button
       aria-label="New session"
       class="newSession"
@@ -155,6 +163,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
           </span>
         </span>
       </button>
+      <div
+        data-slot="sidebar.brand.actions"
+        style="display: contents;"
+      />
       <button
         aria-label="Collapse sidebar"
         class="iconButton toggle"
@@ -285,6 +297,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
           </span>
         </span>
       </button>
+      <div
+        data-slot="sidebar.brand.actions"
+        style="display: contents;"
+      />
       <button
         aria-label="收起侧边栏"
         class="iconButton toggle"

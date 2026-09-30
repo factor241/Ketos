@@ -2339,6 +2339,55 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     source: 'packages/client/ui-layout/src/client/index.ts:62',
   },
   {
+    key: 'sidebar.brand.actions',
+    kind: 'list',
+    scope: 'root',
+    summary: 'Actions beside the brand row.',
+    doc: 'Actions beside the brand row. Declared by this package\'s `sidebar`\nentry; a deployment registers the interface switch here (Т2.5). The\nwide row renders the slot between the brand and the collapse control;\nthe rail renders it as the first icon under the logo, and the owner\nshare\'s `wide` flag tells the occupant which presentation to draw.',
+    registerOptions: [
+      {
+        name: 'id',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it.',
+      },
+      {
+        name: 'order',
+        requirement: 'optional',
+        type: 'number',
+        doc: 'Position among the entries, ascending (default 0).',
+      },
+      {
+        name: 'label',
+        requirement: 'optional',
+        type: 'string | (() => string)',
+        doc: 'Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering.',
+      },
+    ],
+    ownerProps: [
+      '/** Owner share of an action beside the brand row. */\nexport interface SidebarBrandActionOwnerProps {\n  /**\n   * Whether the sidebar renders its wide content: true puts the action beside\n   * the brand, false puts it in the rail\'s icon column under the logo, so the\n   * occupant picks its own presentation.\n   */\n  wide: boolean\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useResource: UseResource',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionPendingInteraction: UseSessionPendingInteraction',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-board BoardToggle id \'board\'',
+    ],
+    replaceRisk: 'none',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.brand.actions\', () => ctx.slots.register(\n      { name: \'sidebar.brand.actions\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:35',
+  },
+  {
     key: 'sidebar.brand.mark',
     kind: 'single',
     scope: 'root',
@@ -2445,7 +2494,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.footer.action\', () => ctx.slots.register(\n      { name: \'sidebar.footer.action\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:50',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:58',
   },
   {
     key: 'sidebar.panellist',
@@ -2489,12 +2538,10 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     hookContext: '',
     slotInject: '',
     declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
-    occupants: [
-      'client-ui-board BoardIcon id \'board\'',
-    ],
+    occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.panellist\', () => ctx.slots.register(\n      { name: \'sidebar.panellist\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:32',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:40',
   },
   {
     key: 'sidebar.right.pane.tab',
@@ -2764,7 +2811,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.settings\', () => ctx.slots.register(\n      { name: \'sidebar.settings\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:45',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:53',
   },
   {
     key: 'sidebar.workspaces',
@@ -2794,7 +2841,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.workspaces\', () => ctx.slots.register(\n      { name: \'sidebar.workspaces\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:39',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:47',
   },
   {
     key: 'sidebar.workspaces.directoryFlow',

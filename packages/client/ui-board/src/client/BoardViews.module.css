@@ -69,3 +69,77 @@
 .panArmed {
   cursor: grab;
 }
+
+/* The interface switch beside the sidebar brand (Т2.5) and the board's mode
+   badge (Т2.6): round icon controls in the sidebar's chrome idiom. */
+.brandAction {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.brandAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The rail's switch rides the sidebar rail idiom: a 36px box with the primary
+   ink, centred under the logo. */
+.brandActionRail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.brandActionRail:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The badge sits where the sidebar's logo sits (logoRow: 24px mark centred in
+   a 60px row with an 8px vertical pad), so the switch does not move when the
+   interfaces trade places. */
+.modeBadge {
+  position: absolute;
+  /* The measured sidebar logo position (the brand row renders it at 16/24):
+     the switch must not move when the interfaces trade places (Т2.6). */
+  top: 24px;
+  left: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.modeBadgeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.modeBadgeButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}

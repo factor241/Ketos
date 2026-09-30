@@ -26,7 +26,7 @@ function boardContributions(client: TestClient) {
     windows: slots.entriesOfSlot('board.windows').length,
     frames: slots.entries('board.window').length,
     bodies: slots.entries('board.window.body').length,
-    sidebar: slots.entries('sidebar.panellist').filter(entry => entry.options.id === 'board').length,
+    sidebar: slots.entries('sidebar.brand.actions').filter(entry => entry.options.id === 'board').length,
   }
 }
 
@@ -39,7 +39,8 @@ describe('the board in the shipped web roster', () => {
   it('activates the row and occupies the board panel and the sidebar row', async ({ start }) => {
     const client = await start()
     expect(client.ctx.slots.entries('main').map(entry => entry.options.key)).toContain('board')
-    expect(client.ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toContain('board')
+    expect(client.ctx.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toContain('board')
+    expect(client.ctx.slots.entries('sidebar.panellist')).toEqual([])
   }, COLD_BOOT_TIMEOUT_MS)
 
   it('rebuilds the row through the Loader without duplicating board contributions', async ({ start }) => {

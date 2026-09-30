@@ -187,10 +187,13 @@ function measureFloating(page: Page): Promise<{ board: Rect | null; dock: Rect |
   })
 }
 
-/** Return to the board through the shell entry; no-op when already there. */
+/**
+ * Return to the board through the sidebar brand switch (Т2.5); no-op when
+ * already there. The board's mode badge is the way back (Т2.6).
+ */
 async function openBoard(page: Page): Promise<void> {
   if (await page.locator('[data-surface="board"]').count() > 0) return
-  await page.getByRole('button', { name: 'Board', exact: true }).click()
+  await page.locator('[data-board-action="open-board"]').click()
   await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
 }
 
@@ -555,7 +558,7 @@ describe('web e2e: spatial board geometry', () => {
     }))
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-    await page.getByRole('button', { name: 'Board', exact: true }).click()
+    await page.locator('[data-board-action="open-board"]').click()
     await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
     await page.locator(`[data-board-window-id="${WINDOW_C}"] [data-board-action="composer-model"]`)
       .waitFor({ timeout: 30_000 })
@@ -711,7 +714,8 @@ describe('web e2e: spatial board geometry', () => {
     // while the board is not the active panel, since the board hides the
     // shell's sidebar (Т2.7).
     await page.reload({ waitUntil: 'load' })
-    await page.locator('nav[aria-label="Global panels"]').waitFor({ timeout: 30_000 })
+    await page.locator('button[aria-label="Collapse sidebar"], button[aria-label="Open sidebar"]').first()
+      .waitFor({ timeout: 30_000 })
     try {
       const toggle = await measureTooltip(page, 'button[aria-label="Collapse sidebar"], button[aria-label="Open sidebar"]')
       expect({ adjacent: toggle.adjacent, axisAligned: toggle.axisAligned }).toEqual({ adjacent: true, axisAligned: true })
@@ -1112,6 +1116,27 @@ describe('web e2e: spatial board geometry', () => {
         }
       })
       expect(state).toEqual({ boardMounted: false, current: sessionAId })
+
+      // The panel list carries no board entry any more (Т2.8), and the switch
+      // is the sidebar brand action (Т2.5).
+      expect(await page.getByRole('button', { name: 'Board', exact: true }).count()).toBe(0)
+      // The board's badge holds the same screen position as the sidebar logo,
+      // so the switch does not move when the interfaces trade places (Т2.6).
+      const brandMark = await page.locator('[data-slot="sidebar.brand.mark"] > *').first().boundingBox()
+      await openBoard(page)
+      await page.waitForFunction(() => {
+        const frame = document.querySelector('[class*="frame"]')
+        return frame !== null && getComputedStyle(frame).gridTemplateColumns.startsWith('0px')
+      }, { timeout: 5_000 })
+      const badgeMark = await page.locator('[data-board-layer="badge"] > *').first().boundingBox()
+      if (brandMark === null || badgeMark === null) throw new Error('brand or badge mark is missing')
+      expect(Math.abs(badgeMark.x - brandMark.x)).toBeLessThanOrEqual(2)
+      expect(Math.abs(badgeMark.y - brandMark.y)).toBeLessThanOrEqual(2)
+      // The board's badge is the same switch position (Т2.6): it returns to
+      // the standard interface, and the brand action comes back.
+      await page.locator('[data-board-action="open-standard"]').click()
+      await page.locator('[data-surface="board"]').waitFor({ state: 'detached', timeout: 30_000 })
+      expect(await page.locator('[data-board-action="open-board"]').count()).toBe(1)
     } finally {
       await openBoard(page)
       await clickResetView(page)
@@ -1155,6 +1180,54 @@ describe('web e2e: spatial board geometry', () => {
       await clickResetView(page)
     }
   }, 60_000)
+
+  it('Т2.5/Т2.6: the switch works from the collapsed rail and at a narrow window (S1)', async () => {
+    // Standard interface with the sidebar collapsed by hand.
+    await page.reload({ waitUntil: 'load' })
+    await page.locator('button[aria-label="Collapse sidebar"]').waitFor({ timeout: 30_000 })
+    await page.locator('button[aria-label="Collapse sidebar"]').click()
+    try {
+      // The rail keeps the switch as the icon under the logo.
+      await page.locator('[data-board-action="open-board"]').waitFor({ timeout: 10_000 })
+      const railLogo = await page.locator('[data-slot="sidebar.brand.mark"] > *').first().boundingBox()
+      await page.locator('[data-board-action="open-board"]').click()
+      await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
+      await page.waitForFunction(() => {
+        const frame = document.querySelector('[class*="frame"]')
+        return frame !== null && getComputedStyle(frame).gridTemplateColumns.startsWith('0px')
+      }, { timeout: 5_000 })
+      const badgeMark = await page.locator('[data-board-layer="badge"] > *').first().boundingBox()
+      if (railLogo === null || badgeMark === null) throw new Error('rail logo or badge mark is missing')
+      // The badge holds the sidebar logo's position from the rail state too.
+      expect(Math.abs(badgeMark.x - railLogo.x)).toBeLessThanOrEqual(2)
+      expect(Math.abs(badgeMark.y - railLogo.y)).toBeLessThanOrEqual(2)
+
+      // The badge returns to the standard interface with the rail intact.
+      await page.locator('[data-board-action="open-standard"]').click()
+      await page.locator('[data-surface="board"]').waitFor({ state: 'detached', timeout: 30_000 })
+      expect(await page.locator('[data-board-action="open-board"]').count()).toBe(1)
+
+      // A narrow window auto-collapses the sidebar; the switch stays reachable.
+      await page.setViewportSize({ width: 900, height: 800 })
+      await page.waitForTimeout(400)
+      await page.locator('[data-board-action="open-board"]').click()
+      await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
+      await page.locator('[data-board-action="open-standard"]').click()
+      await page.locator('[data-surface="board"]').waitFor({ state: 'detached', timeout: 30_000 })
+      expect(await page.locator('[data-board-action="open-board"]').count()).toBe(1)
+    } finally {
+      await page.setViewportSize(WIDE_VIEWPORT)
+      await page.waitForTimeout(300)
+      // Re-expand the sidebar for whatever runs next.
+      const openToggle = page.locator('button[aria-label="Open sidebar"]')
+      if (await openToggle.count() > 0) {
+        await openToggle.click()
+        await page.waitForTimeout(400)
+      }
+      await openBoard(page)
+      await clickResetView(page)
+    }
+  }, 120_000)
 
   it('Д2.4: window popovers stay beside their button at every zoom and board edge', async () => {
     const failures: string[] = []

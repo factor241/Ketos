@@ -68,97 +68,97 @@ export function ConversationSessionHeader({
   const conversation = useConversation(s => s)
   const hideChrome = session.blank && conversationPhase(session, conversation) === 'blank'
 
-  return (
-    <header className={clsx(css.header, hideChrome && css.headerHidden)}>
-      {hideChrome ? (
-        // A blank Session keeps only the utility seats mounted: an occupant
-        // that renders nothing for it (the board's return control on an
-        // unbound Session) leaves the header with no box at all.
-        <div className={css.headerBlankUtilities}>
-          {renderSlot('conversation.session.header.utilities', {})}
-          {renderSlot('conversation.session.header.corner', {})}
+  if (hideChrome) {
+    // A blank Session renders no banner at all: only the blank seat stays
+    // mounted, and the wrapper collapses to nothing when it renders nothing.
+    return (
+      <div className={clsx(css.header, css.headerHidden)}>
+        <div className={css.headerBlankSeat}>
+          {renderSlot('conversation.session.header.blank', {})}
         </div>
-      ) : (
-        <>
-          <div className={css.titleRow}>
-            <div className={css.titleCluster}>
-              <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
-                {ancestry.map((summary, index) => {
-                  const last = index === ancestry.length - 1
-                  const title = (
-                    <button
-                      type="button"
-                      className={clsx(
-                        css.crumb,
-                        summary.subagent && css.crumbSubagent,
-                        last && css.crumbCurrent,
-                      )}
-                      disabled={last}
-                      onClick={() => { open(summary.id) }}
-                    >
-                      {summary.displayTitle}
-                    </button>
-                  )
-                  const lineage = last || summary.subagent
-                  const lineageOwner = {
-                    lineageSessionId: summary.id,
-                    displayTitle: summary.displayTitle,
-                    ...last ? {} : { openTitle: () => { open(summary.id) } },
-                  }
-                  return (
-                    <span key={summary.id} className={css.crumbSeg}>
-                      {index > 0 && <span className={css.crumbSep}>/</span>}
-                      {lineage
-                        ? summary.subagent
-                          ? renderSlot(
+      </div>
+    )
+  }
+
+  return (
+    <header className={css.header}>
+      <div className={css.titleRow}>
+        <div className={css.titleCluster}>
+          <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
+            {ancestry.map((summary, index) => {
+              const last = index === ancestry.length - 1
+              const title = (
+                <button
+                  type="button"
+                  className={clsx(
+                    css.crumb,
+                    summary.subagent && css.crumbSubagent,
+                    last && css.crumbCurrent,
+                  )}
+                  disabled={last}
+                  onClick={() => { open(summary.id) }}
+                >
+                  {summary.displayTitle}
+                </button>
+              )
+              const lineage = last || summary.subagent
+              const lineageOwner = {
+                lineageSessionId: summary.id,
+                displayTitle: summary.displayTitle,
+                ...last ? {} : { openTitle: () => { open(summary.id) } },
+              }
+              return (
+                <span key={summary.id} className={css.crumbSeg}>
+                  {index > 0 && <span className={css.crumbSep}>/</span>}
+                  {lineage
+                    ? summary.subagent
+                      ? renderSlot(
+                        'conversation.session.header.lineage',
+                        lineageOwner,
+                        { fallback: title },
+                      )
+                      : (
+                        <>
+                          {title}
+                          {renderSlot(
                             'conversation.session.header.lineage',
                             lineageOwner,
-                            { fallback: title },
-                          )
-                          : (
-                            <>
-                              {title}
-                              {renderSlot(
-                                'conversation.session.header.lineage',
-                                lineageOwner,
-                                { fallback: null },
-                              )}
-                            </>
-                          )
-                        : title}
-                    </span>
-                  )
-                })}
-                {ancestry.length === 0 && <span className={css.crumbCurrent}>{sessionId}</span>}
-              </nav>
-              <div className={css.headerActions}>
-                {renderSlot('conversation.session.header.actions', {})}
-              </div>
-            </div>
-            <div className={css.headerUtilities}>
-              {renderSlot('conversation.session.header.utilities', {})}
-            </div>
-            <div className={css.headerCorner} data-conversation-header-corner="">
-              {renderSlot('conversation.session.header.corner', {})}
-            </div>
+                            { fallback: null },
+                          )}
+                        </>
+                      )
+                    : title}
+                </span>
+              )
+            })}
+            {ancestry.length === 0 && <span className={css.crumbCurrent}>{sessionId}</span>}
+          </nav>
+          <div className={css.headerActions}>
+            {renderSlot('conversation.session.header.actions', {})}
           </div>
-          {tabs.length > 1 && (
-            <div className={css.tabs} role="tablist">
-              {tabs.map(viewTab => (
-                <button
-                  key={viewTab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={viewTab.id === active?.id}
-                  className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
-                  onClick={() => { selectView(viewTab.id) }}
-                >
-                  {viewTab.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+        </div>
+        <div className={css.headerUtilities}>
+          {renderSlot('conversation.session.header.utilities', {})}
+        </div>
+        <div className={css.headerCorner} data-conversation-header-corner="">
+          {renderSlot('conversation.session.header.corner', {})}
+        </div>
+      </div>
+      {tabs.length > 1 && (
+        <div className={css.tabs} role="tablist">
+          {tabs.map(viewTab => (
+            <button
+              key={viewTab.id}
+              type="button"
+              role="tab"
+              aria-selected={viewTab.id === active?.id}
+              className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
+              onClick={() => { selectView(viewTab.id) }}
+            >
+              {viewTab.label}
+            </button>
+          ))}
+        </div>
       )}
     </header>
   )

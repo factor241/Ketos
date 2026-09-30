@@ -58,14 +58,14 @@
   border-bottom: none;
 }
 
-.headerBlankUtilities {
+.headerBlankSeat {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.headerBlankUtilities:empty {
+.headerBlankSeat:empty {
   display: none;
 }
 

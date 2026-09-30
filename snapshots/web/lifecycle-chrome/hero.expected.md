@@ -1,11 +1,11 @@
 - button "New session"
+- button "Go to board":
+  - img
 - button "Collapse sidebar":
   - img
 - button "New session":
   - img
   - text: New Session
-- navigation "Global panels":
-  - button "Board"
 - text: Workspaces
 - button "Search sessions":
   - img

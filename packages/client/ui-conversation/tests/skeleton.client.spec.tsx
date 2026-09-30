@@ -127,6 +127,8 @@ function mount(
     viewTabs?: ViewTab[]
     /** One rendering occupant of the header utilities seat. */
     headerUtility?: ReactNode
+    /** One rendering occupant of the blank Session's header seat. */
+    headerBlank?: ReactNode
   } = {},
 ) {
   const root = sid('root')
@@ -186,6 +188,7 @@ function mount(
     }
     if (key === 'conversation.hero.workspace') { pickerOwner = owner; return null }
     if (key === 'conversation.session.header.utilities') return options.headerUtility ?? null
+    if (key === 'conversation.session.header.blank') return options.headerBlank ?? null
     if (key === 'conversation.session.header.lineage') {
       lineageOwners.push(owner as ConversationHeaderLineageOwnerProps)
       return opts?.fallback ?? null
@@ -481,14 +484,13 @@ describe('ConversationRoot resident composer', () => {
         { ...workspace('second'), title: 'Selected Folder' },
       ],
     )
-    // Hero chrome is present and the selected View slot remains absent. The
-    // header keeps only its utility seats mounted for a blank Session, so it
-    // collapses to nothing while no occupant renders for it.
+    // Hero chrome is present and the selected View slot remains absent. A
+    // blank Session renders no banner at all: the blank seat wrapper stays
+    // mounted and collapses while it renders nothing.
     const host = b.view.container.querySelector('[data-conversation-scroll]')
-    const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
-    expect(header?.querySelector('nav')).toBeNull()
-    expect(header?.textContent).toBe('')
+    expect(b.view.container.querySelector('header')).toBeNull()
+    expect(b.view.container.querySelector('[class*="headerBlankSeat"]')?.textContent).toBe('')
     expect(b.view.getByTestId('hero-headline')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
@@ -508,19 +510,22 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.getByText('Selected Folder')).toBeTruthy()
   })
 
-  it('keeps a rendering header utility reachable on a blank Session (Т2.11)', () => {
+  it('keeps only the blank seat reachable on a blank Session (Т2.11)', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true }),
       [{ ...workspace('one'), sessionIds: [SID] }],
       vi.fn(async (_workspaceId: WorkspaceId) => {}),
-      { headerUtility: <button type="button" data-testid="return-control">Return</button> },
+      {
+        headerUtility: <button type="button" data-testid="utility-control">Utility</button>,
+        headerBlank: <button type="button" data-testid="return-control">Return</button>,
+      },
     )
-    // The blank header keeps only the utility seats: the occupant renders,
-    // the title row and tabs stay away.
-    const header = b.view.container.querySelector('header')
-    expect(header).not.toBeNull()
+    // A blank Session renders no banner and keeps the blank seat alone: an
+    // occupant of the utility row (or the corner) never renders for it, while
+    // the entry registered on the blank seat stays reachable.
+    expect(b.view.container.querySelector('header')).toBeNull()
     expect(b.view.getByTestId('return-control')).toBeTruthy()
-    expect(header?.querySelector('nav')).toBeNull()
+    expect(b.view.queryByTestId('utility-control')).toBeNull()
   })
 
   it('keeps a rejected first prompt engaging instead of returning to the Hero', () => {

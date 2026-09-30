@@ -88,6 +88,10 @@ describe('board slot composition', () => {
     // The switch registers in the sidebar brand row; the panel list stays empty (Т2.8).
     expect(runtime.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toEqual(['board'])
     expect(runtime.slots.entries('sidebar.panellist')).toEqual([])
+    // The return control occupies the header's utility row and the blank
+    // Session's own seat (Т2.11/Т2.15).
+    expect(runtime.slots.entries('conversation.session.header.utilities').map(entry => entry.options.id)).toEqual(['board-return'])
+    expect(runtime.slots.entries('conversation.session.header.blank').map(entry => entry.options.id)).toEqual(['board-return'])
   })
 
   it('renders every declared layer and puts the window layer inside the canvas transform', async () => {
@@ -360,6 +364,7 @@ describe('board slot composition', () => {
     const { runtime } = prepared
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const header = runtime.renderSlot('conversation.session.header.utilities', {})
+    const blankHeader = runtime.renderSlot('conversation.session.header.blank', {})
     const board = runtime.storeOf('board.dock') as BoardInstance
     const conversation = runtime.ctx.get('conversation') as unknown as {
       seedStandardDraft: (sessionId: string, text: string) => { addFiles: (files: readonly File[]) => boolean }
@@ -389,9 +394,11 @@ describe('board slot composition', () => {
       .addFiles([new File([Uint8Array.of(1, 2, 3)], 'pic.png', { type: 'image/png' })])
     act(() => { board.actions.setDraftText('a1' as WindowId, 'новое в окне') })
 
-    // The return control is present while the Session is bound to the window.
+    // The return control is present while the Session is bound to the window,
+    // in the header's utility row and in the blank Session's own seat.
     const button = header.container.querySelector('[data-board-action="return-to-window"]')
     expect(button).not.toBeNull()
+    expect(blankHeader.container.querySelector('[data-board-action="return-to-window"]')).not.toBeNull()
     fireEvent.click(button as Element)
     await runtime.flush()
 

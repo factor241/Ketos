@@ -135,12 +135,18 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
     }
-    /**
-     * Right-aligned Session utilities in ascending order. A blank Session
-     * keeps this seat mounted while the rest of the header collapses, so an
-     * occupant that renders for a blank Session stays reachable.
-     */
+    /** Right-aligned Session utilities in ascending order. */
     'conversation.session.header.utilities': {
+      kind: 'list'
+      scope: 'session'
+      owner: ConversationHeaderActionOwnerProps
+    }
+    /**
+     * The only seats a blank Session's header keeps: the rest of the header
+     * collapses to nothing, so a control registered here (and rendering
+     * something) is what keeps the blank header reachable at all.
+     */
+    'conversation.session.header.blank': {
       kind: 'list'
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
@@ -398,6 +404,7 @@ export type ConversationSessionHeaderSlotProps =
     'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
     | 'conversation.session.header.utilities'
+    | 'conversation.session.header.blank'
     | 'conversation.session.header.corner'
   >
   & PropsStore<ConversationStore>

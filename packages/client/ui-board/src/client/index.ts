@@ -965,17 +965,26 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     }),
   }, BoardToggle))
 
-  // The standard interface's way back (Т2.11): one Session-header utility,
-  // shown while the current Session is bound to an open board window.
+  // The standard interface's way back (Т2.11): one control, registered in the
+  // header's utility row and in the blank seat — a blank Session's header
+  // keeps only the blank seat, and the return control must stay reachable
+  // there too (Т2.15).
+  const returnControlInject = (): ReturnToWindowActionInjected => ({
+    subscribeBindings,
+    bindingRevision,
+    windowForSession: sessionId => bridge.windowFor(sessionId),
+    returnToWindow,
+  })
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',
     id: 'board-return',
     locale: NS,
-    inject: (): ReturnToWindowActionInjected => ({
-      subscribeBindings,
-      bindingRevision,
-      windowForSession: sessionId => bridge.windowFor(sessionId),
-      returnToWindow,
-    }),
+    inject: returnControlInject,
+  }, ReturnToWindowAction))
+  ctx.slots.inject('conversation.session.header.blank', () => ctx.slots.register({
+    name: 'conversation.session.header.blank',
+    id: 'board-return',
+    locale: NS,
+    inject: returnControlInject,
   }, ReturnToWindowAction))
 }

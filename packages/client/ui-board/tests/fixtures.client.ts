@@ -443,6 +443,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       main: { kind: 'keyed', scope: 'root' },
       'sidebar.brand.actions': { kind: 'list', scope: 'root' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+      'conversation.session.header.blank': { kind: 'list', scope: 'session' },
     })
   }
   return {

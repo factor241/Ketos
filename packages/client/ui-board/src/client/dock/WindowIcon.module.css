@@ -1,0 +1,50 @@
+/*
+ * Dock icon: the chip a window row shows. A chat window wears a lettered
+ * circle tinted by its folder, a clone the record's initials, and a utility
+ * window its kind's glyph. The status dot and the active background stay on
+ * the row's own button.
+ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  corner-shape: round;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Folder tints: the theme's tertiary fill with its primary foreground, so the
+   chip follows the light and dark preference like every other surface. */
+.chipBusiness {
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.chipSuccess {
+  background: var(--dsw-alias-state-success-tertiary);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.chipWarn {
+  background: var(--dsw-alias-state-warn-tertiary);
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+/* A session without a working folder (and a clone record) stays neutral. */
+.chipNeutral {
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.kindGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

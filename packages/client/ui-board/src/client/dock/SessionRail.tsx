@@ -10,8 +10,6 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconAgentPresetOutline16,
-  IconBrowseOutline16,
   IconFullscreenOutline16,
   IconPlusOutline16,
   Menu,
@@ -20,7 +18,7 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { BoardWindowInjected, BoardWindowState, WindowKind } from '../contract/slots.ts'
+import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
@@ -29,6 +27,7 @@ import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
 import { windowTitle } from '../window-title.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
+import { WindowIcon, windowKindGlyph } from './WindowIcon.tsx'
 import css from './SessionRail.module.css'
 
 export type SessionRailProps =
@@ -36,13 +35,6 @@ export type SessionRailProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
-
-/** The dock glyph for one window kind. */
-function windowGlyph(kind: WindowKind) {
-  return kind === 'agent' || kind === 'clone'
-    ? <IconAgentPresetOutline16 />
-    : <IconBrowseOutline16 />
-}
 
 /**
  * Window kinds the dock's add menu opens. The dock is the quick entry point
@@ -65,13 +57,16 @@ interface DockRowProps {
   readonly t: BoardTranslate
   readonly useWindowSession: InjectFace<BoardWindowInjected>['useWindowSession']
   readonly useCloneList: InjectFace<BoardWindowInjected>['useCloneList']
+  readonly useWorkspaceList: InjectFace<BoardWindowInjected>['useWorkspaceList']
 }
 
 /**
  * One window row: glyph with its status dot, center-or-focus click, in-place
  * rename on double click, and the context menu that renames or closes.
  */
-function DockRow({ window: win, active, actions, t, useWindowSession, useCloneList }: DockRowProps) {
+function DockRow({
+  window: win, active, actions, t, useWindowSession, useCloneList, useWorkspaceList,
+}: DockRowProps) {
   const session = useWindowSession(win.id)
   // A clone window is named by the record it edits, not by the interview
   // session running inside it.
@@ -80,6 +75,14 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
     : roster.clones.find(entry => entry.id === win.cloneId))
   const title = windowTitle(t, win, session?.displayTitle, clone?.name)
   const status = windowStatus(session)
+  // The chip's folder tint: the workspace the session's directory belongs to,
+  // else the directory itself, else none (a session without a folder).
+  const cwd = session?.cwd
+  const folderKey = useWorkspaceList((list) => {
+    if (cwd === undefined) return undefined
+    const workspace = list.items.find(item => item.path === cwd)
+    return workspace === undefined ? cwd : String(workspace.workspaceId)
+  })
   const [draft, setDraft] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuPlacement | null>(null)
   const rowRef = useRef<HTMLButtonElement>(null)
@@ -131,7 +134,7 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
                 className={clsx(css.windowButton, active && css.active)}
                 aria-label={t('rail.statusLabel', { title, status: t(WINDOW_STATUS_KEY[status]) })}
               >
-                {windowGlyph(win.kind)}
+                <WindowIcon kind={win.kind} title={title} cloneName={clone?.name} folderKey={folderKey} />
                 <span className={css.statusDot}><StateDot state={WINDOW_STATUS_DOT[status]} size={8} /></span>
               </button>
             </Tooltip>
@@ -180,7 +183,9 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
   )
 }
 
-export function SessionRail({ useStore, actions, t, useWindowSession, useCloneList, openClone }: SessionRailProps) {
+export function SessionRail({
+  useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, openClone,
+}: SessionRailProps) {
   // The dock reads its own order (A6): raising a window reorders the paint
   // stack, never the icons.
   const dockOrder = useStore(s => s.dockOrder)
@@ -219,7 +224,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   const addMenuItems: readonly MenuEntry[] = ADD_MENU_KINDS.map(kind => ({
     id: kind,
     label: t(ADD_MENU_LABEL[kind]),
-    icon: windowGlyph(kind),
+    icon: windowKindGlyph(kind),
   }))
 
   // The dock is screen-space chrome: its tooltips and menus portal into the
@@ -240,6 +245,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
             t={t}
             useWindowSession={useWindowSession}
             useCloneList={useCloneList}
+            useWorkspaceList={useWorkspaceList}
           />
         )
       })}
@@ -307,7 +313,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
                 aria-label={t('rail.openClone', { name: clone.name })}
                 onClick={() => { openClone(clone.id) }}
               >
-                <IconAgentPresetOutline16 />
+                <WindowIcon kind="clone" title={clone.name} cloneName={clone.name} />
               </button>
             </Tooltip>
           ))}

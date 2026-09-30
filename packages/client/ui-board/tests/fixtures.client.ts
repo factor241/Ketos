@@ -52,7 +52,13 @@ export interface BoardBenchOptions {
   /** List-row overrides of the fixture session, e.g. its display title. */
   sessionSummary?: Partial<Omit<SessionSummary, 'id'>>
   /** Additional listed chats a test can rebind a window to. */
-  extraSessions?: readonly { readonly id: string; readonly displayTitle: string; readonly session?: Record<string, unknown> }[]
+  extraSessions?: readonly {
+    readonly id: string
+    readonly displayTitle: string
+    readonly session?: Record<string, unknown>
+    /** Extra list-row fields, e.g. the working directory a folder chip reads. */
+    readonly summary?: Partial<Omit<SessionSummary, 'id'>>
+  }[]
   /** Background upload service overrides; the default stages every file as `receipt-1`. */
   fileUpload?: {
     readonly available?: boolean
@@ -426,7 +432,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     await runtime.sessions.add({
       id: extra.id,
       session: extra.session ?? options.session ?? {},
-      summary: { displayTitle: extra.displayTitle },
+      summary: { displayTitle: extra.displayTitle, ...extra.summary },
     }, { current: false })
   }
   if (options.createSession !== undefined) {

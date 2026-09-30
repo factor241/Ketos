@@ -6,7 +6,7 @@
  * dock down under a chats panel or a fullscreen window.
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
@@ -27,9 +27,10 @@ afterEach(async () => {
 })
 
 /** Bench with the fixture session the window bridge creates for an agent window. */
-async function bench() {
+async function bench(options: Parameters<typeof createBoardBench>[0] = {}) {
   const prepared = await createBoardBench({
     session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
+    ...options,
   })
   runtimes.add(prepared.runtime)
   await prepared.mountBoard()
@@ -254,6 +255,47 @@ describe('board dock', () => {
     expect(Object.values(store.store.getSnapshot().windows).map(win => win.kind)).toEqual([
       'connectors', 'agent',
     ])
+  })
+
+  it('tints chat chips by folder and glyphs utility windows (Т1.7)', async () => {
+    const { runtime, panel, store } = await bench({
+      sessionSummary: { displayTitle: 'Chat one', cwd: '/projects/one' },
+      extraSessions: [{
+        id: 'session-2',
+        displayTitle: 'Chat two',
+        summary: { cwd: '/projects/one' },
+      }],
+    })
+    act(() => {
+      store.actions.openWindow(windowState({ id: 'a1' as WindowId }))
+      store.actions.openWindow(windowState({ id: 's1' as WindowId, kind: 'settings', bodyKind: 'settings', ordinal: 2 }))
+    })
+    await runtime.flush()
+
+    // The chat chip wears the title letters and a folder tint; the utility
+    // window wears its kind glyph.
+    const first = rowOf(panel, 'Chat one').querySelector('[data-board-icon="letters"]')
+    expect(first?.textContent).toBe('Co')
+    expect(first?.getAttribute('data-board-palette')).not.toBe('none')
+    expect(rowOf(panel, 'Settings').querySelector('[data-board-icon="settings"]')).not.toBeNull()
+
+    // A second chat in the same folder, bound through its chats panel: the
+    // same folder paints the same palette slot.
+    const dock = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { dock.actions.openWindow(windowState({ id: 'a2' as WindowId, ordinal: 3 })) })
+    await runtime.flush()
+    fireEvent.click(panel.view.getAllByLabelText('Expand the chats panel').at(-1) as Element)
+    await runtime.flush()
+    const openPanel = panel.container.querySelector('[data-board-panel]:not([aria-hidden="true"])')
+    if (!(openPanel instanceof HTMLElement)) throw new Error('the chats panel did not open')
+    fireEvent.click(within(openPanel).getByText('Ungrouped'))
+    await runtime.flush()
+    fireEvent.click(within(openPanel).getByText('Chat two'))
+    await runtime.flush()
+    await runtime.flush()
+    const second = rowOf(panel, 'Chat two').querySelector('[data-board-icon="letters"]')
+    expect(second?.textContent).toBe('Ct')
+    expect(second?.getAttribute('data-board-palette')).toBe(first?.getAttribute('data-board-palette'))
   })
 
   it('scrolls sideways under a wheel once the strip outgrows the board (Т1.6)', async () => {

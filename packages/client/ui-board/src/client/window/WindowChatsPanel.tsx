@@ -3,8 +3,7 @@
  * (workspaces) and chats. Collapsed it is a rail hugging the frame's edge; open
  * it is a resizable column that lists the projects and their chats, creates,
  * renames, reorders, branches, archives, and searches them, and points the
- * window at whichever chat is picked. In fullscreen it docks to the board
- * panel's left edge and the chat keeps a centred column beside it.
+ * window at whichever chat is picked.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
@@ -28,9 +27,7 @@ import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
-import {
-  dockedPanelRect, panelPresentation, panelWidthFor, PANEL_RAIL_HEIGHT, PANEL_RAIL_WIDTH, railRect, windowedPanelRect,
-} from './panel-geometry.ts'
+import { panelPresentation, panelWidthFor, railRect, windowedPanelRect } from './panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
 export type WindowChatsPanelProps =
@@ -94,16 +91,15 @@ function WindowChatsPanelView({
   const requestedWidth = useStore(s => s.panelWidth)
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
-  const fullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
   // Below the detail threshold the frame shows its simplified card; the rail
   // would be unreadable and untargetable there (Д6.1, П-18).
   const belowDetail = useStore(s => s.zoom < detailZoomThreshold)
   const open = mounted && !collapsed
-  const { panX, zoom, width: viewportWidth, height: viewportHeight } = useStore(
+  const { panX, zoom, width: viewportWidth } = useStore(
     // Geometry only while the panel is open: a collapsed rail does not follow
     // the view transform, so panning and zooming the canvas never re-render it.
-    s => ({ panX: s.panX, zoom: s.zoom, width: s.viewportWidth, height: s.viewportHeight }),
+    s => ({ panX: s.panX, zoom: s.zoom, width: s.viewportWidth }),
     open ? undefined : alwaysEqual,
   )
   const sessionList = useSessionList(s => s)
@@ -125,7 +121,7 @@ function WindowChatsPanelView({
   const menuAnchor = useRef<HTMLButtonElement | null>(null)
   const viewAnchor = useRef<HTMLButtonElement | null>(null)
   const dragged = useRef(false)
-  // Window move, resize, fullscreen, culling, and close dismiss both panel
+  // Window move, resize, culling, and close dismiss both panel
   // menus; pan and zoom only move them with the panel.
   useBoardMenuDismiss(() => { setViewOpen(false) })
   useBoardMenuDismiss(() => { setRowMenu(null) })
@@ -183,21 +179,15 @@ function WindowChatsPanelView({
   }, [panelTab, level.kind, activeWorkspaceId])
 
   const view = { left: -panX / zoom, right: (-panX + viewportWidth) / zoom }
-  const width = panelWidthFor(fullscreen ? viewportWidth : cardWindow.width, requestedWidth)
-  const presentation = fullscreen ? { kind: 'docked' } as const : panelPresentation(cardWindow, view, width)
+  const width = panelWidthFor(cardWindow.width, requestedWidth)
+  const presentation = panelPresentation(cardWindow, view, width)
   // Overlay rides inside the window's left edge, so its resize handle sits on
   // the right like a panel that slid out of that edge.
   const side = presentation.kind === 'beside' ? presentation.side : 'right'
-  const rect = fullscreen
-    ? dockedPanelRect(viewportWidth, viewportHeight, width)
-    : windowedPanelRect(cardWindow, view, width)
-  // Fullscreen docks the panel to the board panel's left edge, so its collapsed
-  // rail hugs that edge instead of the window's floating rectangle; the frame's
-  // own chats button is gone, and this rail is the one control that brings the
-  // panel back in either presentation.
-  const rail = fullscreen
-    ? { left: 0, top: (viewportHeight - PANEL_RAIL_HEIGHT) / 2, width: PANEL_RAIL_WIDTH, height: PANEL_RAIL_HEIGHT }
-    : railRect(cardWindow, side)
+  const rect = windowedPanelRect(cardWindow, view, width)
+  // The collapsed rail hugs the frame's edge, so the panel stays one click
+  // away without a duplicate header button.
+  const rail = railRect(cardWindow, side)
 
   const startGesture = useBoardPointerGesture()
 

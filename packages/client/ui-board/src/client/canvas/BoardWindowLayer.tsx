@@ -3,7 +3,7 @@
  * slot, and owns the keyed `board.window.body` declaration whose dispatcher it
  * hands to each frame as an owner prop. The dispatcher is one stable callback
  * so the memoized frames only re-render for their own window; culled and
- * fullscreen-hidden windows stay mounted and hide through their own class.
+ * culled windows stay mounted and hide through their own class.
  *
  * The layer also watches the open set: a window leaving the order hands its id
  * to the session bridge, which drops that window's record and subscriptions

@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // layout persistence reads through.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { SessionInput } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import z from '@deepseek-ai/schemastery'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -71,7 +71,7 @@ export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec }
 
 /** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
-  'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'modelDirectories', 'layout',
+  'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'conversation', 'modelDirectories', 'layout',
   'fileUpload', 'settingsScope',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver',
@@ -301,6 +301,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     return openBoardWindow(instance.actions, 'agent', nextWindowOrdinal(state.windows))
   }
 
+  /** Decode one board image's base64 payload back into the bytes a File carries. */
+  const imageBytes = (data: string): ArrayBuffer => {
+    const binary = atob(data)
+    const bytes = new Uint8Array(new ArrayBuffer(binary.length))
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+    return bytes.buffer
+  }
+
   const windowSession = (key: string) => bridge.channel(key as WindowId)
   const injected = (): BoardWindowInjected => ({
     detailZoomThreshold: config.detailZoomThreshold as number,
@@ -359,6 +367,66 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       // brings it forward and highlights it.
       ctx.uiWorkspace.openSession(sessionId)
       instance.actions.expectReturnWindow(windowId)
+    },
+    expandToStandard: (windowId) => {
+      const sessionId = bridge.sessionFor(windowId)
+      if (sessionId === undefined) {
+        bridge.notifyAction(windowId, t('expand.failure.session'))
+        return
+      }
+      bridge.clearActionError(windowId)
+      const actx = ctx.sessions.scope(sessionId)
+      if (actx === undefined) {
+        bridge.notifyAction(windowId, t('expand.failure.session'))
+        return
+      }
+      const draft = instance.getSnapshot().drafts[windowId as string]
+      // The transferable files are collected outside every try: only the
+      // calls that can throw sit in one, one statement each.
+      const files = draft === undefined ? [] : [
+        ...draft.images.map(image => new File([imageBytes(image.data)], image.name, { type: image.mediaType })),
+        ...draft.files.map(entry => entry.source),
+      ]
+      let input: SessionInput
+      try {
+        input = ctx.conversation.input.for(actx)
+      } catch {
+        bridge.notifyAction(windowId, t('expand.failure.session'))
+        return
+      }
+      if (files.length > 0) {
+        let attached = false
+        try {
+          attached = input.addFiles(files)
+        } catch {
+          // An unsupported image type or a rejected file: the window keeps
+          // its draft and says why the handoff failed.
+          bridge.notifyAction(windowId, t('expand.failure.files'))
+          return
+        }
+        if (!attached) {
+          // The standard composer is mid-admission: retrying is the only
+          // useful advice, and the draft stays where it is.
+          bridge.notifyAction(windowId, t('expand.failure.busy'))
+          return
+        }
+      }
+      if (draft !== undefined && draft.text !== '') {
+        // The standard composer's own text is never overwritten: the window's
+        // draft joins it as a new paragraph.
+        const current = input.state.getSnapshot().draft
+        input.setDraft(current === '' ? draft.text : `${current}\n\n${draft.text}`)
+      }
+      try {
+        ctx.uiWorkspace.openSession(sessionId)
+      } catch {
+        bridge.notifyAction(windowId, t('expand.failure.session'))
+        return
+      }
+      // The handoff landed: the window is the expanded one (the binding rules
+      // Т2.13–Т2.16 run while it is set), and its draft moved with it.
+      instance.actions.setExpandedWindow(windowId)
+      instance.actions.clearDraft(windowId)
     },
     createChat: (windowId, target) => { bridge.createChat(conversationWindow(windowId), target) },
     startChat: (windowId, workspaceId) => bridge.startChat(conversationWindow(windowId), workspaceId),

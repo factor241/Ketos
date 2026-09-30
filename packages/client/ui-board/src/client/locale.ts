@@ -8,6 +8,9 @@ export const NS = 'board'
 /** Simplified Chinese dictionary and key-set source of truth. */
 export const zh = {
   'switch.toBoard': '前往看板',
+  'expand.failure.session': '会话不可用',
+  'expand.failure.busy': '会话正在发送消息 — 请重试',
+  'expand.failure.files': '无法转移附件',
   'switch.toStandard': '标准界面',
   'canvas.agentTitle': '代理 #{n}',
   'rail.openClone': '打开克隆：{name}',
@@ -45,7 +48,6 @@ export const zh = {
   'toolbar.composerPlaceholder': '随便问点什么...',
   'window.close': '关闭',
   'window.fullscreen': '打开全屏',
-  'window.exitFullscreen': '退出全屏',
   'window.rename': '重命名窗口',
   'window.unavailable': '此窗口在 MVP 中不可用',
   'window.kind.connectors': '连接器',
@@ -427,6 +429,9 @@ export type BoardTranslate = TranslateNS<'board'>
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'switch.toBoard': 'Go to board',
+  'expand.failure.session': 'Session unavailable',
+  'expand.failure.busy': 'The session is sending a message — try again',
+  'expand.failure.files': 'Could not transfer the attachments',
   'switch.toStandard': 'Standard interface',
   'canvas.agentTitle': 'Agent #{n}',
   'rail.openClone': 'Open clone: {name}',
@@ -464,7 +469,6 @@ export const en = {
   'toolbar.composerPlaceholder': 'Ask me anything...',
   'window.close': 'Close',
   'window.fullscreen': 'Open fullscreen',
-  'window.exitFullscreen': 'Exit fullscreen',
   'window.rename': 'Rename window',
   'window.unavailable': 'This window is not available in the MVP',
   'window.kind.connectors': 'Connectors',

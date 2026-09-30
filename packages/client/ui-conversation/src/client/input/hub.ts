@@ -35,6 +35,7 @@ interface InputTriggerServiceFace {
 
 /** Attachment-send face resolved lazily to keep hub/service construction acyclic. */
 interface ConversationAttachmentFace {
+  createDrafts(sessionId: SessionId, files: readonly File[]): readonly { readonly id: DraftAttachmentId }[]
   sendSession(
     session: SessionFace,
     text: string,
@@ -89,6 +90,7 @@ export class InputHub implements SessionInputResolver {
       popup: () => this.popup(actx),
       queue: queueReadFaceOf(session),
       defaultSink: (text, attachmentIds, mode, signal) => this.sink(session, text, attachmentIds, mode, signal),
+      createDrafts: files => this.conversation().createDrafts(id, files),
       steerQueue: () => { void this.steerQueue(session, shell) },
       commandAttachments: {
         serialize: async (ids) => {

@@ -88,8 +88,6 @@ type BoardActions = {
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   revealWindow: (draft: BoardState, id: WindowId) => void
-  setWindowFullscreen: (draft: BoardState, id: WindowId) => void
-  exitFullscreen: (draft: BoardState) => void
   openWindowPanel: (draft: BoardState, id: WindowId, tab?: 'chats' | 'artifacts') => void
   closeWindowPanel: (draft: BoardState) => void
   setPanelTab: (draft: BoardState, tab: 'chats' | 'artifacts') => void
@@ -101,6 +99,12 @@ type BoardActions = {
   closeWindow: (draft: BoardState, id: WindowId) => void
   hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
+  /**
+   * Remember (or clear) the window whose session was expanded into the
+   * standard interface. Set only after a successful handoff; the binding
+   * rules Т2.13–Т2.16 run while it is set.
+   */
+  setExpandedWindow: (draft: BoardState, id: WindowId | null) => void
   /**
    * Move one window's dock icon before another (or to the end with `null`).
    * The paint order never changes: the dock has its own order (A6).
@@ -138,7 +142,7 @@ export interface BoardState {
   /**
    * Per-element chrome contributions, keyed by the publishing element: each
    * entry declares one board edge and its depth from it. `safeArea` folds them;
-   * a hidden chrome element clears its entry (fullscreen, open panel).
+   * a hidden chrome element clears its entry (an open panel).
    */
   chromeInsetSources: Record<string, ChromeInsetContribution>
   windows: Record<string, BoardWindowState>
@@ -154,12 +158,6 @@ export interface BoardState {
   /** Clone ids in dock order (A6); membership stays the clone roster's. */
   cloneOrder: CloneId[]
   activeWindowId: WindowId | null
-  /**
-   * The window filling the board panel, or null. A fullscreen window keeps its
-   * stored rectangle and its controls; the frames skip drag and resize while it
-   * is fullscreen, so the rectangle survives the mode.
-   */
-  fullscreenWindowId: WindowId | null
   /**
    * The window whose chats panel is open, or null. One panel is open at a
    * time; it keeps the window's stored rectangle and only decorates it.
@@ -178,6 +176,12 @@ export interface BoardState {
   /** Agent preset new windows start with, or '' when the deployment default composes them. */
   defaultPreset: string
   isSelectingElement: boolean
+  /**
+   * Window expanded into the standard interface by its header control, or
+   * null. Transient view state: the layout never carries it, and the explicit
+   * return clears it.
+   */
+  expandedWindowId: WindowId | null
   /** Composer commands waiting for their window's composer to pick them up. */
   composerIntents: ComposerIntent[]
   /** Monotonic source of composer-intent identities. */
@@ -237,7 +241,7 @@ const GRID_STEP = 24
  * below every floating layer of the board: the chrome (dock, omnibar, minimap)
  * sits at 100, the active handle ring at 150, the screen-space popover layer
  * (tooltips and menus) at {@link BOARD_POPOVER_Z}, the element-selection
- * overlay at 500, and the fullscreen frame and an overlay chats panel at 1000.
+ * overlay at 500, and an overlay chats panel at 1000.
  * The band tops out below the chrome, so a window can never paint over it
  * however many windows are open.
  */
@@ -443,7 +447,6 @@ export function createBoardStore(): BoardStoreHandle {
       dockOrder: [],
       cloneOrder: [],
       activeWindowId: null,
-      fullscreenWindowId: null,
       panelWindowId: null,
       panelCollapsed: true,
       panelTab: 'chats',
@@ -452,6 +455,7 @@ export function createBoardStore(): BoardStoreHandle {
       panelOrderBy: 'updated',
       defaultPreset: '',
       isSelectingElement: false,
+      expandedWindowId: null,
       composerIntents: [],
       composerIntentSeq: 0,
       drafts: {},
@@ -570,14 +574,6 @@ export function createBoardStore(): BoardStoreHandle {
         if (isWindowOnScreen(draft, win)) return
         centerInSafeArea(draft, win)
       },
-      setWindowFullscreen: (draft, id) => {
-        if (!draft.windows[id as string]) return
-        draft.fullscreenWindowId = id
-        raiseWindow(draft, id)
-      },
-      exitFullscreen: (draft) => {
-        draft.fullscreenWindowId = null
-      },
       openWindowPanel: (draft, id, tab) => {
         if (!draft.windows[id as string]) return
         draft.panelWindowId = id
@@ -625,9 +621,7 @@ export function createBoardStore(): BoardStoreHandle {
         draft.composerIntents = draft.composerIntents.filter(intent => intent.windowId !== id)
         // A closed window's draft goes with it: nothing may resurrect it.
         Reflect.deleteProperty(draft.drafts, id)
-        if (draft.fullscreenWindowId === id) {
-          draft.fullscreenWindowId = null
-        }
+        if (draft.expandedWindowId === id) draft.expandedWindowId = null
         if (draft.panelWindowId === id) {
           draft.panelWindowId = null
         }
@@ -638,8 +632,7 @@ export function createBoardStore(): BoardStoreHandle {
       hydrate: (draft, layout) => {
         // Only the stored layout fields move: transient interaction state
         // (selection, queued composer commands) and the measured viewport box
-        // belong to the running session. Fullscreen is deliberately not stored,
-        // so an adopted layout always leaves it.
+        // belong to the running session.
         // A window the adopted document drops loses its per-window view state
         // as closing it would: a draft or queued command must not outlive its
         // window.
@@ -671,7 +664,6 @@ export function createBoardStore(): BoardStoreHandle {
         draft.dockOrder = layout.dockOrder as WindowId[]
         draft.cloneOrder = layout.cloneOrder as CloneId[]
         draft.activeWindowId = layout.activeWindowId === '' ? null : layout.activeWindowId as WindowId
-        draft.fullscreenWindowId = null
         draft.panelWindowId = layout.panelWindowId === '' ? null : layout.panelWindowId as WindowId
         draft.panelCollapsed = layout.panelCollapsed
         draft.panelWidth = layout.panelWidth
@@ -679,9 +671,18 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panelOrderBy = layout.panelOrderBy
         draft.defaultPreset = layout.defaultPreset
         draft.panelTab = 'chats'
+        draft.expandedWindowId = null
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting
+      },
+      setExpandedWindow: (draft, id) => {
+        if (id === null) {
+          draft.expandedWindowId = null
+          return
+        }
+        if (!draft.windows[id as string]) return
+        draft.expandedWindowId = id
       },
       reorderDock: (draft, id, before) => {
         draft.dockOrder = moveBefore(draft.dockOrder, id, before)

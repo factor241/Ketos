@@ -1,6 +1,6 @@
 /* Chats panel of one board window. It is a layer of its own beside the frame:
  * collapsed a rail hugs the frame's left edge, open a resizable column slides
- * out of that edge. Fullscreen docks it as the plain sidebar of a normal chat
+ * out of that edge.
  * layout. Depth ladder: canvas → panel → panel rows. */
 
 .panel {
@@ -396,7 +396,7 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
-/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+/* Culled (off the visible canvas): the
    panel keeps its DOM and state and stops painting. */
 .hidden {
   content-visibility: hidden;

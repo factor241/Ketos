@@ -68,6 +68,11 @@ export interface SessionInputDeps {
     mode: InputSubmitMode,
     signal: AbortSignal,
   ): Promise<SubmitOutcome>
+  /**
+   * Register browser files as runtime draft attachments through the
+   * conversation service (the hub owns the service hop).
+   */
+  createDrafts(files: readonly File[]): readonly { readonly id: DraftAttachmentId }[]
   /** Command-plane attachment plumbing (the hub owns the conversation face and the copy). */
   commandAttachments: {
     /** Resolve ordered draft ids to wire payloads without sending them; rejects when an id no longer resolves. */
@@ -284,6 +289,23 @@ export class SessionInputShell implements SessionInput {
       }
       root.selectEnd()
     }, { discrete: true, tag: HISTORY_MERGE_TAG })
+  }
+
+  /**
+   * Register browser files as draft attachments: image files become image
+   * drafts, every other file starts its background upload. Refused while an
+   * admission transaction is locked, like {@link addAttachments}.
+   * @param files - browser files to attach.
+   * @returns whether the files were attached.
+   */
+  addFiles(files: readonly File[]): boolean {
+    if (files.length === 0) return true
+    if (this.snapshot.phase === 'adjudicating' || this.snapshot.phase === 'submitting') return false
+    const drafts = this.deps.createDrafts(files)
+    if (drafts.length === 0) return true
+    this.attachmentIds = [...this.attachmentIds, ...drafts.map(draft => draft.id)]
+    this.publish()
+    return true
   }
 
   /** Append ordered attachment ids unless an admission transaction is locked. */

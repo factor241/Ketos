@@ -105,7 +105,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.canvas\', () => ctx.slots.register(\n      { name: \'board.canvas\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:803',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:816',
   },
   {
     key: 'board.dock',
@@ -133,7 +133,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.dock\', () => ctx.slots.register(\n      { name: \'board.dock\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:805',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:818',
   },
   {
     key: 'board.minimap',
@@ -161,7 +161,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.minimap\', () => ctx.slots.register(\n      { name: \'board.minimap\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:841',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:854',
   },
   {
     key: 'board.omnibar',
@@ -189,7 +189,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.omnibar\', () => ctx.slots.register(\n      { name: \'board.omnibar\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:843',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:856',
   },
   {
     key: 'board.window',
@@ -234,7 +234,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.window\', () => ctx.slots.register(\n      { name: \'board.window\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:813',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:826',
   },
   {
     key: 'board.window.body',
@@ -279,14 +279,14 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.window.body\', () => ctx.slots.register(\n      { name: \'board.window.body\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:824',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:837',
   },
   {
     key: 'board.window.panel',
     kind: 'keyed',
     scope: 'root',
-    summary: 'Chats panel of one board card: a companion layer the frame\'s own fullscreen toggle expands.',
-    doc: 'Chats panel of one board card: a companion layer the frame\'s own fullscreen\ntoggle expands. The keyed table closes the dispatch domain to `WindowKind`.',
+    summary: 'Chats panel of one board card: a companion layer beside the frame.',
+    doc: 'Chats panel of one board card: a companion layer beside the frame. The\nkeyed table closes the dispatch domain to `WindowKind`.',
     registerOptions: [
       {
         name: 'key',
@@ -319,7 +319,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.window.panel\', () => ctx.slots.register(\n      { name: \'board.window.panel\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:834',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:847',
   },
   {
     key: 'board.windows',
@@ -347,7 +347,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'board.windows\', () => ctx.slots.register(\n      { name: \'board.windows\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-board/src/client/contract/slots.ts:807',
+    source: 'packages/client/ui-board/src/client/contract/slots.ts:820',
   },
   {
     key: 'conversation.approval.detail',

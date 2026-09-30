@@ -9,7 +9,7 @@
   overflow: hidden;
   /* One stacking context for the whole board: the window band, the floating
      chrome (100), the handle ring (150), the popover layer (300), the
-     selection overlay (500), and the fullscreen layer (1000) stay inside the
+     selection overlay (500), and the overlay chats panel layer (1000) stay inside the
      board box, so shell-level overlays above the box keep painting and
      hit-testing above every board layer. NOTE: the frames and the chats panel
      live inside the canvas transform, so their z-index values order them

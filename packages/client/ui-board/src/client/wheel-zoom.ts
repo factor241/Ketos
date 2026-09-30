@@ -62,39 +62,31 @@ export function classifyBoardWheel(
   return mode === 'zoom' ? 'zoom' : 'pan'
 }
 
-/** What the board root does with one wheel event, fullscreen included. */
+/** What the board root does with one wheel event. */
 export interface BoardWheelDecision {
   /** The classifier's verdict. */
   readonly classification: BoardWheelClassification
   /** Whether the handler prevents the browser default. */
   readonly preventDefault: boolean
-  /** Whether the board applies the pan or zoom; false for a fullscreen zoom block. */
+  /** Whether the board applies the pan or zoom. */
   readonly apply: boolean
 }
 
 /**
- * Resolve the handler's full decision for one wheel event. A fullscreen window
- * fills the panel and is not part of the canvas, so its handler blocks the
- * board zoom while still preventing the browser's page zoom.
+ * Resolve the handler's full decision for one wheel event.
  * @param event - the wheel event's modifier fields.
  * @param target - the wheel event's target.
  * @param mode - what an unmodified wheel does over the canvas and floating chrome.
- * @param fullscreen - whether a fullscreen window fills the board panel.
  * @returns the classification, whether to prevent the default, and whether to apply it.
  */
 export function resolveBoardWheel(
   event: BoardWheelEvent,
   target: EventTarget | null,
   mode: BoardWheelMode,
-  fullscreen: boolean,
 ): BoardWheelDecision {
   const classification = classifyBoardWheel(event, target, mode)
   if (classification === 'native') return { classification, preventDefault: false, apply: false }
-  return {
-    classification,
-    preventDefault: true,
-    apply: !(fullscreen && classification === 'zoom'),
-  }
+  return { classification, preventDefault: true, apply: true }
 }
 
 /** Screen-pixel pan the board applies for one wheel event. */

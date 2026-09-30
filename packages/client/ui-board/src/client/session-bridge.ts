@@ -804,6 +804,29 @@ export class BoardSessionBridge {
   }
 
   /**
+   * Publish one client-side action failure on the window's channel, so the
+   * composer shows the reason instead of a dead control (the expand handoff's
+   * refusals).
+   * @param windowId - window identity.
+   * @param message - localized failure text.
+   */
+  notifyAction(windowId: WindowId, message: string): void {
+    const record = this.windows.get(windowId)
+    if (record === undefined) return
+    record.channel.publish({ ...record.channel.getSnapshot(), actionError: message })
+  }
+
+  /**
+   * Clear the window's last action failure: a fresh attempt starts clean.
+   * @param windowId - window identity.
+   */
+  clearActionError(windowId: WindowId): void {
+    const record = this.windows.get(windowId)
+    if (record === undefined) return
+    record.channel.publish({ ...record.channel.getSnapshot(), actionError: undefined })
+  }
+
+  /**
    * The session one window currently shows, when the bridge holds one.
    * @param windowId - window identity.
    * @returns the bound session id, or undefined while the window has no session.

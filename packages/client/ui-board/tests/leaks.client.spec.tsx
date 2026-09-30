@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * Resource discipline for the board (stage 14.4): 30 create/close cycles over
- * every window kind — with the chats panel and fullscreen entered and left on
+ * every window kind — with the chats panel entered and left on
  * the session-bearing kinds — leave the store, the DOM, the slot ledger, the
  * bridge maps, the subscriptions, and the timer count where they started.
  * Closing a window frees its bridge record; the session and its list row stay.
@@ -122,10 +122,6 @@ describe('board resource discipline', () => {
         act(() => { store.actions.openWindow(windowState(index, kind, bodyKind, cloneId)) })
         await runtime.flush()
         if (bodyKind === 'conversation') {
-          act(() => { store.actions.setWindowFullscreen(id) })
-          await runtime.flush()
-          act(() => { store.actions.exitFullscreen() })
-          await runtime.flush()
           act(() => { store.actions.openWindowPanel(id) })
           await runtime.flush()
           act(() => { store.actions.closeWindowPanel() })

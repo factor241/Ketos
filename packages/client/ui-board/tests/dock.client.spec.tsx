@@ -256,7 +256,7 @@ describe('board dock', () => {
     ])
   })
 
-  it('stands down under the chats panel and fullscreen and returns with the layer rules', async () => {
+  it('stands down under the chats panel and returns with the layer rules', async () => {
     const { runtime, panel, store } = await bench()
     act(() => {
       store.actions.setViewport(1200, 900)
@@ -275,9 +275,5 @@ describe('board dock', () => {
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
     expect(dock()).not.toBeNull()
-
-    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
-    await runtime.flush()
-    expect(dock()).toBeNull()
   })
 })

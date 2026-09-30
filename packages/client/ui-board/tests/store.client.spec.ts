@@ -368,35 +368,6 @@ describe('createBoardStore', () => {
     expect(closedSnap.activeWindowId).toBe('w2')
   })
 
-  it('fills one window fullscreen without touching its stored rectangle', () => {
-    const { store, actions } = createBoardStore().create()
-    const win = makeWindow({ id: 'w1' as WindowId, x: 96, y: 120, width: 600, height: 720, zIndex: 10 })
-    actions.addWindow(win)
-    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', customTitle: '2' }))
-    expect(store.getSnapshot().fullscreenWindowId).toBeNull()
-
-    actions.setWindowFullscreen('w1' as WindowId)
-    const snap = store.getSnapshot()
-    expect(snap.fullscreenWindowId).toBe('w1')
-    // Both the rectangle and the size stay authoritative for the exit path.
-    expect(snap.windows['w1']?.x).toBe(96)
-    expect(snap.windows['w1']?.y).toBe(120)
-    expect(snap.windows['w1']?.width).toBe(600)
-    expect(snap.windows['w1']?.height).toBe(720)
-
-    actions.exitFullscreen()
-    expect(store.getSnapshot().fullscreenWindowId).toBeNull()
-    expect(store.getSnapshot().windows['w1']?.width).toBe(600)
-
-    // Closing the fullscreen window leaves the mode with it.
-    actions.setWindowFullscreen('w1' as WindowId)
-    actions.closeWindow('w1' as WindowId)
-    expect(store.getSnapshot().fullscreenWindowId).toBeNull()
-
-    // Unknown ids are ignored, like every other window operation.
-    actions.setWindowFullscreen('missing' as WindowId)
-    expect(store.getSnapshot().fullscreenWindowId).toBeNull()
-  })
 
   it('opens one chats panel at a time and clears it with its window', () => {
     const { store, actions } = createBoardStore().create()
@@ -647,5 +618,25 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().drafts['w2']?.text).toBe('first')
     actions.clearDraft('w2' as WindowId)
     expect(store.getSnapshot().drafts).toEqual({})
+  })
+
+  it('tracks the expanded window and drops it with the window (Т2.1)', () => {
+    const { actions, store } = createBoardStore().create()
+    expect(store.getSnapshot().expandedWindowId).toBeNull()
+
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
+    actions.setExpandedWindow('w1' as WindowId)
+    expect(store.getSnapshot().expandedWindowId).toBe('w1')
+
+    // An unknown id never arms the return rules, and null clears explicitly.
+    actions.setExpandedWindow('missing' as WindowId)
+    expect(store.getSnapshot().expandedWindowId).toBe('w1')
+    actions.setExpandedWindow(null)
+    expect(store.getSnapshot().expandedWindowId).toBeNull()
+
+    // Closing the expanded window forgets it with the rest of its state.
+    actions.setExpandedWindow('w1' as WindowId)
+    actions.closeWindow('w1' as WindowId)
+    expect(store.getSnapshot().expandedWindowId).toBeNull()
   })
 })

@@ -9,6 +9,9 @@ import type { BoardKey } from '@deepseek-ai/dsh-client-ui-board/src/client/local
 /** Dictionary registered into `board` for the Ketos canvas, rail, and windows. */
 export const ru = {
   'switch.toBoard': 'Перейти на доску',
+  'expand.failure.session': 'Сессия недоступна',
+  'expand.failure.busy': 'Сессия сейчас отправляет сообщение — повторите',
+  'expand.failure.files': 'Не удалось перенести вложения',
   'switch.toStandard': 'Стандартный интерфейс',
   'canvas.agentTitle': 'Агент №{n}',
   'rail.openClone': 'Открыть клона: {name}',
@@ -46,7 +49,6 @@ export const ru = {
   'toolbar.composerPlaceholder': 'Спросите что угодно...',
   'window.close': 'Закрыть',
   'window.fullscreen': 'Открыть во весь экран',
-  'window.exitFullscreen': 'Выйти из полноэкранного режима',
   'window.rename': 'Переименовать окно',
   'window.unavailable': 'Это окно недоступно в MVP',
   'window.kind.connectors': 'Коннекторы',

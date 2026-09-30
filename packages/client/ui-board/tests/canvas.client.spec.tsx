@@ -64,7 +64,7 @@ const baseState: BoardState = {
   dockOrder: [],
   cloneOrder: [],
   activeWindowId: null,
-  fullscreenWindowId: null,
+  expandedWindowId: null,
   panelWindowId: null,
   panelCollapsed: true,
   panelTab: 'chats',
@@ -393,20 +393,5 @@ describe('DashboardCanvas Component', () => {
     expect(setPan).toHaveBeenCalledWith(40, -10)
   })
 
-  it('leaves a fullscreen window its identity transform instead of panning', () => {
-    const setPan = vi.fn<(x: number, y: number) => void>()
-    const actions = { setViewport: vi.fn(), setPan, zoomBy: vi.fn() } as unknown as DashboardCanvasProps['actions']
-    const state: BoardState = { ...baseState, fullscreenWindowId: 'a1' as WindowId }
-    const { container } = render(
-      <DashboardCanvas {...canvasProps(state, actions, vi.fn(() => null))} />,
-    )
-    const canvas = container.querySelector('[data-surface="canvas"]') as HTMLElement
-    fireEvent.pointerDown(canvas, { pointerId: 3, clientX: 50, clientY: 50, button: 0 })
-    fireEvent.pointerMove(window, { pointerId: 3, clientX: 90, clientY: 70 })
-    fireEvent.pointerUp(window, { pointerId: 3 })
-    // The mode's inset rectangle maps to the panel, so a pan would only hide
-    // store state that reappears on exit.
-    expect(setPan).not.toHaveBeenCalled()
-  })
 
 })

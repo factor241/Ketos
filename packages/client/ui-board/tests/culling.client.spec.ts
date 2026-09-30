@@ -33,7 +33,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     dockOrder: ['w1' as WindowId],
     cloneOrder: [],
     activeWindowId: 'w1' as WindowId,
-    fullscreenWindowId: null,
+    expandedWindowId: null,
     panelWindowId: null,
     panelCollapsed: true,
     panelTab: 'chats',
@@ -75,12 +75,6 @@ describe('isWindowVisible', () => {
 })
 
 describe('isWindowHidden', () => {
-  it('hides the neighbours of a fullscreen window and never that window', () => {
-    const other: BoardWindowState = { ...WINDOW, id: 'w2' as WindowId }
-    const fullscreen = state({ windows: { w1: WINDOW, w2: other }, fullscreenWindowId: 'w1' as WindowId })
-    expect(isWindowHidden(fullscreen, WINDOW)).toBe(false)
-    expect(isWindowHidden(fullscreen, other)).toBe(true)
-  })
 
   it('reads the live window rectangle from the store', () => {
     const moved = state({ windows: { w1: { ...WINDOW, x: 20_000 } } })

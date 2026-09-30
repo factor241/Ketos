@@ -422,6 +422,12 @@ export interface BoardWindowSessionState {
   readonly commandError?: string | undefined
   /** Failure text of the last queue mutation the host refused. */
   readonly queueError?: string | undefined
+  /**
+   * Client-side failure of the last window action (the expand-to-standard
+   * handoff): shown by the composer until the next attempt. Never a host
+   * error — the prompt, turn, and queue failures keep their own fields.
+   */
+  readonly actionError?: string | undefined
   /** Context occupancy, absent until the provider reports both figures. */
   readonly context?: { readonly percent: number; readonly usedTokens: number; readonly window: number } | undefined
 }
@@ -507,6 +513,13 @@ export interface BoardWindowInjected {
    * panel's composer.
    */
   openInMainPanel: (windowId: WindowId) => void
+  /**
+   * Expand the window into the standard interface (Т2.1): hand its unsent
+   * composer draft to the session's own composer, select the session, and
+   * return the main area to the Conversation. A refused transfer leaves the
+   * board and the window's draft untouched.
+   */
+  expandToStandard: (windowId: WindowId) => void
   /** Load older turns into the window's lane. */
   loadOlderTurns: (windowId: WindowId) => void
   /**
@@ -828,8 +841,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       keyProps: { [Key in WindowBodyKind]: BoardWindowBodyOwnerProps }
     }
     /**
-     * Chats panel of one board card: a companion layer the frame's own fullscreen
-     * toggle expands. The keyed table closes the dispatch domain to `WindowKind`.
+     * Chats panel of one board card: a companion layer beside the frame. The
+     * keyed table closes the dispatch domain to `WindowKind`.
      */
     'board.window.panel': {
       kind: 'keyed'

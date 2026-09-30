@@ -34,7 +34,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     dockOrder: ['w1' as WindowId],
     cloneOrder: [],
     activeWindowId: 'w1' as WindowId,
-    fullscreenWindowId: null,
+    expandedWindowId: null,
     panelWindowId: null,
     panelCollapsed: true,
     panelTab: 'chats',

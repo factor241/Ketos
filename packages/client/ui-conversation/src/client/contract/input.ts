@@ -198,6 +198,15 @@ export interface InputTarget {
 export interface SessionInput extends InputTarget {
   /** Replace the whole draft (persisted-draft seed and programmatic writes). */
   setDraft(text: string): void
+  /**
+   * Register browser files as draft attachments: image files become image
+   * drafts (bytes sent with the prompt), every other file starts its
+   * background upload. Busy admission phases refuse, like
+   * {@link addAttachments}.
+   * @param files - browser files to attach.
+   * @returns whether the files were attached.
+   */
+  addFiles(files: readonly File[]): boolean
   /** Append ordered browser-owned attachment ids; busy admission phases refuse. */
   addAttachments(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned attachment id; busy admission phases refuse. @returns whether the id was removed. */

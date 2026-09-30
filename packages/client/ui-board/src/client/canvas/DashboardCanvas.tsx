@@ -24,7 +24,6 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
   const isSelectingElement = useStore(s => s.isSelectingElement)
-  const isFullscreen = useStore(s => s.fullscreenWindowId !== null)
 
   // Publish the canvas box: window placement and the minimap frustum measure
   // against it. A ResizeObserver follows panel geometry — collapsing the
@@ -41,19 +40,15 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     return () => { observer.disconnect() }
   }, [actions])
 
-  // A plain drag pans only from the bare canvas, and never while a fullscreen
-  // window holds the panel: the mode's identity transform is not the world.
+  // A plain drag pans only from the bare canvas.
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (isFullscreen) return
     if (e.target !== containerRef.current && (e.target as HTMLElement).dataset.surface !== 'canvas-layer') return
     startBoardPanGesture({ event: e, panX, panY, actions, start: startGesture })
-  }, [isFullscreen, panX, panY, actions, startGesture])
+  }, [panX, panY, actions, startGesture])
 
   // Grid geometry follows the live zoom; the dot grid paints from these
-  // variables. A fullscreen window fills the panel, so the surface drops its
-  // pan and zoom under it and the frame's inset rectangle maps to the visible
-  // canvas instead of world units.
-  const view = isFullscreen ? { panX: 0, panY: 0, zoom: 1 } : { panX, panY, zoom }
+  // variables.
+  const view = { panX, panY, zoom }
   // The dot grid never renders denser than 8 screen pixels (Д6.3): below that
   // the world step doubles (24 → 48 → 96), and the dots fade out as the step
   // approaches the floor so the density change does not read as a jump.

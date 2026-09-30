@@ -1069,7 +1069,7 @@ describe('web e2e: spatial board geometry', () => {
     }
   }, 60_000)
 
-  it.fails('Т2.1: expanding a window hands its session to the standard interface', async () => {
+  it('Т2.1: expanding a window hands its session to the standard interface', async () => {
     await clickResetView(page)
     try {
       await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-fullscreen"]`)

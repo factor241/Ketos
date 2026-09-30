@@ -5,10 +5,9 @@
  * (z-index 10–99, see `WINDOW_Z_MAX`), the floating chrome — dock, omnibar,
  * minimap — at 100, the active handle ring at 150, the screen-space popover
  * layer (tooltips and menus, see `BOARD_POPOVER_Z`) at 300, the
- * element-selection overlay at 500, and the fullscreen frame (with an overlay
- * chats panel) at 1000. An expanded chats panel and a fullscreen window stand
- * the floating chrome down, so no root-level layer can cover the panel's edge
- * or the fullscreen frame. `isolation: isolate` contains that ladder inside
+ * element-selection overlay at 500, and an overlay chats panel at 1000. An
+ * expanded chats panel stands the floating chrome down, so no root-level layer
+ * can cover the panel's edge. `isolation: isolate` contains that ladder inside
  * the board box, so an app-level overlay above the box stays above every board
  * layer instead of losing hit-testing to the chrome.
  */
@@ -105,11 +104,9 @@ export function BoardRoot({
   const selecting = useStore(s => s.isSelectingElement)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
-  // A fullscreen window fills the panel, so its chrome stands down. An open
-  // chats panel is a management surface: the floating chrome would otherwise
-  // cover its outer edge, its resize handle, or (in the overlay presentation)
-  // the window's own bottom edge.
-  const fullscreen = useStore(s => s.fullscreenWindowId !== null)
+  // An open chats panel is a management surface: the floating chrome would
+  // otherwise cover its outer edge, its resize handle, or (in the overlay
+  // presentation) the window's own bottom edge.
   // A collapsed panel is only its rail, so the chrome comes back.
   const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
   const activePanelId = usePanelInfo(info => info.activePanelId)
@@ -144,7 +141,7 @@ export function BoardRoot({
       actions.zoomBy(factor, point.x, point.y)
     })
     const onWheel = (event: WheelEvent): void => {
-      const decision = resolveBoardWheel(event, event.target, wheelMode, fullscreen)
+      const decision = resolveBoardWheel(event, event.target, wheelMode)
       if (!decision.preventDefault) return
       event.preventDefault()
       // A browser reporting one pinch twice applies the gesture's ratio only.
@@ -158,22 +155,16 @@ export function BoardRoot({
       const pan = wheelPanDelta(event)
       actions.panBy(pan.x, pan.y)
     }
-    // A fullscreen window fills the panel and is not part of the canvas, so its
-    // Safari gesture blocks the page pinch exactly as its wheel zoom does:
-    // preventDefault only, never `zoomBy` or a pinch-state change.
     const onGestureStart = (event: Event): void => {
       event.preventDefault()
-      if (fullscreen) return
       pinch.start(readPinchEvent(event))
     }
     const onGestureChange = (event: Event): void => {
       event.preventDefault()
-      if (fullscreen) return
       pinch.change(readPinchEvent(event))
     }
     const onGestureEnd = (event: Event): void => {
       event.preventDefault()
-      if (fullscreen) return
       pinch.end()
     }
     root.addEventListener('wheel', onWheel, { passive: false })
@@ -186,7 +177,7 @@ export function BoardRoot({
       root.removeEventListener('gesturechange', onGestureChange)
       root.removeEventListener('gestureend', onGestureEnd)
     }
-  }, [fullscreen, actions, wheelMode, zoomSensitivity])
+  }, [actions, wheelMode, zoomSensitivity])
 
   // Crisp text at rest (Д6.2): `will-change: transform` holds GPU
   // rasterization, so the surface keeps it only while a board gesture is live.
@@ -318,13 +309,13 @@ export function BoardRoot({
             openStandardInterface={openStandardInterface}
           />
         </BoardPopoverProvider>
-        {!fullscreen && !panelOpen && renderSlot('board.dock', {})}
-        {!fullscreen && !panelOpen && renderSlot('board.omnibar', {})}
-        {!fullscreen && !panelOpen && renderSlot('board.minimap', {})}
+        {!panelOpen && renderSlot('board.dock', {})}
+        {!panelOpen && renderSlot('board.omnibar', {})}
+        {!panelOpen && renderSlot('board.minimap', {})}
         {/* The active window's handle ring rides above the chrome, so a resize
             handle stays grabbable when its window edge sits under a floating
             layer; the selection overlay still paints above both. */}
-        {!fullscreen && !simplified && <HandleRing useStore={useStore} actions={actions} />}
+        {!simplified && <HandleRing useStore={useStore} actions={actions} />}
         <ElementSelectionOverlay
           t={t}
           active={selecting}

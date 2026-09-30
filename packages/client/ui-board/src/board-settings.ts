@@ -80,8 +80,7 @@ export type BoardLayoutWindow = {
 
 /**
  * Layout fields a stored document carries. `viewportWidth/Height` are absent:
- * the canvas measures them at mount; `fullscreenWindowId` is absent: fullscreen
- * is a session modality.
+ * the canvas measures them at mount.
  */
 export type BoardLayout = {
   panX: number

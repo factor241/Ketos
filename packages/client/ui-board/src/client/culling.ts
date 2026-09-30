@@ -31,14 +31,12 @@ export function isWindowVisible(state: BoardState, window: BoardWindowState): bo
 }
 
 /**
- * Whether one window is hidden this render: it left the visible canvas, or the
- * board is fullscreen on another window.
- * @param state - board state holding the pan, zoom, viewport, and fullscreen id.
+ * Whether one window is hidden this render: it left the visible canvas.
+ * @param state - board state holding the pan, zoom, and viewport.
  * @param window - the window the frame or panel belongs to.
  * @returns true when the frame and its panel should take the hidden class.
  */
 export function isWindowHidden(state: BoardState, window: BoardWindowState): boolean {
-  if (state.fullscreenWindowId !== null && state.fullscreenWindowId !== window.id) return true
   const own = state.windows[window.id as string] ?? window
   return !isWindowVisible(state, own)
 }

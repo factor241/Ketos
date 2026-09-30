@@ -1,11 +1,12 @@
 /**
  * Shared frame for every board window kind: the floating-panel chrome, the
- * header drag, the eight resize handles, and the optional fullscreen control.
+ * header drag, the eight resize handles, and the optional expand-to-standard
+ * control.
  * The chats panel is a window body of its own (`board.window.panel`), and its
  * own rail and header carry the controls that open and collapse it. Board
  * controls automation drives carry a stable `data-board-action` id next to
  * their localized label, so live audits address them whatever the active
- * locale. A kind differs only in whether it offers the fullscreen control and
+ * locale. A kind differs only in whether it offers the expand control and
  * in the `board.window.body` occupant its `renderBody` dispatches.
  *
  * The two gestures live in leaf components that read the canvas zoom
@@ -16,7 +17,7 @@
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseOutline16, IconExitFullscreenOutline16, IconFullscreenOutline16, StateDot, Tooltip,
+  IconCloseOutline16, IconFullscreenOutline16, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
@@ -27,7 +28,6 @@ import { isBoardEditingTarget } from '../editing-target.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { startWindowResizeGesture } from '../resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
-import { PANEL_RAIL_WIDTH, panelWidthFor } from './panel-geometry.ts'
 import { windowTitle } from '../window-title.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
 import { CloneWindowBar } from './CloneWindowBar.tsx'
@@ -55,7 +55,10 @@ const RESIZE_HANDLES = RESIZE_DIRECTIONS.map(direction => [direction, HANDLE_CLA
 export interface WindowFrameFeatures {
   /** Chats-panel toggle; its panel occupies the frame's left edge while open. */
   readonly panel?: boolean
-  /** Fullscreen toggle; the frame then fills the board panel. */
+  /**
+   * Expand-to-standard control: the chat windows' header button that hands
+   * the session to the standard interface (Т2.1). Only chat windows offer it.
+   */
   readonly fullscreen?: boolean
 }
 
@@ -75,13 +78,12 @@ interface FrameGestureProps {
 
 /** Header strip: drag-to-move, with the zoom read where the gesture starts. */
 function WindowHeaderDrag({
-  window: cardWindow, useStore, actions, disabled, children,
-}: FrameGestureProps & { readonly disabled: boolean; readonly children: ReactNode }) {
+  window: cardWindow, useStore, actions, children,
+}: FrameGestureProps & { readonly children: ReactNode }) {
   const zoom = useStore(s => s.zoom)
   const startGesture = useBoardPointerGesture()
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (disabled) return
     if ((e.target as HTMLElement).closest('button, input, textarea') !== null) return
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
@@ -99,7 +101,7 @@ function WindowHeaderDrag({
         actions.moveWindow(cardWindow.id, startX + dx, startY + dy, !moveEvt.shiftKey)
       },
     })
-  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, disabled, actions, startGesture])
+  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, actions, startGesture])
 
   return <div onPointerDown={handlePointerDown} className={css.header}>{children}</div>
 }
@@ -267,81 +269,61 @@ function WindowSimplifiedCard({
 
 function WindowFrameView({
   window: cardWindow, renderBody, useStore, actions, t, features, useWindowSession, useCloneList, refreshClones,
-  detailZoomThreshold,
+  detailZoomThreshold, expandToStandard,
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
-  const fullscreenWindowId = useStore(s => s.fullscreenWindowId)
   const panelWindowId = useStore(s => s.panelWindowId)
-  const viewportWidth = useStore(s => s.viewportWidth)
-  const panelWidth = useStore(s => s.panelWidth)
   const panelCollapsed = useStore(s => s.panelCollapsed)
-  // Culled and fullscreen-hidden windows stay mounted: their lane, draft,
+  // Culled windows stay mounted: their lane, draft,
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
   const isSelectingElement = useStore(s => s.isSelectingElement)
   const hasPanel = features?.panel === true
-  const isFullscreen = features?.fullscreen === true && fullscreenWindowId === cardWindow.id
   // Below the detail threshold the frame swaps its chrome for the simplified
-  // card (Д6.1); a fullscreen frame renders at scale 1 and keeps its detail.
-  const belowDetail = useStore(s => s.zoom < detailZoomThreshold)
-  const simplified = !isFullscreen && belowDetail
+  // card (Д6.1).
+  const simplified = useStore(s => s.zoom < detailZoomThreshold)
   // A collapsed panel is a rail: it takes no width, and Escape leaves it alone.
   const isPanelOpen = hasPanel && panelWindowId === cardWindow.id && !panelCollapsed
-  // Fullscreen docks the chats panel and gives up its width to the chat column;
-  // a collapsed panel keeps its rail's width, so the rail owns a column of its
-  // own instead of floating above the chat.
-  const panelInset = isPanelOpen
-    ? panelWidthFor(viewportWidth, panelWidth)
-    : isFullscreen && hasPanel ? PANEL_RAIL_WIDTH : 0
 
-  // Escape closes the chats panel first and leaves fullscreen second: one
-  // handler owns the key so the two modes never fight over it. The board's
-  // ladder is menu -> editor -> selection overlay -> panel -> fullscreen, so
-  // this handler stands down while the selection overlay is active.
+  // Escape closes the chats panel: one handler owns the key. The board's
+  // ladder is menu -> editor -> selection overlay -> panel, so this handler
+  // stands down while the selection overlay is active.
   useEffect(() => {
     if (isSelectingElement) return
-    if (!isFullscreen && !isPanelOpen) return
+    if (!isPanelOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (document.querySelector('[role="menu"]') !== null) return
       if (isBoardEditingTarget(e.target)) return
-      if (isPanelOpen) actions.closeWindowPanel()
-      else actions.exitFullscreen()
+      actions.closeWindowPanel()
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
-  }, [isSelectingElement, isFullscreen, isPanelOpen, actions])
+  }, [isSelectingElement, isPanelOpen, actions])
 
   return (
     <div
       data-board-window={cardWindow.kind}
       data-board-window-id={cardWindow.id}
-      data-board-fullscreen={isFullscreen ? '' : undefined}
       data-board-culled={hidden ? '' : undefined}
       className={clsx(
         css.window,
         isActive && css.active,
         returned && css.returned,
-        isFullscreen && css.fullscreen,
         simplified && css.simplified,
         hidden && css.hidden,
       )}
       onPointerDown={() => { actions.focusWindow(cardWindow.id) }}
-      style={isFullscreen
-        // The canvas drops its pan/zoom while a window is fullscreen, so the
-        // inset rectangle maps to the visible board panel; an open chats panel
-        // docks along its left edge and takes that width from the chat.
-        ? { inset: `0 0 0 ${String(panelInset)}px`, zIndex: 1000 }
-        : {
-          left: cardWindow.x,
-          top: cardWindow.y,
-          width: cardWindow.width,
-          height: cardWindow.height,
-          zIndex: cardWindow.zIndex,
-        }}
+      style={{
+        left: cardWindow.x,
+        top: cardWindow.y,
+        width: cardWindow.width,
+        height: cardWindow.height,
+        zIndex: cardWindow.zIndex,
+      }}
     >
-      {!isFullscreen && !simplified && RESIZE_HANDLES.map(([direction, handleClass]) => (
+      {!simplified && RESIZE_HANDLES.map(([direction, handleClass]) => (
         <WindowResizeHandle
           key={direction}
           window={cardWindow}
@@ -356,7 +338,6 @@ function WindowFrameView({
         window={cardWindow}
         useStore={useStore}
         actions={actions}
-        disabled={isFullscreen}
       >
         <div className={css.headerLeft}>
           <Tooltip label={t('window.close')} side="bottom">
@@ -380,18 +361,15 @@ function WindowFrameView({
         </div>
         {features?.fullscreen === true && (
           <div className={css.headerRight}>
-            <Tooltip label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')} side="bottom">
+            <Tooltip label={t('window.fullscreen')} side="bottom">
               <button
                 type="button"
                 data-board-action="window-fullscreen"
-                onClick={() => {
-                  if (isFullscreen) actions.exitFullscreen()
-                  else actions.setWindowFullscreen(cardWindow.id)
-                }}
+                onClick={() => { expandToStandard(cardWindow.id) }}
                 className={css.headerButton}
-                aria-label={t(isFullscreen ? 'window.exitFullscreen' : 'window.fullscreen')}
+                aria-label={t('window.fullscreen')}
               >
-                {isFullscreen ? <IconExitFullscreenOutline16 /> : <IconFullscreenOutline16 />}
+                <IconFullscreenOutline16 />
               </button>
             </Tooltip>
           </div>

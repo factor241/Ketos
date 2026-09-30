@@ -29,7 +29,7 @@ export function ElementSelectionOverlay({
 
   // Escape leaves the mode, after an open menu and a focused editor have had
   // their say: the ladder is menu -> editor -> selection -> chats panel ->
-  // fullscreen, and the frame stands down while this overlay is active.
+  // and the frame stands down while this overlay is active.
   useEffect(() => {
     if (!active) return
     const handleKeyDown = (e: KeyboardEvent) => {

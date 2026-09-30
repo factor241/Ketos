@@ -7,8 +7,8 @@
  * that owns it. `BoardPopoverProvider` turns the nearest surface into a
  * `PopoverHost` for one window (`windowId`) or for screen-space chrome (no
  * `windowId`, scale 1) and publishes a dismissal token that window menus
- * watch: moving, resizing, fullscreening, culling, or closing the window
- * closes an open menu, while pan and zoom only move it.
+ * watch: moving, resizing, culling, or closing the window closes an open menu,
+ * while pan and zoom only move it.
  */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { PopoverHostProvider } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -60,10 +60,10 @@ export function useBoardPopoverBoundary(): () => DOMRect {
 
 /**
  * Token that changes whenever an open window menu must close: the window moved
- * or resized, entered or left fullscreen, left the visible canvas, crossed the
- * detail threshold, or closed. Pan and zoom inside one detail mode keep the
- * token stable, so menus follow those gestures instead of dismissing for them.
- * @param state - board state holding the window map, fullscreen id, and zoom.
+ * or resized, left the visible canvas, crossed the detail threshold, or
+ * closed. Pan and zoom inside one detail mode keep the token stable, so menus
+ * follow those gestures instead of dismissing for them.
+ * @param state - board state holding the window map and zoom.
  * @param windowId - the window whose menus watch the token.
  * @param detailZoomThreshold - zoom below which the window shows its simplified card.
  * @returns the current dismissal token.
@@ -71,10 +71,9 @@ export function useBoardPopoverBoundary(): () => DOMRect {
 export function windowMenuDismissToken(state: BoardState, windowId: WindowId, detailZoomThreshold: number): string {
   const card = state.windows[windowId as string]
   if (card === undefined) return 'closed'
-  const mode = state.fullscreenWindowId === windowId ? 'fullscreen' : 'windowed'
   const visibility = isWindowHidden(state, card) ? 'hidden' : 'shown'
   const detail = state.zoom < detailZoomThreshold ? 'simplified' : 'detailed'
-  return `${mode}:${visibility}:${detail}:${String(card.x)}:${String(card.y)}:${String(card.width)}:${String(card.height)}`
+  return `${visibility}:${detail}:${String(card.x)}:${String(card.y)}:${String(card.width)}:${String(card.height)}`
 }
 
 /** Per-window dismissal token for open menus; null outside a window host. */
@@ -82,7 +81,7 @@ const WindowMenuDismissContext = createContext<string | null>(null)
 
 /**
  * Close the calling owner's menu when its window's dismissal token changes
- * (move, resize, fullscreen, culling, or close). The token observed at mount
+ * (move, resize, culling, or close). The token observed at mount
  * never closes anything; only a change does, so opening a menu is not
  * immediately undone by the host.
  * @param onClose - the owner's menu close callback.
@@ -116,7 +115,7 @@ export interface BoardPopoverProviderProps {
 
 /**
  * Host the popovers of one board surface. Window hosts scale with the zoom (1
- * in fullscreen) and dismiss menus on window lifecycle changes; a host without
+ * at the board zoom) and dismiss menus on window lifecycle changes; a host without
  * `windowId` renders at scale 1 for the screen-space chrome. Until the board
  * root publishes its layer, children render without a host.
  * @param props - the store seat, the optional window id, and the subtree to host.
@@ -128,7 +127,6 @@ export function BoardPopoverProvider({ useStore, windowId, detailZoomThreshold, 
   const zoom = useStore(s => s.zoom)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
-  const fullscreen = useStore(s => windowId !== undefined && s.fullscreenWindowId === windowId)
   const geometry = useStore((s) => {
     if (windowId === undefined) return ''
     const card = s.windows[windowId as string]
@@ -159,7 +157,7 @@ export function BoardPopoverProvider({ useStore, windowId, detailZoomThreshold, 
   return (
     <PopoverHostProvider
       container={surface.layer}
-      scale={windowId === undefined || fullscreen ? 1 : zoom}
+      scale={windowId === undefined ? 1 : zoom}
       boundary={boundary}
       subscribe={subscribe}
     >

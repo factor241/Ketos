@@ -136,9 +136,10 @@ describe('board slot composition', () => {
     expect(agentFrame?.querySelector('textarea')).not.toBeNull()
     expect(agentFrame?.querySelector('button[aria-label="Send"]')).not.toBeNull()
     expect(agentFrame?.textContent).toContain('First agent')
-    // Every tool kind keeps the shared frame without the chat-only controls, so
-    // the panel and fullscreen modes never apply to them. The chats panel is
-    // opened from its own rail, never from a duplicate header button.
+    // Every tool kind keeps the shared frame without the chat-only controls.
+    // The chats panel is opened from its own rail, never from a duplicate
+    // header button, and the expand-to-standard control is the chat window's
+    // alone (Т2.3).
     expect(agentFrame?.querySelector('button[aria-label="Chats"]')).toBeNull()
     expect(agentFrame?.querySelector('button[aria-label="Open fullscreen"]')).not.toBeNull()
     for (const kind of toolKinds) {
@@ -150,6 +151,14 @@ describe('board slot composition', () => {
       expect(toolFrame?.querySelector('button[aria-label="Chats"]')).toBeNull()
       expect(toolFrame?.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
     }
+
+    // A clone window edits a record, not a chat: no expand control either.
+    act(() => { board.actions.openWindow(windowState({
+      id: 'c1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-1' as CloneId, ordinal: 6,
+    })) })
+    await runtime.flush()
+    const cloneFrame = panel.container.querySelector('[data-board-window="clone"]')
+    expect(cloneFrame?.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
   })
 
   it('swaps the body occupant when bodyKind changes', async () => {
@@ -229,62 +238,120 @@ describe('board slot composition', () => {
     expect(panel.view.getByText('Second agent')).not.toBeNull()
   })
 
-  it('fills the board panel with the fullscreen window and hides its neighbours and chrome', async () => {
+  it('hands the window draft to the standard interface through the expand control (Т2.1/Т2.4)', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
 
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' })) })
+    await runtime.flush()
+    // The window owns a draft: text, an image, and a staged file.
     act(() => {
-      board.actions.setPan(40, 40)
-      board.actions.setZoom(1.5)
-      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'First agent' }))
-      board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Second agent' }))
+      board.actions.setDraftText('a1' as WindowId, 'перенесённый текст')
+      board.actions.addDraftImages('a1' as WindowId, [{
+        id: 'img-1', name: 'pic.png', mediaType: 'image/png', data: 'AA==', preview: 'data:image/png;base64,AA==',
+      }])
+      board.actions.addDraftFiles('a1' as WindowId, [{
+        record: { id: 'f1', name: 'notes.txt', status: 'ready', receiptId: 'r1' },
+        source: new File(['x'], 'notes.txt', { type: 'text/plain' }),
+      }])
     })
     await runtime.flush()
-    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
 
-    const frame = panel.container.querySelectorAll('[data-board-window="agent"]')[0] as HTMLElement
-    fireEvent.click(frame.querySelector('button[aria-label="Open fullscreen"]') as Element)
-    await runtime.flush()
-
-    const surface = panel.container.querySelectorAll('[data-surface="canvas"]')[0] as HTMLElement
-    const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
-    expect(fullscreen).not.toBeNull()
-    // No panel open: the frame keeps the board panel minus the collapsed
-    // panel's rail column.
-    expect(fullscreen.style.inset).toBe('0 0 0 44px')
-    // The other frame stays mounted and hidden — its draft survives the mode —
-    // and the floating chrome leaves with the fullscreen frame.
-    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
-    expect(panel.container.querySelectorAll('[data-board-window][data-board-culled]')).toHaveLength(1)
-    for (const layer of ['dock', 'omnibar', 'minimap'] as const) {
-      expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(0)
+    // The standard composer already holds its own text: the window's draft
+    // joins it as a new paragraph instead of replacing it.
+    const conversation = runtime.ctx.get('conversation') as unknown as {
+      seedStandardDraft: (sessionId: string, text: string) => unknown
+      standardInputs: Map<string, { drafts: string[]; files: readonly (readonly File[])[] }>
     }
-    // The surface drops its pan and zoom so the inset rectangle maps to the panel.
-    expect(surface.style.getPropertyValue('--board-pan-x')).toBe('0px')
-    expect(surface.style.getPropertyValue('--board-zoom')).toBe('1')
+    conversation.seedStandardDraft('session-1', 'существующий черновик')
 
-    // Escape leaves the mode and the window returns to its stored geometry.
-    fireEvent.keyDown(document, { key: 'Escape' })
-    await runtime.flush()
-    const restored = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
-    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
-    expect(restored.style.inset).toBe('')
-    expect(restored.style.width).toBe(`${String(board.store.getSnapshot().windows['a1']?.width)}px`)
-    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(2)
-    expect(panel.container.querySelectorAll('[data-board-window][data-board-culled]')).toHaveLength(0)
-    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
-
-    // The header toggle closes the mode too.
     fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
     await runtime.flush()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).not.toBeNull()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Exit fullscreen"]') as Element)
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
+
+    // The standard interface selected the window's session and received the
+    // whole draft: text, the image decoded back to a File, and the staged file.
+    const workspace = runtime.ctx.get('uiWorkspace') as unknown as { openedSessions: string[] }
+    expect(workspace.openedSessions).toEqual(['session-1'])
+    const standard = conversation.standardInputs.get('session-1')
+    expect(standard?.drafts).toEqual(['существующий черновик\n\nперенесённый текст'])
+    expect(standard?.files[0]?.map(file => file.name)).toEqual(['pic.png', 'notes.txt'])
+    expect(standard?.files[0]?.map(file => file.type)).toEqual(['image/png', 'text/plain'])
+    // The window's own draft is gone with the handoff, the window itself stays
+    // on the board (the control navigates, it never mutates the layout), and
+    // the store remembers it as the expanded window for the return rules.
+    expect(board.store.getSnapshot().drafts['a1']).toBeUndefined()
+    expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(1)
+    expect(board.store.getSnapshot().expandedWindowId).toBe('a1')
   })
 
-  it('keeps a rail for every chat window, opens the panel beside the frame, and docks it in fullscreen', async () => {
+  it('reports every expand failure on the window and keeps its draft (Т2.1)', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    const conversation = runtime.ctx.get('conversation') as unknown as {
+      setAddFilesMode: (mode: 'ok' | 'busy' | 'throw') => void
+    }
+
+    act(() => {
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
+      board.actions.setDraftText('a1' as WindowId, 'черновик')
+      board.actions.addDraftFiles('a1' as WindowId, [{
+        record: { id: 'f1', name: 'notes.txt', status: 'ready', receiptId: 'r1' },
+        source: new File(['x'], 'notes.txt', { type: 'text/plain' }),
+      }])
+    })
+    await runtime.flush()
+    const clickExpand = (): void => {
+      fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
+    }
+    const notice = (): string | undefined =>
+      panel.container.querySelector('[data-board-action-error]')?.textContent ?? undefined
+
+    // A standard composer mid-admission refuses the files: the window keeps
+    // its draft and says to retry.
+    conversation.setAddFilesMode('busy')
+    clickExpand()
+    await runtime.flush()
+    expect(notice()).toBe('The session is sending a message — try again')
+    expect(board.store.getSnapshot().drafts['a1']?.text).toBe('черновик')
+    expect(board.store.getSnapshot().expandedWindowId).toBeNull()
+
+    // A rejected file (an unsupported type) reports the attachment failure.
+    conversation.setAddFilesMode('throw')
+    clickExpand()
+    await runtime.flush()
+    expect(notice()).toBe('Could not transfer the attachments')
+    expect(board.store.getSnapshot().drafts['a1']?.text).toBe('черновик')
+    expect(board.store.getSnapshot().expandedWindowId).toBeNull()
+
+    // The session left the list: the handoff cannot resolve it.
+    conversation.setAddFilesMode('ok')
+    await runtime.sessions.remove('session-1')
+    await runtime.flush()
+    clickExpand()
+    await runtime.flush()
+    expect(notice()).toBe('Session unavailable')
+    expect(board.store.getSnapshot().drafts['a1']?.text).toBe('черновик')
+    expect(board.store.getSnapshot().expandedWindowId).toBeNull()
+
+    // The session returns; a fresh attempt starts clean, reports its own
+    // reason, and a successful handoff clears the notice and arms the return
+    // rules.
+    await runtime.sessions.add({ id: 'session-1' })
+    await runtime.flush()
+    conversation.setAddFilesMode('busy')
+    clickExpand()
+    await runtime.flush()
+    expect(notice()).toBe('The session is sending a message — try again')
+    conversation.setAddFilesMode('ok')
+    clickExpand()
+    await runtime.flush()
+    expect(notice()).toBeUndefined()
+    expect(board.store.getSnapshot().expandedWindowId).toBe('a1')
+  })
+
+  it('keeps a rail for every chat window and opens the panel beside the frame', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -355,32 +422,6 @@ describe('board slot composition', () => {
     expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
     expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
 
-    // Fullscreen docks it to the board panel and gives its width to the chat.
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
-    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
-    await runtime.flush()
-    const docked = panel.container.querySelector('[data-board-panel]') as HTMLElement
-    const dockedWidth = panelWidthFor(1400, board.store.getSnapshot().panelWidth)
-    expect(docked.getAttribute('data-board-panel')).toBe('docked')
-    expect(docked.style.left).toBe('0px')
-    expect(docked.style.top).toBe('0px')
-    expect(docked.style.height).toBe('900px')
-    expect(docked.style.width).toBe(`${String(dockedWidth)}px`)
-    // The rail stands down while the panel is open, and returns collapsed at
-    // the board panel's left edge when the docked panel folds away — the
-    // fullscreen mode keeps the panel reachable without its own header button.
-    expect(panel.container.querySelector('[data-board-panel-rail]')).toBeNull()
-    const fullscreen = panel.container.querySelector('[data-board-fullscreen]') as HTMLElement
-    expect(fullscreen.style.inset).toBe(`0 0 0 ${String(dockedWidth)}px`)
-
-    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
-    await runtime.flush()
-    const fullscreenRail = panel.container.querySelector('[data-board-panel-rail]') as HTMLElement
-    expect(fullscreenRail).not.toBeNull()
-    expect(fullscreenRail.style.left).toBe('0px')
-    // The collapsed panel keeps its rail's column, so the rail never floats
-    // above the chat it belongs to.
-    expect(fullscreen.style.inset).toBe('0 0 0 44px')
   })
 
   it('points the window at the chat picked in its panel', async () => {
@@ -691,11 +732,6 @@ describe('board slot composition', () => {
       window.dispatchEvent(event)
     }
     expect(board.store.getSnapshot().windows['a1']?.width).toBe(600)
-
-    // Fullscreen stands the ring down with the frame's own handles.
-    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-handle-ring]')).toBeNull()
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
@@ -839,7 +875,7 @@ describe('board slot composition', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
-  it('gives Escape one action per press, panel before fullscreen, and never closes the window', async () => {
+  it('gives Escape one action per press: the panel closes and the window never does', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -847,25 +883,17 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
-    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel-open]')).not.toBeNull()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).not.toBeNull()
 
-    // First press: the panel, and only the panel.
+    // First press: the panel.
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).not.toBeNull()
-
-    // Second press: fullscreen, and only fullscreen.
-    fireEvent.keyDown(document, { key: 'Escape' })
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
     expect(board.store.getSnapshot().windows['a1']).toBeDefined()
     expect(panel.container.querySelectorAll('[data-board-window="agent"]')).toHaveLength(1)
 
-    // Third press: nothing left to take.
+    // Second press: nothing left to take.
     const before = board.store.getSnapshot()
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
@@ -988,63 +1016,6 @@ describe('board slot composition', () => {
     expect((clientX - 280 - after.panX) / after.zoom).toBeCloseTo(worldX)
     expect((clientY - 40 - after.panY) / after.zoom).toBeCloseTo(worldY)
     gesture('gestureend', 2)
-  })
-
-  it('blocks the board zoom in fullscreen while still preventing the page zoom', async () => {
-    const prepared = await createBoardBench()
-    runtimes.add(prepared.runtime)
-    const { runtime } = prepared
-    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
-    runtime.sessions.stubCreate(async () => created)
-    await prepared.mountBoard()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as BoardInstance
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
-    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
-    await runtime.flush()
-
-    const canvas = panel.container.querySelector('[data-surface="canvas"]') as Element
-    const before = board.store.getSnapshot().zoom
-    const prevented = !fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100, clientX: 100, clientY: 100 })
-    expect(prevented).toBe(true)
-    expect(board.store.getSnapshot().zoom).toBe(before)
-  })
-
-  it('leaves the board view alone for Safari gestures in fullscreen (П-04)', async () => {
-    const prepared = await createBoardBench()
-    runtimes.add(prepared.runtime)
-    const { runtime } = prepared
-    const created = await runtime.sessions.add({ id: 'session-1', summary: { cwd: '/work' } })
-    runtime.sessions.stubCreate(async () => created)
-    await prepared.mountBoard()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as BoardInstance
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
-    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
-    await runtime.flush()
-
-    const root = panel.container.querySelector('[data-surface="board"]') as Element
-    act(() => {
-      board.actions.setZoom(1.3)
-      board.actions.setPan(40, 25)
-    })
-    const before = board.store.getSnapshot()
-    const gesture = (type: string, scale: number): Event => {
-      const event = new Event(type, { bubbles: true, cancelable: true })
-      Object.assign(event, { scale, clientX: 500, clientY: 300 })
-      root.dispatchEvent(event)
-      return event
-    }
-
-    // The fullscreen frame is not part of the canvas: its gesture only blocks
-    // the page pinch, which would otherwise scale the whole shell.
-    expect(gesture('gesturestart', 1).defaultPrevented).toBe(true)
-    expect(gesture('gesturechange', 2).defaultPrevented).toBe(true)
-    expect(gesture('gestureend', 2).defaultPrevented).toBe(true)
-    const after = board.store.getSnapshot()
-    expect(after.zoom).toBe(before.zoom)
-    expect(after.panX).toBe(before.panX)
-    expect(after.panY).toBe(before.panY)
   })
 
   it('handles Cmd+0, +=, and − only while the pointer or focus is on the board', async () => {
@@ -1187,19 +1158,6 @@ describe('board slot composition', () => {
     })
     expect(board.store.getSnapshot().windows['a1']).toBeDefined()
 
-    // Fullscreen disables the header drag: the stored rectangle is the restore.
-    act(() => { board.actions.setWindowFullscreen('a1' as WindowId) })
-    await runtime.flush()
-    const still = board.store.getSnapshot().windows['a1'] as BoardWindowState
-    fireEvent.pointerDown(panel.container.querySelector('[class*="header"]') as Element, {
-      pointerId: 14, clientX: 200, clientY: 200,
-    })
-    for (const [type, clientX, clientY] of [['pointermove', 400, 400], ['pointerup', 400, 400]] as const) {
-      const event = new Event(type)
-      Object.assign(event, { clientX, clientY, pointerId: 14 })
-      window.dispatchEvent(event)
-    }
-    expect(board.store.getSnapshot().windows['a1']).toMatchObject({ x: still.x, y: still.y })
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 

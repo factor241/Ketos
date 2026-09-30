@@ -19,7 +19,7 @@ export interface ChromeInsets {
   readonly right: number
 }
 
-/** Zero insets: a board whose chrome is not rendered (fullscreen, open panel). */
+/** Zero insets: a board whose chrome is not rendered (an open panel). */
 export const NO_CHROME_INSETS: ChromeInsets = { top: 0, bottom: 0, left: 0, right: 0 }
 
 /** One chrome element's published contribution: its declared edge and depth. */

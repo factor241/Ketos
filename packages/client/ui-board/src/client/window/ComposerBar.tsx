@@ -289,7 +289,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     })
   }, [boundary])
   const closeMenu = useCallback(() => { setMenu(null) }, [])
-  // Moving or resizing the window, fullscreening it, culling it, or closing it
+  // Moving or resizing the window, culling it, or closing it
   // dismisses the open list; panning and zooming keep it following the chip.
   useBoardMenuDismiss(closeMenu)
   const isOpen = (kind: MenuKind): boolean => menu?.kind === kind
@@ -457,7 +457,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     // A composition-closing Enter picks the IME candidate: `isComposing` covers
     // most engines, keyCode 229 is the legacy signal, and the ref holds the
     // guard for Safari's keydown delivered just after `compositionend`.
-    // oxlint-disable-next-line typescript/no-deprecated
+    // oxlint-disable-next-line typescript/no-deprecated -- Legacy IME signal alongside `isComposing`.
     if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229 || compositionGuard.current) return
     e.preventDefault()
     submit(!e.metaKey && !e.ctrlKey ? 'queue' : 'steer')
@@ -502,7 +502,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
   /**
    * Escape pressed on a focused palette row closes the palette and stops there:
    * the board's Escape ladder would otherwise close the chats panel (or leave
-   * fullscreen) while the row the reader is on stays open.
+   * culling) while the row the reader is on stays open.
    */
   const dismissOnEscape = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key !== 'Escape') return
@@ -1082,6 +1082,9 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
         )}
         {intakeError !== null && (
           <div className={css.intakeError} data-board-attachment-error="">{intakeError}</div>
+        )}
+        {session?.actionError !== undefined && (
+          <div className={css.intakeError} data-board-action-error="">{session.actionError}</div>
         )}
         {session?.commandError !== undefined && (
           <div className={css.intakeError} data-board-command-error="">

@@ -249,12 +249,61 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     },
   } as never)
   // The board declares the uiWorkspace service for its panel actions; the
-  // directory verbs stay inert until a test stubs them.
+  // directory verbs stay inert until a test stubs them. `openSession` records
+  // the standard-interface handoff of `expandToStandard` (Т2.1).
+  const openedSessions: string[] = []
   runtime.ctx.provide('uiWorkspace', {
     pickDirectory: async () => null,
     listDirectory: async () => ({ path: '', home: '', crumbs: [], entries: [], truncated: false }),
     createDirectory: async () => '',
+    openSession: (sessionId: string) => { openedSessions.push(sessionId) },
+    openedSessions,
     ...options.uiWorkspace,
+  } as never)
+  // The standard composer the board hands a window's draft to (Т2.1/Т2.4):
+  // one recording input facade per session scope. `addFilesMode` lets a test
+  // stage the refusals the expand control must report.
+  interface StandardInputDouble {
+    drafts: string[]
+    files: (readonly File[])[]
+    current: string
+    state: { getSnapshot: () => { draft: string } }
+    setDraft: (text: string) => void
+    addFiles: (files: readonly File[]) => boolean
+  }
+  const standardInputs = new Map<string, StandardInputDouble>()
+  let addFilesMode: 'ok' | 'busy' | 'throw' = 'ok'
+  const ensureStandardInput = (sessionId: string): StandardInputDouble => {
+    let input = standardInputs.get(sessionId)
+    if (input === undefined) {
+      input = {
+        drafts: [],
+        files: [],
+        current: '',
+        state: { getSnapshot: () => ({ draft: input!.current }) },
+        setDraft(text: string) { input!.drafts.push(text); input!.current = text },
+        addFiles(files: readonly File[]) {
+          if (addFilesMode === 'throw') throw new Error('probe failure')
+          if (addFilesMode === 'busy') return false
+          input!.files.push(files)
+          return true
+        },
+      }
+      standardInputs.set(sessionId, input)
+    }
+    return input
+  }
+  runtime.ctx.provide('conversation', {
+    setAddFilesMode: (mode: 'ok' | 'busy' | 'throw') => { addFilesMode = mode },
+    seedStandardDraft: (sessionId: string, text: string) => {
+      const input = ensureStandardInput(sessionId)
+      input.current = text
+      return input
+    },
+    input: {
+      for: (actx: { }) => ensureStandardInput(String(runtime.ctx.get('sessions')?.scopeOf(actx as never) ?? 'unknown')),
+    },
+    standardInputs,
   } as never)
   runtime.ctx.provide('uiConversation', {
     binding: (source: string) => ({

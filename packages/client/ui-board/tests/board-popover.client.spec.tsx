@@ -106,22 +106,6 @@ describe('board popover host', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('closes the menu when the window enters fullscreen', () => {
-    const { instance, open } = bench()
-    open()
-    act(() => { instance.actions.setWindowFullscreen(WINDOW_ID) })
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
-  it('closes the menu when the window leaves fullscreen', () => {
-    const { instance, open } = bench()
-    act(() => { instance.actions.setWindowFullscreen(WINDOW_ID) })
-    open()
-    expect(screen.queryByRole('menu')).not.toBeNull()
-    act(() => { instance.actions.exitFullscreen() })
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
   it('closes the menu when the window closes', () => {
     const { instance, open } = bench()
     open()

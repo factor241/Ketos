@@ -176,7 +176,7 @@ export function CloneBody({
   const [skillModal, setSkillModal] = useState<SkillModalState | undefined>(undefined)
   const modelAnchor = useRef<HTMLButtonElement>(null)
   const skillAnchor = useRef<HTMLButtonElement | null>(null)
-  // Window move, resize, fullscreen, culling, and close dismiss both clone
+  // Window move, resize, culling, and close dismiss both clone
   // menus; pan and zoom only move them with the window.
   useBoardMenuDismiss(() => { setModelMenuOpen(false) })
   useBoardMenuDismiss(() => { setSkillMenu(null) })

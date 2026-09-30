@@ -98,11 +98,13 @@ function bench(over?: {
   disabled?: boolean
   submit?: (args: string) => Promise<SubmitOutcome>
   serialize?: (ids: readonly DraftAttachmentId[]) => Promise<readonly SubmitAttachment[]>
+  createDrafts?: (files: readonly File[]) => readonly { readonly id: DraftAttachmentId }[]
 }) {
   const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'success' }))
   const serialize = vi.fn(over?.serialize ?? (() => Promise.resolve<readonly SubmitAttachment[]>([])))
   const release = vi.fn()
-  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink, commandAttachments: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} attachments-unsupported` } })
+  const createDrafts = vi.fn(over?.createDrafts ?? (() => []))
+  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink, createDrafts, commandAttachments: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} attachments-unsupported` } })
   const wiring = shell
   const view = mountBar(shell, over)
   const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
@@ -119,7 +121,7 @@ function bench(over?: {
       )
     })
   }
-  return { view, textarea, shell, wiring, sink, claim, serialize, release }
+  return { view, textarea, shell, wiring, sink, claim, serialize, release, createDrafts }
 }
 
 describe('matrix row: plain', () => {
@@ -133,6 +135,30 @@ describe('matrix row: plain', () => {
     expect(shell.snapshot.phase).toBe('plain')
     expect(shell.snapshot.draft).toBe('')
     expect(shell.snapshot.claim).toBeUndefined()
+  })
+})
+
+describe('matrix row: files', () => {
+  it('attaches browser files through createDrafts and refuses while the admission is locked', () => {
+    const { shell, createDrafts } = bench({
+      createDrafts: files => files.map((file, index) => ({ id: `draft-${String(index)}-${file.name}` as DraftAttachmentId })),
+    })
+    const files = [new File([new Uint8Array(1)], 'photo.png', { type: 'image/png' }), new File(['x'], 'notes.txt', { type: 'text/plain' })]
+    expect(shell.addFiles(files)).toBe(true)
+    expect(createDrafts).toHaveBeenCalledWith(files)
+    expect(shell.snapshot.attachmentIds).toEqual(['draft-0-photo.png', 'draft-1-notes.txt'])
+    // An empty batch is a no-op.
+    expect(shell.addFiles([])).toBe(true)
+  })
+
+  it('refuses addFiles while a command submit holds the admission lock', () => {
+    const submit = vi.fn(() => new Promise<SubmitOutcome>(() => {})) // never settles
+    const { shell, textarea, claim } = bench({ submit })
+    claim('/goal ', '目标')
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(shell.snapshot.phase).toBe('submitting')
+    expect(shell.addFiles([new File(['y'], 'late.txt', { type: 'text/plain' })])).toBe(false)
+    expect(shell.snapshot.attachmentIds).toEqual([])
   })
 })
 

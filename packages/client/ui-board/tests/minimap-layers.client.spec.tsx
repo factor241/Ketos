@@ -70,25 +70,4 @@ describe('minimap layer gating', () => {
     expect(panel.container.querySelector('[data-board-minimap] [data-board-rect="agent"]')).not.toBeNull()
   })
 
-  it('hides the minimap in fullscreen and projects the windows again after exit', async () => {
-    const runtime = await bench()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as BoardInstance
-
-    act(() => { board.actions.openWindow(agentWindow('a1')) })
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-minimap] [data-board-rect="agent"]')).not.toBeNull()
-
-    fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).not.toBeNull()
-    expect(panel.container.querySelector('[data-board-layer="minimap"]')).toBeNull()
-
-    // Leaving the mode restores the chrome, and the map still projects the window.
-    fireEvent.keyDown(document, { key: 'Escape' })
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-fullscreen]')).toBeNull()
-    expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
-    expect(panel.container.querySelector('[data-board-minimap] [data-board-rect="agent"]')).not.toBeNull()
-  })
 })

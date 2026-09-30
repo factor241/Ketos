@@ -36,6 +36,7 @@ describe('reference submission', () => {
   it('mirrors canonical reference text so a persisted draft remains resolvable after remount', async () => {
     const mirror = vi.fn()
     const first = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: vi.fn(),
       commandAttachments,
@@ -60,6 +61,7 @@ describe('reference submission', () => {
 
     const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'success' }))
     const restored = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: sink,
       commandAttachments,
@@ -87,6 +89,7 @@ describe('reference submission', () => {
       lexicon: { getSnapshot: () => new Map(), subscribe: () => () => {} },
     } as unknown as InputTriggerController
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       inputTriggers: () => inputTriggers,
       defaultSink: sink,
@@ -133,6 +136,7 @@ describe('reference submission', () => {
       lexicon: { getSnapshot: () => new Map(), subscribe: () => () => {} },
     } as unknown as InputTriggerController
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       inputTriggers: () => inputTriggers,
       defaultSink: sink,
@@ -155,6 +159,7 @@ describe('reference submission', () => {
   it('aborts Host-side preparation when the input shell is disposed', () => {
     let signal: AbortSignal | undefined
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: (_text, _imageIds, _mode, received) => {
         signal = received
@@ -175,6 +180,7 @@ describe('reference submission', () => {
 
   it('retains a rejected default message without duplicating its prompt error notice', async () => {
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: () => Promise.resolve({ kind: 'error' }),
       commandAttachments,
@@ -191,6 +197,7 @@ describe('reference submission', () => {
   it('restores concurrent failed messages in submission order', async () => {
     const settlements: Array<(outcome: SubmitOutcome) => void> = []
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: () => new Promise<SubmitOutcome>((resolve) => { settlements.push(resolve) }),
       commandAttachments,
@@ -213,6 +220,7 @@ describe('submit transaction hardening', () => {
     let settle!: (outcome: SubmitOutcome) => void
     const sink = vi.fn(() => new Promise<SubmitOutcome>((resolve) => { settle = resolve }))
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: sink,
       commandAttachments,
@@ -234,6 +242,7 @@ describe('submit transaction hardening', () => {
   it('retains an image-only rejection without duplicating its prompt error notice', async () => {
     const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'error' }))
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: sink,
       commandAttachments,
@@ -251,6 +260,7 @@ describe('submit transaction hardening', () => {
     let signal: AbortSignal | undefined
     const imageId = 'img-flight' as DraftAttachmentId
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       defaultSink: (_text, _ids, _mode, received) => {
         signal = received
@@ -269,6 +279,7 @@ describe('submit transaction hardening', () => {
     const track = vi.fn()
     const lexicon = { getSnapshot: () => new Map(), subscribe: () => () => {} }
     const shell = new SessionInputShell({
+      createDrafts: () => [],
       actx: {} as Context,
       inputTriggers: () => ({ track, lexicon } as unknown as InputTriggerController),
       defaultSink: vi.fn(),

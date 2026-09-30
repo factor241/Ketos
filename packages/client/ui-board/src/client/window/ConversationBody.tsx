@@ -349,9 +349,7 @@ export function ConversationBody({
     footnotes: t('markdown.footnotes'),
   }), [t])
 
-  // Fullscreen keeps a normal chat layout: the lane and composer ride a centred
-  // column beside the docked chats panel.
-  const isFullscreen = useStore(s => s.fullscreenWindowId === cardWindow.id)
+  // The lane and composer fill the window body.
 
   const handleScroll = (): void => {
     const lane = laneRef.current
@@ -394,7 +392,7 @@ export function ConversationBody({
   }
 
   return (
-    <div className={clsx(css.body, isFullscreen && css.centered)}>
+    <div className={css.body}>
       <div ref={laneRef} className={css.lane} onScroll={handleScroll} data-board-lane="">
         {ready && session.hasMore && (
           <button

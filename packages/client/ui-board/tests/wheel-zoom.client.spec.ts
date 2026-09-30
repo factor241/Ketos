@@ -98,45 +98,35 @@ describe('resolveBoardWheel', () => {
   const rows = [
     {
       name: 'ctrl over a window zooms and is prevented (П-01)',
-      selector: '[data-board-window]', event: { ctrlKey: true }, mode: 'pan', fullscreen: false,
+      selector: '[data-board-window]', event: { ctrlKey: true }, mode: 'pan',
       expected: { classification: 'zoom', preventDefault: true, apply: true },
     },
     {
-      name: 'ctrl over a window in fullscreen is prevented but does not zoom',
-      selector: '[data-board-window]', event: { ctrlKey: true }, mode: 'zoom', fullscreen: true,
-      expected: { classification: 'zoom', preventDefault: true, apply: false },
-    },
-    {
-      name: 'ctrl over the chats panel is prevented in fullscreen too',
-      selector: '.panel-rows', event: { metaKey: true }, mode: 'pan', fullscreen: true,
-      expected: { classification: 'zoom', preventDefault: true, apply: false },
-    },
-    {
       name: 'a plain wheel over the canvas pans in pan mode',
-      selector: '[data-surface="canvas"]', event: {}, mode: 'pan', fullscreen: false,
+      selector: '[data-surface="canvas"]', event: {}, mode: 'pan',
       expected: { classification: 'pan', preventDefault: true, apply: true },
     },
     {
       name: 'a plain wheel over the dock zooms in zoom mode',
-      selector: '.dock-button', event: {}, mode: 'zoom', fullscreen: false,
+      selector: '.dock-button', event: {}, mode: 'zoom',
       expected: { classification: 'zoom', preventDefault: true, apply: true },
     },
     {
       name: 'a plain wheel over a lane keeps the lane scrolling',
-      selector: '.lane-input', event: {}, mode: 'pan', fullscreen: false,
+      selector: '.lane-input', event: {}, mode: 'pan',
       expected: { classification: 'native', preventDefault: false, apply: false },
     },
     {
       name: 'ctrl outside the board stays native',
-      selector: '.sidebar-button', event: { ctrlKey: true }, mode: 'pan', fullscreen: false,
+      selector: '.sidebar-button', event: { ctrlKey: true }, mode: 'pan',
       expected: { classification: 'native', preventDefault: false, apply: false },
     },
   ] as const
 
-  it('resolves the fullscreen and preventDefault rules', () => {
+  it('resolves the preventDefault and apply rules', () => {
     for (const row of rows) {
       expect(
-        resolveBoardWheel(wheelEvent(row.event), targetAt(row.selector), row.mode, row.fullscreen),
+        resolveBoardWheel(wheelEvent(row.event), targetAt(row.selector), row.mode),
         row.name,
       ).toEqual(row.expected)
     }

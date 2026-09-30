@@ -217,14 +217,8 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-/* Fullscreen: the frame fills the board panel, so it squares off and drops the
-   floating elevation (nothing floats above it). */
-.window.fullscreen {
-  border-radius: 0;
-  box-shadow: none;
-}
 
-/* Culled (off the visible canvas) or hidden behind a fullscreen neighbour: the
+/* Culled (off the visible canvas): the
    frame keeps its DOM and state and stops painting. */
 .window.hidden {
   content-visibility: hidden;

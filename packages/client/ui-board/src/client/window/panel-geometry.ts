@@ -1,8 +1,7 @@
 /**
  * Geometry of one window's chats panel. The panel is a layer of its own beside
  * the frame: collapsed it is a narrow rail hugging the frame's left edge, open
- * it is a resizable column that slides out of that edge. Fullscreen docks it to
- * the board panel's left edge and the chat keeps a centred column beside it.
+ * it is a resizable column that slides out of that edge.
  * All values are world units, so the panel follows the window while it is
  * dragged, resized, or the canvas pans and zooms.
  */
@@ -22,9 +21,6 @@ export const PANEL_RAIL_WIDTH = 44
 
 /** Collapsed rail height: five 36px controls, their gaps, and the rail's padding. */
 export const PANEL_RAIL_HEIGHT = 212
-
-/** Largest chat column width in the fullscreen presentation. */
-export const FULLSCREEN_CHAT_MAX_WIDTH = 768
 
 /** One rectangle in world units. */
 export interface PanelRect {
@@ -104,15 +100,4 @@ export function railRect(window: BoardWindowState, side: 'left' | 'right'): Pane
     width: PANEL_RAIL_WIDTH,
     height: PANEL_RAIL_HEIGHT,
   }
-}
-
-/**
- * The panel rectangle while the window fills the board panel.
- * @param viewportWidth - board panel width in world units.
- * @param viewportHeight - board panel height in world units.
- * @param width - the panel width to place.
- * @returns the docked rectangle along the panel's left edge.
- */
-export function dockedPanelRect(viewportWidth: number, viewportHeight: number, width: number): PanelRect {
-  return { left: 0, top: 0, width: Math.min(width, viewportWidth), height: viewportHeight }
 }

@@ -1,13 +1,12 @@
 /**
  * Chats panel geometry: the open panel is a resizable column beside its window
- * (the width clamps to a readable range and a share of the window), the
- * collapsed rail hugs the frame's edge, fullscreen docks the panel, and a
- * window covering the canvas keeps the panel inside its own left edge.
+ * (the width clamps to a readable range and a share of the window), and the
+ * collapsed rail hugs the frame's edge.
  */
 import { describe, expect, it } from 'vitest'
 import {
   PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RAIL_HEIGHT, PANEL_RAIL_WIDTH,
-  dockedPanelRect, panelPresentation, panelWidthFor, railRect, windowedPanelRect,
+  panelPresentation, panelWidthFor, railRect, windowedPanelRect,
 } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -65,13 +64,5 @@ describe('railRect', () => {
       height: PANEL_RAIL_HEIGHT,
     })
     expect(railRect(WINDOW, 'right').left).toBe(WINDOW.x + WINDOW.width)
-  })
-})
-
-describe('dockedPanelRect', () => {
-  it('docks to the board panel edge at full height', () => {
-    expect(dockedPanelRect(1000, 800, 320)).toEqual({ left: 0, top: 0, width: 320, height: 800 })
-    // Never wider than the panel it docks into.
-    expect(dockedPanelRect(300, 800, 420).width).toBe(300)
   })
 })

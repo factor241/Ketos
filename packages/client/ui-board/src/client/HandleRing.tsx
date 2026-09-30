@@ -61,9 +61,9 @@ function RingHandle({
 export function HandleRing({ useStore, actions }: HandleRingProps) {
   // The ring positions itself from the same transform the canvas surface
   // applies, so it follows pans and zooms without touching the frame; it stands
-  // down with its window when that window is fullscreen or culled away.
+  // down with its window when that window is culled away.
   const box = useStore((s) => {
-    if (s.activeWindowId === null || s.fullscreenWindowId !== null) return null
+    if (s.activeWindowId === null) return null
     const active = s.windows[s.activeWindowId as string]
     if (active === undefined || !isWindowVisible(s, active)) return null
     return windowScreenRect(s, active)

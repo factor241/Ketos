@@ -1,10 +1,10 @@
-/* Center floating Omnibox. The menu is the shared Menu primitive; the form
- * follows the conversation composer recipe (input fill, soft elevation tier
- * drawing the stroke). */
+/* Center floating Omnibox, above the dock's bottom strip. The menu is the
+ * shared Menu primitive; the form follows the conversation composer recipe
+ * (input fill, soft elevation tier drawing the stroke). */
 
 .omnibar {
   position: absolute;
-  bottom: 24px;
+  bottom: 92px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;

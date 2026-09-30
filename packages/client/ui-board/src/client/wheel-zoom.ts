@@ -30,7 +30,7 @@ export type BoardWheelMode = 'pan' | 'zoom'
 export type BoardWheelClassification = 'zoom' | 'pan' | 'native'
 
 /** Surfaces whose own scrolling keeps an unmodified wheel event. */
-const NATIVE_WHEEL_TARGETS = '[data-board-window], [data-board-panel], [role="menu"]'
+const NATIVE_WHEEL_TARGETS = '[data-board-window], [data-board-panel], [role="menu"], [data-board-layer="dock"]'
 
 /** Board root marker: events outside it never reach the board's listener. */
 const BOARD_SURFACE = '[data-surface="board"]'
@@ -43,9 +43,10 @@ const WHEEL_LINE_HEIGHT = 16
 
 /**
  * Classify one wheel event over the board root. Events outside the board stay
- * native; ctrl/meta inside it always zooms, windows, an open chats panel, and
- * scrollable menus included; a plain event over those scrolling surfaces stays
- * native and over the canvas or the floating chrome follows `mode`.
+ * native; ctrl/meta inside it always zooms, windows, an open chats panel,
+ * scrollable menus, and the dock included; a plain event over those scrolling
+ * surfaces stays native and over the canvas or the rest of the floating
+ * chrome follows `mode`.
  * @param event - the wheel event's modifier fields.
  * @param target - the wheel event's target.
  * @param mode - what an unmodified wheel does over the canvas and floating chrome.

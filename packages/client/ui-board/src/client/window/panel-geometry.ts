@@ -63,8 +63,8 @@ export function panelWidthFor(available: number, requested: number): number {
  */
 export function panelPresentation(window: BoardWindowState, view: PanelView, width: number): PanelPresentation {
   // The left side comes first — the side the app's own lists live on — and the
-  // board's dock and minimap stand down while a panel is open so its outer edge
-  // and resize handle stay reachable.
+  // minimap stands down while a panel is open so its outer edge and resize
+  // handle stay reachable (the bottom dock stays visible, Т1.14).
   if (window.x - view.left >= width) return { kind: 'beside', side: 'left' }
   if (view.right - (window.x + window.width) >= width) return { kind: 'beside', side: 'right' }
   return { kind: 'overlay' }

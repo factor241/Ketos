@@ -256,7 +256,29 @@ describe('board dock', () => {
     ])
   })
 
-  it('stands down under the chats panel and returns with the layer rules', async () => {
+  it('scrolls sideways under a wheel once the strip outgrows the board (Т1.6)', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => { store.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+    const dock = panel.container.querySelector('[data-board-layer="dock"]') as HTMLElement
+    // jsdom has no layout: the strip reports its real box through the stubs.
+    Object.defineProperty(dock, 'scrollWidth', { value: 500, configurable: true })
+    Object.defineProperty(dock, 'clientWidth', { value: 200, configurable: true })
+
+    // A vertical wheel scrolls the horizontal strip and is prevented, so the
+    // board never pans under it.
+    expect(fireEvent.wheel(dock, { deltaY: 120 })).toBe(false)
+    expect(dock.scrollLeft).toBe(120)
+    // A horizontal wheel scrolls it too.
+    expect(fireEvent.wheel(dock, { deltaX: 40 })).toBe(false)
+    expect(dock.scrollLeft).toBe(160)
+    // A strip that fits the board keeps the wheel for the board.
+    Object.defineProperty(dock, 'scrollWidth', { value: 200, configurable: true })
+    expect(fireEvent.wheel(dock, { deltaY: 120 })).toBe(true)
+    expect(dock.scrollLeft).toBe(160)
+  })
+
+  it('stays visible under the chats panel while the other chrome stands down (Т1.14)', async () => {
     const { runtime, panel, store } = await bench()
     act(() => {
       store.actions.setViewport(1200, 900)
@@ -264,16 +286,20 @@ describe('board dock', () => {
     })
     await runtime.flush()
     const dock = () => panel.container.querySelector('[data-board-layer="dock"]')
-    const chrome = () => panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]')
-    expect(chrome()).toHaveLength(3)
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]'))
+      .toHaveLength(3)
+    const before = dock()?.getBoundingClientRect()
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
-    expect(dock()).toBeNull()
-    expect(chrome()).toHaveLength(0)
+    // The dock keeps its place; the omnibar and minimap stand down.
+    expect(dock()).not.toBeNull()
+    expect(dock()?.getBoundingClientRect()).toEqual(before)
+    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"], [data-board-layer="minimap"]')).toHaveLength(0)
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
-    expect(dock()).not.toBeNull()
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]'))
+      .toHaveLength(3)
   })
 })

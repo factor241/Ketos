@@ -1,11 +1,13 @@
 /**
- * Left floating dock: one row per open window plus the board controls. Each row
- * shows the window's resolved name (the user's name, else the chat title, else
- * the kind template), its kind, and the status the window channel reports; a
- * click centers an inactive window and only focuses the active one, the row's
- * context menu renames or closes it, and closing keeps the session alive.
+ * Bottom floating dock: one icon per open window plus the board controls in a
+ * horizontal strip, centred on the board. Each icon shows the window's glyph
+ * and the status the window channel reports; a click centers an inactive
+ * window and only focuses the active one, the row's context menu renames or
+ * closes it, and closing keeps the session alive. The strip grows to the
+ * board's width minus the inset and then scrolls sideways, a vertical wheel
+ * included.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   IconAgentPresetOutline16,
@@ -106,7 +108,7 @@ function DockRow({ window: win, active, actions, t, useWindowSession, useCloneLi
       {draft === null
         ? (
           <>
-            <Tooltip label={title} side="right" delayMs={300}>
+            <Tooltip label={title} side="top" delayMs={300}>
               <button
                 ref={rowRef}
                 type="button"
@@ -189,9 +191,26 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   const addRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
   const [dockElement, setDockElement] = useState<HTMLElement | null>(null)
-  // The dock declares its own board edge: Э3.1 moves it to the bottom and
-  // flips this declaration with the CSS.
-  useBoardChromeInset('left', dockElement, actions)
+  // The dock declares the board edge it anchors to: the bottom strip.
+  useBoardChromeInset('bottom', dockElement, actions)
+
+  // The dock is the floating chrome's one horizontal scroller: a wheel over
+  // it scrolls it sideways (a vertical wheel included) and never pans or zooms
+  // the canvas. The listener is non-passive — React's root wheel listener is
+  // passive, so preventDefault works only from here.
+  useEffect(() => {
+    if (dockElement === null) return
+    const dock = dockElement
+    const onWheel = (event: WheelEvent): void => {
+      if (dock.scrollWidth <= dock.clientWidth) return
+      const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY
+      if (delta === 0) return
+      event.preventDefault()
+      dock.scrollLeft += delta
+    }
+    dock.addEventListener('wheel', onWheel, { passive: false })
+    return () => { dock.removeEventListener('wheel', onWheel) }
+  }, [dockElement])
 
   const openAgent = () => {
     openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
@@ -207,7 +226,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
   // board's popover layer at scale 1, outside the dock's own centring
   // transform (a containing block for fixed offspring until then).
   const dock = (
-    <div ref={setDockElement} data-board-layer="dock" data-board-chrome="left" className={css.rail}>
+    <div ref={setDockElement} data-board-layer="dock" data-board-chrome="bottom" className={css.rail}>
       {dockOrder.map((id) => {
         const win = windows[id as string]
         if (!win) return null
@@ -227,7 +246,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
 
       <div className={css.divider} />
 
-      <Tooltip label={t('rail.addAgent')} side="right" delayMs={300}>
+      <Tooltip label={t('rail.addAgent')} side="top" delayMs={300}>
         <button
           ref={addRef}
           type="button"
@@ -261,7 +280,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
         onClose={() => { setAddMenu(null) }}
       />
 
-      <Tooltip label={t('rail.resetView')} side="right" delayMs={300}>
+      <Tooltip label={t('rail.resetView')} side="top" delayMs={300}>
         <button
           type="button"
           data-board-action="dock-reset-view"
@@ -280,7 +299,7 @@ export function SessionRail({ useStore, actions, t, useWindowSession, useCloneLi
         <>
           <div className={css.divider} />
           {clones.map(clone => (
-            <Tooltip key={clone.id} label={`${clone.name} · ${clone.role}`} side="right" delayMs={300}>
+            <Tooltip key={clone.id} label={clone.name} side="top" delayMs={300}>
               <button
                 type="button"
                 className={css.cloneButton}

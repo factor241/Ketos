@@ -309,7 +309,8 @@ export function BoardRoot({
             openStandardInterface={openStandardInterface}
           />
         </BoardPopoverProvider>
-        {!panelOpen && renderSlot('board.dock', {})}
+        {/* The dock stays visible under an open panel (Т1.14). */}
+        {renderSlot('board.dock', {})}
         {!panelOpen && renderSlot('board.omnibar', {})}
         {!panelOpen && renderSlot('board.minimap', {})}
         {/* The active window's handle ring rides above the chrome, so a resize

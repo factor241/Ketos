@@ -936,30 +936,35 @@ describe('board slot composition', () => {
         left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}),
       })
       root.getBoundingClientRect = () => box(0, 0, 1000, 800)
-      dock.getBoundingClientRect = () => box(20, 300, 64, 500)
+      // The dock is a bottom strip and the minimap a bottom-right box, so both
+      // take the bottom edge; the badge takes the top.
+      dock.getBoundingClientRect = () => box(300, 730, 700, 784)
       minimap.getBoundingClientRect = () => box(776, 636, 976, 776)
       badge.getBoundingClientRect = () => box(4, 18, 40, 46)
 
-      // The observer signal re-measures the live boxes; the dock declares the
-      // left edge and the minimap the bottom edge, so each takes only its own
-      // strip.
+      // The observer signal re-measures the live boxes; each element takes only
+      // its own edge.
       act(() => { for (const callback of callbacks) callback() })
       await runtime.flush()
       const sources = board.store.getSnapshot().chromeInsetSources
-      expect(Object.values(sources).map(entry => entry.edge).sort()).toEqual(['bottom', 'left', 'top'])
-      expect(Object.values(sources).find(entry => entry.edge === 'left')?.depth).toBe(64)
-      expect(Object.values(sources).find(entry => entry.edge === 'bottom')?.depth).toBe(164)
-      expect(Object.values(sources).find(entry => entry.edge === 'top')?.depth).toBe(46)
+      const entries = Object.values(sources)
+      expect(entries.map(entry => entry.edge).sort()).toEqual(['bottom', 'bottom', 'top'])
+      expect(entries.filter(entry => entry.edge === 'bottom').map(entry => entry.depth).sort((a, b) => a - b))
+        .toEqual([70, 164])
+      expect(entries.find(entry => entry.edge === 'top')?.depth).toBe(46)
 
-      // Opening a window panel stands the dock and minimap down: their
-      // contributions go with their unmounted elements, while the badge stays.
+      // Opening a window panel stands the minimap down while the dock stays
+      // (Т1.14): the minimap's contribution goes with its unmounted element,
+      // and the dock and badge keep theirs.
       act(() => {
         board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
         board.actions.openWindowPanel('a1' as WindowId)
       })
       await runtime.flush()
       const remaining = board.store.getSnapshot().chromeInsetSources
-      expect(Object.values(remaining).map(entry => entry.edge)).toEqual(['top'])
+      const rest = Object.values(remaining)
+      expect(rest.map(entry => entry.edge).sort()).toEqual(['bottom', 'top'])
+      expect(rest.find(entry => entry.edge === 'bottom')?.depth).toBe(70)
     } finally {
       vi.unstubAllGlobals()
     }
@@ -1419,9 +1424,10 @@ describe('board slot composition', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
-    // The expanded panel is a management surface: the whole floating chrome
-    // stands down so nothing covers its edge, handle, or the window's bottom.
-    for (const layer of ['dock', 'omnibar', 'minimap'] as const) {
+    // The expanded panel is a management surface: the Omnibox and the minimap
+    // stand down while the bottom dock stays (Т1.14).
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
+    for (const layer of ['omnibar', 'minimap'] as const) {
       expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(0)
     }
 

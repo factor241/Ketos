@@ -68,8 +68,8 @@ describe('classifyBoardWheel', () => {
     }
   })
 
-  it('stays native for a plain wheel over a lane, the chats panel, or a menu', () => {
-    for (const selector of ['.lane-input', '[data-board-panel-rail]', '.panel-rows', '.menu-row']) {
+  it('stays native for a plain wheel over a lane, the chats panel, a menu, or the dock', () => {
+    for (const selector of ['.lane-input', '[data-board-panel-rail]', '.panel-rows', '.menu-row', '.dock-button']) {
       for (const mode of ['pan', 'zoom'] as const) {
         expect(classifyBoardWheel(wheelEvent(), targetAt(selector), mode), `${selector} · ${mode}`).toBe('native')
       }
@@ -77,7 +77,7 @@ describe('classifyBoardWheel', () => {
   })
 
   it('pans the canvas and the floating chrome in pan mode and zooms them in zoom mode', () => {
-    for (const selector of ['[data-surface="canvas"]', '[data-surface="canvas-layer"]', '.dock-button', '.omnibar-button', '[data-board-minimap]', '#board']) {
+    for (const selector of ['[data-surface="canvas"]', '[data-surface="canvas-layer"]', '.omnibar-button', '[data-board-minimap]', '#board']) {
       for (const mode of ['pan', 'zoom'] as const) {
         expect(classifyBoardWheel(wheelEvent(), targetAt(selector), mode), `${selector} · ${mode}`).toBe(mode)
       }
@@ -107,9 +107,9 @@ describe('resolveBoardWheel', () => {
       expected: { classification: 'pan', preventDefault: true, apply: true },
     },
     {
-      name: 'a plain wheel over the dock zooms in zoom mode',
+      name: 'a plain wheel over the dock scrolls the dock in either mode',
       selector: '.dock-button', event: {}, mode: 'zoom',
-      expected: { classification: 'zoom', preventDefault: true, apply: true },
+      expected: { classification: 'native', preventDefault: false, apply: false },
     },
     {
       name: 'a plain wheel over a lane keeps the lane scrolling',

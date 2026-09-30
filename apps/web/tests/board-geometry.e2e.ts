@@ -946,7 +946,7 @@ describe('web e2e: spatial board geometry', () => {
     }
   }, 90_000)
 
-  it.fails('Т1.1/Т1.2: the dock sits at the board bottom centre and keeps its screen size at every zoom', async () => {
+  it('Т1.1/Т1.2: the dock sits at the board bottom centre and keeps its screen size at every zoom', async () => {
     await clickResetView(page)
     const boxAt = (measured: Awaited<ReturnType<typeof measureFloating>>): Rect => {
       if (measured.board === null || measured.dock === null) throw new Error('board or dock box is missing')
@@ -957,28 +957,30 @@ describe('web e2e: spatial board geometry', () => {
     const board = atZoom1.board
     if (board === null) throw new Error('board box is missing')
     const frameAtZoom1 = await measureFrame(page, WINDOW_A)
+    let dockHalf: Rect | null = null
     let dock2: Rect | null = null
     let frameAtZoom2: Rect | null = null
     try {
       await setZoom(page, 0.5)
-      boxAt(await measureFloating(page))
+      dockHalf = boxAt(await measureFloating(page))
       await setZoom(page, 2)
       dock2 = boxAt(await measureFloating(page))
       frameAtZoom2 = await measureFrame(page, WINDOW_A)
     } finally {
       await clickResetView(page)
     }
-    if (dock2 === null || frameAtZoom2 === null) throw new Error('dock or frame box is missing at zoom 2')
+    if (dockHalf === null || dock2 === null || frameAtZoom2 === null) throw new Error('dock or frame box is missing at zoom 0.5 or 2')
     expect({
       // Bottom centre: the dock's centre line matches the board's, and its
       // bottom edge keeps the planned 16px inset.
       centredX: Math.abs((dock1.left + dock1.right) / 2 - (board.left + board.right) / 2) <= 2,
       bottomInset: Math.abs(board.bottom - dock1.bottom - 16) <= 4,
       horizontal: dock1.width > dock1.height,
-      // Screen size: the dock keeps its box across a 4× zoom while a window
-      // frame scales with the canvas.
-      screenSized: Math.abs(dock2.width - dock1.width) <= 4 && Math.abs(dock2.height - dock1.height) <= 4,
-      framesScale: Math.abs(frameAtZoom2.width / frameAtZoom1.width - 4) <= 0.1,
+      // Screen size: the dock keeps its box across 0.5×, 1×, and 2× zoom
+      // while a window frame scales with the canvas.
+      screenSized: [dockHalf, dock2].every(box =>
+        Math.abs(box.width - dock1.width) <= 4 && Math.abs(box.height - dock1.height) <= 4),
+      framesScale: Math.abs(frameAtZoom2.width / frameAtZoom1.width - 2) <= 0.1,
     }).toEqual({ centredX: true, bottomInset: true, horizontal: true, screenSized: true, framesScale: true })
   }, 90_000)
 
@@ -1008,14 +1010,27 @@ describe('web e2e: spatial board geometry', () => {
     }).toEqual({ omnibarGone: true, topRight: true })
   }, 60_000)
 
-  it.fails('Т1.14: the dock stays visible while a window panel is open', async () => {
+  it('Т1.14: the dock stays visible while a window panel is open', async () => {
     await clickResetView(page)
     const before = await measureFloating(page)
     if (before.dock === null) throw new Error('dock box is missing')
     const dock1 = before.dock
     try {
-      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="panel-rail-expand"]`)
-        .click({ timeout: 2_000 })
+      // The rail is a sibling of the frames inside the canvas layer (world
+      // coordinates), not a child of the frame, and its DOM order follows the
+      // paint stack: click whichever rail the current view actually shows.
+      const railPoint = await page.evaluate(() => {
+        const buttons = [...document.querySelectorAll('[data-board-panel-rail] [data-board-action="panel-rail-expand"]')]
+        const button = buttons.find((element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.width > 0 && rect.left >= 0 && rect.right <= window.innerWidth
+            && rect.top >= 0 && rect.bottom <= window.innerHeight
+        })
+        if (button === undefined) throw new Error('no panel rail is inside the viewport')
+        const rect = button.getBoundingClientRect()
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      })
+      await page.mouse.click(railPoint.x, railPoint.y)
       await settle(page)
       const open = await measureFloating(page)
       expect({

@@ -1,21 +1,22 @@
-/* Left floating dock: one row per open window plus the board controls, on the
- * theme's floating-panel recipe. */
+/* Bottom floating dock: one icon per open window plus the board controls, on
+ * the theme's floating-panel recipe. */
 
 .rail {
   position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: 12px;
-  padding: 12px 8px;
-  /* One row per window: past the panel's height the rail scrolls instead of
-     clipping its rows and controls beyond the viewport. The thumb rides the l2
-     pair (ui-theme's scrollbar rebinding contract for elevated surfaces). */
-  max-height: calc(100% - 48px);
-  overflow-y: auto;
+  padding: 8px 12px;
+  /* The strip grows to the board's width minus the 24px inset on each side;
+     past that it scrolls sideways (Т1.6). The thumb rides the l2 pair
+     (ui-theme's scrollbar rebinding contract for elevated surfaces). */
+  max-width: calc(100% - 48px);
+  overflow-x: auto;
+  overflow-y: hidden;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   border-radius: 20px;
@@ -29,15 +30,16 @@
 
 .row {
   position: relative;
+  flex: none;
 }
 
-/* The dock is a narrow rail: the rename editor floats beside the row instead of
-   widening it, so the stack never reflows while a name is edited. */
+/* The dock is a strip of icons: the rename editor floats above the icon
+   instead of widening it, so the strip never reflows while a name is edited. */
 .rowInput {
   position: absolute;
-  left: 46px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  bottom: 46px;
+  transform: translateX(-50%);
   width: 180px;
   padding: 6px 8px;
   border: 0.5px solid var(--dsw-alias-state-business-primary);
@@ -53,6 +55,7 @@
 
 .windowButton {
   position: relative;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,13 +104,15 @@
 }
 
 .divider {
-  width: 24px;
-  height: 0.5px;
-  margin: 4px 0;
+  flex: none;
+  width: 0.5px;
+  height: 24px;
+  margin: 0 4px;
   background: var(--dsw-alias-border-l2);
 }
 
 .addButton {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,6 +132,7 @@
 }
 
 .control {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -149,6 +155,7 @@
    clone. They sit on the rail's own surface instead of a floating-button fill,
    so a long roster reads as a list rather than more windows. */
 .cloneButton {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;

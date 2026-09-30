@@ -24,7 +24,6 @@
 - text: Stopped
 - button "Copy":
   - img
-- tooltip "Copy"
 - button "Good response":
   - img
 - button "Bad response":

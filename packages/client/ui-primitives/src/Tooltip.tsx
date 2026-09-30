@@ -22,6 +22,26 @@ interface AnchorProps {
 
 type TooltipLabel = string | (() => string)
 
+/** The one open tooltip's close function: a new show closes the previous bubble. */
+let closeOpenTooltip: (() => void) | null = null
+
+/**
+ * Whether one anchor can carry a visible bubble right now: attached to the
+ * document and rendering. A collapsed sidebar, a hidden panel, or a removed
+ * anchor must never leave a portalled bubble behind.
+ * @param el - the anchor element.
+ * @returns whether the anchor is visible.
+ */
+function anchorVisible(el: HTMLElement): boolean {
+  if (!el.isConnected) return false
+  const checkVisibility = (el as HTMLElement & { checkVisibility?: () => boolean }).checkVisibility
+  if (typeof checkVisibility === 'function') return checkVisibility.call(el)
+  // Engines without checkVisibility (jsdom included) have no layout: the
+  // computed style is the only available signal.
+  const style = getComputedStyle(el)
+  return style.display !== 'none' && style.visibility !== 'hidden'
+}
+
 /**
  * Attach a hover/focus tooltip to an anchor element.
  * @param props.label - bubble text, or a resolver evaluated only while the bubble is visible.
@@ -53,6 +73,11 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
   // viewport refuses it.
   const [placement, setPlacement] = useState<TooltipSide>(side)
   const bubble = useRef<HTMLSpanElement | null>(null)
+  // Whether this tooltip is the one that should be visible. A hide always
+  // wins over a fit that was already queued in the same batch: without the
+  // flag a geometry signal landing beside a leave would re-set the position
+  // and the bubble would never close.
+  const bubbleOpen = useRef(false)
   const resolvedLabel = pos === null
     ? null
     : typeof label === 'function' ? label() : label
@@ -69,6 +94,26 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     : placement === 'top' ? 'translate(-50%, -100%)' : 'translateX(-50%)'
   const transformOrigin = placement === 'right' ? 'left center' : placement === 'top' ? 'bottom center' : 'top center'
   const EDGE_MARGIN = 12
+  const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Hover and focus are independent triggers: the bubble hides only after
+  // BOTH clear (hovering away from a focused anchor must not drop it).
+  const triggers = useRef({ hover: false, focus: false })
+
+  // Disabling mid-hover (e.g. clicking a rail control expands the sidebar)
+  // must drop an already-visible bubble: no mouseleave fires.
+  const cancelShow = useCallback(() => {
+    if (showTimer.current === null) return
+    clearTimeout(showTimer.current)
+    showTimer.current = null
+  }, [])
+  /** Drop the bubble and clear both triggers: the anchor can no longer host it. */
+  const hideNow = useCallback(() => {
+    cancelShow()
+    triggers.current = { hover: false, focus: false }
+    bubbleOpen.current = false
+    setPos(null)
+  }, [cancelShow])
+
   // Fit against the host boundary: fixed positioning knows nothing about edges,
   // so a centered bubble near the right edge would clip and a long label under
   // an anchor low on the page would run off the bottom. Horizontally the bubble
@@ -85,6 +130,14 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
       const anchorEl = anchor.current
       /* v8 ignore next -- pos is set only while the bubble and its anchor are mounted. */
       if (el === null || anchorEl === null) return
+      // A queued fit must never resurrect a bubble a leave just dropped.
+      if (!bubbleOpen.current) return
+      // A host signal (pan, zoom, layout) is also the moment to notice that
+      // the anchor stopped rendering: its bubble must not outlive it.
+      if (!anchorVisible(anchorEl)) {
+        hideNow()
+        return
+      }
       const a = anchorEl.getBoundingClientRect()
       const x = side === 'right' ? a.right + 10 : a.left + a.width / 2
       // Only a real anchor move schedules a render: a same-value update still
@@ -109,33 +162,52 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
     }
     fit()
     return host.subscribe(fit)
-  }, [host, placement, pos, resolvedLabel, side])
-  const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Hover and focus are independent triggers: the bubble hides only after
-  // BOTH clear (hovering away from a focused anchor must not drop it).
-  const triggers = useRef({ hover: false, focus: false })
+  }, [hideNow, host, placement, pos, resolvedLabel, side])
 
-  // Disabling mid-hover (e.g. clicking a rail control expands the sidebar)
-  // must drop an already-visible bubble: no mouseleave fires.
-  const cancelShow = useCallback(() => {
-    if (showTimer.current === null) return
-    clearTimeout(showTimer.current)
-    showTimer.current = null
-  }, [])
+  // The open bubble registers itself as the one the next show replaces; a
+  // bubble that hides first leaves the registry empty.
   useEffect(() => {
-    if (disabled) {
-      cancelShow()
-      triggers.current = { hover: false, focus: false }
-      setPos(null)
+    if (pos === null) return
+    closeOpenTooltip = hideNow
+    return () => { if (closeOpenTooltip === hideNow) closeOpenTooltip = null }
+  }, [hideNow, pos])
+
+  // While the bubble is open, a collapsed container or a removed anchor must
+  // take it down: neither mouseleave nor blur fires for an element that stops
+  // rendering. Both observers re-check the anchor and close the bubble.
+  useEffect(() => {
+    if (pos === null) return
+    const el = anchor.current
+    /* v8 ignore next -- pos is set only while the anchor is attached. */
+    if (el === null) return
+    const check = (): void => { if (!anchorVisible(el)) hideNow() }
+    const disposes: (() => void)[] = []
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(check)
+      observer.observe(el)
+      disposes.push(() => { observer.disconnect() })
     }
+    if (typeof IntersectionObserver !== 'undefined') {
+      const observer = new IntersectionObserver(check)
+      observer.observe(el)
+      disposes.push(() => { observer.disconnect() })
+    }
+    return () => { for (const dispose of disposes) dispose() }
+  }, [hideNow, pos])
+  useEffect(() => {
+    if (disabled) hideNow()
     return cancelShow
-  }, [cancelShow, disabled])
+  }, [cancelShow, disabled, hideNow])
 
   const show = () => {
     if (disabled) return
     const el = anchor.current
     /* v8 ignore next -- the ref is attached by event time: events fire on the cloned anchor. */
-    if (el === null) return
+    if (el === null || !anchorVisible(el)) return
+    // One bubble at a time: a new anchor's bubble replaces the open one, so a
+    // bubble whose own hide update never committed cannot linger beside it.
+    closeOpenTooltip?.()
+    bubbleOpen.current = true
     const r = el.getBoundingClientRect()
     // Every show starts from the requested side; the fit pass flips it only
     // where this anchor's position demands it.
@@ -170,6 +242,7 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
       if (anchor.current !== null && event.target instanceof Node && anchor.current.contains(event.target)) return
       triggers.current.hover = false
       cancelShow()
+      bubbleOpen.current = false
       setPos(null)
     }
     document.addEventListener('pointermove', onPointerMove, true)
@@ -181,7 +254,13 @@ export function Tooltip({ label, side = 'right', delayMs = 0, disabled = false, 
       {cloneElement(children, {
         ref: mergedRef,
         onMouseEnter: (e) => { children.props.onMouseEnter?.(e); triggers.current.hover = true; showAfterHoverDelay() },
-        onMouseLeave: (e) => { children.props.onMouseLeave?.(e); triggers.current.hover = false; cancelShow(); setPos(null) },
+        onMouseLeave: (e) => {
+          children.props.onMouseLeave?.(e)
+          triggers.current.hover = false
+          cancelShow()
+          bubbleOpen.current = false
+          setPos(null)
+        },
         onFocus: (e) => { children.props.onFocus?.(e); triggers.current.focus = true; cancelShow(); show() },
         onBlur: (e) => { children.props.onBlur?.(e); triggers.current.focus = false; hide() },
       })}

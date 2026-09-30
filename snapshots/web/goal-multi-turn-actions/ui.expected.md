@@ -110,7 +110,6 @@
   - img
 - button "Branch into a new conversation":
   - img
-- tooltip "Branch into a new conversation"
 - button "Ran for {{duration}}":
   - img
   - text: Ran for {{duration}}

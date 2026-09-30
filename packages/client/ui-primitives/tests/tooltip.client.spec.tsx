@@ -382,6 +382,77 @@ describe('Tooltip', () => {
     expect(callbackRef).toHaveBeenCalledWith(screen.getByText('anchor'))
   })
 
+  it('never shows a bubble for a detached or hidden anchor', () => {
+    // The whole subtree leaves the document while the component stays
+    // mounted: the anchor is no longer connected.
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    render(
+      <Tooltip label="Gone">
+        <button type="button">detached anchor</button>
+      </Tooltip>,
+      { container: host },
+    )
+    const detached = screen.getByText('detached anchor')
+    host.remove()
+    fireEvent.mouseEnter(detached)
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    cleanup()
+
+    render(
+      <Tooltip label="Hidden">
+        <button type="button" style={{ display: 'none' }}>hidden anchor</button>
+      </Tooltip>,
+    )
+    fireEvent.mouseEnter(screen.getByText('hidden anchor'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('hides the bubble when its anchor stops rendering', () => {
+    const callbacks: ResizeObserverCallback[] = []
+    class ResizeObserverStub {
+      constructor(callback: ResizeObserverCallback) { callbacks.push(callback) }
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    try {
+      render(
+        <Tooltip label="Soon hidden">
+          <button type="button">anchor</button>
+        </Tooltip>,
+      )
+      const anchor = screen.getByText('anchor')
+      fireEvent.mouseEnter(anchor)
+      expect(screen.getByRole('tooltip')).toBeTruthy()
+      // A collapsed container fires no mouseleave: the observer's re-check is
+      // the hide path.
+      anchor.style.display = 'none'
+      act(() => { for (const callback of callbacks) callback([], undefined as never) })
+      expect(screen.queryByRole('tooltip')).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps one bubble open at a time: a second show closes the first', () => {
+    render(
+      <>
+        <Tooltip label="First"><button type="button">first</button></Tooltip>
+        <Tooltip label="Second"><button type="button">second</button></Tooltip>
+      </>,
+    )
+    // Focus shows the first; hovering the second shows it while the first
+    // stays focused — the registry replaces the open bubble.
+    fireEvent.focus(screen.getByText('first'))
+    expect(screen.getAllByRole('tooltip').map(element => element.textContent)).toEqual(['First'])
+    fireEvent.mouseEnter(screen.getByText('second'))
+    const bubbles = screen.getAllByRole('tooltip')
+    expect(bubbles).toHaveLength(1)
+    expect(bubbles[0]?.textContent).toBe('Second')
+  })
+
   it('drops an already-visible bubble when disabled flips mid-hover', () => {
     const { rerender } = render(
       <Tooltip label="Rail">

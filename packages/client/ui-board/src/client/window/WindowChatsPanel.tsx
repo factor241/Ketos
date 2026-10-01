@@ -9,7 +9,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconArchiveOutline20, IconBranchOutline16, IconCheckOutline16,
+  IconArchiveOutline20, IconBranchOutline16,
   IconChevronRightOutline14, IconCloseOutline16, IconCopyOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16,
   IconPersonalizationOutline16, IconProjectAddOutline16, IconSearchOutline16,
@@ -97,9 +97,7 @@ function WindowChatsPanelView({
   const [viewOpen, setViewOpen] = useState(false)
   const [drop, setDrop] = useState<DropKey>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pathCopied, setPathCopied] = useState<string | null>(null)
   const [canOpenPath, setCanOpenPath] = useState(false)
-  const pathTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuAnchor = useRef<HTMLButtonElement | null>(null)
   const viewAnchor = useRef<HTMLButtonElement | null>(null)
   const dragged = useRef(false)
@@ -107,10 +105,6 @@ function WindowChatsPanelView({
   // menus; pan and zoom only move them with the panel.
   useBoardMenuDismiss(() => { setViewOpen(false) })
   useBoardMenuDismiss(() => { setRowMenu(null) })
-
-  useEffect(() => () => {
-    if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
-  }, [])
 
   const windowSessionId = session?.sessionId
   const allGroups = useMemo(
@@ -178,14 +172,7 @@ function WindowChatsPanelView({
   }, [])
 
   const copyPath = useCallback((path: string) => {
-    if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
-    void writeClipboard(path).then(() => {
-      setPathCopied(path)
-      pathTimeoutRef.current = setTimeout(() => {
-        setPathCopied(current => (current === path ? null : current))
-        pathTimeoutRef.current = null
-      }, 1500)
-    }, () => {
+    void writeClipboard(path).catch(() => {
       setError(t('panel.copy.failed'))
     })
   }, [t])
@@ -284,8 +271,21 @@ function WindowChatsPanelView({
       { id: 'rename', label: t('panel.rename'), icon: <IconEditOutline16 /> },
     ]
     if (target.kind === 'project') {
+      const group = groups.find(candidate => candidate.workspaceId === target.id)
+      const path = group === undefined ? null : groupPath(group)
+      // The folder's own path actions live in its row menu: the tree carries
+      // no path row under the group.
+      const folder: MenuEntry[] = path === null
+        ? []
+        : [
+          { id: 'copy-path', label: t('panel.copyPath'), icon: <IconCopyOutline16 /> },
+          ...(canOpenPath
+            ? [{ id: 'open-folder', label: t('panel.openFolder'), icon: <IconFolderOpen16 /> } satisfies MenuEntry]
+            : []),
+        ]
       return [
         ...common,
+        ...folder,
         { id: 'up', label: t('panel.moveUp') },
         { id: 'down', label: t('panel.moveDown') },
         { id: 'delete', label: t('panel.deleteFolder'), icon: <IconTrashOutline16 />, danger: true },
@@ -321,6 +321,16 @@ function WindowChatsPanelView({
           id: target.id,
           value: workspaceList.items.find(item => item.workspaceId === workspaceId)?.title ?? '',
         })
+        return
+      }
+      const projectGroup = groups.find(candidate => candidate.workspaceId === workspaceId)
+      const path = projectGroup === undefined ? null : groupPath(projectGroup)
+      if (action === 'copy-path') {
+        if (path !== null) copyPath(path)
+        return
+      }
+      if (action === 'open-folder') {
+        if (path !== null) openFolder(path)
         return
       }
       const workspaceOrder = groups
@@ -553,7 +563,6 @@ function WindowChatsPanelView({
           {!browsing && visibleGroups.map((group) => {
             const key = group.workspaceId ?? ''
             const expanded = expandedGroups.has(key)
-            const path = groupPath(group)
             return (
               <div key={key === '' ? 'ungrouped' : key} className={css.groupBlock} data-board-group={key}>
                 <div className={css.groupRow}>
@@ -597,40 +606,6 @@ function WindowChatsPanelView({
                     </button>
                   )}
                 </div>
-
-                {expanded && path !== null && (
-                  <div className={css.projectPathRow} data-board-project-path={path}>
-                    <span className={css.projectPathText} title={path}>{path}</span>
-                    <div className={css.projectPathActions}>
-                      <Tooltip label={pathCopied === path ? t('panel.pathCopied') : t('panel.copyPath')} side="bottom">
-                        <button
-                          type="button"
-                          data-row-action=""
-                          data-board-action="panel-copy-path"
-                          className={css.pathAction}
-                          aria-label={t('panel.copyPath')}
-                          onClick={() => { copyPath(path) }}
-                        >
-                          {pathCopied === path ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
-                        </button>
-                      </Tooltip>
-                      {canOpenPath && (
-                        <Tooltip label={t('panel.openFolder')} side="bottom">
-                          <button
-                            type="button"
-                            data-row-action=""
-                            data-board-action="panel-open-folder"
-                            className={css.pathAction}
-                            aria-label={t('panel.openFolder')}
-                            onClick={() => { openFolder(path) }}
-                          >
-                            <IconFolderOpen16 />
-                          </button>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {expanded && group.chats.map(chat => (
                   <div key={chat.id} className={css.sessionRow}>

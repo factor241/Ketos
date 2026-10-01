@@ -210,21 +210,16 @@ describe('WindowChatsPanel project path and artifacts', () => {
     // The window's own session lives in MyProject, so the tree opened it.
     expect(panel.container.querySelector('[data-board-group="ws-1"] [data-board-group-toggle="open"]')).not.toBeNull()
 
-    // Project path row is visible
-    const pathRow = panel.container.querySelector('[data-board-project-path="/work/my-project"]')
-    expect(pathRow).not.toBeNull()
-    expect(pathRow?.textContent).toContain('/work/my-project')
-
-    // Quick action: copy path
-    const copyBtn = panel.container.querySelector('[data-board-action="panel-copy-path"]') as Element
-    expect(copyBtn).not.toBeNull()
-    fireEvent.click(copyBtn)
+    // The folder's path actions live in its row menu, not in the tree.
+    expect(panel.container.querySelector('[data-board-project-path]')).toBeNull()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-project-menu"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Copy path'))
     await runtime.flush()
 
-    // Quick action: open folder
-    const openBtn = panel.container.querySelector('[data-board-action="panel-open-folder"]') as Element
-    expect(openBtn).not.toBeNull()
-    fireEvent.click(openBtn)
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-project-menu"]') as Element)
+    await runtime.flush()
+    fireEvent.click(screen.getByText('Open folder'))
     await runtime.flush()
     expect(openedPath).toBe('/work/my-project')
   })
@@ -247,7 +242,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     // The window session's group opened with the panel (Т3.3).
-    expect(panel.container.querySelector('[data-board-project-path="/work/my-project"]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-group="ws-1"] [data-board-group-toggle="open"]')).not.toBeNull()
 
     // A host that denies clipboard access fails the accessor itself; the panel
     // must say so rather than claiming the path was copied.
@@ -256,7 +251,9 @@ describe('WindowChatsPanel project path and artifacts', () => {
       get() { throw new Error('clipboard denied') },
     })
     try {
-      fireEvent.click(panel.container.querySelector('[data-board-action="panel-copy-path"]') as Element)
+      fireEvent.click(panel.container.querySelector('[data-board-action="panel-project-menu"]') as Element)
+      await runtime.flush()
+      fireEvent.click(screen.getByText('Copy path'))
       await runtime.flush()
     } finally {
       Reflect.deleteProperty(navigator, 'clipboard')
@@ -1077,8 +1074,8 @@ describe('WindowChatsPanel list controls', () => {
     await runtime.flush()
 
     // The tree keeps the folder's identity after its last visible chat leaves:
-    // the path row, the new-chat control, and the folder row stay.
-    expect(panel.container.querySelector('[data-board-project-path="/work/ketos"]')).not.toBeNull()
+    // the folder row and its new-chat control stay.
+    expect(panel.container.querySelector('[data-board-group="ws-1"]')).not.toBeNull()
     expect(panel.container.querySelector('[data-board-action="panel-new-chat"]')).not.toBeNull()
     expect(panel.view.getByText('MyProject')).not.toBeNull()
   })

@@ -3,12 +3,12 @@
 //
 // The audit's input and popover problems (П-01 … П-15, П-36), the Д3.3/Д6
 // problems (П-18, П-26/П-27, П-32/П-34), and the stage-24 redesign
-// requirements (Т1.1 … Т3.13) are plain assertions. The two audit problems
-// carried into stage 24 (П-28, П-31) still keep their expected-failing marker
-// until Д3.2 lands. The measurements use the built dist through
-// `launchWebScaffold`, seeded sessions, and a deterministic localStorage
-// layout (`dsh.board.layout`), so the seeded windows mount their conversation
-// bodies before anything is measured.
+// requirements (Т1.1 … Т3.13) are plain assertions; the two audit problems
+// carried into stage 24 (П-28, П-31) landed with Д3.2 and are plain too. The
+// measurements use the built dist through `launchWebScaffold`, seeded
+// sessions, and a deterministic localStorage layout (`dsh.board.layout`), so
+// the seeded windows mount their conversation bodies before anything is
+// measured.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -196,10 +196,46 @@ async function openBoard(page: Page): Promise<void> {
   await page.locator('[data-surface="board"]').waitFor({ timeout: 30_000 })
 }
 
-/** Click the dock's reset-view control and settle. */
+/** Click the dock's «show all windows» control and settle. */
 async function clickResetView(page: Page): Promise<void> {
   await page.locator('[data-board-action="dock-reset-view"]').click()
   await settle(page)
+}
+
+/** The board's shipped wheel-zoom sensitivity `k` of `factor = exp(−Δ·k)`. */
+const BOARD_ZOOM_K = 0.0023
+
+/**
+ * Restore the identity view (pan 0, zoom 1) through canvas gestures. The
+ * dock's control now fits every window, so tests that measure absolute world
+ * geometry normalize here instead of clicking it. The zoom stroke is computed
+ * from the exponential factor, so it lands on exactly 1 in one gesture.
+ */
+async function resetToIdentityView(page: Page): Promise<void> {
+  const canvas = await page.locator('[data-surface="canvas"]').boundingBox()
+  if (canvas === null) throw new Error('board canvas is missing')
+  const clientX = canvas.x + canvas.width * 0.75
+  const clientY = canvas.y + canvas.height * 0.5
+  const target = { selector: '[data-surface="canvas"]', index: 0 }
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const current = await readTransform(page)
+    if (Math.abs(current.scale - 1) > 0.002) {
+      // One event's delta is clamped to ±50, so a distant zoom converges over
+      // several recomputed strokes.
+      const delta = Math.min(50, Math.max(-50, Math.log(current.scale) / BOARD_ZOOM_K))
+      await dispatchWheel(page, target, { ctrlKey: true, deltaY: delta, clientX, clientY })
+      continue
+    }
+    if (Math.abs(current.panX) >= 0.5 || Math.abs(current.panY) >= 0.5) {
+      await dispatchWheel(page, target, { deltaX: current.panX, deltaY: current.panY, clientX, clientY })
+      continue
+    }
+    return
+  }
+  const settled = await readTransform(page)
+  if (Math.abs(settled.scale - 1) > 0.002 || Math.abs(settled.panX) >= 1 || Math.abs(settled.panY) >= 1) {
+    throw new Error(`identity view did not converge: zoom ${String(settled.scale)}, pan ${String(settled.panX)}, ${String(settled.panY)}`)
+  }
 }
 
 /**
@@ -478,12 +514,20 @@ function edgeAnchorTarget(board: Rect, edge: BoardEdge): { x: number; y: number 
 
 /** Pan the board until the anchor's centre sits at the target, then settle. */
 async function placeAnchor(page: Page, selector: string, target: { x: number; y: number }): Promise<void> {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const rect = await elementRect(page, selector)
     const deltaX = rect.left + rect.width / 2 - target.x
     const deltaY = rect.top + rect.height / 2 - target.y
     if (Math.abs(deltaX) < 2 && Math.abs(deltaY) < 2) return
     await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { deltaX, deltaY })
+    // A paint that lags the store would be read as "no progress" on the next
+    // measurement; wait until the anchor actually moved.
+    await page.waitForFunction(({ anchorSelector, from }) => {
+      const element = document.querySelector(anchorSelector)
+      if (element === null) return false
+      const current = element.getBoundingClientRect()
+      return Math.abs(current.left - from.left) > 0.5 || Math.abs(current.top - from.top) > 0.5
+    }, { anchorSelector: selector, from: rect }, { timeout: 2_000 }).catch(() => {})
   }
   throw new Error(`anchor did not reach the target: ${selector}`)
 }
@@ -576,7 +620,7 @@ describe('web e2e: spatial board geometry', () => {
   })
 
   it('opens the board with the three seeded windows bound to their sessions', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const shape = await page.evaluate(({ a, b, c }) => {
       const board = document.querySelector('[data-surface="board"]')?.getBoundingClientRect()
       const windowIds = [...document.querySelectorAll('[data-board-window-id]')]
@@ -614,11 +658,11 @@ describe('web e2e: spatial board geometry', () => {
   it('control: an empty-canvas pinch already zooms the board and is prevented', async () => {
     // The correct subset of П-01 the board already implements: ctrl+wheel over
     // the bare canvas zooms the board and prevents the page zoom.
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const canvas = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { ctrlKey: true, deltaY: -100 })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const dock = await dispatchWheel(page, { selector: '[data-board-layer="dock"]', index: 0 }, { ctrlKey: true, deltaY: -100 })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     expect({
       canvasPrevented: canvas.prevented,
       canvasZoomed: canvas.after.scale > canvas.before.scale,
@@ -633,9 +677,9 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-01: a pinch over a window zooms the board instead of the page (R3 wheel whitelist)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const overWindow = await dispatchWheel(page, frameTarget(WINDOW_A), { ctrlKey: true, deltaY: -100 })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // Ctrl+wheel anywhere inside the board belongs to the board, a window
     // frame included, so the pinch never reaches the browser's page zoom.
     expect({
@@ -645,11 +689,11 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-07: a pinch outside the board is blocked app-wide (decision R-2)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // The shell overlay is a sibling of the board inside the frame: the pinch
     // guard must claim it while the board keeps its scale.
     const outside = await dispatchWheel(page, { selector: '[data-shell-overlay]', index: 0 }, { ctrlKey: true, deltaY: -100 })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     expect({
       prevented: outside.prevented,
       boardScaleUnchanged: outside.after.scale === outside.before.scale,
@@ -657,14 +701,14 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-02: a two-finger swipe pans the board and only ctrl+wheel zooms (R3 sign-only zoom)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const canvas = await page.locator('[data-surface="canvas"]').boundingBox()
     if (canvas === null) throw new Error('board canvas is missing')
     const center = { clientX: canvas.x + canvas.width / 2, clientY: canvas.y + canvas.height / 2 }
     const swipe = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { deltaX: 40, clientX: center.clientX, clientY: center.clientY })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const scroll = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { deltaY: 2, clientX: center.clientX, clientY: center.clientY })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // A plain wheel pans: the horizontal swipe moves panX, the vertical one
     // moves panY, and neither touches the scale.
     expect({
@@ -676,14 +720,14 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-03: the zoom step is proportional to the gesture (R3 fixed ±10%)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const canvas = await page.locator('[data-surface="canvas"]').boundingBox()
     if (canvas === null) throw new Error('board canvas is missing')
     const center = { clientX: canvas.x + canvas.width / 2, clientY: canvas.y + canvas.height / 2 }
     const small = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { ctrlKey: true, deltaY: -2, ...center })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const large = await dispatchWheel(page, { selector: '[data-surface="canvas"]', index: 0 }, { ctrlKey: true, deltaY: -40, ...center })
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const smallDelta = Math.abs(small.after.scale - small.before.scale)
     const largeDelta = Math.abs(large.after.scale - large.before.scale)
     // The factor is exp(−Δ·k): a 2px delta stays under one percent and a
@@ -695,7 +739,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-09: window tooltips sit beside their button at zoom 1 and 0.5 (R1 fixed inside the canvas)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // The seeded window sits at the board's top-left corner, under the mode
     // badge: pan it clear so the measurement reaches the button itself.
     await panBy(page, 80, 80)
@@ -711,7 +755,7 @@ describe('web e2e: spatial board geometry', () => {
         zoomHalf: { side: 'bottom', adjacent: true, axisAligned: true, insideBoard: true },
       })
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 60_000)
 
@@ -728,12 +772,12 @@ describe('web e2e: spatial board geometry', () => {
       expect({ adjacent: toggle.adjacent, axisAligned: toggle.axisAligned }).toEqual({ adjacent: true, axisAligned: true })
     } finally {
       await openBoard(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 60_000)
 
   it('П-09: the dock tooltip is not displaced by its anchor transform', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // The audit calls the dock tooltips correct because they are outside the
     // canvas, but the anchor container carries its own transform
     // (`translateX(-50%)` on the bottom strip), which is a containing block
@@ -745,7 +789,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-10: a window menu renders at the window scale (R2 page-scale portal)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     await openWindowMenu(page, WINDOW_A)
     const zoom1 = await measureMenu(page, WINDOW_A)
     await closeMenus(page)
@@ -758,12 +802,12 @@ describe('web e2e: spatial board geometry', () => {
         Math.abs(measurement.ratio - measurement.scale) <= 0.15 * measurement.scale
       expect({ zoom1: scaled(zoom1), zoomHalf: scaled(zoomHalf) }).toEqual({ zoom1: true, zoomHalf: true })
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 90_000)
 
   it('П-11: an open menu follows its button when the board moves (R2 place-once)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     await openWindowMenu(page, WINDOW_A)
     const before = await menuAttachmentDistance(page, WINDOW_A)
     const canvas = await page.locator('[data-surface="canvas"]').boundingBox()
@@ -773,14 +817,14 @@ describe('web e2e: spatial board geometry', () => {
     })
     const after = await menuAttachmentDistance(page, WINDOW_A)
     await closeMenus(page)
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // The menu repositions only on scroll/resize, so a wheel gesture that moves
     // the chip leaves the menu behind (4px before, hundreds after).
     expect({ attachedBefore: before <= 8, attachedAfter: after <= 8 }).toEqual({ attachedBefore: true, attachedAfter: true })
   }, 60_000)
 
   it('П-13: a window menu is clamped to the board, not the browser viewport (R2)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       // Window C starts off the board's left edge. Pan until its model chip is
       // mostly outside the board while a sliver stays on it — the boundary
@@ -795,12 +839,12 @@ describe('web e2e: spatial board geometry', () => {
       expect(measurement.insideBoard, `menu left ${String(measurement.menu.left)} vs board left ${String(measurement.board.left)}`)
         .toBe(true)
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 60_000)
 
   it('П-14: a submenu flips to stay on screen at small board offsets (R2 CSS-only direction)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // Pan the board up so window A's composer chip hangs partly past the top
     // edge — a fully outside anchor now dismisses its menu — and the effort
     // submenu, pinned "up and to the right" by CSS, would overflow the top.
@@ -816,19 +860,19 @@ describe('web e2e: spatial board geometry', () => {
       expect({ submenuPresent: submenu !== null, insideBoard: inside }).toEqual({ submenuPresent: true, insideBoard: true })
     } finally {
       await closeMenus(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 60_000)
 
   it('П-15: a menu with submenus caps its height and scrolls (R2 scrollable guard)', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     await openWindowMenu(page, WINDOW_A)
     await page.getByRole('menuitem', { name: 'Model', exact: true }).hover()
     await settle(page)
     const submenu = await measureSubmenu(page)
     const main = await measureMenu(page, WINDOW_A)
     await closeMenus(page)
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // The list of 25 models renders 1008px tall; the submenu-bearing menu
     // skips the height cap because the overflow clip would crop the submenu.
     expect({
@@ -838,7 +882,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('П-32/П-34: below the detail threshold windows show the simplified card and the grid doubles', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       await setZoom(page, 0.2)
       const zoom = (await readTransform(page)).scale
@@ -879,12 +923,12 @@ describe('web e2e: spatial board geometry', () => {
       expect(after.scale).toBeGreaterThanOrEqual(0.4)
       expect(cardsAfter).toBe(0)
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 90_000)
 
   it('П-26/П-27: a corner drag shrinks to the minimum layout and the window stays intact', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const handleSelector = `[data-board-window-id="${WINDOW_A}"] [data-board-handle="se"]`
     const dragCorner = async (dx: number, dy: number): Promise<void> => {
       const handle = await page.locator(handleSelector).boundingBox()
@@ -945,12 +989,12 @@ describe('web e2e: spatial board geometry', () => {
       expect(Math.round(restored.width)).toBe(552)
       expect(Math.round(restored.height)).toBe(648)
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 90_000)
 
   it('Т1.1/Т1.2: the dock sits at the board bottom centre and keeps its screen size at every zoom', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const boxAt = (measured: Awaited<ReturnType<typeof measureFloating>>): Rect => {
       if (measured.board === null || measured.dock === null) throw new Error('board or dock box is missing')
       return measured.dock
@@ -970,7 +1014,7 @@ describe('web e2e: spatial board geometry', () => {
       dock2 = boxAt(await measureFloating(page))
       frameAtZoom2 = await measureFrame(page, WINDOW_A)
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
     if (dockHalf === null || dock2 === null || frameAtZoom2 === null) throw new Error('dock or frame box is missing at zoom 0.5 or 2')
     expect({
@@ -988,7 +1032,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 90_000)
 
   it('Т1.3: the dock orders windows, controls, and clones left to right', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const order = await page.evaluate(() => {
       const dock = document.querySelector('[data-board-layer="dock"]')
       if (dock === null) return []
@@ -1003,7 +1047,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т1.12/Т1.13: the omnibar is gone and the minimap sits at the board top right', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const chrome = await measureFloating(page)
     if (chrome.board === null || chrome.minimap === null) throw new Error('board or minimap box is missing')
     expect({
@@ -1014,7 +1058,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т1.14: the dock stays visible while a window panel is open', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const before = await measureFloating(page)
     if (before.dock === null) throw new Error('dock box is missing')
     const dock1 = before.dock
@@ -1037,7 +1081,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т3.1/Т3.2: a chat window has no rail and its header carries both panel buttons', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const header = await page.evaluate((id) => {
       const frame = document.querySelector(`[data-board-window-id="${id}"]`)
       if (frame === null) throw new Error('frame is missing')
@@ -1052,7 +1096,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т3.5: panels slide out from under the window edges, not over the window', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     const panelButton = page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-left-panel"]`)
     try {
       // A panel another test left open would make this click a close.
@@ -1111,8 +1155,31 @@ describe('web e2e: spatial board geometry', () => {
     }, { id: windowId, side })
   }
 
+  it('Т3.3: the session age sits flush right in the working-folder row', async () => {
+    await resetToIdentityView(page)
+    try {
+      await openPanel(WINDOW_A, 'window-left-panel')
+      await page.waitForTimeout(500)
+      await settle(page)
+      const gap = await page.evaluate(() => {
+        const row = document.querySelector('[data-board-chat-current]')
+        const meta = row?.querySelector('[class*="rowMeta"]')
+        if (row === null || meta === null || meta === undefined) return null
+        return Math.round(row.getBoundingClientRect().right - meta.getBoundingClientRect().right)
+      })
+      // At rest the trailing action stands down, so the age keeps the row's
+      // 8px inner padding as its only gap to the right edge.
+      expect(gap).not.toBeNull()
+      expect(gap).toBeGreaterThanOrEqual(0)
+      expect(gap).toBeLessThanOrEqual(12)
+    } finally {
+      await page.keyboard.press('Escape')
+      await resetToIdentityView(page)
+    }
+  }, 60_000)
+
   it('Т3.12: both panels of one window open at once, each beside its own edge', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       await openPanel(WINDOW_A, 'window-left-panel')
       await openPanel(WINDOW_A, 'window-right-panel')
@@ -1138,7 +1205,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т3.12: a raised window paints its panel over another window\'s panel', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       // Window A's right panel spans [552, 912] in world x, window B's left
       // panel [440, 700]: the two overlap while both windows share y = 0.
@@ -1178,7 +1245,7 @@ describe('web e2e: spatial board geometry', () => {
   }, 60_000)
 
   it('Т3.4: a window panel scales with the canvas at zoom 0.5, 1, and 2', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       await openPanel(WINDOW_A, 'window-left-panel')
       await page.waitForTimeout(500)
@@ -1193,12 +1260,12 @@ describe('web e2e: spatial board geometry', () => {
       expect(Math.abs(atHalf.width / at1.width - 0.5)).toBeLessThanOrEqual(0.06)
     } finally {
       await page.keyboard.press('Escape')
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 90_000)
 
   it('Т2.1: expanding a window hands its session to the standard interface', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     try {
       await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-fullscreen"]`)
         .click({ timeout: 2_000 })
@@ -1214,7 +1281,7 @@ describe('web e2e: spatial board geometry', () => {
       }).toEqual({ board: false, fullscreen: false, showsSession: true })
     } finally {
       await openBoard(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 90_000)
 
@@ -1267,30 +1334,51 @@ describe('web e2e: spatial board geometry', () => {
       expect(await page.locator('[data-board-action="open-board"]').count()).toBe(1)
     } finally {
       await openBoard(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 120_000)
 
-  it.fails('П-28: reset view fits every window into the safe area (R5 no safe area)', async () => {
-    await clickResetView(page)
-    const area = await measureSafeArea(page)
-    await clickResetView(page)
-    const board = area.board
-    const dock = area.dock
-    const minimap = area.minimap
-    if (board === null || dock === null || minimap === null) {
-      throw new Error('board safe-area boxes are missing')
+  it('П-28/Д3.2: show all windows fits every window, panels included, into the safe area', async () => {
+    await resetToIdentityView(page)
+    try {
+      // One window opens its left panel: the overview must fit the panel too.
+      await openPanel(WINDOW_A, 'window-left-panel')
+      await page.waitForTimeout(500)
+      // The dock's own control runs the overview.
+      await clickResetView(page)
+      await settle(page)
+      const area = await measureSafeArea(page)
+      const board = area.board
+      const dock = area.dock
+      const minimap = area.minimap
+      if (board === null || dock === null) {
+        throw new Error('board or dock box is missing')
+      }
+      const windows = [area.a, area.b, area.c].filter((rect): rect is Rect => rect !== null)
+      const panel = await measurePanel(page, WINDOW_A, 'left')
+      expect({
+        dockClear: !windows.some(rect => intersects(rect, dock)),
+        // The minimap stands down while a window panel is open; nothing to
+        // clear when it is not rendered.
+        minimapClear: minimap === null || !windows.some(rect => intersects(rect, minimap)),
+        windowsInsideBoard: windows.every(rect => contains(board, rect)),
+        panelInsideBoard: panel !== null && contains(board, panel),
+        panelClearOfDock: panel !== null && !intersects(panel, dock),
+      }).toEqual({
+        dockClear: true,
+        minimapClear: true,
+        windowsInsideBoard: true,
+        panelInsideBoard: true,
+        panelClearOfDock: true,
+      })
+    } finally {
+      await page.keyboard.press('Escape')
+      await resetToIdentityView(page)
     }
-    const windows = [area.a, area.b, area.c].filter((rect): rect is Rect => rect !== null)
-    expect({
-      dockClear: !windows.some(rect => intersects(rect, dock)),
-      minimapClear: !windows.some(rect => intersects(rect, minimap)),
-      windowsInsideBoard: windows.every(rect => contains(board, rect)),
-    }).toEqual({ dockClear: true, minimapClear: true, windowsInsideBoard: true })
   }, 60_000)
 
-  it.fails('П-31: centring a window taller than the board fits it inside (R5 no fit-on-center)', async () => {
-    await clickResetView(page)
+  it('П-31/Д3.2: centring a window taller than the board fits it by reducing the zoom', async () => {
+    await resetToIdentityView(page)
     try {
       // Activate another window first so the tall window's dock row runs the
       // centre action instead of the reveal shortcut.
@@ -1301,9 +1389,14 @@ describe('web e2e: spatial board geometry', () => {
       const board = area.board
       const tall = area.c
       if (board === null || tall === null) throw new Error('board or tall window box is missing')
-      expect({ fitsInsideBoard: contains(board, tall) }).toEqual({ fitsInsideBoard: true })
+      const zoom = (await readTransform(page)).scale
+      expect({
+        fitsInsideBoard: contains(board, tall),
+        zoomReduced: zoom < 1,
+        zoomAboveDetail: zoom >= 0.4,
+      }).toEqual({ fitsInsideBoard: true, zoomReduced: true, zoomAboveDetail: true })
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 60_000)
 
@@ -1351,7 +1444,7 @@ describe('web e2e: spatial board geometry', () => {
         await page.waitForTimeout(400)
       }
       await openBoard(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
   }, 120_000)
 
@@ -1359,7 +1452,7 @@ describe('web e2e: spatial board geometry', () => {
     const failures: string[] = []
     try {
       for (const zoom of [0.5, 1, 2]) {
-        await clickResetView(page)
+        await resetToIdentityView(page)
         await setZoom(page, zoom)
         for (const edge of ['left', 'right', 'top', 'bottom'] as const) {
           const board = (await measureSafeArea(page)).board
@@ -1389,7 +1482,7 @@ describe('web e2e: spatial board geometry', () => {
       // tooltips are anchored at a fixed dock position, so only the zoom axis
       // applies and the edges do not.
       for (const zoom of [0.5, 1, 2]) {
-        await clickResetView(page)
+        await resetToIdentityView(page)
         await setZoom(page, zoom)
         for (const [name, selector] of [
           ['dock', '[data-board-action="dock-reset-view"]'],
@@ -1402,7 +1495,7 @@ describe('web e2e: spatial board geometry', () => {
         }
       }
     } finally {
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
     expect(failures).toEqual([])
   }, 120_000)
@@ -1413,7 +1506,7 @@ describe('web e2e: spatial board geometry', () => {
       for (const width of [600, 820, 1160, 1640]) {
         await page.setViewportSize({ width, height: WIDE_VIEWPORT.height })
         await settle(page)
-        await clickResetView(page)
+        await resetToIdentityView(page)
         const chrome = await measureFloating(page)
         if (chrome.board === null || chrome.dock === null || chrome.minimap === null) {
           failures.push(`${String(width)}: chrome box is missing`)
@@ -1435,13 +1528,13 @@ describe('web e2e: spatial board geometry', () => {
     } finally {
       await page.setViewportSize(WIDE_VIEWPORT)
       await settle(page)
-      await clickResetView(page)
+      await resetToIdentityView(page)
     }
     expect(failures).toEqual([])
   }, 120_000)
 
   it('Т1.6: the dock scrolls sideways once its icons outgrow the board', async () => {
-    await clickResetView(page)
+    await resetToIdentityView(page)
     // Fill the strip through the catalog itself: the dock's own add menu opens
     // agent windows until twenty icons outgrow the board.
     while (await page.evaluate(() => document.querySelectorAll('[data-board-dock-row]').length) < 20) {

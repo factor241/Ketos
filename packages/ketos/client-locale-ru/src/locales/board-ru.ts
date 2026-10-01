@@ -18,7 +18,7 @@ export const ru = {
   'canvas.agentTitle': 'Агент №{n}',
   'rail.openClone': 'Открыть клона: {name}',
   'rail.addAgent': 'Добавить карточку агента',
-  'rail.resetView': 'Центрировать / сбросить холст',
+  'rail.resetView': 'Показать все окна',
   'rail.closeWindow': 'Закрыть окно',
   'rail.closeWindow.hint': 'Чат остаётся в списке',
   'rail.status.pending': 'Создание',

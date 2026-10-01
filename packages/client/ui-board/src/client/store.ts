@@ -107,7 +107,11 @@ type BoardActions = {
   setZoom: (draft: BoardState, zoom: number) => void
   /** Multiply the zoom by `factor` around the pointer, clamped to the layout limits. */
   zoomBy: (draft: BoardState, factor: number, pointerX: number, pointerY: number) => void
-  /** Return the view to pan (0, 0) and zoom 1. */
+  /**
+   * Show every window: fit the bounding box of all windows — their open panels
+   * included — into the safe area at no more than zoom 1, centred. A board
+   * without windows returns to pan (0, 0) and zoom 1.
+   */
   resetView: (draft: BoardState) => void
   setViewport: (draft: BoardState, width: number, height: number) => void
   /**
@@ -406,11 +410,60 @@ function placeWindow(draft: BoardState, width: number, height: number): { x: num
   }
 }
 
-/** Pan the view so one window's centre lands on the safe area's centre (Т1.15). */
-function centerInSafeArea(draft: BoardState, window: BoardWindowState): void {
+/** One world-space rectangle; the fields name the box's edges, not its size. */
+interface WorldBox {
+  readonly left: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+}
+
+/** One window's world box: its open panels extend it sideways. */
+function windowBox(window: BoardWindowState): WorldBox {
+  return {
+    left: window.x - (window.leftPanelOpen === true ? windowPanelWidth(window, 'left') : 0),
+    top: window.y,
+    right: window.x + window.width + (window.rightPanelOpen === true ? windowPanelWidth(window, 'right') : 0),
+    bottom: window.y + window.height,
+  }
+}
+
+/** The world box of every window, or null when the board holds none. */
+function windowsBox(draft: BoardState): WorldBox | null {
+  let box: WorldBox | null = null
+  for (const window of Object.values(draft.windows)) {
+    const own = windowBox(window)
+    box = box === null
+      ? own
+      : {
+        left: Math.min(box.left, own.left),
+        top: Math.min(box.top, own.top),
+        right: Math.max(box.right, own.right),
+        bottom: Math.max(box.bottom, own.bottom),
+      }
+  }
+  return box
+}
+
+/**
+ * Scale and pan the view so one world box fits the safe area: the zoom drops
+ * to the box's fit when the box is larger than the free rectangle (never
+ * above the current zoom), and the box's centre lands on the area's centre.
+ */
+function fitBoxInSafeArea(draft: BoardState, box: WorldBox): void {
   const area = safeArea(draft).screen
-  draft.panX = (area.left + area.right) / 2 - (window.x + window.width / 2) * draft.zoom
-  draft.panY = (area.top + area.bottom) / 2 - (window.y + window.height / 2) * draft.zoom
+  const availableWidth = area.right - area.left
+  const availableHeight = area.bottom - area.top
+  const width = Math.max(1, box.right - box.left)
+  const height = Math.max(1, box.bottom - box.top)
+  // An unmeasured board has no free rectangle to scale against: the box is
+  // still centred against the box it reports, and the zoom stays as it is.
+  if (availableWidth > 0 && availableHeight > 0) {
+    const fit = Math.min(draft.zoom, availableWidth / width, availableHeight / height)
+    draft.zoom = Math.max(BOARD_ZOOM_MIN, fit)
+  }
+  draft.panX = (area.left + area.right) / 2 - (box.left + box.right) / 2 * draft.zoom
+  draft.panY = (area.top + area.bottom) / 2 - (box.top + box.bottom) / 2 * draft.zoom
 }
 
 /** The highest z-index among the windows other than `except`. */
@@ -593,9 +646,31 @@ export function createBoardStore(): BoardStoreHandle {
         draft.zoom = newZoom
       },
       resetView: (draft) => {
-        draft.panX = 0
-        draft.panY = 0
-        draft.zoom = 1
+        const box = windowsBox(draft)
+        if (box === null) {
+          draft.panX = 0
+          draft.panY = 0
+          draft.zoom = 1
+          return
+        }
+        // The overview never magnifies: a fitting board returns to zoom 1, and
+        // a box larger than the free rectangle scales down to fit it.
+        const area = safeArea(draft).screen
+        const availableWidth = area.right - area.left
+        const availableHeight = area.bottom - area.top
+        // An unmeasured board has no free rectangle to fit into: the command
+        // falls back to the initial view.
+        if (availableWidth <= 0 || availableHeight <= 0) {
+          draft.panX = 0
+          draft.panY = 0
+          draft.zoom = 1
+          return
+        }
+        const width = Math.max(1, box.right - box.left)
+        const height = Math.max(1, box.bottom - box.top)
+        draft.zoom = Math.max(BOARD_ZOOM_MIN, Math.min(1, availableWidth / width, availableHeight / height))
+        draft.panX = (area.left + area.right) / 2 - (box.left + box.right) / 2 * draft.zoom
+        draft.panY = (area.top + area.bottom) / 2 - (box.top + box.bottom) / 2 * draft.zoom
       },
       setViewport: (draft, width, height) => {
         draft.viewportWidth = width
@@ -671,7 +746,7 @@ export function createBoardStore(): BoardStoreHandle {
         const win = draft.windows[id as string]
         if (!win) return
         raiseWindow(draft, id)
-        centerInSafeArea(draft, win)
+        fitBoxInSafeArea(draft, windowBox(win))
       },
       revealWindow: (draft, id) => {
         const win = draft.windows[id as string]
@@ -680,7 +755,7 @@ export function createBoardStore(): BoardStoreHandle {
         // Raising a window the view has left would be a dead gesture: the
         // window becomes active but stays out of sight.
         if (isWindowOnScreen(draft, win)) return
-        centerInSafeArea(draft, win)
+        fitBoxInSafeArea(draft, windowBox(win))
       },
       setWindowPanel: (draft, id, side, open) => {
         const win = draft.windows[id as string]

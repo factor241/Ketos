@@ -390,6 +390,58 @@ describe('createBoardStore', () => {
     expect(store.getSnapshot().panX).toBe(-100)
   })
 
+  it('shows all windows at zoom 1 with an empty board and centres a fitting box', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.setZoom(0.5)
+    actions.setPan(123, 456)
+
+    actions.resetView()
+    expect(store.getSnapshot()).toMatchObject({ panX: 0, panY: 0, zoom: 1 })
+
+    // A fitting board returns to zoom 1 (never above it), with the box's
+    // centre on the safe area's centre whatever the previous zoom was.
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 100, y: 100, width: 400, height: 300 }))
+    actions.setZoom(0.5)
+    actions.resetView()
+    expect(store.getSnapshot()).toMatchObject({ panX: 200, panY: 150, zoom: 1 })
+    actions.setZoom(2)
+    actions.resetView()
+    expect(store.getSnapshot()).toMatchObject({ panX: 200, panY: 150, zoom: 1 })
+  })
+
+  it('fits a large board and open panels into the safe area', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 0, y: 0, width: 2000, height: 1600 }))
+    actions.resetView()
+    expect(store.getSnapshot()).toMatchObject({ panX: 0, panY: 0, zoom: 0.5 })
+
+    // The panel extends the box sideways: the whole window + panel is centred.
+    const panelled = createBoardStore().create()
+    panelled.actions.setViewport(1000, 800)
+    panelled.actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 100, y: 100, width: 300, height: 300 }))
+    panelled.actions.setWindowPanel('w1' as WindowId, 'left', true)
+    panelled.actions.resetView()
+    expect(panelled.store.getSnapshot()).toMatchObject({ panX: 380, panY: 150, zoom: 1 })
+  })
+
+  it('reduces the zoom when centring a window taller than the safe area', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.setViewport(1000, 800)
+    actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 0, y: 0, width: 400, height: 1600 }))
+    actions.centerOnWindow('w1' as WindowId)
+    expect(store.getSnapshot()).toMatchObject({ panX: 400, panY: 0, zoom: 0.5 })
+
+    // Centring never magnifies a window that already fits.
+    const small = createBoardStore().create()
+    small.actions.setViewport(1000, 800)
+    small.actions.addWindow(makeWindow({ id: 'w1' as WindowId, x: 0, y: 0, width: 100, height: 100 }))
+    small.actions.setZoom(0.5)
+    small.actions.centerOnWindow('w1' as WindowId)
+    expect(small.store.getSnapshot().zoom).toBe(0.5)
+  })
+
   it('ignores window operations for unknown ids', () => {
     const { store, actions } = createBoardStore().create()
     const before = store.getSnapshot()

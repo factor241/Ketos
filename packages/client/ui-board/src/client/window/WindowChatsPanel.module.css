@@ -94,23 +94,6 @@
   white-space: nowrap;
 }
 
-/* The project header doubles as the way back to the project list. */
-.back {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 2px 4px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font-family: inherit;
-  font-size: var(--board-font-label);
-  font-weight: 500;
-  cursor: pointer;
-}
-
 .back:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
@@ -158,8 +141,11 @@
   flex: 1;
 }
 
+/* Row actions surface on hover only, like the sidebar's rows: the resting row
+   shows its age flush right, and the action takes that trailing slot while
+   the pointer is on the row. */
 .rowAction {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   flex: none;
@@ -171,12 +157,15 @@
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
-  opacity: 0;
 }
 
 .groupRow:hover .rowAction,
-.rowAction:focus-visible {
-  opacity: 1;
+.sessionRow:hover .rowAction {
+  display: flex;
+}
+
+.sessionRow:hover .rowMeta {
+  display: none;
 }
 
 .rowAction:hover {
@@ -358,54 +347,6 @@
    panel keeps its DOM and state and stops painting. */
 .hidden {
   content-visibility: hidden;
-}
-
-.projectPathRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px;
-  gap: 8px;
-  font-size: var(--board-font-hint);
-  color: var(--dsw-alias-label-tertiary);
-  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
-  min-height: 28px;
-  box-sizing: border-box;
-}
-
-.projectPathText {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: rtl;
-  text-align: left;
-}
-
-.projectPathActions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-}
-
-.pathAction {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.pathAction:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
 }
 
 /* The tree: one block per folder, its sessions indented under the group row,

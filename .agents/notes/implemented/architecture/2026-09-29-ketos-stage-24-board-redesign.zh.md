@@ -24,6 +24,8 @@ Status: implemented
 
 **А7 —— 共享面板替换推迟。** 用标准组件替换看板自己的面板，需要在 `ui-renderer` 中提供面向任意会话的会话作用域槽位区，以及多实例右面板。该债务记录为 Beads 任务；本阶段不依赖它。
 
+**Д3.2 —— 「显示所有窗口」与居中都适配安全区域。** dock 的「显示所有窗口」控件与 `Ctrl/Cmd+0` 把每个窗口（连同其已打开的面板）的包围盒放进无浮动浮层矩形，缩放不超过 1；没有窗口的看板回到平移 (0, 0) 与缩放 1。`centerOnWindow`——包括从「返回窗口」返回——以及显示屏幕外窗口时，当窗口连同其已打开的面板大于空闲矩形就缩小缩放，因此高窗口完整落在看板内。尚未测量出空闲矩形的看板：显示所有窗口回退到初始视图，居中则保持当前缩放。
+
 **布局字段。** 每个窗口持久携带 `leftPanelOpen`/`leftPanelWidth`（默认 260，范围 260–360）与 `rightPanelOpen`/`rightPanelWidth`（默认 360，范围 280–600），都是版本 1 内带默认值的追加字段。已移除的全局面板的 `panelWindowId`、`panelCollapsed` 与 `panelWidth` 仍作为「接受但忽略」的字段保留在版本 1 schema 中：存储文档仍可解析，修复会把它们规范化为 schema 默认值，运行中的看板绝不读取它们。`panelGroupBy` 与 `panelOrderBy` 仍是有效的视图状态。展开的工作文件夹分组（`panelExpandedGroups`）与右面板页签（`rightPanels`）仅存在于内存；布局绝不携带它们。
 
 **上游包。** `ui-layout` 新增 `ILayout.declarePanelSidebar`；`ui-sidebar` 声明 `sidebar.brand.actions` list 槽位；`ui-conversation` 新增 `SessionInput.addFiles` 与 `takeDraft`，以及 `conversation.session.header.blank` list 槽位；`session-controller` 新增 `ISessions.openStream`；`ui-primitives` 承载本阶段依赖的 stage 23 tooltip 与菜单 portal 工作。每项改动连同其验证记录在 [`docs/ketos/upstream-sync.md`](../../../../docs/ketos/upstream-sync.md)。

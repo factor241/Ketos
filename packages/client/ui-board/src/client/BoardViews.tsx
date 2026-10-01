@@ -2,7 +2,7 @@
  * React entry views for the Spatial Board slot registrations.
  *
  * The root owns the board's layer ladder: the canvas grid and its windows
- * (z-index 10–99, see `WINDOW_Z_MAX`), the floating chrome — dock, omnibar,
+ * (z-index 10–99, see `WINDOW_Z_MAX`), the floating chrome — dock,
  * minimap — at 100, the active handle ring at 150, the screen-space popover
  * layer (tooltips and menus, see `BOARD_POPOVER_Z`) at 300, the
  * element-selection overlay at 500, and an overlay chats panel at 1000. An
@@ -52,7 +52,7 @@ export interface BoardRootInjected {
 /** Props of the board main-panel body: the child render share, the store share, the injected runtime config, and the locale seat. */
 export type BoardRootProps =
   PropsRuntime<'main'>
-  & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.omnibar' | 'board.minimap'>
+  & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.minimap'>
   & PropsStore<BoardStoreHandle>
   & InjectFace<BoardRootInjected>
   & PropsLocale<'board'>
@@ -311,7 +311,6 @@ export function BoardRoot({
         </BoardPopoverProvider>
         {/* The dock stays visible under an open panel (Т1.14). */}
         {renderSlot('board.dock', {})}
-        {!panelOpen && renderSlot('board.omnibar', {})}
         {!panelOpen && renderSlot('board.minimap', {})}
         {/* The active window's handle ring rides above the chrome, so a resize
             handle stays grabbable when its window edge sits under a floating

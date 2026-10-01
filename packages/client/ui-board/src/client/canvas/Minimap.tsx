@@ -21,7 +21,7 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
   const [minimapElement, setMinimapElement] = useState<HTMLElement | null>(null)
   // The minimap declares its own board edge; Э3.5 moves it to the top right
   // and flips this declaration with the CSS.
-  useBoardChromeInset('bottom', minimapElement, actions)
+  useBoardChromeInset('top', minimapElement, actions)
   const isDraggingRef = useRef(false)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
@@ -99,7 +99,7 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
     <div
       ref={setMinimapElement}
       data-board-layer="minimap"
-      data-board-chrome="bottom"
+      data-board-chrome="top"
       data-board-minimap=""
       className={css.minimap}
       role="img"

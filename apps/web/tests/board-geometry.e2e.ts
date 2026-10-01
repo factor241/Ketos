@@ -466,7 +466,9 @@ function elementRect(page: Page, selector: string): Promise<Rect> {
 function edgeAnchorTarget(board: Rect, edge: BoardEdge): { x: number; y: number } {
   switch (edge) {
     case 'left': return { x: board.left + 40, y: board.top + 60 }
-    case 'right': return { x: board.right - 40, y: board.top + 60 }
+    // Clear of the top-right minimap and of the bottom dock: the right edge's
+    // free stretch sits between them.
+    case 'right': return { x: board.right - 40, y: board.bottom - 160 }
     case 'top': return { x: board.left + board.width / 2, y: board.top + 40 }
     case 'bottom': return { x: board.left + 180, y: board.bottom - 40 }
   }
@@ -725,20 +727,16 @@ describe('web e2e: spatial board geometry', () => {
     }
   }, 60_000)
 
-  it('П-09: the audit control group is not clean — dock and omnibar tooltips are displaced too', async () => {
+  it('П-09: the dock tooltip is not displaced by its anchor transform', async () => {
     await clickResetView(page)
-    // The audit calls the dock and omnibar tooltips correct because they are
-    // outside the canvas, but each anchor container carries its own transform
-    // (`translateY(-50%)` on the dock, `translateX(-50%)` on the omnibar),
-    // which is a containing block for the fixed bubble exactly like the canvas.
+    // The audit calls the dock tooltips correct because they are outside the
+    // canvas, but the anchor container carries its own transform
+    // (`translateX(-50%)` on the bottom strip), which is a containing block
+    // for the fixed bubble exactly like the canvas; the portalled bubble must
+    // still land adjacent to and aligned with its anchor.
     const dock = await measureTooltip(page, '[data-board-action="dock-reset-view"]')
-    const omnibar = await measureTooltip(page, '[data-board-action="omnibar-action-menu"]')
-    expect({
-      dockAdjacent: dock.adjacent,
-      dockAligned: dock.axisAligned,
-      omnibarAdjacent: omnibar.adjacent,
-      omnibarAligned: omnibar.axisAligned,
-    }).toEqual({ dockAdjacent: true, dockAligned: true, omnibarAdjacent: true, omnibarAligned: true })
+    expect({ dockAdjacent: dock.adjacent, dockAligned: dock.axisAligned })
+      .toEqual({ dockAdjacent: true, dockAligned: true })
   }, 60_000)
 
   it('П-10: a window menu renders at the window scale (R2 page-scale portal)', async () => {
@@ -999,7 +997,7 @@ describe('web e2e: spatial board geometry', () => {
     expect(order).toEqual(['row', 'row', 'row', 'dock-add', 'dock-select-element', 'dock-reset-view'])
   }, 60_000)
 
-  it.fails('Т1.12/Т1.13: the omnibar is gone and the minimap sits at the board top right', async () => {
+  it('Т1.12/Т1.13: the omnibar is gone and the minimap sits at the board top right', async () => {
     await clickResetView(page)
     const chrome = await measureFloating(page)
     if (chrome.board === null || chrome.minimap === null) throw new Error('board or minimap box is missing')
@@ -1164,18 +1162,16 @@ describe('web e2e: spatial board geometry', () => {
     await clickResetView(page)
     const board = area.board
     const dock = area.dock
-    const omnibar = area.omnibar
     const minimap = area.minimap
-    if (board === null || dock === null || omnibar === null || minimap === null) {
+    if (board === null || dock === null || minimap === null) {
       throw new Error('board safe-area boxes are missing')
     }
     const windows = [area.a, area.b, area.c].filter((rect): rect is Rect => rect !== null)
     expect({
       dockClear: !windows.some(rect => intersects(rect, dock)),
-      omnibarClear: !windows.some(rect => intersects(rect, omnibar)),
       minimapClear: !windows.some(rect => intersects(rect, minimap)),
       windowsInsideBoard: windows.every(rect => contains(board, rect)),
-    }).toEqual({ dockClear: true, omnibarClear: true, minimapClear: true, windowsInsideBoard: true })
+    }).toEqual({ dockClear: true, minimapClear: true, windowsInsideBoard: true })
   }, 60_000)
 
   it.fails('П-31: centring a window taller than the board fits it inside (R5 no fit-on-center)', async () => {
@@ -1275,14 +1271,14 @@ describe('web e2e: spatial board geometry', () => {
         }
       }
       // The screen-space chrome is the audit's clean control group: its
-      // tooltips are anchored at a fixed dock/omnibar position, so only the
-      // zoom axis applies and the edges do not.
+      // tooltips are anchored at a fixed dock position, so only the zoom axis
+      // applies and the edges do not.
       for (const zoom of [0.5, 1, 2]) {
         await clickResetView(page)
         await setZoom(page, zoom)
         for (const [name, selector] of [
           ['dock', '[data-board-action="dock-reset-view"]'],
-          ['omnibar', '[data-board-action="omnibar-action-menu"]'],
+          ['dock-add', '[data-board-action="dock-add"]'],
         ] as const) {
           const tooltip = await measureTooltip(page, selector)
           if (!tooltip.adjacent || !tooltip.axisAligned || !tooltip.insideBoard) {

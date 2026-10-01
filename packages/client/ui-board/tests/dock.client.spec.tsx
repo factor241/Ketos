@@ -565,20 +565,20 @@ describe('board dock', () => {
     })
     await runtime.flush()
     const dock = () => panel.container.querySelector('[data-board-layer="dock"]')
-    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]'))
-      .toHaveLength(3)
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="minimap"]'))
+      .toHaveLength(2)
     const before = dock()?.getBoundingClientRect()
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
-    // The dock keeps its place; the omnibar and minimap stand down.
+    // The dock keeps its place; the minimap stands down.
     expect(dock()).not.toBeNull()
     expect(dock()?.getBoundingClientRect()).toEqual(before)
-    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"], [data-board-layer="minimap"]')).toHaveLength(0)
+    expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
-    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="omnibar"], [data-board-layer="minimap"]'))
-      .toHaveLength(3)
+    expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="minimap"]'))
+      .toHaveLength(2)
   })
 })

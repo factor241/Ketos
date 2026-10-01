@@ -56,12 +56,12 @@ describe('board slot composition', () => {
   it('declares the full board cascade and occupies every declared slot', async () => {
     const { runtime } = await bench()
 
-    // The panel entry declares the four floating layers it renders.
+    // The panel entry declares the three floating layers it renders.
     const panel = runtime.slots.entries('main')[0]
     expect(Object.keys(panel?.children ?? {})).toEqual([
-      'board.canvas', 'board.dock', 'board.omnibar', 'board.minimap',
+      'board.canvas', 'board.dock', 'board.minimap',
     ])
-    for (const key of ['board.canvas', 'board.dock', 'board.omnibar', 'board.minimap'] as const) {
+    for (const key of ['board.canvas', 'board.dock', 'board.minimap'] as const) {
       expect(runtime.slots.entriesOfSlot(key)).toHaveLength(1)
     }
 
@@ -100,7 +100,7 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     // Every declared layer has its render site: a dropped renderSlot call leaves the layer missing.
-    for (const layer of ['canvas', 'dock', 'omnibar', 'minimap'] as const) {
+    for (const layer of ['canvas', 'dock', 'minimap'] as const) {
       expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(1)
     }
 
@@ -943,10 +943,9 @@ describe('board slot composition', () => {
         left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top, toJSON: () => ({}),
       })
       root.getBoundingClientRect = () => box(0, 0, 1000, 800)
-      // The dock is a bottom strip and the minimap a bottom-right box, so both
-      // take the bottom edge; the badge takes the top.
+      // The dock is a bottom strip; the minimap and the badge take the top.
       dock.getBoundingClientRect = () => box(300, 730, 700, 784)
-      minimap.getBoundingClientRect = () => box(776, 636, 976, 776)
+      minimap.getBoundingClientRect = () => box(776, 24, 976, 164)
       badge.getBoundingClientRect = () => box(4, 18, 40, 46)
 
       // The observer signal re-measures the live boxes; each element takes only
@@ -955,10 +954,10 @@ describe('board slot composition', () => {
       await runtime.flush()
       const sources = board.store.getSnapshot().chromeInsetSources
       const entries = Object.values(sources)
-      expect(entries.map(entry => entry.edge).sort()).toEqual(['bottom', 'bottom', 'top'])
-      expect(entries.filter(entry => entry.edge === 'bottom').map(entry => entry.depth).sort((a, b) => a - b))
-        .toEqual([70, 164])
-      expect(entries.find(entry => entry.edge === 'top')?.depth).toBe(46)
+      expect(entries.map(entry => entry.edge).sort()).toEqual(['bottom', 'top', 'top'])
+      expect(entries.find(entry => entry.edge === 'bottom')?.depth).toBe(70)
+      expect(entries.filter(entry => entry.edge === 'top').map(entry => entry.depth).sort((a, b) => a - b))
+        .toEqual([46, 164])
 
       // Opening a window panel stands the minimap down while the dock stays
       // (Т1.14): the minimap's contribution goes with its unmounted element,
@@ -1431,18 +1430,15 @@ describe('board slot composition', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
-    // The expanded panel is a management surface: the Omnibox and the minimap
-    // stand down while the bottom dock stays (Т1.14).
+    // The expanded panel is a management surface: the minimap stands down
+    // while the bottom dock stays (Т1.14).
     expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
-    for (const layer of ['omnibar', 'minimap'] as const) {
-      expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(0)
-    }
+    expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)
 
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
-    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"]')).toHaveLength(1)
     expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
 
     // In fullscreen a collapsed panel takes no Escape: the mode leaves at once.
@@ -1818,7 +1814,7 @@ describe('board slot composition', () => {
 
     for (const key of [
       'board.window', 'board.window.body', 'board.windows', 'board.canvas',
-      'board.dock', 'board.omnibar', 'board.minimap', 'sidebar.brand.actions', 'main',
+      'board.dock', 'board.minimap', 'sidebar.brand.actions', 'main',
     ] as const) {
       expect(runtime.slots.entries(key)).toEqual([])
     }

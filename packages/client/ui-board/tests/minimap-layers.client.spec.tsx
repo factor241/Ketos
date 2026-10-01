@@ -54,19 +54,16 @@ describe('minimap layer gating', () => {
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-minimap] [data-board-rect="agent"]')).not.toBeNull()
 
-    // An expanded panel is a management surface: the minimap stands down with
-    // the rest of the floating chrome.
+    // An expanded panel is a management surface: the minimap stands down.
     fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-minimap]')).toBeNull()
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)
-    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"]')).toHaveLength(0)
 
     // Collapsing to the rail brings the chrome back with its projection intact.
     fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
-    expect(panel.container.querySelectorAll('[data-board-layer="omnibar"]')).toHaveLength(1)
     expect(panel.container.querySelector('[data-board-minimap] [data-board-rect="agent"]')).not.toBeNull()
   })
 

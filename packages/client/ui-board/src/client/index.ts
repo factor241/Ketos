@@ -58,7 +58,6 @@ import { CloneMemoryBody } from './window/CloneMemoryBody.tsx'
 import { TasksBody } from './window/TasksBody.tsx'
 import { MvpUnavailableBody } from './window/MvpUnavailableBody.tsx'
 import { SessionRail } from './dock/SessionRail.tsx'
-import { DashboardToolbar } from './omnibox/DashboardToolbar.tsx'
 import { WindowChatsPanel } from './window/WindowChatsPanel.tsx'
 import { NS, en, zh } from './locale.ts'
 
@@ -834,7 +833,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       children: {
         'board.canvas': { kind: 'single', scope: 'root' },
         'board.dock': { kind: 'single', scope: 'root' },
-        'board.omnibar': { kind: 'single', scope: 'root' },
         'board.minimap': { kind: 'single', scope: 'root' },
       },
     }, BoardRoot)
@@ -940,13 +938,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     locale: NS,
     inject: injected,
   }, SessionRail))
-
-  ctx.slots.inject('board.omnibar', () => ctx.slots.register({
-    name: 'board.omnibar',
-    store: boardStore,
-    locale: NS,
-    inject: injected,
-  }, DashboardToolbar))
 
   ctx.slots.inject('board.minimap', () => ctx.slots.register({
     name: 'board.minimap',

@@ -75,7 +75,7 @@ describe('board plugin registration', () => {
     expect(panelEntry?.locale).toBe('board')
     expect(panelEntry?.store).toBeDefined()
     expect(Object.keys(panelEntry?.children ?? {})).toEqual([
-      'board.canvas', 'board.dock', 'board.omnibar', 'board.minimap',
+      'board.canvas', 'board.dock', 'board.minimap',
     ])
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const row = runtime.renderSlot('sidebar.brand.actions', { wide: true }, { only: 'board' })

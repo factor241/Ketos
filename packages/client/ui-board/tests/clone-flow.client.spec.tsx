@@ -432,11 +432,11 @@ describe('clone roster in the board chrome', () => {
     expect(windowsOfKind('agent')).toBe(0)
   })
 
-  it('creates a clone from the Action Menu and opens its editor', async () => {
+  it('creates a clone from the dock catalog and opens its editor', async () => {
     const server = stubCloneRoute([])
     const { panel, store } = await mounted()
     act(() => {
-      fireEvent.click(panel.container.querySelector('[data-board-action="omnibar-action-menu"]') as Element)
+      fireEvent.click(panel.container.querySelector('[data-board-action="dock-add"]') as Element)
     })
     const newClone = await waitFor(() => {
       const item = [...panel.container.ownerDocument.querySelectorAll('[role="menuitem"]')]
@@ -686,14 +686,18 @@ describe('clone interview', () => {
     })
     await waitFor(() => { expect(panel.container.querySelector('[data-board-clone-editor]')).not.toBeNull() })
 
-    const input = panel.container.querySelector('[data-board-action="omnibar-input"]') as HTMLInputElement
-    fireEvent.change(input, { target: { value: 'привет' } })
-    fireEvent.submit(input.closest('form') as HTMLFormElement)
-    // The clone window edits a card: the prompt opens a chat window instead of
-    // binding a session the clone window could never show.
+    // The clone window edits a card, so an addressed element opens a chat
+    // window instead of landing in a body the clone window could never show:
+    // the picker addresses the active window through resolveChatWindow.
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-action="dock-select-element"]') as Element)
+    })
+    fireEvent.click(panel.container.querySelector('[data-board-clone-editor]') as Element)
     await waitFor(() => { expect(windowsOfKind('agent')).toBe(1) })
     expect(panel.container.querySelector('[data-board-clone-editor]')).not.toBeNull()
     expect(Object.values(store.getSnapshot().windows).find(window => window.kind === 'clone')?.bodyKind).toBe('clone')
+    const addressed = Object.values(store.getSnapshot().windows).find(window => window.kind === 'agent')
+    expect(store.getSnapshot().drafts[addressed?.id as string]?.text).toContain('window clone')
   })
 
   it('sends a prompt into the clone window once it presents the interview', async () => {
@@ -709,11 +713,13 @@ describe('clone interview', () => {
     })
     await waitFor(() => { expect(cloneWindow()?.bodyKind).toBe('conversation') })
 
-    const input = panel.container.querySelector('[data-board-action="omnibar-input"]') as HTMLInputElement
+    // The interviewing clone window is a conversation: its own composer sends
+    // into its session instead of opening a second window for it.
+    const input = panel.container.querySelector(
+      '[data-board-window-id="' + String(cloneWindow()?.id) + '"] [data-board-action="composer-input"]',
+    ) as HTMLTextAreaElement
     fireEvent.change(input, { target: { value: 'привет' } })
-    fireEvent.submit(input.closest('form') as HTMLFormElement)
-    // The interviewing clone window is a conversation: the prompt lands in its
-    // own session instead of opening a second window for it.
+    fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => { expect(prompt).toHaveBeenCalled() })
     expect(windowsOfKind('agent')).toBe(0)
     expect(store.getSnapshot().activeWindowId).toBe(cloneWindow()?.id)

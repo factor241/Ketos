@@ -1,11 +1,11 @@
-/* Bottom-right interactive minimap: a floating panel with one rect per window
+/* Top-right interactive minimap: a floating panel with one rect per window
  * and the camera frustum. Window geometry is projected by the component; the
  * fills and the frustum ride the theme's accent and neutral scales. */
 
 .minimap {
   position: absolute;
-  bottom: 24px;
-  right: 24px;
+  top: 16px;
+  right: 16px;
   border-radius: 16px;
   background: var(--dsw-alias-bg-layer-2);
   border: 0;

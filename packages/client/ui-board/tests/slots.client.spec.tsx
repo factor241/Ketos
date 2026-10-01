@@ -667,18 +667,20 @@ describe('board slot composition', () => {
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
 
-    // Closed by default: the sessions stay out of the tree.
+    // The window's own session opens its folder automatically.
     const group = () => panel.container.querySelector('[data-board-group="ws-1"]')
     const toggle = () => group()?.querySelector('[data-board-group-toggle]')
+    expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('open')
+    expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Alpha')
+
+    // Collapsing hides the sessions; expanding again shows them in place.
+    fireEvent.click(panel.view.getByText('One'))
+    await runtime.flush()
     expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('closed')
     expect(panel.container.querySelector('[data-board-chat-current]')).toBeNull()
-
-    // Expanding shows the sessions in place; clicking one binds it and leaves
-    // the panel open.
     fireEvent.click(panel.view.getByText('One'))
     await runtime.flush()
     expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('open')
-    expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Alpha')
     // Clicking another chat binds this window to it and keeps the panel open.
     const before = runtime.sessions.calls.filter(call => call.method === 'openStream').length
     fireEvent.click(panel.view.getByText('Beta'))
@@ -1835,9 +1837,8 @@ describe('board slot composition', () => {
     expect((panel.container.querySelector('[data-board-row-edit="search"] input') as HTMLInputElement).value).toBe('One')
     expect(panel.container.textContent).toContain('сообщение в ленте')
 
-    // The chats level survives a culling round trip too.
-    fireEvent.click(panel.view.getByText('One'))
-    await runtime.flush()
+    // The chats level survives a culling round trip too; the window session's
+    // folder opened with the panel.
     expect(panel.container.textContent).toContain('Chat one')
     act(() => { board.actions.setPan(-6000, -6000) })
     await runtime.flush()

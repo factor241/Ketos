@@ -40,6 +40,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     panelWidth: 300,
     panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
+    panelExpandedGroups: [],
     defaultPreset: '',
     isSelectingElement: false,
     composerIntents: [],

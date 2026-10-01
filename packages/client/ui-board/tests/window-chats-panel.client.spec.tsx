@@ -149,9 +149,8 @@ describe('WindowChatsPanel project path and artifacts', () => {
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
 
-    // Navigate to MyProject group
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
+    // The window's own session lives in MyProject, so the tree opened it.
+    expect(panel.container.querySelector('[data-board-group="ws-1"] [data-board-group-toggle="open"]')).not.toBeNull()
 
     // Project path row is visible
     const pathRow = panel.container.querySelector('[data-board-project-path="/work/my-project"]')
@@ -189,8 +188,8 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
+    // The window session's group opened with the panel (Т3.3).
+    expect(panel.container.querySelector('[data-board-project-path="/work/my-project"]')).not.toBeNull()
 
     // A host that denies clipboard access fails the accessor itself; the panel
     // must say so rather than claiming the path was copied.
@@ -510,6 +509,58 @@ describe('WindowChatsPanel project path and artifacts', () => {
 })
 
 describe('WindowChatsPanel list controls', () => {
+  it('auto-expands the group of the window\'s current session without a counter', async () => {
+    const { prepared, panel } = await openChatsPanel({
+      session: {},
+      sessionSummary: { displayTitle: 'Current' },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Sibling' }],
+    })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/my-project', ['session-1', 'session-2'], 'MyProject')]
+    })
+    await runtime.flush()
+
+    const group = panel.container.querySelector('[data-board-group="ws-1"]')
+    expect(group).not.toBeNull()
+    expect(group?.querySelector('[data-board-group-toggle="open"]')).not.toBeNull()
+    expect(chatRowKeys(panel.container).sort()).toEqual(['chat:session-1', 'chat:session-2'])
+    // The sidebar shows no chat count beside a folder, and neither does the panel.
+    expect(group?.querySelector('[data-board-group-toggle]')?.textContent).toBe('MyProject')
+  })
+
+  it('keeps a manually expanded group when the board remounts', async () => {
+    const { prepared, panel, board } = await openChatsPanel({
+      session: {},
+      sessionSummary: { displayTitle: 'Loose' },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Second' }],
+    })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [
+        workspaceView('ws-1', '/work/one', ['session-1'], 'One'),
+        workspaceView('ws-2', '/work/two', ['session-2'], 'Two'),
+      ]
+    })
+    await runtime.flush()
+
+    // The window's own session lives in ws-1, so only ws-2 needs the click.
+    fireEvent.click(panel.container.querySelector('[data-board-group="ws-2"] [data-board-group-toggle]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().panelExpandedGroups).toContain('ws-2')
+
+    // Switching the main panel away unmounts the board's React tree while the
+    // plugin — and its store — stays; a freshly mounted board tree must return
+    // the tree as it was left, from the store rather than component state.
+    const fresh = runtime.renderRoot()
+    try {
+      expect(fresh.container.querySelector('[data-board-group="ws-2"] [data-board-group-toggle="open"]')).not.toBeNull()
+      expect(fresh.container.querySelector('[data-board-group="ws-1"] [data-board-group-toggle="open"]')).not.toBeNull()
+    } finally {
+      fresh.unmount()
+    }
+  })
+
   it('keeps the folder tree and opens the search field from the panel header', async () => {
     const { prepared, panel } = await openChatsPanel({ session: {} })
     const { runtime } = prepared
@@ -518,8 +569,8 @@ describe('WindowChatsPanel list controls', () => {
     })
     await runtime.flush()
 
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
+    // The window session's group is open from the start; collapsing and
+    // reopening the panel keeps the same tree.
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
     // The window header control is the only way back in; the panel returns to
@@ -621,8 +672,8 @@ describe('WindowChatsPanel list controls', () => {
       draft.items = [workspaceView('ws-1', '/work/my-project', ['session-1', 'session-2'], 'MyProject')]
     })
     await runtime.flush()
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
+    // The window session's group opened itself; the rows are on screen.
+    expect(chatRowKeys(panel.container).length).toBe(2)
 
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
     await runtime.flush()
@@ -652,8 +703,8 @@ describe('WindowChatsPanel list controls', () => {
     await runtime.flush()
     fireEvent.change(panel.container.querySelector('[data-board-row-edit="search"] input') as Element, { target: { value: 'Alpha' } })
     await runtime.flush()
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
+    // The window session's group stays open under the filter.
+    expect(panel.container.querySelector('[data-board-group="ws-1"] [data-board-group-toggle="open"]')).not.toBeNull()
 
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
     await runtime.flush()

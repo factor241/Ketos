@@ -420,11 +420,7 @@ describe('clone roster in the board chrome', () => {
     // this window rather than minting an empty agent window on the way.
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
-    const ungrouped = panel.view.queryByText('Ungrouped')
-    if (ungrouped !== null) {
-      fireEvent.click(ungrouped)
-      await runtime.flush()
-    }
+    // The window session's ungrouped bucket opened with the panel.
     fireEvent.click(panel.view.getByText('Интервью'))
     await runtime.flush()
     await runtime.flush()

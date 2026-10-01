@@ -123,10 +123,13 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--board-gap-row);
+  /* Compact header controls: at the 260px default width the title stays
+     untruncated beside the four actions (Т3.4). */
+  --board-panel-control: 22px;
+  gap: 4px;
   min-width: 0;
   min-height: 32px;
-  padding: 4px 10px;
+  padding: 4px 8px;
 }
 
 .title {
@@ -171,8 +174,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: var(--board-control-small);
-  height: var(--board-control-small);
+  width: var(--board-panel-control, var(--board-control-small));
+  height: var(--board-panel-control, var(--board-control-small));
   border: none;
   border-radius: 50%;
   corner-shape: round;

@@ -104,6 +104,8 @@ type BoardActions = {
   setWindowPanelWidth: (draft: BoardState, id: WindowId, side: 'left' | 'right', width: number) => void
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
+  /** Open or close one group node of the working-folders tree. */
+  setPanelGroupExpanded: (draft: BoardState, key: string, expanded: boolean) => void
   setDefaultPreset: (draft: BoardState, presetId: string) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
@@ -182,6 +184,13 @@ export interface BoardState {
   panelGroupBy: BoardPanelGroupBy
   /** How the chats panel orders chats inside a group. */
   panelOrderBy: BoardPanelOrderBy
+  /**
+   * Group keys (the workspace id, '' for the ungrouped bucket) whose tree node
+   * is expanded in the windows' working-folders panel. In-memory view state:
+   * switching the main panel away from the board unmounts the tree but not the
+   * board plugin, so the expansion returns with the board.
+   */
+  panelExpandedGroups: string[]
   /** Agent preset new windows start with, or '' when the deployment default composes them. */
   defaultPreset: string
   isSelectingElement: boolean
@@ -475,6 +484,7 @@ export function createBoardStore(): BoardStoreHandle {
       panelWidth: PANEL_DEFAULT_WIDTH,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
+      panelExpandedGroups: [],
       defaultPreset: '',
       isSelectingElement: false,
       expandedWindowId: null,
@@ -650,6 +660,11 @@ export function createBoardStore(): BoardStoreHandle {
       },
       setPanelOrderBy: (draft, orderBy) => {
         draft.panelOrderBy = orderBy
+      },
+      setPanelGroupExpanded: (draft, key, expanded) => {
+        const open = draft.panelExpandedGroups.includes(key)
+        if (expanded && !open) draft.panelExpandedGroups.push(key)
+        if (!expanded && open) draft.panelExpandedGroups = draft.panelExpandedGroups.filter(entry => entry !== key)
       },
       closeWindow: (draft, id) => {
         // A closed clone window takes its unsaved draft with it: the window is

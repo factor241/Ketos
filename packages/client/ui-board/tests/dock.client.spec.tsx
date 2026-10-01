@@ -424,8 +424,7 @@ describe('board dock', () => {
     await runtime.flush()
     const openPanel = panel.container.querySelector('[data-board-panel]:not([aria-hidden="true"])')
     if (!(openPanel instanceof HTMLElement)) throw new Error('the chats panel did not open')
-    fireEvent.click(within(openPanel).getByText('Ungrouped'))
-    await runtime.flush()
+    // The window session's ungrouped bucket opened with the panel.
     fireEvent.click(within(openPanel).getByText('Chat two'))
     await runtime.flush()
     await runtime.flush()

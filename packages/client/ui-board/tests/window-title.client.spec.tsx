@@ -75,11 +75,9 @@ describe('window title', () => {
     await prepared.runtime.flush()
     expect(headerTitle(panel)).toBe('Chat one')
 
-    // The real user path: open the window's chats panel, drill into the
-    // ungrouped project, and pick the other chat.
+    // The real user path: open the window's chats panel and pick the other
+    // chat; the window session's ungrouped bucket opens with the panel.
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
-    await prepared.runtime.flush()
-    fireEvent.click(panel.view.getByText('Ungrouped'))
     await prepared.runtime.flush()
     fireEvent.click(panel.view.getByText('Chat two'))
     await prepared.runtime.flush()
@@ -200,8 +198,6 @@ describe('window title', () => {
 
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await prepared.runtime.flush()
-    fireEvent.click(panel.view.getByText('Ungrouped'))
-    await prepared.runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(screen.getByText('Rename'))
@@ -236,8 +232,6 @@ describe('window title', () => {
     await prepared.runtime.flush()
 
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
-    await prepared.runtime.flush()
-    fireEvent.click(panel.view.getByText('Ungrouped'))
     await prepared.runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-row-menu"]') as Element)
     await prepared.runtime.flush()

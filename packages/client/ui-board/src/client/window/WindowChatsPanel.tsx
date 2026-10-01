@@ -82,9 +82,11 @@ function WindowChatsPanelView({
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
   const session = useWindowSession(cardWindow.id)
-  // The tree expands one group at a time? No: a set of expanded groups, so
-  // several folders can stay open while the user moves between chats.
-  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set())
+  // Several folders can stay open while the user moves between chats; the
+  // expanded keys live in the board store so the tree returns as it was left
+  // when the board remounts.
+  const expandedKeys = useStore(s => s.panelExpandedGroups)
+  const expandedGroups = useMemo(() => new Set(expandedKeys), [expandedKeys])
   // The folder browser replaces the tree while a folder is being picked.
   const [browsing, setBrowsing] = useState(false)
   const [edit, setEdit] = useState<RowEdit>(null)
@@ -131,6 +133,18 @@ function WindowChatsPanelView({
     }
     return [...rendered.values()]
   }, [allGroups, expandedGroups, groups])
+
+  // The window's current session opens its folder automatically, so the row
+  // the user works from is visible the first time the panel opens.
+  const currentGroupKey = useMemo(() => {
+    if (windowSessionId === undefined) return null
+    const group = allGroups.find(candidate => candidate.chats.some(chat => chat.id === windowSessionId))
+    return group === undefined ? null : group.workspaceId ?? ''
+  }, [allGroups, windowSessionId])
+  useEffect(() => {
+    if (currentGroupKey === null) return
+    actions.setPanelGroupExpanded(currentGroupKey, true)
+  }, [currentGroupKey, actions])
 
   const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
   /** The rendered group holding one chat (the filtered tree first). */
@@ -372,12 +386,7 @@ function WindowChatsPanelView({
     if (current.step !== 'confirm') return
     if (current.kind === 'project') {
       const workspaceId = current.id as WorkspaceId
-      setExpandedGroups((currentSet) => {
-        if (!currentSet.has(workspaceId)) return currentSet
-        const next = new Set(currentSet)
-        next.delete(workspaceId)
-        return next
-      })
+      actions.setPanelGroupExpanded(workspaceId, false)
       void deleteWorkspace(workspaceId).catch(report)
       return
     }
@@ -634,12 +643,7 @@ function WindowChatsPanelView({
                     onPointerDown={(e) => { if (group.workspaceId !== undefined) startRowDrag('project', group.workspaceId, e) }}
                     onClick={() => {
                       if (dragClickGuard()) return
-                      setExpandedGroups((current) => {
-                        const next = new Set(current)
-                        if (next.has(key)) next.delete(key)
-                        else next.add(key)
-                        return next
-                      })
+                      actions.setPanelGroupExpanded(key, !expanded)
                     }}
                   >
                     <span className={clsx(css.chevron, expanded && css.chevronOpen)}>
@@ -647,7 +651,6 @@ function WindowChatsPanelView({
                     </span>
                     <span className={css.rowIcon}><IconFolderOpen16 /></span>
                     <span className={css.rowText}>{group.label === '' ? t('panel.ungrouped') : group.label}</span>
-                    <span className={css.rowMeta}>{group.chats.length}</span>
                   </button>
                   <button
                     type="button"

@@ -3,15 +3,19 @@
  * horizontal strip, centred on the board. Each icon shows the window's glyph
  * and the status the window channel reports; a click centers an inactive
  * window and only focuses the active one, the row's context menu renames or
- * closes it, and closing keeps the session alive. The strip grows to the
- * board's width minus the inset and then scrolls sideways, a vertical wheel
- * included.
+ * closes it, and closing keeps the session alive. The `+` control opens the
+ * window catalog (agent with its preset submenu, the utility kinds, and the
+ * recent chats), the element picker arms the inspector for the active chat
+ * window, and the strip grows to the board's width minus the inset and then
+ * scrolls sideways, a vertical wheel included.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import clsx from 'clsx'
 import {
+  IconAgentPresetOutline16,
   IconFullscreenOutline16,
+  IconInspectOutline12,
   IconPlusOutline16,
   Menu,
   StateDot,
@@ -19,6 +23,7 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardWindowInjected, BoardWindowState, WindowId } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
@@ -28,6 +33,7 @@ import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
+import { folderName, recentChats } from '../chat-list-model.ts'
 import { windowTitle } from '../window-title.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
 import { WindowIcon, windowKindGlyph } from './WindowIcon.tsx'
@@ -39,19 +45,8 @@ export type SessionRailProps =
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
 
-/**
- * Window kinds the dock's add menu opens. The dock is the quick entry point
- * (left click adds an agent directly); the Omnibox menu carries the full
- * catalog, including the kinds later stages own.
- */
-const ADD_MENU_KINDS = ['agent', 'connectors', 'settings'] as const
-
-/** Localized label of one add-menu kind. */
-const ADD_MENU_LABEL = {
-  agent: 'menu.open.agent',
-  connectors: 'menu.open.connectors',
-  settings: 'menu.open.settings',
-} as const satisfies Record<typeof ADD_MENU_KINDS[number], Parameters<BoardTranslate>[0]>
+/** Most recent chats the dock's `+` menu offers. */
+const RECENT_CHAT_LIMIT = 6
 
 interface DockRowProps {
   readonly window: BoardWindowState
@@ -203,7 +198,8 @@ function DockRow({
 }
 
 export function SessionRail({
-  useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, openClone,
+  useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, useSessionList,
+  useAgentPresetRoster, openChat, openClone, createClone, refreshAgentPresets, refreshClones,
 }: SessionRailProps) {
   // The dock reads its own order (A6): raising a window reorders the paint
   // stack, never the icons.
@@ -222,8 +218,16 @@ export function SessionRail({
       - (rank.get(String(right.id)) ?? Number.MAX_SAFE_INTEGER))
   }, [cloneOrder, clones])
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
+  const sessionList = useSessionList(s => s)
+  const workspaceList = useWorkspaceList(s => s)
+  const presetRoster = useAgentPresetRoster(s => s)
+  const recent = useMemo(
+    () => recentChats(sessionList, workspaceList, RECENT_CHAT_LIMIT),
+    [sessionList, workspaceList],
+  )
   const [dockElement, setDockElement] = useState<HTMLElement | null>(null)
   // The stored clone order covers the roster: a clone added since the last
   // adoption is appended through the same action the drag uses, so a reorder
@@ -347,15 +351,83 @@ export function SessionRail({
     return () => { dock.removeEventListener('wheel', onWheel) }
   }, [dockElement])
 
-  const openAgent = () => {
-    openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+  // The catalog refreshes its presets and clone roster on every open, so a row
+  // the host added or removed since the last visit is offered or dropped
+  // rather than stored stale.
+  const toggleAddMenu = (): void => {
+    refreshAgentPresets()
+    refreshClones()
+    setAddMenu(current => current !== null ? null : menuPlacement(addRef.current, boundary()))
   }
 
-  const addMenuItems: readonly MenuEntry[] = ADD_MENU_KINDS.map(kind => ({
-    id: kind,
-    label: t(ADD_MENU_LABEL[kind]),
-    icon: windowKindGlyph(kind),
-  }))
+  const handleMenuSelect = (id: string): void => {
+    setAddMenu(null)
+    switch (id) {
+      case 'open:agent':
+        openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+        return
+      case 'open:connectors':
+        openBoardWindow(actions, 'connectors', nextWindowOrdinal(windows))
+        return
+      case 'open:settings':
+        openBoardWindow(actions, 'settings', nextWindowOrdinal(windows))
+        return
+      case 'open:clone':
+        void createClone().then((created) => { if (created === 'failed') setNotice(t('clone.failed')) })
+        return
+      case 'open:dashboard':
+        setNotice(t('menu.unavailable.dashboard'))
+        return
+      case 'open:tasks':
+        openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows))
+        return
+      default:
+        if (id.startsWith('preset:')) {
+          // The quick choice at creation: remember the pick, then open the
+          // window; its session is created with this preset by the bridge.
+          actions.setDefaultPreset(id.slice('preset:'.length))
+          openBoardWindow(actions, 'agent', nextWindowOrdinal(windows))
+          return
+        }
+        if (id.startsWith('recent:')) {
+          // The recent list follows the same duplicate rule as the chats panel:
+          // an already open chat focuses its window instead of opening twice.
+          const outcome = openChat(id.slice('recent:'.length) as SessionId)
+          if (outcome.kind === 'unknown') setNotice(t('panel.chatGone'))
+        }
+        return
+    }
+  }
+
+  const addMenuItems: readonly MenuEntry[] = [
+    { type: 'label', id: 'group.newWindow', text: t('menu.newWindow') },
+    { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutline16 /> },
+    ...(presetRoster.pickerEnabled && presetRoster.presets.length > 0
+      ? [{
+        id: 'preset',
+        label: t('menu.preset'),
+        icon: <IconAgentPresetOutline16 />,
+        submenu: presetRoster.presets.map(preset => ({
+          id: `preset:${preset.id}`,
+          label: preset.name,
+          ...(preset.isDefault === true ? { icon: <IconAgentPresetOutline16 /> } : {}),
+        })),
+      }] satisfies readonly MenuEntry[]
+      : []),
+    { id: 'open:connectors', label: t('menu.open.connectors'), icon: windowKindGlyph('connectors') },
+    { id: 'open:settings', label: t('menu.open.settings'), icon: windowKindGlyph('settings') },
+    { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },
+    { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: windowKindGlyph('dashboard') },
+    { id: 'open:tasks', label: t('menu.open.tasks'), icon: windowKindGlyph('tasks') },
+    ...(recent.length === 0 ? [] : [
+      { type: 'separator', id: 'separator.recent' },
+      { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },
+      ...recent.map(row => ({
+        id: `recent:${row.id}`,
+        label: row.cwd === undefined || row.cwd === '' ? row.title : `${row.title} · ${folderName(row.cwd)}`,
+      })),
+    ] satisfies readonly MenuEntry[]),
+  ]
 
   // The dock is screen-space chrome: its tooltips and menus portal into the
   // board's popover layer at scale 1, outside the dock's own centring
@@ -385,39 +457,49 @@ export function SessionRail({
 
       <div className={css.divider} />
 
-      <Tooltip label={t('rail.addAgent')} side="top" delayMs={300}>
+      {notice !== null && (
+        <div data-board-dock-notice className={css.notice}>{notice}</div>
+      )}
+
+      <Tooltip label={t('menu.openActionMenu')} side="top" delayMs={300} disabled={addMenu !== null}>
         <button
           ref={addRef}
           type="button"
-          data-board-action="dock-add-agent"
-          onClick={openAgent}
-          onContextMenu={(event) => {
-            event.preventDefault()
-            setAddMenu(menuPlacement(event.currentTarget, boundary()))
-          }}
-          className={css.addButton}
-          aria-label={t('rail.addAgent')}
+          data-board-action="dock-add"
+          onClick={toggleAddMenu}
+          className={clsx(css.addButton, addMenu !== null && css.open)}
+          aria-label={t('menu.openActionMenu')}
         >
           <IconPlusOutline16 />
         </button>
       </Tooltip>
 
-      {/* The right-click catalog: the left click stays the one-step agent add. */}
+      {/* The `+` catalog: the window kinds, the preset submenu, and the recent
+          chats. The clone strip lives beside it, so no clone group repeats. */}
       <Menu
         portal
         open={addMenu !== null}
-        side={addMenu?.side ?? 'bottom'}
+        side={addMenu?.side ?? 'top'}
         align={addMenu?.align ?? 'start'}
         selection="fill"
         anchor={<span />}
         getAnchorRect={() => addRef.current?.getBoundingClientRect() ?? null}
         items={addMenuItems}
-        onSelect={(kind) => {
-          setAddMenu(null)
-          openBoardWindow(actions, kind as typeof ADD_MENU_KINDS[number], nextWindowOrdinal(windows))
-        }}
+        onSelect={handleMenuSelect}
         onClose={() => { setAddMenu(null) }}
       />
+
+      <Tooltip label={t('menu.selectElement')} side="top" delayMs={300}>
+        <button
+          type="button"
+          data-board-action="dock-select-element"
+          onClick={() => { actions.setSelectingElement(true) }}
+          className={css.control}
+          aria-label={t('menu.selectElement')}
+        >
+          <IconInspectOutline12 />
+        </button>
+      </Tooltip>
 
       <Tooltip label={t('rail.resetView')} side="top" delayMs={300}>
         <button

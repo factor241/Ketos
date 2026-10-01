@@ -10,7 +10,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
-import { createBoardBench } from './fixtures.client.ts'
+import { createBoardBench, t } from './fixtures.client.ts'
 
 /** The live board store instance the renderer resolves for the board's registrations. */
 type BoardInstance = ReturnType<ReturnType<typeof createBoardStore>['create']>
@@ -37,6 +37,11 @@ async function bench(options: Parameters<typeof createBoardBench>[0] = {}) {
   const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
   const store = prepared.runtime.storeOf('board.dock') as BoardInstance
   return { runtime: prepared.runtime, panel, store }
+}
+
+/** Open the dock's `+` catalog through its trigger. */
+function openDockMenu(panel: { container: HTMLElement }): void {
+  fireEvent.click(panel.container.querySelector('[data-board-action="dock-add"]') as Element)
 }
 
 /** One window literal the dock tests open. */
@@ -221,9 +226,10 @@ describe('board dock', () => {
     expect(runtime.sessions.list.getSnapshot().ids).toContain(sessionId)
   })
 
-  it('creates an agent window from the add control', async () => {
+  it('opens an agent window from the + menu', async () => {
     const { runtime, panel, store } = await bench()
-    fireEvent.click(panel.container.querySelector('[data-board-action="dock-add-agent"]') as Element)
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.agent') }))
     await runtime.flush()
 
     const order = store.store.getSnapshot().windowOrder
@@ -237,24 +243,153 @@ describe('board dock', () => {
     expect(dockRows(panel)[0]?.getAttribute('data-board-kind')).toBe('agent')
   })
 
-  it('opens the other window kinds from the add control catalog', async () => {
+  it('opens a settings window from the + menu', async () => {
     const { runtime, panel, store } = await bench()
-    fireEvent.contextMenu(panel.container.querySelector('[data-board-action="dock-add-agent"]') as Element)
-    await runtime.flush()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Connectors window' }))
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.settings') }))
     await runtime.flush()
 
     const order = store.store.getSnapshot().windowOrder
     expect(order).toHaveLength(1)
-    const created = store.store.getSnapshot().windows[order[0] as string] as BoardWindowState
-    expect(created).toMatchObject({ kind: 'connectors', bodyKind: 'connectors' })
-    // The catalog adds one window; the left click still adds an agent directly.
-    fireEvent.click(panel.container.querySelector('[data-board-action="dock-add-agent"]') as Element)
+    expect(store.store.getSnapshot().windows[order[0] as string])
+      .toMatchObject({ kind: 'settings', bodyKind: 'settings' })
+  })
+
+  it('opens a connectors window from the + menu', async () => {
+    const { runtime, panel, store } = await bench()
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.connectors') }))
     await runtime.flush()
-    expect(store.store.getSnapshot().windowOrder).toHaveLength(2)
-    expect(Object.values(store.store.getSnapshot().windows).map(win => win.kind)).toEqual([
-      'connectors', 'agent',
-    ])
+
+    const order = store.store.getSnapshot().windowOrder
+    expect(order).toHaveLength(1)
+    expect(store.store.getSnapshot().windows[order[0] as string])
+      .toMatchObject({ kind: 'connectors', bodyKind: 'connectors' })
+  })
+
+  it('opens a tasks window from the + menu without a notice', async () => {
+    const { runtime, panel, store } = await bench()
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.tasks') }))
+    await runtime.flush()
+
+    const order = store.store.getSnapshot().windowOrder
+    expect(order).toHaveLength(1)
+    expect(store.store.getSnapshot().windows[order[0] as string])
+      .toMatchObject({ kind: 'tasks', bodyKind: 'tasks' })
+    expect(panel.container.querySelector('[data-board-dock-notice]')).toBeNull()
+  })
+
+  it('states the dashboard is unavailable without opening a window', async () => {
+    const { runtime, panel, store } = await bench()
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.open.dashboard') }))
+    await runtime.flush()
+
+    expect(store.store.getSnapshot().windowOrder).toHaveLength(0)
+    expect(panel.container.querySelector('[data-board-dock-notice]')?.textContent)
+      .toBe(t('menu.unavailable.dashboard'))
+  })
+
+  it('lists recent chats with their directory and reopens one under the duplicate rule', async () => {
+    const { runtime, panel, store } = await bench({
+      sessionSummary: { displayTitle: 'Warehouse report', cwd: '/work/warehouse' },
+    })
+
+    openDockMenu(panel)
+    expect(screen.getByText(t('menu.recentChats'))).not.toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Warehouse report · warehouse' }))
+    await runtime.flush()
+
+    const state = store.store.getSnapshot()
+    expect(state.windowOrder).toHaveLength(1)
+    expect(Object.values(state.windows)[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
+    expect(runtime.sessions.calls.filter(call => call.method === 'openStream').map(call => call.args[0]))
+      .toEqual(['session-1'])
+
+    // The same chat selected again comes forward instead of opening twice.
+    const opened = state.windowOrder[0]
+    act(() => { store.actions.setPan(100, 100) })
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Warehouse report · warehouse' }))
+    await runtime.flush()
+
+    expect(store.store.getSnapshot().windowOrder).toEqual([opened])
+    expect(store.store.getSnapshot().panX).not.toBe(100)
+    expect(runtime.sessions.calls.filter(call => call.method === 'openStream')).toHaveLength(1)
+  })
+
+  it('renders the open menu through the portal into the board popover layer', async () => {
+    const { panel } = await bench()
+
+    openDockMenu(panel)
+
+    expect(panel.container.querySelector('[data-board-layer="dock"] [role="menu"]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-layer="popover"] [role="menu"]')).not.toBeNull()
+    expect(document.querySelector('[role="menu"]')).not.toBeNull()
+  })
+
+  it('offers the preset roster, remembers the pick, and opens the window with it', async () => {
+    const { panel, store } = await bench({
+      agentPresets: {
+        list: async () => ({
+          ok: true as const,
+          value: {
+            presets: [
+              { id: 'standard', trust: 'user', isDefault: true, name: 'Standard' },
+              { id: 'ptc', trust: 'user', isDefault: false, name: 'PTC mode' },
+            ],
+            authorable: true,
+            modeSelectionEnabled: true,
+          },
+        }),
+      },
+    })
+
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preset' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'PTC mode' }))
+
+    // The pick becomes the remembered default and the window follows.
+    expect(store.store.getSnapshot().defaultPreset).toBe('ptc')
+    expect(store.store.getSnapshot().windowOrder).toHaveLength(1)
+  })
+
+  it('keeps the plain agent entry when the deployment disables preset selection', async () => {
+    const { panel } = await bench({
+      agentPresets: {
+        list: async () => ({
+          ok: true as const,
+          value: {
+            presets: [{ id: 'standard', trust: 'user', isDefault: true, name: 'Standard' }],
+            authorable: true,
+            modeSelectionEnabled: false,
+          },
+        }),
+      },
+    })
+
+    openDockMenu(panel)
+    expect(screen.queryByRole('menuitem', { name: 'Preset' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: t('menu.open.agent') })).not.toBeNull()
+  })
+
+  it('arms the element picker from its own dock button, and the pick addresses the active chat window (Т1.10)', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => { store.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="dock-select-element"]') as Element)
+    await runtime.flush()
+    expect(store.store.getSnapshot().isSelectingElement).toBe(true)
+    expect(panel.container.querySelector('[class*="overlay"]')).not.toBeNull()
+
+    // The pick lands as one chip in the active chat window's draft
+    // (resolveChatWindow) and ends the mode.
+    fireEvent.click(panel.container.querySelector('[data-surface="board"]') as Element)
+    await runtime.flush()
+    expect(store.store.getSnapshot().isSelectingElement).toBe(false)
+    expect(store.store.getSnapshot().drafts['a1']?.text).toContain('[data-surface="board"]')
   })
 
   it('tints chat chips by folder and glyphs utility windows (Т1.7)', async () => {

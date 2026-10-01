@@ -151,6 +151,32 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* A capability the menu cannot open (the dashboard in this MVP) states itself
+   above the strip, the same notice recipe as the Omnibox's. */
+.notice {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 440px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-soft);
+}
+
+/* The add control reads as pressed while its catalog is open. */
+.addButton.open {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}
+
 /* Insertion indicator while a dock drag is live: a 2px accent bar in the gap
    on the side the icon would land. */
 .row[data-dock-drop]::before,

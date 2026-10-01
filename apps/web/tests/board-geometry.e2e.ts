@@ -984,7 +984,7 @@ describe('web e2e: spatial board geometry', () => {
     }).toEqual({ centredX: true, bottomInset: true, horizontal: true, screenSized: true, framesScale: true })
   }, 90_000)
 
-  it.fails('Т1.3: the dock orders windows, controls, and clones left to right', async () => {
+  it('Т1.3: the dock orders windows, controls, and clones left to right', async () => {
     await clickResetView(page)
     const order = await page.evaluate(() => {
       const dock = document.querySelector('[data-board-layer="dock"]')

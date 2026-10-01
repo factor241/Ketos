@@ -794,6 +794,7 @@ function WindowPanelShell({
     <div
       data-board-panel={side}
       data-board-panel-side={side}
+      data-board-panel-window={windowId}
       data-board-panel-open={open ? '' : undefined}
       data-board-culled={hidden ? '' : undefined}
       aria-hidden={!open || undefined}

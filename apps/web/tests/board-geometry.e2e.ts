@@ -1,16 +1,14 @@
 // Browser geometry of the spatial Board (Д0.2 of docs/ketos/board-audit-plan.md
 // and Э0.2 of docs/ketos/board-redesign-plan.md).
 //
-// Every measured requirement the board does not satisfy yet keeps an
-// expected-failing assertion (`it.fails`), so the suite stays green while the
-// behaviour is missing and the substage that lands it flips the marker to a
-// plain `it`. The audit's input and popover problems (П-01 … П-15, П-36) and
-// the Д3.3/Д6 problems (П-18, П-26/П-27, П-32/П-34) are plain assertions; the
-// redesign requirements (Т1.1 … Т3.13) and the two audit problems carried into
-// stage 24 (П-28, П-31) are the expected-failing set. The measurements use the
-// built dist through `launchWebScaffold`, seeded sessions, and a deterministic
-// localStorage layout (`dsh.board.layout`), so the seeded windows mount their
-// conversation bodies before anything is measured.
+// The audit's input and popover problems (П-01 … П-15, П-36), the Д3.3/Д6
+// problems (П-18, П-26/П-27, П-32/П-34), and the stage-24 redesign
+// requirements (Т1.1 … Т3.13) are plain assertions. The two audit problems
+// carried into stage 24 (П-28, П-31) still keep their expected-failing marker
+// until Д3.2 lands. The measurements use the built dist through
+// `launchWebScaffold`, seeded sessions, and a deterministic localStorage
+// layout (`dsh.board.layout`), so the seeded windows mount their conversation
+// bodies before anything is measured.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -1088,6 +1086,116 @@ describe('web e2e: spatial board geometry', () => {
       await settle(page)
     }
   }, 60_000)
+
+  /** One window header's panel control, addressed by its stable action id. */
+  function panelButton(windowId: string, action: 'window-left-panel' | 'window-right-panel') {
+    return page.locator(`[data-board-window-id="${windowId}"] [data-board-action="${action}"]`)
+  }
+
+  /** Ensure one window panel is open through its header control. */
+  async function openPanel(windowId: string, action: 'window-left-panel' | 'window-right-panel'): Promise<void> {
+    const button = panelButton(windowId, action)
+    if (await button.getAttribute('aria-pressed') === 'true') return
+    await button.evaluate((element: HTMLElement) => { element.click() })
+  }
+
+  /** The open panel's screen rectangle for one window and side, or null. */
+  function measurePanel(page: Page, windowId: string, side: 'left' | 'right'): Promise<Rect | null> {
+    return page.evaluate(({ id, side: panelSide }) => {
+      const element = document.querySelector(
+        `[data-board-panel-window="${id}"][data-board-panel-side="${panelSide}"][data-board-panel-open]`,
+      )
+      if (element === null) return null
+      const r = element.getBoundingClientRect()
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }
+    }, { id: windowId, side })
+  }
+
+  it('Т3.12: both panels of one window open at once, each beside its own edge', async () => {
+    await clickResetView(page)
+    try {
+      await openPanel(WINDOW_A, 'window-left-panel')
+      await openPanel(WINDOW_A, 'window-right-panel')
+      await page.waitForTimeout(500)
+      await settle(page)
+      // Opening a panel that did not fit shifts the board (Т3.5), so the frame
+      // is measured after both are open.
+      const frame = await measureFrame(page, WINDOW_A)
+      const left = await measurePanel(page, WINDOW_A, 'left')
+      const right = await measurePanel(page, WINDOW_A, 'right')
+      expect(left).not.toBeNull()
+      expect(right).not.toBeNull()
+      expect({
+        leftOutside: left !== null && left.right <= frame.left + 1,
+        rightOutside: right !== null && right.left >= frame.right - 1,
+        fullHeight: left !== null && right !== null
+          && Math.abs(left.height - frame.height) <= 2 && Math.abs(right.height - frame.height) <= 2,
+      }).toEqual({ leftOutside: true, rightOutside: true, fullHeight: true })
+    } finally {
+      await page.keyboard.press('Escape')
+      await settle(page)
+    }
+  }, 60_000)
+
+  it('Т3.12: a raised window paints its panel over another window\'s panel', async () => {
+    await clickResetView(page)
+    try {
+      // Window A's right panel spans [552, 912] in world x, window B's left
+      // panel [440, 700]: the two overlap while both windows share y = 0.
+      await openPanel(WINDOW_A, 'window-right-panel')
+      await openPanel(WINDOW_B, 'window-left-panel')
+      await page.waitForTimeout(500)
+      await settle(page)
+      // Raising A by pressing its body must put A's panel above B's in the
+      // overlap; the topmost element there names the panel's window.
+      const frame = await measureFrame(page, WINDOW_A)
+      await page.mouse.click(frame.left + frame.width / 2, frame.top + frame.height / 2)
+      await settle(page)
+      const overlap = await page.evaluate(({ a, b }) => {
+        const rectOf = (selector: string): { left: number; right: number; top: number; bottom: number } | null => {
+          const element = document.querySelector(selector)
+          if (element === null) return null
+          const r = element.getBoundingClientRect()
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+        }
+        const panelA = rectOf(`[data-board-panel-window="${a}"][data-board-panel-side="right"][data-board-panel-open]`)
+        const panelB = rectOf(`[data-board-panel-window="${b}"][data-board-panel-side="left"][data-board-panel-open]`)
+        if (panelA === null || panelB === null) return null
+        const width = Math.min(panelA.right, panelB.right) - Math.max(panelA.left, panelB.left)
+        const x = (Math.max(panelA.left, panelB.left) + Math.min(panelA.right, panelB.right)) / 2
+        const y = (Math.max(panelA.top, panelB.top) + Math.min(panelA.bottom, panelB.bottom)) / 2
+        const hit = document.elementFromPoint(x, y)?.closest('[data-board-panel-window]')
+          ?.getAttribute('data-board-panel-window') ?? null
+        return { width, hit }
+      }, { a: WINDOW_A, b: WINDOW_B })
+      expect(overlap).not.toBeNull()
+      expect(overlap?.width ?? 0).toBeGreaterThan(20)
+      expect(overlap?.hit).toBe(WINDOW_A)
+    } finally {
+      await page.keyboard.press('Escape')
+      await settle(page)
+    }
+  }, 60_000)
+
+  it('Т3.4: a window panel scales with the canvas at zoom 0.5, 1, and 2', async () => {
+    await clickResetView(page)
+    try {
+      await openPanel(WINDOW_A, 'window-left-panel')
+      await page.waitForTimeout(500)
+      await settle(page)
+      const at1 = await measurePanel(page, WINDOW_A, 'left')
+      await setZoom(page, 2)
+      const at2 = await measurePanel(page, WINDOW_A, 'left')
+      await setZoom(page, 0.5)
+      const atHalf = await measurePanel(page, WINDOW_A, 'left')
+      if (at1 === null || at2 === null || atHalf === null) throw new Error('panel box is missing at one of the zooms')
+      expect(Math.abs(at2.width / at1.width - 2)).toBeLessThanOrEqual(0.1)
+      expect(Math.abs(atHalf.width / at1.width - 0.5)).toBeLessThanOrEqual(0.06)
+    } finally {
+      await page.keyboard.press('Escape')
+      await clickResetView(page)
+    }
+  }, 90_000)
 
   it('Т2.1: expanding a window hands its session to the standard interface', async () => {
     await clickResetView(page)

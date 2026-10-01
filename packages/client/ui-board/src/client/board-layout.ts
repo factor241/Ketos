@@ -8,7 +8,7 @@ import {
   BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_PANEL_GROUP_BYS, BOARD_PANEL_ORDER_BYS,
   BOARD_SETTINGS_VERSION, BOARD_WINDOW_BODY_KINDS, BOARD_WINDOW_KINDS, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
   BoardSettingsSchema, PANEL_DEFAULT_WIDTH, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH, PANEL_LEFT_MIN_WIDTH,
-  PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH, PANEL_RIGHT_MIN_WIDTH,
+  PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH, PANEL_RIGHT_MIN_WIDTH,
   type BoardLayoutDocument, type BoardLayoutWindow, type BoardSettings, type BoardSettingsBindings,
 } from '../board-settings.ts'
 import type { WindowId } from './contract/slots.ts'
@@ -140,9 +140,6 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
     cloneOrder: fillOrder(state.cloneOrder, cloneIds, cloneId =>
       ordinalOf(windows.find(entry => entry.cloneId === cloneId)?.id ?? '')),
     activeWindowId: state.activeWindowId !== null && kept.has(state.activeWindowId) ? state.activeWindowId : '',
-    panelWindowId: state.panelWindowId !== null && kept.has(state.panelWindowId) ? state.panelWindowId : '',
-    panelCollapsed: state.panelCollapsed,
-    panelWidth: state.panelWidth,
     panelGroupBy: state.panelGroupBy,
     panelOrderBy: state.panelOrderBy,
     defaultPreset: state.defaultPreset,
@@ -213,8 +210,6 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
     zIndex: Math.min(WINDOW_Z_BASE + index, WINDOW_Z_MAX),
   }))
   const active = identity(raw.activeWindowId)
-  const panel = identity(raw.panelWindowId)
-  const panelWindowId = panel !== undefined && kept.has(panel) ? panel : undefined
   const ordinalOf = (id: string): number => byId.get(id)?.ordinal ?? 0
   const cloneIds = [...new Set(windows.flatMap(entry => entry.cloneId === undefined ? [] : [entry.cloneId]))]
   const requestedDock = Array.isArray(raw.dockOrder)
@@ -235,11 +230,12 @@ export function sanitizeBoardLayout(raw: unknown): BoardSettings | undefined {
     cloneOrder: fillOrder(requestedClones, cloneIds, cloneId =>
       ordinalOf(windows.find(entry => entry.cloneId === cloneId)?.id ?? '')),
     activeWindowId: active !== undefined && kept.has(active) ? active : '',
-    // A collapsed panel without an owner window is indistinguishable from a
-    // closed one (both are the initial state), so hydration reads it as closed.
-    panelWindowId: panelWindowId ?? '',
-    panelCollapsed: panelWindowId === undefined ? true : raw.panelCollapsed === true,
-    panelWidth: bounded(raw.panelWidth, PANEL_DEFAULT_WIDTH, PANEL_MIN_WIDTH, PANEL_MAX_WIDTH),
+    // The removed global panel's fields are normalized to their schema
+    // defaults; a stored document carrying them parses, and the running board
+    // never reads them.
+    panelWindowId: '',
+    panelCollapsed: true,
+    panelWidth: PANEL_DEFAULT_WIDTH,
     panelGroupBy: memberOf(raw.panelGroupBy, BOARD_PANEL_GROUP_BYS) ?? 'workspace',
     panelOrderBy: memberOf(raw.panelOrderBy, BOARD_PANEL_ORDER_BYS) ?? 'updated',
     defaultPreset: typeof raw.defaultPreset === 'string' ? raw.defaultPreset.trim() : '',

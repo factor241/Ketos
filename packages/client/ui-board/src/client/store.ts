@@ -7,8 +7,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { CloneEdit } from './clone-draft.ts'
 import {
-  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH,
-  PANEL_LEFT_MIN_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH,
+  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH,
+  PANEL_LEFT_MIN_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH,
   PANEL_RIGHT_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
@@ -127,11 +127,6 @@ type BoardActions = {
   focusWindow: (draft: BoardState, id: WindowId) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   revealWindow: (draft: BoardState, id: WindowId) => void
-  openWindowPanel: (draft: BoardState, id: WindowId, tab?: 'chats' | 'artifacts') => void
-  closeWindowPanel: (draft: BoardState) => void
-  setPanelTab: (draft: BoardState, tab: 'chats' | 'artifacts') => void
-  setPanelCollapsed: (draft: BoardState, collapsed: boolean) => void
-  setPanelWidth: (draft: BoardState, width: number) => void
   /** Open or close one of the window's two panels (Т3.12). */
   setWindowPanel: (draft: BoardState, id: WindowId, side: 'left' | 'right', open: boolean) => void
   /** Store one panel's width, clamped to its side's range. */
@@ -234,17 +229,6 @@ export interface BoardState {
   /** Clone ids in dock order (A6); membership stays the clone roster's. */
   cloneOrder: CloneId[]
   activeWindowId: WindowId | null
-  /**
-   * The window whose chats panel is open, or null. One panel is open at a
-   * time; it keeps the window's stored rectangle and only decorates it.
-   */
-  panelWindowId: WindowId | null
-  /** Whether the window's chats panel is collapsed to its rail. */
-  panelCollapsed: boolean
-  /** Active tab in the chats panel: chats list or artifacts list. */
-  panelTab: 'chats' | 'artifacts'
-  /** Width the user last dragged the chats panel to. */
-  panelWidth: number
   /** How the chats panel arranges its list. */
   panelGroupBy: BoardPanelGroupBy
   /** How the chats panel orders chats inside a group. */
@@ -573,10 +557,6 @@ export function createBoardStore(): BoardStoreHandle {
       dockOrder: [],
       cloneOrder: [],
       activeWindowId: null,
-      panelWindowId: null,
-      panelCollapsed: true,
-      panelTab: 'chats',
-      panelWidth: PANEL_DEFAULT_WIDTH,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
       panelExpandedGroups: [],
@@ -702,25 +682,6 @@ export function createBoardStore(): BoardStoreHandle {
         if (isWindowOnScreen(draft, win)) return
         centerInSafeArea(draft, win)
       },
-      openWindowPanel: (draft, id, tab) => {
-        if (!draft.windows[id as string]) return
-        draft.panelWindowId = id
-        draft.panelCollapsed = false
-        if (tab !== undefined) draft.panelTab = tab
-      },
-      closeWindowPanel: (draft) => {
-        draft.panelWindowId = null
-        draft.panelCollapsed = true
-      },
-      setPanelTab: (draft, tab) => {
-        draft.panelTab = tab
-      },
-      setPanelCollapsed: (draft, collapsed) => {
-        draft.panelCollapsed = collapsed
-      },
-      setPanelWidth: (draft, width) => {
-        draft.panelWidth = Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(width)))
-      },
       setWindowPanel: (draft, id, side, open) => {
         const win = draft.windows[id as string]
         if (!win) return
@@ -835,9 +796,6 @@ export function createBoardStore(): BoardStoreHandle {
         // A closed window's draft goes with it: nothing may resurrect it.
         Reflect.deleteProperty(draft.drafts, id)
         if (draft.expandedWindowId === id) draft.expandedWindowId = null
-        if (draft.panelWindowId === id) {
-          draft.panelWindowId = null
-        }
         if (draft.activeWindowId === id) {
           draft.activeWindowId = draft.windowOrder[draft.windowOrder.length - 1] ?? null
         }
@@ -877,13 +835,9 @@ export function createBoardStore(): BoardStoreHandle {
         draft.dockOrder = layout.dockOrder as WindowId[]
         draft.cloneOrder = layout.cloneOrder as CloneId[]
         draft.activeWindowId = layout.activeWindowId === '' ? null : layout.activeWindowId as WindowId
-        draft.panelWindowId = layout.panelWindowId === '' ? null : layout.panelWindowId as WindowId
-        draft.panelCollapsed = layout.panelCollapsed
-        draft.panelWidth = layout.panelWidth
         draft.panelGroupBy = layout.panelGroupBy
         draft.panelOrderBy = layout.panelOrderBy
         draft.defaultPreset = layout.defaultPreset
-        draft.panelTab = 'chats'
         draft.expandedWindowId = null
       },
       setSelectingElement: (draft, selecting) => {

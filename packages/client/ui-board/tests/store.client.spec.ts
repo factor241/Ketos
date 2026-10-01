@@ -2,7 +2,6 @@
 
 import { describe, expect, it } from 'vitest'
 import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition } from '../src/client/store.ts'
-import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
 import type { BoardLayoutDocument } from '../src/board-settings.ts'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -35,9 +34,6 @@ function emptyLayout(): BoardLayoutDocument {
     dockOrder: [],
     cloneOrder: [],
     activeWindowId: '',
-    panelWindowId: '',
-    panelCollapsed: true,
-    panelWidth: PANEL_DEFAULT_WIDTH,
     panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
     defaultPreset: '',
@@ -376,52 +372,6 @@ describe('createBoardStore', () => {
     expect(closedSnap.activeWindowId).toBe('w2')
   })
 
-
-  it('opens one chats panel at a time and clears it with its window', () => {
-    const { store, actions } = createBoardStore().create()
-    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
-    actions.addWindow(makeWindow({ id: 'w2' as WindowId, kind: 'connectors', bodyKind: 'connectors', customTitle: '2' }))
-    expect(store.getSnapshot().panelWindowId).toBeNull()
-
-    actions.openWindowPanel('w1' as WindowId)
-    expect(store.getSnapshot().panelWindowId).toBe('w1')
-    // Only one panel is open at a time.
-    actions.openWindowPanel('w2' as WindowId)
-    expect(store.getSnapshot().panelWindowId).toBe('w2')
-
-    actions.closeWindowPanel()
-    expect(store.getSnapshot().panelWindowId).toBeNull()
-
-    actions.openWindowPanel('w1' as WindowId)
-    actions.closeWindow('w1' as WindowId)
-    expect(store.getSnapshot().panelWindowId).toBeNull()
-
-    actions.openWindowPanel('missing' as WindowId)
-    expect(store.getSnapshot().panelWindowId).toBeNull()
-  })
-
-  it('opens the chats panel expanded, keeps its width in range, and collapses it', () => {
-    const { store, actions } = createBoardStore().create()
-    actions.addWindow(makeWindow({ id: 'w1' as WindowId }))
-    expect(store.getSnapshot().panelCollapsed).toBe(true)
-    expect(store.getSnapshot().panelWidth).toBe(PANEL_DEFAULT_WIDTH)
-
-    actions.openWindowPanel('w1' as WindowId)
-    expect(store.getSnapshot().panelCollapsed).toBe(false)
-
-    // The dragged width never leaves the readable range.
-    actions.setPanelWidth(PANEL_MAX_WIDTH + 200)
-    expect(store.getSnapshot().panelWidth).toBe(PANEL_MAX_WIDTH)
-    actions.setPanelWidth(PANEL_MIN_WIDTH - 200)
-    expect(store.getSnapshot().panelWidth).toBe(PANEL_MIN_WIDTH)
-
-    actions.setPanelCollapsed(true)
-    expect(store.getSnapshot().panelCollapsed).toBe(true)
-    actions.openWindowPanel('w1' as WindowId)
-    expect(store.getSnapshot().panelCollapsed).toBe(false)
-    actions.closeWindowPanel()
-    expect(store.getSnapshot().panelCollapsed).toBe(true)
-  })
 
   it('centers the viewport on a window and raises it', () => {
     const { store, actions } = createBoardStore().create()

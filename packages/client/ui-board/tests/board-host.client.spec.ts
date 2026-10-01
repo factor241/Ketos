@@ -39,11 +39,7 @@ function layout(overrides: Record<string, unknown> = {}): Record<string, unknown
     zoom: 1.25,
     windows: [window()],
     windowOrder: ['agent-1'],
-    activeWindowId: 'agent-1',
-    panelWindowId: null,
-    panelCollapsed: true,
-    panelWidth: 300,
-    panelGroupBy: 'workspace',
+    activeWindowId: 'agent-1',    panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
     ...overrides,
   }

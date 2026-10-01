@@ -1,12 +1,14 @@
 /**
- * Chats panel geometry: the open panel is a resizable column beside its window
- * (the width clamps to a readable range and a share of the window), and the
- * collapsed rail hugs the frame's edge.
+ * Window panel geometry: each of the window's two panels is a resizable column
+ * beside its own edge, at the frame's height; an absent field reads as closed
+ * or as the side's default width.
  */
 import { describe, expect, it } from 'vitest'
 import {
-  PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
-  panelPresentation, panelWidthFor, windowedPanelRect,
+  PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH,
+} from '../src/board-settings.ts'
+import {
+  windowPanelOpen, windowPanelRect, windowPanelWidth,
 } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -22,35 +24,48 @@ const WINDOW: BoardWindowState = {
   zIndex: 10,
 }
 
-const VIEW = { left: 0, right: 2000 }
-
-describe('panelWidthFor', () => {
-  it('keeps the requested width inside the readable range and the window share', () => {
-    expect(panelWidthFor(800, 300)).toBe(300)
-    // Below the floor and above the cap.
-    expect(panelWidthFor(800, 100)).toBe(PANEL_MIN_WIDTH)
-    expect(panelWidthFor(2000, 999)).toBe(PANEL_MAX_WIDTH)
-    // A narrow window caps the width at 45% of its own, never below the floor.
-    expect(panelWidthFor(600, 400)).toBe(270)
-    expect(panelWidthFor(400, 400)).toBe(PANEL_MIN_WIDTH)
+describe('windowPanelOpen', () => {
+  it('reads an absent field as closed and an explicit flag as itself', () => {
+    expect(windowPanelOpen(WINDOW, 'left')).toBe(false)
+    expect(windowPanelOpen(WINDOW, 'right')).toBe(false)
+    expect(windowPanelOpen({ ...WINDOW, leftPanelOpen: true }, 'left')).toBe(true)
+    expect(windowPanelOpen({ ...WINDOW, rightPanelOpen: true }, 'right')).toBe(true)
   })
 })
 
-describe('windowedPanelRect', () => {
-  it('places the panel flush beside the frame at the window height', () => {
-    const rect = windowedPanelRect(WINDOW, VIEW, 320)
-    expect(rect).toEqual({ left: WINDOW.x - 320, top: WINDOW.y, width: 320, height: WINDOW.height })
+describe('windowPanelWidth', () => {
+  it('falls back to the side default and reads a stored width', () => {
+    expect(windowPanelWidth(WINDOW, 'left')).toBe(PANEL_LEFT_DEFAULT_WIDTH)
+    expect(windowPanelWidth(WINDOW, 'right')).toBe(PANEL_RIGHT_DEFAULT_WIDTH)
+    expect(windowPanelWidth({ ...WINDOW, leftPanelWidth: PANEL_LEFT_MAX_WIDTH }, 'left')).toBe(PANEL_LEFT_MAX_WIDTH)
+    expect(windowPanelWidth({ ...WINDOW, rightPanelWidth: PANEL_RIGHT_MAX_WIDTH }, 'right')).toBe(PANEL_RIGHT_MAX_WIDTH)
+  })
+})
+
+describe('windowPanelRect', () => {
+  it('places each panel flush beside its own frame edge at the window height', () => {
+    expect(windowPanelRect(WINDOW, 'left')).toEqual({
+      left: WINDOW.x - PANEL_LEFT_DEFAULT_WIDTH,
+      top: WINDOW.y,
+      width: PANEL_LEFT_DEFAULT_WIDTH,
+      height: WINDOW.height,
+    })
+    expect(windowPanelRect(WINDOW, 'right')).toEqual({
+      left: WINDOW.x + WINDOW.width,
+      top: WINDOW.y,
+      width: PANEL_RIGHT_DEFAULT_WIDTH,
+      height: WINDOW.height,
+    })
   })
 
-  it('takes the right edge when the left side leaves the visible panel', () => {
-    const rect = windowedPanelRect({ ...WINDOW, x: 40 }, VIEW, 320)
-    expect(rect.left).toBe(40 + WINDOW.width)
-    expect(panelPresentation({ ...WINDOW, x: 40 }, VIEW, 320)).toEqual({ kind: 'beside', side: 'right' })
-  })
-
-  it('rides inside the window when neither side has room', () => {
-    const covered = { ...WINDOW, x: 0, width: 2000 }
-    expect(panelPresentation(covered, VIEW, 320)).toEqual({ kind: 'overlay' })
-    expect(windowedPanelRect(covered, VIEW, 320)).toEqual({ left: 0, top: WINDOW.y, width: 320, height: WINDOW.height })
+  it('uses the stored width on each side independently', () => {
+    const sized = { ...WINDOW, leftPanelWidth: 300, rightPanelWidth: 480 }
+    expect(windowPanelRect(sized, 'left')).toEqual({ left: WINDOW.x - 300, top: WINDOW.y, width: 300, height: WINDOW.height })
+    expect(windowPanelRect(sized, 'right')).toEqual({
+      left: WINDOW.x + WINDOW.width,
+      top: WINDOW.y,
+      width: 480,
+      height: WINDOW.height,
+    })
   })
 })

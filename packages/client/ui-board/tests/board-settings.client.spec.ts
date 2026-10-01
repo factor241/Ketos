@@ -95,7 +95,7 @@ describe('board settings schema', () => {
     expect(() => parse(document({ windows: [window({ width: -10 })] }))).toThrow()
   })
 
-  it('rejects out-of-range zoom, placement, and panel values', () => {
+  it('rejects out-of-range zoom, placement, and legacy panel values', () => {
     expect(() => parse(document({ zoom: BOARD_ZOOM_MAX + 0.1 }))).toThrow()
     expect(() => parse(document({ zoom: BOARD_ZOOM_MIN - 0.1 }))).toThrow()
     expect(() => parse(document({ panX: 100_001 }))).toThrow()

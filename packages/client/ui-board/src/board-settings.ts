@@ -27,13 +27,17 @@ export const PANEL_RIGHT_MIN_WIDTH = 280
 /** Largest right-panel width. */
 export const PANEL_RIGHT_MAX_WIDTH = 600
 
-/** Smallest readable chats-panel width (the legacy single panel). */
+/**
+ * Smallest readable width of the legacy single chats panel. Version-1
+ * documents still carry `panelWidth` and the schema accepts it, while the
+ * running board ignores the field (its panels store per-window widths).
+ */
 export const PANEL_MIN_WIDTH = 260
 
-/** Largest chats-panel width, so a wide window keeps its chat dominant. */
+/** Largest legacy chats-panel width, kept for the version-1 schema bounds. */
 export const PANEL_MAX_WIDTH = 420
 
-/** Width a window opens its chats panel with before the user resizes it. */
+/** Width the legacy chats panel opened with, kept as the schema default. */
 export const PANEL_DEFAULT_WIDTH = 300
 
 /** Settings namespace owning the durable board layout. */
@@ -124,18 +128,26 @@ export type BoardLayout = {
   cloneOrder: string[]
   /** Focused window id, or '' when none is. */
   activeWindowId: string
-  /** Window whose chats panel was open, or '' when none was. */
-  panelWindowId: string
-  /** Whether that panel was collapsed to its rail; true without an owner window. */
-  panelCollapsed: boolean
-  /** Width the user last dragged the chats panel to. */
-  panelWidth: number
   /** How the chats panel arranged its list. */
   panelGroupBy: BoardPanelGroupBy
   /** How the chats panel ordered chats inside a group. */
   panelOrderBy: BoardPanelOrderBy
   /** Agent preset new windows start with, or '' when the deployment default composes them. */
   defaultPreset: string
+}
+
+/**
+ * Fields version-1 documents may still carry for the removed global chats
+ * panel. The schema accepts and defaults them so an old document parses, and
+ * the running board never reads them.
+ */
+export type BoardLegacyLayout = {
+  /** Window whose single chats panel was open, or '' when none was. */
+  panelWindowId: string
+  /** Whether that panel was collapsed to its rail. */
+  panelCollapsed: boolean
+  /** Width the user last dragged that panel to. */
+  panelWidth: number
 }
 
 /** Complete stored layout document; `version` gates the restore. */
@@ -152,7 +164,7 @@ export type BoardLayoutDocument = BoardLayout & {
 export type BoardSettingsBindings = Record<string, string>
 
 /** Complete stored settings section: the durable layout plus the session bindings. */
-export type BoardSettings = BoardLayoutDocument & {
+export type BoardSettings = BoardLayoutDocument & BoardLegacyLayout & {
   bindings: BoardSettingsBindings
 }
 

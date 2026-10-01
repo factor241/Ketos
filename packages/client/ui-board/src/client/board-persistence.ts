@@ -64,7 +64,7 @@ export function readBoardLayoutCache(): BoardLayoutCache | undefined {
  * @param revision - namespace revision the write answered with.
  * @param settings - the accepted layout and bindings.
  */
-export function writeBoardLayoutCache(revision: number, settings: BoardSettings): void {
+export function writeBoardLayoutCache(revision: number, settings: BoardLayoutDocument & { bindings: BoardSettingsBindings }): void {
   if (typeof localStorage === 'undefined') return
   try {
     const { bindings, ...layout } = settings
@@ -251,7 +251,7 @@ export class BoardLayoutPersistence {
    * every key the bindings map ever held).
    */
   private async writeDocument(
-    settings: BoardSettings,
+    settings: BoardLayoutDocument & { bindings: BoardSettingsBindings },
     serializedLayout: string,
     serializedBindings: string,
     revision: number | undefined,

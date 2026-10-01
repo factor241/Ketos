@@ -58,11 +58,7 @@ function layout(overrides: Record<string, Json> = {}): Json {
       zIndex: WINDOW_Z_BASE,
     }],
     windowOrder: ['agent-1'],
-    activeWindowId: 'agent-1',
-    panelWindowId: '',
-    panelCollapsed: true,
-    panelWidth: 300,
-    panelGroupBy: 'workspace',
+    activeWindowId: 'agent-1',    panelGroupBy: 'workspace',
     panelOrderBy: 'updated',
     defaultPreset: 'ptc',
   }

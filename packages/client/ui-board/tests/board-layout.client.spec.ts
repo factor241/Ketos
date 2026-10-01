@@ -52,7 +52,7 @@ function firstWindow(layout: ReturnType<typeof sanitizeBoardLayout>): BoardLayou
 }
 
 describe('captureBoardLayout', () => {
-  it('captures pan, zoom, windows in order, and the panel fields', () => {
+  it('captures pan, zoom, windows in order, and the list view fields', () => {
     const instance = createBoardStore().create()
     instance.actions.addWindow({
       id: 'agent-1' as WindowId,
@@ -67,8 +67,6 @@ describe('captureBoardLayout', () => {
     })
     instance.actions.setZoom(1.5)
     instance.actions.setPan(7, 8)
-    instance.actions.openWindowPanel('agent-1' as WindowId)
-    instance.actions.setPanelWidth(330)
 
     const layout = captureBoardLayout(instance.getSnapshot())
     expect(layout).toMatchObject({
@@ -78,12 +76,14 @@ describe('captureBoardLayout', () => {
       zoom: 1.5,
       windowOrder: ['agent-1'],
       activeWindowId: 'agent-1',
-      panelWindowId: 'agent-1',
-      panelCollapsed: false,
-      panelWidth: 330,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
     })
+    // The removed global panel's fields are never captured again; the schema
+    // still accepts them from old documents (see sanitizeBoardLayout).
+    expect(layout).not.toHaveProperty('panelWindowId')
+    expect(layout).not.toHaveProperty('panelCollapsed')
+    expect(layout).not.toHaveProperty('panelWidth')
     expect(layout.windows).toHaveLength(1)
     expect(layout.windows[0]).toMatchObject({ id: 'agent-1', kind: 'agent', ordinal: 1 })
   })
@@ -238,15 +238,12 @@ describe('sanitizeBoardLayout', () => {
     expect(firstWindow(layout)).toMatchObject({ width: 480, height: 500 })
   })
 
-  it('bounds placement, zoom, and the panel width, and defaults unknown panel modes', () => {
+  it('bounds placement and zoom, and defaults unknown list modes', () => {
     const layout = sanitizeBoardLayout(document({
       panX: BOARD_LAYOUT_COORD_LIMIT * 2,
       panY: -BOARD_LAYOUT_COORD_LIMIT * 2,
       zoom: BOARD_ZOOM_MAX * 10,
       windows: [window({ x: BOARD_LAYOUT_COORD_LIMIT * 3, y: -BOARD_LAYOUT_COORD_LIMIT * 3 })],
-      panelWindowId: 'agent-1',
-      panelCollapsed: false,
-      panelWidth: 10_000,
       panelGroupBy: 'bogus',
       panelOrderBy: 'bogus',
     }))
@@ -254,7 +251,6 @@ describe('sanitizeBoardLayout', () => {
       panX: BOARD_LAYOUT_COORD_LIMIT,
       panY: -BOARD_LAYOUT_COORD_LIMIT,
       zoom: BOARD_ZOOM_MAX,
-      panelWidth: 420,
       panelGroupBy: 'workspace',
       panelOrderBy: 'updated',
     })
@@ -283,15 +279,12 @@ describe('sanitizeBoardLayout', () => {
     expect(layout?.windows.at(-1)?.zIndex).toBe(WINDOW_Z_BASE + BOARD_LAYOUT_MAX_WINDOWS - 1)
   })
 
-  it('reads a collapsed panel without its window as closed and drops a dangling owner', () => {
-    const closed = sanitizeBoardLayout(document({ panelWindowId: '', panelCollapsed: true }))
-    expect(closed).toMatchObject({ panelWindowId: '', panelCollapsed: true })
-
-    const dangling = sanitizeBoardLayout(document({ panelWindowId: 'ghost', panelCollapsed: false }))
-    expect(dangling).toMatchObject({ panelWindowId: '', panelCollapsed: true })
-
-    const open = sanitizeBoardLayout(document({ panelWindowId: 'agent-1', panelCollapsed: false }))
-    expect(open).toMatchObject({ panelWindowId: 'agent-1', panelCollapsed: false })
+  it('accepts the removed global panel fields without reading them', () => {
+    // A version-1 document still carries the fields; the repair ignores the
+    // stored values and the schema restores their defaults, so an old document
+    // parses while the running board never resurrects the removed panel.
+    const stored = sanitizeBoardLayout(document({ panelWindowId: 'agent-1', panelCollapsed: false, panelWidth: 10_000 }))
+    expect(stored).toMatchObject({ panelWindowId: '', panelCollapsed: true, panelWidth: 300 })
   })
 
   it('resolves the active window only while it is in the restored set', () => {
@@ -311,16 +304,15 @@ describe('sanitizeBoardLayout', () => {
         height: 648,
       })
     }
-    instance.actions.openWindowPanel('agent-19' as WindowId)
     const captured = captureBoardLayout(instance.getSnapshot())
     const restored = sanitizeBoardLayout(captured)
     // Sanitize resolves the full stored section; the capture is the layout
     // patch and deliberately carries no session bindings.
-    expect(restored).toEqual({ ...captured, bindings: {} })
+    expect(restored).toMatchObject({ ...captured, bindings: {} })
     expect(restored?.windows).toHaveLength(20)
 
     // The restore path itself: a second store adopts the repaired document
-    // with every window, its order, its z-band, and the panel state intact.
+    // with every window, its order, and its z-band intact.
     const target = createBoardStore().create()
     if (restored === undefined) throw new Error('the captured layout must sanitize')
     target.actions.hydrate(restored)
@@ -331,8 +323,6 @@ describe('sanitizeBoardLayout', () => {
     expect(state.windowOrder[19]).toBe('agent-19')
     expect(state.windows['agent-19']?.zIndex).toBe(WINDOW_Z_BASE + 19)
     expect(state.activeWindowId).toBe('agent-19')
-    expect(state.panelWindowId).toBe('agent-19')
-    expect(state.panelCollapsed).toBe(false)
   })
 })
 

@@ -1,7 +1,6 @@
-/* Chats panel of one board window. It is a layer of its own beside the frame:
- * collapsed a rail hugs the frame's left edge, open a resizable column slides
- * out of that edge.
- * layout. Depth ladder: canvas → panel → panel rows. */
+/* Panel shell of one board window: a resizable column of its own beside the
+ * frame, one per side, sliding out of that side's edge.
+ * Depth ladder: canvas → panel → panel rows. */
 
 .panel {
   position: absolute;
@@ -49,56 +48,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .panel,
-  .panel[data-board-panel-open],
-  .rail {
+  .panel[data-board-panel-open] {
     transition: none;
   }
-}
-
-/* Collapsed rail: the compact element that keeps the panel one click away. */
-.rail {
-  position: absolute;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 20px;
-  background: var(--dsw-alias-bg-layer-2);
-  border: 0;
-  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
-  box-shadow: var(--dsw-elevation-panel);
-  color: var(--dsw-alias-label-secondary);
-  user-select: none;
-  transition: opacity var(--ds-transition-duration) var(--ds-ease-in-out);
-}
-
-.railButton {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  corner-shape: round;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-}
-
-.railButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-}
-
-/* The rail's four controls plus padding and gaps equal its 178px rect. */
-.rail > * {
-  flex: none;
 }
 
 /* Resize: an invisible hit strip on the panel's outer edge. */
@@ -454,22 +406,6 @@
 .pathAction:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
-}
-
-.tabBar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px 4px;
-}
-
-.tabBadge {
-  margin-left: 4px;
-  padding: 0 5px;
-  border-radius: 10px;
-  background: var(--dsw-alias-border-l1);
-  font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
 }
 
 /* The tree: one block per folder, its sessions indented under the group row,

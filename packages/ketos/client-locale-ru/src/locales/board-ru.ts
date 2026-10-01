@@ -86,6 +86,7 @@ export const ru = {
   'failure.rejected': 'Запрос отклонён',
   'failure.internal': 'Внутренний сбой сервиса',
   'panel.projects': 'Проекты',
+  'panel.workingFolders': 'Рабочие папки',
   'panel.ungrouped': 'Без группы',
   'panel.newChat': 'Новый чат',
   'panel.addFolder': 'Добавить папку…',

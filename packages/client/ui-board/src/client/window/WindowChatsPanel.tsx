@@ -24,7 +24,7 @@ import type { BoardStoreHandle } from '../store.ts'
 import { isWindowHidden } from '../culling.ts'
 import { useBoardMenuDismiss } from '../board-popover.tsx'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
-import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
+import { chatGroups, filterGroups, moveAnchor, type BoardChatGroup } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
 import { windowPanelRect } from './panel-geometry.ts'
@@ -35,12 +35,6 @@ export type WindowChatsPanelProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
-
-/** Which view the panel shows. */
-type PanelLevel =
-  | { readonly kind: 'projects' }
-  | { readonly kind: 'chats'; readonly workspaceId: WorkspaceId | undefined }
-  | { readonly kind: 'browse' }
 
 /** One row's rename editor or confirm step, or null when none is open. */
 type RowEdit =
@@ -88,7 +82,11 @@ function WindowChatsPanelView({
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
   const session = useWindowSession(cardWindow.id)
-  const [level, setLevel] = useState<PanelLevel>({ kind: 'projects' })
+  // The tree expands one group at a time? No: a set of expanded groups, so
+  // several folders can stay open while the user moves between chats.
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set())
+  // The folder browser replaces the tree while a folder is being picked.
+  const [browsing, setBrowsing] = useState(false)
   const [edit, setEdit] = useState<RowEdit>(null)
   const [rowMenu, setRowMenu] = useState<RowMenuTarget | null>(null)
   const [search, setSearch] = useState('')
@@ -97,7 +95,7 @@ function WindowChatsPanelView({
   const [drop, setDrop] = useState<DropKey>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedArtifact, setCopiedArtifact] = useState<string | null>(null)
-  const [pathCopied, setPathCopied] = useState(false)
+  const [pathCopied, setPathCopied] = useState<string | null>(null)
   const [canOpenPath, setCanOpenPath] = useState(false)
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -122,20 +120,29 @@ function WindowChatsPanelView({
   const groups = useMemo(() => filterGroups(allGroups, search), [allGroups, search])
   // The level's identity comes from the unfiltered groups: a search that hides
   // the last matching row still leaves the header, badge, and New-chat control.
-  const project = level.kind === 'chats'
-    ? allGroups.find(group => group.workspaceId === level.workspaceId)
-    : undefined
-  const renderedChats = level.kind === 'chats'
-    ? groups.find(group => group.workspaceId === level.workspaceId)?.chats ?? []
-    : []
+  // The tree shows the filtered groups plus every expanded folder: a search
+  // that hides a folder's last matching chat must not close the folder the
+  // user is working in (the same identity rule the old level had).
+  const visibleGroups = useMemo(() => {
+    const rendered = new Map(groups.map(group => [group.workspaceId ?? '', group]))
+    for (const group of allGroups) {
+      const key = group.workspaceId ?? ''
+      if (expandedGroups.has(key) && !rendered.has(key)) rendered.set(key, { ...group, chats: [] })
+    }
+    return [...rendered.values()]
+  }, [allGroups, expandedGroups, groups])
 
   const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
-  const projectPath = useMemo(() => {
-    if (level.kind !== 'chats') return null
-    if (project?.cwd && project.cwd !== '') return project.cwd
-    const item = workspaceList.items.find(w => w.workspaceId === level.workspaceId)
-    return item?.path ?? null
-  }, [level, project, workspaceList])
+  /** The rendered group holding one chat (the filtered tree first). */
+  const groupOfChat = (sessionId: string): BoardChatGroup | undefined =>
+    groups.find(group => group.chats.some(chat => chat.id === sessionId))
+    ?? allGroups.find(group => group.chats.some(chat => chat.id === sessionId))
+  /** The directory a group's rows act on: the chat's own, else the folder's. */
+  const groupPath = (group: BoardChatGroup): string | null => {
+    if (group.cwd !== '') return group.cwd
+    if (group.workspaceId === undefined) return null
+    return workspaceList.items.find(item => item.workspaceId === group.workspaceId)?.path ?? null
+  }
 
   useEffect(() => {
     let alive = true
@@ -159,24 +166,22 @@ function WindowChatsPanelView({
     setError(failure instanceof Error ? failure.message : String(failure))
   }, [])
 
-  const copyPath = useCallback(() => {
-    if (!projectPath) return
+  const copyPath = useCallback((path: string) => {
     if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
-    void writeClipboard(projectPath).then(() => {
-      setPathCopied(true)
+    void writeClipboard(path).then(() => {
+      setPathCopied(path)
       pathTimeoutRef.current = setTimeout(() => {
-        setPathCopied(false)
+        setPathCopied(current => (current === path ? null : current))
         pathTimeoutRef.current = null
       }, 1500)
     }, () => {
       setError(t('panel.copy.failed'))
     })
-  }, [projectPath, t])
+  }, [t])
 
-  const openFolder = useCallback(() => {
-    if (!projectPath) return
-    void openWorkspacePath(projectPath).catch(report)
-  }, [projectPath, openWorkspacePath, report])
+  const openFolder = useCallback((path: string) => {
+    void openWorkspacePath(path).catch(report)
+  }, [openWorkspacePath, report])
 
   /**
    * Register one workspace path and return to the projects level. The host
@@ -184,7 +189,7 @@ function WindowChatsPanelView({
    * refusal shows the localized ketos-home text, every other failure reports.
    */
   const registerWorkspace = (path: string): void => {
-    void createWorkspace(path).then(() => { setLevel({ kind: 'projects' }) }).catch((failure: unknown) => {
+    void createWorkspace(path).then(() => { setBrowsing(false) }).catch((failure: unknown) => {
       if (isInvalidPathRefusal(failure)) {
         setError(t('panel.error.ketosHome', { path }))
         return
@@ -249,7 +254,7 @@ function WindowChatsPanelView({
           void reorderWorkspace(id as WorkspaceId, targetId as WorkspaceId).catch(report)
           return
         }
-        const groupId = project?.workspaceId
+        const groupId = groupOfChat(id)?.workspaceId
         if (groupId === undefined) return
         void reorderChat(groupId, id as SessionId, targetId as SessionId).catch(report)
       },
@@ -322,7 +327,8 @@ function WindowChatsPanelView({
       return
     }
     const chatId = target.id as SessionId
-    const groupId = project?.workspaceId
+    const chatGroup = groupOfChat(chatId)
+    const groupId = chatGroup?.workspaceId
     if (action === 'rename') {
       setEdit({ step: 'rename', kind: 'chat', id: target.id, value: sessionList.byId[chatId]?.displayTitle ?? '' })
       return
@@ -336,7 +342,7 @@ function WindowChatsPanelView({
       return
     }
     if (groupId === undefined) return
-    const visibleIds = renderedChats.map(chat => chat.id)
+    const visibleIds = (chatGroup?.chats ?? []).map(chat => chat.id)
     if (action === 'up') {
       void reorderChat(groupId, chatId, moveAnchor(visibleIds, chatId, -1)).catch(report)
       return
@@ -366,20 +372,24 @@ function WindowChatsPanelView({
     if (current.step !== 'confirm') return
     if (current.kind === 'project') {
       const workspaceId = current.id as WorkspaceId
-      if (level.kind === 'chats' && level.workspaceId === workspaceId) setLevel({ kind: 'projects' })
+      setExpandedGroups((currentSet) => {
+        if (!currentSet.has(workspaceId)) return currentSet
+        const next = new Set(currentSet)
+        next.delete(workspaceId)
+        return next
+      })
       void deleteWorkspace(workspaceId).catch(report)
       return
     }
     void archiveChat(current.id as SessionId).catch(report)
   }
 
-  const newChat = (): void => {
-    if (project === undefined) return
-    if (project.workspaceId !== undefined) {
-      void startChat(cardWindow.id, project.workspaceId).catch(report)
+  const newChat = (group: BoardChatGroup): void => {
+    if (group.workspaceId !== undefined) {
+      void startChat(cardWindow.id, group.workspaceId).catch(report)
       return
     }
-    createChat(cardWindow.id, project.cwd === '' ? {} : { cwd: project.cwd })
+    createChat(cardWindow.id, group.cwd === '' ? {} : { cwd: group.cwd })
   }
 
   const artifactsContent = artifacts.length === 0 ? (
@@ -472,9 +482,9 @@ function WindowChatsPanelView({
         startGesture={startGesture}
       >
         <div className={css.header}>
-          {level.kind === 'projects' && (
+          {!browsing && (
             <>
-              <span className={css.title}>{t('panel.projects')}</span>
+              <span className={css.title}>{t('panel.workingFolders')}</span>
               <button
                 type="button"
                 data-row-action=""
@@ -506,37 +516,14 @@ function WindowChatsPanelView({
                 data-board-action="panel-add-folder"
                 className={css.action}
                 aria-label={t('panel.addFolder')}
-                onClick={() => { setLevel({ kind: 'browse' }) }}
+                onClick={() => { setBrowsing(true) }}
               >
                 <IconProjectAddOutline16 />
               </button>
             </>
           )}
-          {level.kind === 'chats' && (
-            <>
-              <button
-                type="button"
-                data-row-action=""
-                className={css.back}
-                onClick={() => {
-                  setLevel({ kind: 'projects' })
-                  actions.setPanelTab('chats')
-                }}
-              >
-                <IconChevronRightOutline14 className={css.backGlyph} />
-                <span className={css.title}>
-                  {project === undefined || project.label === '' ? t('panel.ungrouped') : project.label}
-                </span>
-              </button>
-              {project !== undefined && (
-                <button type="button" data-row-action="" data-board-action="panel-new-chat" className={css.action} aria-label={t('panel.newChat')} onClick={newChat}>
-                  <IconNewChatOutline16 />
-                </button>
-              )}
-            </>
-          )}
-          {level.kind === 'browse' && (
-            <button type="button" data-row-action="" className={css.back} onClick={() => { setLevel({ kind: 'projects' }) }}>
+          {browsing && (
+            <button type="button" data-row-action="" className={css.back} onClick={() => { setBrowsing(false) }}>
               <IconChevronRightOutline14 className={css.backGlyph} />
               <span className={css.title}>{t('panel.chooseFolder')}</span>
             </button>
@@ -592,7 +579,7 @@ function WindowChatsPanelView({
           onClose={() => { setRowMenu(null) }}
         />
 
-        {searchOpen && level.kind === 'projects' && (
+        {searchOpen && !browsing && (
           <div className={css.editRow} data-board-row-edit="search">
             <input
               className={css.input}
@@ -620,42 +607,8 @@ function WindowChatsPanelView({
           </div>
         )}
 
-        {level.kind === 'chats' && projectPath !== null && (
-          <div className={css.projectPathRow} data-board-project-path={projectPath}>
-            <span className={css.projectPathText} title={projectPath}>{projectPath}</span>
-            <div className={css.projectPathActions}>
-              <Tooltip label={pathCopied ? t('panel.pathCopied') : t('panel.copyPath')} side="bottom">
-                <button
-                  type="button"
-                  data-row-action=""
-                  data-board-action="panel-copy-path"
-                  className={css.pathAction}
-                  aria-label={t('panel.copyPath')}
-                  onClick={copyPath}
-                >
-                  {pathCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
-                </button>
-              </Tooltip>
-              {canOpenPath && (
-                <Tooltip label={t('panel.openFolder')} side="bottom">
-                  <button
-                    type="button"
-                    data-row-action=""
-                    data-board-action="panel-open-folder"
-                    className={css.pathAction}
-                    aria-label={t('panel.openFolder')}
-                    onClick={openFolder}
-                  >
-                    <IconFolderOpen16 />
-                  </button>
-                </Tooltip>
-              )}
-            </div>
-          </div>
-        )}
-
         <div className={css.list}>
-          {level.kind === 'browse' && (
+          {browsing && (
             <FolderBrowser
               t={t}
               listDirectory={listDirectory}
@@ -666,70 +619,128 @@ function WindowChatsPanelView({
             />
           )}
 
-          {level.kind === 'projects' && groups.map(group => (
-            <div key={group.workspaceId ?? 'ungrouped'} className={css.groupRow}>
-              <button
-                type="button"
-                data-row-key={`project:${group.workspaceId ?? ''}`}
-                className={clsx(css.row, drop === `project:${group.workspaceId ?? ''}` && css.dropTarget)}
-                onPointerDown={(e) => { if (group.workspaceId !== undefined) startRowDrag('project', group.workspaceId, e) }}
-                onClick={() => {
-                  if (dragClickGuard()) return
-                  setLevel({ kind: 'chats', workspaceId: group.workspaceId })
-                }}
-              >
-                <span className={css.rowIcon}><IconFolderOpen16 /></span>
-                <span className={css.rowText}>{group.label === '' ? t('panel.ungrouped') : group.label}</span>
-                <span className={css.rowMeta}>{group.chats.length}</span>
-              </button>
-              {group.workspaceId !== undefined && (
-                <button
-                  type="button"
-                  data-row-action=""
-                  data-board-action="panel-project-menu"
-                  className={css.rowAction}
-                  aria-label={t('panel.rowMenu')}
-                  onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'project', id: group.workspaceId as string }) }}
-                >
-                  <IconEllipsisOutline16 />
-                </button>
-              )}
-            </div>
-          ))}
+          {!browsing && visibleGroups.map((group) => {
+            const key = group.workspaceId ?? ''
+            const expanded = expandedGroups.has(key)
+            const path = groupPath(group)
+            return (
+              <div key={key === '' ? 'ungrouped' : key} className={css.groupBlock} data-board-group={key}>
+                <div className={css.groupRow}>
+                  <button
+                    type="button"
+                    data-row-key={`project:${key}`}
+                    data-board-group-toggle={expanded ? 'open' : 'closed'}
+                    className={clsx(css.row, drop === `project:${key}` && css.dropTarget)}
+                    onPointerDown={(e) => { if (group.workspaceId !== undefined) startRowDrag('project', group.workspaceId, e) }}
+                    onClick={() => {
+                      if (dragClickGuard()) return
+                      setExpandedGroups((current) => {
+                        const next = new Set(current)
+                        if (next.has(key)) next.delete(key)
+                        else next.add(key)
+                        return next
+                      })
+                    }}
+                  >
+                    <span className={clsx(css.chevron, expanded && css.chevronOpen)}>
+                      <IconChevronRightOutline14 />
+                    </span>
+                    <span className={css.rowIcon}><IconFolderOpen16 /></span>
+                    <span className={css.rowText}>{group.label === '' ? t('panel.ungrouped') : group.label}</span>
+                    <span className={css.rowMeta}>{group.chats.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-row-action=""
+                    data-board-action="panel-new-chat"
+                    className={css.rowAction}
+                    aria-label={t('panel.newChat')}
+                    onClick={() => { setError(null); newChat(group) }}
+                  >
+                    <IconNewChatOutline16 />
+                  </button>
+                  {group.workspaceId !== undefined && (
+                    <button
+                      type="button"
+                      data-row-action=""
+                      data-board-action="panel-project-menu"
+                      className={css.rowAction}
+                      aria-label={t('panel.rowMenu')}
+                      onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'project', id: group.workspaceId as string }) }}
+                    >
+                      <IconEllipsisOutline16 />
+                    </button>
+                  )}
+                </div>
 
-          {level.kind === 'chats' && renderedChats.map(chat => (
-            <div key={chat.id} className={css.groupRow}>
-              <button
-                type="button"
-                data-row-key={`chat:${chat.id}`}
-                data-board-chat-current={chat.current ? '' : undefined}
-                className={clsx(css.row, chat.current && css.current, drop === `chat:${chat.id}` && css.dropTarget)}
-                onPointerDown={(e) => { startRowDrag('chat', chat.id, e) }}
-                onClick={() => {
-                  if (dragClickGuard()) return
-                  setError(null)
-                  const outcome = bindSession(cardWindow.id, chat.id)
-                  if (outcome.kind === 'unknown') setError(t('panel.chatGone'))
-                }}
-              >
-                <span className={css.rowText}>{chat.blank ? t('panel.newChatTitle') : chat.title}</span>
-                {chat.running && <span className={css.dot} />}
-                <span className={css.rowMeta}>{chat.blank ? '' : ageLabel(chat.updatedAt, t)}</span>
-              </button>
-              <button
-                type="button"
-                data-row-action=""
-                data-board-action="panel-row-menu"
-                className={css.rowAction}
-                aria-label={t('panel.rowMenu')}
-                onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'chat', id: chat.id }) }}
-              >
-                <IconEllipsisOutline16 />
-              </button>
-            </div>
-          ))}
+                {expanded && path !== null && (
+                  <div className={css.projectPathRow} data-board-project-path={path}>
+                    <span className={css.projectPathText} title={path}>{path}</span>
+                    <div className={css.projectPathActions}>
+                      <Tooltip label={pathCopied === path ? t('panel.pathCopied') : t('panel.copyPath')} side="bottom">
+                        <button
+                          type="button"
+                          data-row-action=""
+                          data-board-action="panel-copy-path"
+                          className={css.pathAction}
+                          aria-label={t('panel.copyPath')}
+                          onClick={() => { copyPath(path) }}
+                        >
+                          {pathCopied === path ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+                        </button>
+                      </Tooltip>
+                      {canOpenPath && (
+                        <Tooltip label={t('panel.openFolder')} side="bottom">
+                          <button
+                            type="button"
+                            data-row-action=""
+                            data-board-action="panel-open-folder"
+                            className={css.pathAction}
+                            aria-label={t('panel.openFolder')}
+                            onClick={() => { openFolder(path) }}
+                          >
+                            <IconFolderOpen16 />
+                          </button>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-
+                {expanded && group.chats.map(chat => (
+                  <div key={chat.id} className={css.sessionRow}>
+                    <button
+                      type="button"
+                      data-row-key={`chat:${chat.id}`}
+                      data-board-chat-current={chat.current ? '' : undefined}
+                      className={clsx(css.row, chat.current && css.current, drop === `chat:${chat.id}` && css.dropTarget)}
+                      onPointerDown={(e) => { startRowDrag('chat', chat.id, e) }}
+                      onClick={() => {
+                        if (dragClickGuard()) return
+                        setError(null)
+                        const outcome = bindSession(cardWindow.id, chat.id)
+                        if (outcome.kind === 'unknown') setError(t('panel.chatGone'))
+                      }}
+                    >
+                      <span className={css.rowText}>{chat.blank ? t('panel.newChatTitle') : chat.title}</span>
+                      {chat.running && <span className={css.dot} />}
+                      <span className={css.rowMeta}>{chat.blank ? '' : ageLabel(chat.updatedAt, t)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      data-row-action=""
+                      data-board-action="panel-row-menu"
+                      className={css.rowAction}
+                      aria-label={t('panel.rowMenu')}
+                      onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'chat', id: chat.id }) }}
+                    >
+                      <IconEllipsisOutline16 />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
         </div>
 
         {edit !== null && (

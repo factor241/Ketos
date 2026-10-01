@@ -510,7 +510,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
 })
 
 describe('WindowChatsPanel list controls', () => {
-  it('opens the projects level with the search field from the panel header', async () => {
+  it('keeps the folder tree and opens the search field from the panel header', async () => {
     const { prepared, panel } = await openChatsPanel({ session: {} })
     const { runtime } = prepared
     await runtime.workspaces.update((draft) => {
@@ -522,17 +522,15 @@ describe('WindowChatsPanel list controls', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
-    // The window header control is the only way back in; walking back to the
-    // projects level reveals the panel's own search control.
+    // The window header control is the only way back in; the panel returns to
+    // the same tree, and its own search control opens the field.
     fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
-    await runtime.flush()
-    fireEvent.click(panel.container.querySelector('[class*="back"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-search"]') as Element)
     await runtime.flush()
 
     expect(panel.container.querySelector('[data-board-row-edit="search"] input')).not.toBeNull()
-    expect(panel.view.getByText('Projects')).not.toBeNull()
+    expect(panel.view.getByText('Working folders')).not.toBeNull()
   })
 
   it('moves a chat against its rendered neighbour while hidden rows stay in place', async () => {
@@ -664,9 +662,11 @@ describe('WindowChatsPanel list controls', () => {
     fireEvent.click(panel.container.querySelector('[data-board-row-edit="confirm"] button') as Element)
     await runtime.flush()
 
+    // The tree keeps the folder's identity after its last visible chat leaves:
+    // the path row, the new-chat control, and the folder row stay.
     expect(panel.container.querySelector('[data-board-project-path="/work/ketos"]')).not.toBeNull()
     expect(panel.container.querySelector('[data-board-action="panel-new-chat"]')).not.toBeNull()
-    expect(panel.view.queryByText('Ungrouped')).toBeNull()
+    expect(panel.view.getByText('MyProject')).not.toBeNull()
   })
 
   it('ignores a folder listing that resolves after a newer request', async () => {

@@ -328,6 +328,7 @@
     "panel.useFolder",
     "panel.viewOptions",
     "panel.warn.dangerousPath",
+    "panel.workingFolders",
     "pending.approval",
     "pending.open",
     "pending.other",

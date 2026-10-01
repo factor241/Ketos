@@ -642,6 +642,57 @@ describe('board slot composition', () => {
     expect(after.panX + (window.x - width) * after.zoom).toBe(0)
   })
 
+  it('expands a folder in place and opens its new session from the group (Т3.3)', async () => {
+    const prepared = await createBoardBench()
+    runtimes.add(prepared.runtime)
+    const { runtime } = prepared
+    const created = await runtime.sessions.add({ id: 'session-1', summary: { displayTitle: 'Alpha' } })
+    runtime.sessions.stubCreate(async () => created)
+    await runtime.sessions.add({ id: 'chat-2', summary: { displayTitle: 'Beta' } })
+    await runtime.workspaces.update((draft) => {
+      draft.items = [{
+        workspaceId: 'ws-1' as never,
+        path: '/work/one',
+        title: 'One',
+        sessionIds: ['session-1' as never, 'chat-2' as never],
+        createdAt: '2026-09-16T00:00:00.000Z',
+        updatedAt: '2026-09-16T00:00:00.000Z',
+      }]
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    await runtime.flush()
+
+    // Closed by default: the sessions stay out of the tree.
+    const group = () => panel.container.querySelector('[data-board-group="ws-1"]')
+    const toggle = () => group()?.querySelector('[data-board-group-toggle]')
+    expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('closed')
+    expect(panel.container.querySelector('[data-board-chat-current]')).toBeNull()
+
+    // Expanding shows the sessions in place; clicking one binds it and leaves
+    // the panel open.
+    fireEvent.click(panel.view.getByText('One'))
+    await runtime.flush()
+    expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('open')
+    expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Alpha')
+    // Clicking another chat binds this window to it and keeps the panel open.
+    const before = runtime.sessions.calls.filter(call => call.method === 'openStream').length
+    fireEvent.click(panel.view.getByText('Beta'))
+    await runtime.flush()
+    expect(runtime.sessions.calls.filter(call => call.method === 'openStream').length).toBe(before + 1)
+    expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Beta')
+    expect(panel.container.querySelector('[data-board-panel-side="left"]')?.getAttribute('data-board-panel-open')).toBe('')
+
+    // The group's own control starts a new session in its folder.
+    fireEvent.click(group()?.querySelector('[data-board-action="panel-new-chat"]') as Element)
+    await runtime.flush()
+    expect(runtime.sessions.calls.some(call => call.method === 'create')).toBe(true)
+  })
+
   it('points the window at the chat picked in its panel', async () => {
     const prepared = await createBoardBench()
     runtimes.add(prepared.runtime)
@@ -769,13 +820,15 @@ describe('board slot composition', () => {
     await runtime.flush()
     fireEvent.click(panel.view.getByText('Two'))
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="More actions"]') as Element)
+    // The chat's own row menu inside the expanded folder.
+    const chatMenu = '[data-board-group="ws-1"] [data-board-action="panel-row-menu"]'
+    fireEvent.click(panel.container.querySelector(chatMenu) as Element)
     await runtime.flush()
     fireEvent.click(screen.getByText('Branch'))
     await runtime.flush()
     expect(runtime.sessions.calls.some(call => call.method === 'fork')).toBe(true)
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="More actions"]') as Element)
+    fireEvent.click(panel.container.querySelector(chatMenu) as Element)
     await runtime.flush()
     fireEvent.click(screen.getByText('Archive chat'))
     await runtime.flush()

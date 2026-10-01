@@ -125,7 +125,8 @@
   align-items: center;
   gap: var(--board-gap-row);
   min-width: 0;
-  padding: 10px 10px 6px;
+  min-height: 32px;
+  padding: 4px 10px;
 }
 
 .title {
@@ -346,7 +347,9 @@
   gap: var(--board-gap-row);
   flex: none;
   min-width: 0;
-  padding: 6px 8px;
+  /* Compact density (Т3.4): 30px folder rows, 28px session rows, 13px labels. */
+  min-height: 30px;
+  padding: 3px 8px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -535,4 +538,39 @@
   align-items: center;
   gap: 4px;
   flex: none;
+}
+
+/* The tree: one block per folder, its sessions indented under the group row,
+   and a disclosure chevron that turns as the group opens. The panel keeps a
+   compact density one step below the sidebar (Т3.4): 28px session rows, 30px
+   folder rows, a 32px header, and 13px labels. */
+.groupBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.chevron {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  padding-left: 18px;
+}
+
+.sessionRow .row {
+  min-height: 28px;
+  font-size: 13px;
 }

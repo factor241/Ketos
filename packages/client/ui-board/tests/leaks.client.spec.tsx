@@ -122,9 +122,9 @@ describe('board resource discipline', () => {
         act(() => { store.actions.openWindow(windowState(index, kind, bodyKind, cloneId)) })
         await runtime.flush()
         if (bodyKind === 'conversation') {
-          act(() => { store.actions.openWindowPanel(id) })
+          act(() => { store.actions.setWindowPanel(id, 'left', true) })
           await runtime.flush()
-          act(() => { store.actions.closeWindowPanel() })
+          act(() => { store.actions.setWindowPanel(id, 'left', false) })
           await runtime.flush()
         }
         act(() => { store.actions.closeWindow(id) })

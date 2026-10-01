@@ -273,9 +273,8 @@ function WindowFrameView({
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
-  const panelWindowId = useStore(s => s.panelWindowId)
-  const panelCollapsed = useStore(s => s.panelCollapsed)
-  const panelTab = useStore(s => s.panelTab)
+  const leftPanelOpen = cardWindow.leftPanelOpen === true
+  const rightPanelOpen = cardWindow.rightPanelOpen === true
   // Culled windows stay mounted: their lane, draft,
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
@@ -284,8 +283,9 @@ function WindowFrameView({
   // Below the detail threshold the frame swaps its chrome for the simplified
   // card (Д6.1).
   const simplified = useStore(s => s.zoom < detailZoomThreshold)
-  // A collapsed panel is a rail: it takes no width, and Escape leaves it alone.
-  const isPanelOpen = hasPanel && panelWindowId === cardWindow.id && !panelCollapsed
+  // Escape closes whichever panel of this window is open; a closed panel
+  // takes no width and Escape leaves it alone.
+  const isPanelOpen = hasPanel && (leftPanelOpen || rightPanelOpen)
 
   // Escape closes the chats panel: one handler owns the key. The board's
   // ladder is menu -> editor -> selection overlay -> panel, so this handler
@@ -297,11 +297,12 @@ function WindowFrameView({
       if (e.key !== 'Escape') return
       if (document.querySelector('[role="menu"]') !== null) return
       if (isBoardEditingTarget(e.target)) return
-      actions.closeWindowPanel()
+      if (leftPanelOpen) actions.setWindowPanel(cardWindow.id, 'left', false)
+      if (rightPanelOpen) actions.setWindowPanel(cardWindow.id, 'right', false)
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
-  }, [isSelectingElement, isPanelOpen, actions])
+  }, [isSelectingElement, isPanelOpen, leftPanelOpen, rightPanelOpen, actions, cardWindow.id])
 
   return (
     <div
@@ -359,8 +360,9 @@ function WindowFrameView({
               <button
                 type="button"
                 data-board-action="window-left-panel"
-                onClick={() => { actions.openWindowPanel(cardWindow.id) }}
-                className={clsx(css.headerButton, isPanelOpen && panelTab === 'chats' && css.headerButtonActive)}
+                onClick={() => { actions.setWindowPanel(cardWindow.id, 'left', !leftPanelOpen) }}
+                className={clsx(css.headerButton, leftPanelOpen && css.headerButtonActive)}
+                aria-pressed={leftPanelOpen}
                 aria-label={t('window.leftPanel')}
               >
                 <IconPanelLeftOutline16 />
@@ -382,8 +384,9 @@ function WindowFrameView({
                 <button
                   type="button"
                   data-board-action="window-right-panel"
-                  onClick={() => { actions.openWindowPanel(cardWindow.id, 'artifacts') }}
-                  className={clsx(css.headerButton, isPanelOpen && panelTab === 'artifacts' && css.headerButtonActive)}
+                  onClick={() => { actions.setWindowPanel(cardWindow.id, 'right', !rightPanelOpen) }}
+                  className={clsx(css.headerButton, rightPanelOpen && css.headerButtonActive)}
+                  aria-pressed={rightPanelOpen}
                   aria-label={t('window.rightPanel')}
                 >
                   <IconPanelLeftOutline16 className={css.panelRightIcon} />

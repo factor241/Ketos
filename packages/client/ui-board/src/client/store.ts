@@ -5,12 +5,15 @@ import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@
 import type { CloneId } from '@ketos/clone-core/types'
 import type { CloneEdit } from './clone-draft.ts'
 import {
-  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
+  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_DEFAULT_WIDTH, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH,
+  PANEL_LEFT_MIN_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH,
+  PANEL_RIGHT_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
 import type { BoardDraftFile, BoardDraftImage, BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
 import { isWindowOnScreen } from './window-screen.ts'
 import { safeArea, type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
+import { windowPanelWidth } from './window/panel-geometry.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -95,6 +98,10 @@ type BoardActions = {
   setPanelTab: (draft: BoardState, tab: 'chats' | 'artifacts') => void
   setPanelCollapsed: (draft: BoardState, collapsed: boolean) => void
   setPanelWidth: (draft: BoardState, width: number) => void
+  /** Open or close one of the window's two panels (Т3.12). */
+  setWindowPanel: (draft: BoardState, id: WindowId, side: 'left' | 'right', open: boolean) => void
+  /** Store one panel's width, clamped to its side's range. */
+  setWindowPanelWidth: (draft: BoardState, id: WindowId, side: 'left' | 'right', width: number) => void
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
   setDefaultPreset: (draft: BoardState, presetId: string) => void
@@ -218,14 +225,23 @@ export interface BoardState {
  * only their template size differs — and every size stays on the same grid and
  * above {@link MIN_WINDOW_SIZE}.
  */
+/** Panel defaults every opened window starts from (both panels closed). */
+const WINDOW_PANEL_DEFAULTS = {
+  leftPanelOpen: false,
+  leftPanelWidth: PANEL_LEFT_DEFAULT_WIDTH,
+  rightPanelOpen: false,
+  rightPanelWidth: PANEL_RIGHT_DEFAULT_WIDTH,
+} as const satisfies Pick<BoardWindowState, 'leftPanelOpen' | 'leftPanelWidth' | 'rightPanelOpen' | 'rightPanelWidth'>
+
+/** Size and panel defaults of every window kind the board opens from its chrome. */
 export const BOARD_WINDOW_TEMPLATES = {
-  agent: { kind: 'agent', bodyKind: 'conversation', width: 552, height: 648 },
-  connectors: { kind: 'connectors', bodyKind: 'connectors', width: 648, height: 768 },
-  settings: { kind: 'settings', bodyKind: 'settings', width: 648, height: 768 },
-  dashboard: { kind: 'dashboard', bodyKind: 'dashboard', width: 768, height: 768 },
-  clone: { kind: 'clone', bodyKind: 'clone', width: 648, height: 768 },
-  tasks: { kind: 'tasks', bodyKind: 'tasks', width: 648, height: 768 },
-} as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height'>>
+  agent: { kind: 'agent', bodyKind: 'conversation', width: 552, height: 648, ...WINDOW_PANEL_DEFAULTS },
+  connectors: { kind: 'connectors', bodyKind: 'connectors', width: 648, height: 768, ...WINDOW_PANEL_DEFAULTS },
+  settings: { kind: 'settings', bodyKind: 'settings', width: 648, height: 768, ...WINDOW_PANEL_DEFAULTS },
+  dashboard: { kind: 'dashboard', bodyKind: 'dashboard', width: 768, height: 768, ...WINDOW_PANEL_DEFAULTS },
+  clone: { kind: 'clone', bodyKind: 'clone', width: 648, height: 768, ...WINDOW_PANEL_DEFAULTS },
+  tasks: { kind: 'tasks', bodyKind: 'tasks', width: 648, height: 768, ...WINDOW_PANEL_DEFAULTS },
+} as const satisfies Record<string, Pick<BoardWindowState, 'kind' | 'bodyKind' | 'width' | 'height' | 'leftPanelOpen' | 'leftPanelWidth' | 'rightPanelOpen' | 'rightPanelWidth'>>
 
 /**
  * The smallest window the board opens: the minimum working chat layout
@@ -394,6 +410,10 @@ function renormalizeWindowZ(draft: BoardState): void {
 function insertWindow(draft: BoardState, window: BoardWindowState): void {
   const placed: BoardWindowState = {
     ...window,
+    leftPanelOpen: window.leftPanelOpen ?? false,
+    leftPanelWidth: window.leftPanelWidth ?? PANEL_LEFT_DEFAULT_WIDTH,
+    rightPanelOpen: window.rightPanelOpen ?? false,
+    rightPanelWidth: window.rightPanelWidth ?? PANEL_RIGHT_DEFAULT_WIDTH,
     zIndex: Math.min(Math.max(window.zIndex, WINDOW_Z_BASE), WINDOW_Z_MAX),
   }
   draft.windows[placed.id as string] = placed
@@ -594,6 +614,33 @@ export function createBoardStore(): BoardStoreHandle {
       },
       setPanelWidth: (draft, width) => {
         draft.panelWidth = Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(width)))
+      },
+      setWindowPanel: (draft, id, side, open) => {
+        const win = draft.windows[id as string]
+        if (!win) return
+        if (side === 'left') win.leftPanelOpen = open
+        else win.rightPanelOpen = open
+        if (!open) return
+        // A panel that would fall outside the safe area shifts the board (no
+        // zoom change), so the panel opens fully visible (Т3.5).
+        const width = windowPanelWidth(win, side)
+        const area = safeArea(draft).screen
+        if (side === 'left') {
+          const panelLeft = draft.panX + (win.x - width) * draft.zoom
+          if (panelLeft < area.left) draft.panX += area.left - panelLeft
+          return
+        }
+        const panelRight = draft.panX + (win.x + win.width + width) * draft.zoom
+        if (panelRight > area.right) draft.panX -= panelRight - area.right
+      },
+      setWindowPanelWidth: (draft, id, side, width) => {
+        const win = draft.windows[id as string]
+        if (!win) return
+        const clamped = side === 'left'
+          ? Math.min(PANEL_LEFT_MAX_WIDTH, Math.max(PANEL_LEFT_MIN_WIDTH, Math.round(width)))
+          : Math.min(PANEL_RIGHT_MAX_WIDTH, Math.max(PANEL_RIGHT_MIN_WIDTH, Math.round(width)))
+        if (side === 'left') win.leftPanelWidth = clamped
+        else win.rightPanelWidth = clamped
       },
       setPanelGroupBy: (draft, groupBy) => {
         draft.panelGroupBy = groupBy

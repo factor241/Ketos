@@ -13,13 +13,13 @@ import {
   IconChevronRightOutline14, IconCloseOutline16, IconCopyOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16,
   IconPersonalizationOutline16, IconProjectAddOutline16, IconSearchOutline16,
-  IconTrashOutline16, Menu, Pill, Tag, Tooltip, relativeTime, writeClipboard,
+  IconTrashOutline16, Menu, Tag, Tooltip, relativeTime, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { BoardDirectoryListing, BoardWindowInjected } from '../contract/slots.ts'
+import type { BoardDirectoryListing, BoardWindowInjected, BoardWindowState } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { isWindowHidden } from '../culling.ts'
 import { useBoardMenuDismiss } from '../board-popover.tsx'
@@ -27,7 +27,7 @@ import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
-import { panelPresentation, panelWidthFor, windowedPanelRect } from './panel-geometry.ts'
+import { windowPanelRect } from './panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
 export type WindowChatsPanelProps =
@@ -55,9 +55,6 @@ type RowMenuTarget = { readonly kind: 'project' | 'chat'; readonly id: string }
 /** The row a drag is hovering, as a data-row key. */
 type DropKey = string | null
 
-/** Inert selector equality: a collapsed panel ignores every store change. */
-const alwaysEqual = (): boolean => true
-
 /**
  * Whether a caught workspace-create failure is the host's refusal of a runtime
  * path: `WorkspaceCreateError` carries the Host's `rpcError.code`, while any
@@ -84,20 +81,10 @@ function WindowChatsPanelView({
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
   listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath, t,
 }: WindowChatsPanelProps) {
-  const mounted = useStore(s => s.panelWindowId === cardWindow.id)
-  const collapsed = useStore(s => s.panelCollapsed)
-  const panelTab = useStore(s => s.panelTab)
-  const requestedWidth = useStore(s => s.panelWidth)
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
-  const open = mounted && !collapsed
-  const { panX, zoom, width: viewportWidth } = useStore(
-    // Geometry only while the panel is open: a collapsed rail does not follow
-    // the view transform, so panning and zooming the canvas never re-render it.
-    s => ({ panX: s.panX, zoom: s.zoom, width: s.viewportWidth }),
-    open ? undefined : alwaysEqual,
-  )
+  const zoom = useStore(s => s.zoom)
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
   const session = useWindowSession(cardWindow.id)
@@ -158,31 +145,13 @@ function WindowChatsPanelView({
     return () => { alive = false }
   }, [canOpenWorkspacePath])
 
-  const activeWorkspaceId = useMemo(() => {
-    if (!windowSessionId) return undefined
-    for (const group of groups) {
-      if (group.chats.some(c => c.id === windowSessionId)) {
-        return group.workspaceId
-      }
-    }
-    return undefined
-  }, [groups, windowSessionId])
-
-  useEffect(() => {
-    if (panelTab === 'artifacts' && level.kind === 'projects') {
-      setLevel({ kind: 'chats', workspaceId: activeWorkspaceId })
-    }
-  }, [panelTab, level.kind, activeWorkspaceId])
-
-  const view = { left: -panX / zoom, right: (-panX + viewportWidth) / zoom }
-  const width = panelWidthFor(cardWindow.width, requestedWidth)
-  const presentation = panelPresentation(cardWindow, view, width)
-  // Overlay rides inside the window's left edge, so its resize handle sits on
-  // the right like a panel that slid out of that edge.
-  const side = presentation.kind === 'beside' ? presentation.side : 'right'
-  const rect = windowedPanelRect(cardWindow, view, width)
-  // The collapsed rail hugs the frame's edge, so the panel stays one click
-  // away without a duplicate header button.
+  // The two panels sit at fixed world offsets beside the frame, so they follow
+  // pan and zoom without reading the transform; only the resize gesture needs
+  // the zoom for its world-unit deltas.
+  const leftOpen = cardWindow.leftPanelOpen === true
+  const rightOpen = cardWindow.rightPanelOpen === true
+  const leftRect = windowPanelRect(cardWindow, 'left')
+  const rightRect = windowPanelRect(cardWindow, 'right')
 
   const startGesture = useBoardPointerGesture()
 
@@ -238,31 +207,14 @@ function WindowChatsPanelView({
   }
 
   useEffect(() => {
-    if (!open) {
+    if (!leftOpen) {
       setRowMenu(null)
       setViewOpen(false)
       setSearchOpen(false)
       setSearch('')
       setEdit(null)
     }
-  }, [open])
-
-  // Dragging the outer edge resizes the panel; the delta is world units like
-  // every other frame gesture.
-  const startResize = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    e.stopPropagation()
-    const target = e.currentTarget
-    target.setPointerCapture(e.pointerId)
-    const startX = e.clientX
-    const startWidth = width
-    const outward = side === 'left' ? -1 : 1
-    startGesture(target, e.pointerId, {
-      move: (moveEvt) => {
-        const delta = (moveEvt.clientX - startX) / zoom
-        actions.setPanelWidth(startWidth + delta * outward)
-      },
-    })
-  }
+  }, [leftOpen])
 
   /** The data-row key of the row under a point. */
   const keyAt = (x: number, y: number): string | null =>
@@ -430,31 +382,95 @@ function WindowChatsPanelView({
     createChat(cardWindow.id, project.cwd === '' ? {} : { cwd: project.cwd })
   }
 
+  const artifactsContent = artifacts.length === 0 ? (
+    <div className={css.artifactsEmpty} data-board-artifacts-empty="">
+      {t('artifacts.empty')}
+    </div>
+  ) : (
+    <div className={css.artifactsList} data-board-artifacts-list="">
+      {artifacts.map((artifact) => {
+        const isCopied = copiedArtifact === artifact.path
+        const kindLabel = t(`artifacts.${artifact.kind}`)
+        const kindTone = artifact.kind === 'created' ? 'success' : artifact.kind === 'modified' ? 'warning' : 'neutral'
+        return (
+          <div key={artifact.path} className={css.artifactRow} data-board-artifact={artifact.path}>
+            <div className={css.artifactIcon}>
+              <FileTypeIcon path={artifact.path} size={20} />
+            </div>
+            <div className={css.artifactBody}>
+              <span className={css.artifactPath} title={artifact.path}>
+                {artifact.path}
+              </span>
+              <div className={css.artifactMeta}>
+                <span data-board-artifact-kind={artifact.kind}>
+                  <Tag tone={kindTone}>
+                    {kindLabel}
+                  </Tag>
+                </span>
+                <span className={css.artifactTime}>
+                  {ageLabel(artifact.time, t)}
+                </span>
+              </div>
+            </div>
+            <div className={css.artifactActions}>
+              <Tooltip label={isCopied ? t('artifacts.copied') : t('artifacts.copy')} side="bottom">
+                <button
+                  type="button"
+                  data-row-action=""
+                  data-board-action="artifact-copy-path"
+                  className={css.pathAction}
+                  aria-label={t('artifacts.copy')}
+                  onClick={() => {
+                    if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
+                    void writeClipboard(artifact.path).then(() => {
+                      setCopiedArtifact(artifact.path)
+                      copiedTimeoutRef.current = setTimeout(() => {
+                        setCopiedArtifact(curr => (curr === artifact.path ? null : curr))
+                        copiedTimeoutRef.current = null
+                      }, 1500)
+                    })
+                  }}
+                >
+                  {isCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
+                </button>
+              </Tooltip>
+              {canOpenPath && (
+                <Tooltip label={t('artifacts.reveal')} side="bottom">
+                  <button
+                    type="button"
+                    data-row-action=""
+                    data-board-action="artifact-reveal"
+                    className={css.pathAction}
+                    aria-label={t('artifacts.reveal')}
+                    onClick={() => {
+                      void openWorkspacePath(artifact.path, 'reveal').catch(report)
+                    }}
+                  >
+                    <IconFolderOpen16 />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
     <>
-      <div
-        data-board-panel={presentation.kind}
-        data-board-panel-side={presentation.kind === 'beside' ? side : undefined}
-        data-board-panel-open={open ? '' : undefined}
-        data-board-culled={hidden ? '' : undefined}
-        aria-hidden={!open || undefined}
-        className={clsx(css.panel, hidden && css.hidden)}
-        style={{
-          left: rect.left,
-          top: rect.top,
-          width: rect.width,
-          height: rect.height,
-          ...(presentation.kind === 'overlay' ? { zIndex: 1000 } : {}),
-        }}
+      <WindowPanelShell
+        side="left"
+        open={leftOpen}
+        rect={leftRect}
+        hidden={hidden}
+        zIndex={cardWindow.zIndex}
+        zoom={zoom}
+        t={t}
+        actions={actions}
+        windowId={cardWindow.id}
+        startGesture={startGesture}
       >
-        <div
-          data-board-action="panel-resize"
-          className={clsx(css.resizeHandle, side === 'left' ? css.resizeLeft : css.resizeRight)}
-          onPointerDown={startResize}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t('panel.resize')}
-        />
         <div className={css.header}>
           {level.kind === 'projects' && (
             <>
@@ -532,7 +548,7 @@ function WindowChatsPanelView({
               data-board-action="panel-collapse"
               className={css.action}
               aria-label={t('panel.collapse')}
-              onClick={() => { actions.setPanelCollapsed(true) }}
+              onClick={() => { actions.setWindowPanel(cardWindow.id, 'left', false) }}
             >
               <IconPanelLeftOutline16 />
             </button>
@@ -638,27 +654,6 @@ function WindowChatsPanelView({
           </div>
         )}
 
-        {level.kind === 'chats' && (
-          <div className={css.tabBar}>
-            <Pill
-              active={panelTab === 'chats'}
-              data-board-tab="chats"
-              onClick={() => { actions.setPanelTab('chats') }}
-            >
-              {t('artifacts.tabChats')}
-              <span className={css.tabBadge}>{project?.chats.length ?? 0}</span>
-            </Pill>
-            <Pill
-              active={panelTab === 'artifacts'}
-              data-board-tab="artifacts"
-              onClick={() => { actions.setPanelTab('artifacts') }}
-            >
-              {t('artifacts.tabArtifacts')}
-              {artifacts.length > 0 && <span className={css.tabBadge}>{artifacts.length}</span>}
-            </Pill>
-          </div>
-        )}
-
         <div className={css.list}>
           {level.kind === 'browse' && (
             <FolderBrowser
@@ -702,7 +697,7 @@ function WindowChatsPanelView({
             </div>
           ))}
 
-          {level.kind === 'chats' && panelTab === 'chats' && renderedChats.map(chat => (
+          {level.kind === 'chats' && renderedChats.map(chat => (
             <div key={chat.id} className={css.groupRow}>
               <button
                 type="button"
@@ -734,82 +729,7 @@ function WindowChatsPanelView({
             </div>
           ))}
 
-          {level.kind === 'chats' && panelTab === 'artifacts' && (
-            artifacts.length === 0 ? (
-              <div className={css.artifactsEmpty} data-board-artifacts-empty="">
-                {t('artifacts.empty')}
-              </div>
-            ) : (
-              <div className={css.artifactsList} data-board-artifacts-list="">
-                {artifacts.map((artifact) => {
-                  const isCopied = copiedArtifact === artifact.path
-                  const kindLabel = t(`artifacts.${artifact.kind}`)
-                  const kindTone = artifact.kind === 'created' ? 'success' : artifact.kind === 'modified' ? 'warning' : 'neutral'
-                  return (
-                    <div key={artifact.path} className={css.artifactRow} data-board-artifact={artifact.path}>
-                      <div className={css.artifactIcon}>
-                        <FileTypeIcon path={artifact.path} size={20} />
-                      </div>
-                      <div className={css.artifactBody}>
-                        <span className={css.artifactPath} title={artifact.path}>
-                          {artifact.path}
-                        </span>
-                        <div className={css.artifactMeta}>
-                          <span data-board-artifact-kind={artifact.kind}>
-                            <Tag tone={kindTone}>
-                              {kindLabel}
-                            </Tag>
-                          </span>
-                          <span className={css.artifactTime}>
-                            {ageLabel(artifact.time, t)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={css.artifactActions}>
-                        <Tooltip label={isCopied ? t('artifacts.copied') : t('artifacts.copy')} side="bottom">
-                          <button
-                            type="button"
-                            data-row-action=""
-                            data-board-action="artifact-copy-path"
-                            className={css.pathAction}
-                            aria-label={t('artifacts.copy')}
-                            onClick={() => {
-                              if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
-                              void writeClipboard(artifact.path).then(() => {
-                                setCopiedArtifact(artifact.path)
-                                copiedTimeoutRef.current = setTimeout(() => {
-                                  setCopiedArtifact(curr => (curr === artifact.path ? null : curr))
-                                  copiedTimeoutRef.current = null
-                                }, 1500)
-                              })
-                            }}
-                          >
-                            {isCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
-                          </button>
-                        </Tooltip>
-                        {canOpenPath && (
-                          <Tooltip label={t('artifacts.reveal')} side="bottom">
-                            <button
-                              type="button"
-                              data-row-action=""
-                              data-board-action="artifact-reveal"
-                              className={css.pathAction}
-                              aria-label={t('artifacts.reveal')}
-                              onClick={() => {
-                                void openWorkspacePath(artifact.path, 'reveal').catch(report)
-                              }}
-                            >
-                              <IconFolderOpen16 />
-                            </button>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          )}
+
         </div>
 
         {edit !== null && (
@@ -867,8 +787,97 @@ function WindowChatsPanelView({
                 )}
           </div>
         )}
-      </div>
+      </WindowPanelShell>
+
+      {/* The right panel is the window's file surface: its own header, width,
+          and the session's artifacts until the file tabs land (Э4.4). */}
+      <WindowPanelShell
+        side="right"
+        open={rightOpen}
+        rect={rightRect}
+        hidden={hidden}
+        zIndex={cardWindow.zIndex}
+        zoom={zoom}
+        t={t}
+        actions={actions}
+        windowId={cardWindow.id}
+        startGesture={startGesture}
+      >
+        <div className={css.header}>
+          <span className={css.title}>{t('artifacts.tabArtifacts')}</span>
+          <Tooltip label={t('panel.collapse')} side="bottom">
+            <button
+              type="button"
+              data-row-action=""
+              data-board-action="panel-collapse-right"
+              className={css.action}
+              aria-label={t('panel.collapse')}
+              onClick={() => { actions.setWindowPanel(cardWindow.id, 'right', false) }}
+            >
+              <IconPanelLeftOutline16 className={css.panelRightIcon} />
+            </button>
+          </Tooltip>
+        </div>
+        <div className={css.list}>{artifactsContent}</div>
+      </WindowPanelShell>
     </>
+  )
+}
+
+/** One of the window's two panels: the sliding shell, its resize handle, and
+ * the shared chrome around the side's content. */
+function WindowPanelShell({
+  side, open, rect, hidden, zIndex, zoom, t, actions, windowId, startGesture, children,
+}: {
+  readonly side: 'left' | 'right'
+  readonly open: boolean
+  readonly rect: { readonly left: number; readonly top: number; readonly width: number; readonly height: number }
+  readonly hidden: boolean
+  readonly zIndex: number
+  /** Canvas zoom: the resize gesture divides screen deltas into world units. */
+  readonly zoom: number
+  readonly t: WindowChatsPanelProps['t']
+  readonly actions: WindowChatsPanelProps['actions']
+  readonly windowId: BoardWindowState['id']
+  readonly startGesture: ReturnType<typeof useBoardPointerGesture>
+  readonly children: ReactNode
+}): ReactNode {
+  // Dragging a panel's outer edge resizes that panel; the delta is world units
+  // like every other frame gesture.
+  const startResize = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    e.stopPropagation()
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    const startX = e.clientX
+    const startWidth = rect.width
+    const outward = side === 'left' ? -1 : 1
+    startGesture(target, e.pointerId, {
+      move: (moveEvt) => {
+        const delta = (moveEvt.clientX - startX) / zoom
+        actions.setWindowPanelWidth(windowId, side, startWidth + delta * outward)
+      },
+    })
+  }
+  return (
+    <div
+      data-board-panel={side}
+      data-board-panel-side={side}
+      data-board-panel-open={open ? '' : undefined}
+      data-board-culled={hidden ? '' : undefined}
+      aria-hidden={!open || undefined}
+      className={clsx(css.panel, hidden && css.hidden)}
+      style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, zIndex }}
+    >
+      <div
+        data-board-action="panel-resize"
+        className={clsx(css.resizeHandle, side === 'left' ? css.resizeLeft : css.resizeRight)}
+        onPointerDown={startResize}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('panel.resize')}
+      />
+      {children}
+    </div>
   )
 }
 

@@ -780,6 +780,17 @@ export interface BoardWindowState {
   width: number
   height: number
   zIndex: number
+  /**
+   * Whether the window's left panel (working folders) is open; absent reads as
+   * closed, and the store fills the field when the window is inserted.
+   */
+  leftPanelOpen?: boolean
+  /** Stored width of the left panel, in world units; absent reads as its default. */
+  leftPanelWidth?: number
+  /** Whether the window's right panel (files) is open; absent reads as closed. */
+  rightPanelOpen?: boolean
+  /** Stored width of the right panel, in world units; absent reads as its default. */
+  rightPanelWidth?: number
 }
 
 /**

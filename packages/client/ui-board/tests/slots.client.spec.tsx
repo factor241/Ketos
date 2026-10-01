@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
-import { panelWidthFor } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { BOARD_PANEL_ID } from '../src/client/contract/slots.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -522,16 +521,17 @@ describe('board slot composition', () => {
     await runtime.flush()
     const shown = panel.container.querySelector('[data-board-panel]') as HTMLElement
     const window = board.store.getSnapshot().windows['a1'] as BoardWindowState
-    const width = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
-    expect(shown.getAttribute('data-board-panel')).toBe('beside')
+    const width = window.leftPanelWidth ?? 0
+    expect(shown.getAttribute('data-board-panel')).toBe('left')
     expect(shown.getAttribute('data-board-panel-side')).toBe('left')
     expect(shown.getAttribute('data-board-panel-open')).toBe('')
-    // The panel stands beside the frame at the stored width and the window height.
+    // The panel stands beside the frame at the stored width and the window
+    // height, at the window's own stacking level (the frame paints above it).
     expect(shown.style.left).toBe(`${String(window.x - width)}px`)
     expect(shown.style.top).toBe(`${String(window.y)}px`)
     expect(shown.style.width).toBe(`${String(width)}px`)
     expect(shown.style.height).toBe(`${String(window.height)}px`)
-    expect(shown.style.zIndex).toBe('')
+    expect(shown.style.zIndex).toBe(String(window.zIndex))
 
     // Dragging the outer edge resizes the panel by the world-unit delta.
     const handle = panel.container.querySelector('[aria-label="Resize the chats panel"]') as HTMLElement
@@ -541,10 +541,9 @@ describe('board slot composition', () => {
       configurable: true,
       writable: true,
     })
-    act(() => { board.actions.setPanelWidth(320) })
-    // The gesture starts from the width the panel actually shows, which the
-    // window share may have capped below the stored value.
-    const beforeDrag = panelWidthFor(window.width, board.store.getSnapshot().panelWidth)
+    act(() => { board.actions.setWindowPanelWidth('a1' as WindowId, 'left', 320) })
+    // The gesture starts from the width the panel actually shows.
+    const beforeDrag = board.store.getSnapshot().windows['a1']?.leftPanelWidth ?? 0
     fireEvent.pointerDown(handle, { clientX: 200, pointerId: 7 })
     // The panel rides the frame's left edge, so dragging left widens it. The
     // gesture listens on the global; drive it with plain events carrying the
@@ -554,7 +553,7 @@ describe('board slot composition', () => {
       Object.assign(event, { clientX, pointerId: 7 })
       globalThis.dispatchEvent(event)
     }
-    expect(board.store.getSnapshot().panelWidth).toBe(beforeDrag + 40)
+    expect(board.store.getSnapshot().windows['a1']?.leftPanelWidth).toBe(beforeDrag + 40)
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
 
     // The collapse control lives in the panel's own header; the header's own
@@ -571,6 +570,76 @@ describe('board slot composition', () => {
     expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
     expect(panel.container.querySelector('[data-board-window="agent"]')).not.toBeNull()
 
+  })
+
+  it('opens both panels of one window independently, each at its own width (Т3.12)', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setViewport(1600, 900)
+      board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-right-panel"]') as Element)
+    await runtime.flush()
+
+    const state = board.store.getSnapshot()
+    expect(state.windows['a1']?.leftPanelOpen).toBe(true)
+    expect(state.windows['a1']?.rightPanelOpen).toBe(true)
+    const window = state.windows['a1'] as BoardWindowState
+    const left = panel.container.querySelector('[data-board-panel-side="left"]') as HTMLElement
+    const right = panel.container.querySelector('[data-board-panel-side="right"]') as HTMLElement
+    expect(left.getAttribute('data-board-panel-open')).toBe('')
+    expect(right.getAttribute('data-board-panel-open')).toBe('')
+    expect(left.style.left).toBe(`${String(window.x - (window.leftPanelWidth ?? 0))}px`)
+    expect(right.style.left).toBe(`${String(window.x + window.width)}px`)
+
+    // Each side keeps its own stored width.
+    act(() => {
+      board.actions.setWindowPanelWidth('a1' as WindowId, 'left', 300)
+      board.actions.setWindowPanelWidth('a1' as WindowId, 'right', 520)
+    })
+    await runtime.flush()
+    const widths = board.store.getSnapshot().windows['a1']
+    expect(widths?.leftPanelWidth).toBe(300)
+    expect(widths?.rightPanelWidth).toBe(520)
+
+    // Closing one leaves the other open.
+    fireEvent.click(left.querySelector('[data-board-action="panel-collapse"]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().windows['a1']?.leftPanelOpen).toBe(false)
+    expect(board.store.getSnapshot().windows['a1']?.rightPanelOpen).toBe(true)
+  })
+
+  it('shifts the board when an opened panel would fall outside the safe area (Т3.5)', async () => {
+    const { runtime } = await bench()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as BoardInstance
+
+    act(() => {
+      board.actions.setViewport(1200, 900)
+      // A window at the world origin: its left panel has no room on screen.
+      board.actions.addWindow({ ...windowState({ id: 'a1' as WindowId }), x: 0, y: 100, zIndex: 10 })
+    })
+    await runtime.flush()
+    const before = board.store.getSnapshot()
+    expect(before.panX).toBe(0)
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    await runtime.flush()
+
+    // The board shifted right by exactly the panel's overflow; the zoom never
+    // changed, and the panel now starts at the safe area's left edge.
+    const after = board.store.getSnapshot()
+    const window = after.windows['a1'] as BoardWindowState
+    const width = window.leftPanelWidth ?? 0
+    expect(after.zoom).toBe(before.zoom)
+    expect(after.panX).toBe(width)
+    expect(after.panX + (window.x - width) * after.zoom).toBe(0)
   })
 
   it('points the window at the chat picked in its panel', async () => {
@@ -965,7 +1034,7 @@ describe('board slot composition', () => {
       // and the dock and badge keep theirs.
       act(() => {
         board.actions.openWindow(windowState({ id: 'a1' as WindowId }))
-        board.actions.openWindowPanel('a1' as WindowId)
+        board.actions.setWindowPanel('a1' as WindowId, 'left', true)
       })
       await runtime.flush()
       const remaining = board.store.getSnapshot().chromeInsetSources
@@ -1380,18 +1449,18 @@ describe('board slot composition', () => {
     await runtime.flush()
     expect(document.querySelector('[role="menu"]')).toBeNull()
     expect(board.store.getSnapshot().isSelectingElement).toBe(true)
-    expect(board.store.getSnapshot().panelWindowId).toBe('a1')
+    expect(board.store.getSnapshot().windows['a1']?.leftPanelOpen).toBe(true)
 
     // Next press: the selection mode, and only it.
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
     expect(board.store.getSnapshot().isSelectingElement).toBe(false)
-    expect(board.store.getSnapshot().panelWindowId).toBe('a1')
+    expect(board.store.getSnapshot().windows['a1']?.leftPanelOpen).toBe(true)
 
     // Next press: the panel, and only it.
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
-    expect(board.store.getSnapshot().panelWindowId).toBeNull()
+    expect(board.store.getSnapshot().windows['a1']?.leftPanelOpen).toBe(false)
     expect(board.store.getSnapshot().windows['a1']).toBeDefined()
   })
 
@@ -1599,8 +1668,8 @@ describe('board slot composition', () => {
     }
 
     // Panel resize.
-    const setWidth = vi.fn(board.actions.setPanelWidth)
-    board.actions.setPanelWidth = setWidth
+    const setWidth = vi.fn(board.actions.setWindowPanelWidth)
+    board.actions.setWindowPanelWidth = setWidth
     fireEvent.pointerDown(panel.container.querySelector('[aria-label="Resize the chats panel"]') as Element, {
       pointerId: 71, clientX: 200, clientY: 300,
     })

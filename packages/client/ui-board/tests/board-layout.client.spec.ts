@@ -336,6 +336,35 @@ describe('sanitizeBoardLayout', () => {
   })
 })
 
+describe('window panel round trip', () => {
+  it('captures and repairs the two per-window panel fields (Т3.12)', () => {
+    const instance = createBoardStore().create()
+    instance.actions.openWindow({
+      id: 'agent-1' as never, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 552, height: 648,
+    })
+    instance.actions.setWindowPanel('agent-1' as never, 'left', true)
+    instance.actions.setWindowPanel('agent-1' as never, 'right', true)
+    instance.actions.setWindowPanelWidth('agent-1' as never, 'left', 300)
+    instance.actions.setWindowPanelWidth('agent-1' as never, 'right', 520)
+    const captured = captureBoardLayout(instance.getSnapshot()).windows[0]
+    expect(captured).toMatchObject({
+      leftPanelOpen: true, leftPanelWidth: 300, rightPanelOpen: true, rightPanelWidth: 520,
+    })
+
+    // An old document without the fields repairs to the defaults (closed).
+    const repaired = firstWindow(sanitizeBoardLayout(document()))
+    expect(repaired).toMatchObject({
+      leftPanelOpen: false, leftPanelWidth: 260, rightPanelOpen: false, rightPanelWidth: 360,
+    })
+    // Out-of-range widths clamp into their side's range.
+    const clamped = firstWindow(sanitizeBoardLayout(document({
+      windows: [{ ...window(), leftPanelOpen: true, leftPanelWidth: 900, rightPanelWidth: 10 }],
+    })))
+    expect(clamped.leftPanelWidth).toBe(360)
+    expect(clamped.rightPanelWidth).toBe(280)
+  })
+})
+
 describe('defaultPreset round trip', () => {
   it('captures the store default and repairs a stored value', () => {
     const instance = createBoardStore().create()

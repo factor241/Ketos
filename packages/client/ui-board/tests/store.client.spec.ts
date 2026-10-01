@@ -224,7 +224,14 @@ describe('createBoardStore', () => {
     const win = makeWindow({ id: 'win-1' as WindowId, x: 100, y: 100 })
 
     actions.addWindow(win)
-    expect(store.getSnapshot().windows['win-1']).toEqual(win)
+    // The insert fills the panel defaults the literal omits.
+    expect(store.getSnapshot().windows['win-1']).toEqual({
+      ...win,
+      leftPanelOpen: false,
+      leftPanelWidth: 260,
+      rightPanelOpen: false,
+      rightPanelWidth: 360,
+    })
     expect(store.getSnapshot().activeWindowId).toBe('win-1')
 
     // Move with snap: 125 rounds to 120 (24*5), 133 rounds to 144 (24*6)

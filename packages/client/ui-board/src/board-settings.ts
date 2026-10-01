@@ -14,7 +14,20 @@ export type BoardPanelGroupBy = 'workspace' | 'flat'
 /** How the chats panel orders chats inside a group. */
 export type BoardPanelOrderBy = 'manual' | 'updated'
 
-/** Smallest readable chats-panel width, whichever mode is active. */
+/** Width the left panel opens with. */
+export const PANEL_LEFT_DEFAULT_WIDTH = 260
+/** Smallest readable left-panel width. */
+export const PANEL_LEFT_MIN_WIDTH = 260
+/** Largest left-panel width. */
+export const PANEL_LEFT_MAX_WIDTH = 360
+/** Width the right panel opens with. */
+export const PANEL_RIGHT_DEFAULT_WIDTH = 360
+/** Smallest readable right-panel width. */
+export const PANEL_RIGHT_MIN_WIDTH = 280
+/** Largest right-panel width. */
+export const PANEL_RIGHT_MAX_WIDTH = 600
+
+/** Smallest readable chats-panel width (the legacy single panel). */
 export const PANEL_MIN_WIDTH = 260
 
 /** Largest chats-panel width, so a wide window keeps its chat dominant. */
@@ -76,6 +89,14 @@ export type BoardLayoutWindow = {
   width: number
   height: number
   zIndex: number
+  /** Whether the window's left panel (working folders) is open. */
+  leftPanelOpen: boolean
+  /** Stored width of the left panel. */
+  leftPanelWidth: number
+  /** Whether the window's right panel (files) is open. */
+  rightPanelOpen: boolean
+  /** Stored width of the right panel. */
+  rightPanelWidth: number
 }
 
 /**
@@ -148,6 +169,14 @@ const BoardLayoutWindowSchema = z.object({
   width: z.number().min(1).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   height: z.number().min(1).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   zIndex: z.natural().required(),
+  /** Whether the window's left panel (working folders) is open. */
+  leftPanelOpen: z.boolean().default(false),
+  /** Stored width of the left panel. */
+  leftPanelWidth: z.number().min(PANEL_LEFT_MIN_WIDTH).max(PANEL_LEFT_MAX_WIDTH).default(PANEL_LEFT_DEFAULT_WIDTH),
+  /** Whether the window's right panel (files) is open. */
+  rightPanelOpen: z.boolean().default(false),
+  /** Stored width of the right panel. */
+  rightPanelWidth: z.number().min(PANEL_RIGHT_MIN_WIDTH).max(PANEL_RIGHT_MAX_WIDTH).default(PANEL_RIGHT_DEFAULT_WIDTH),
 })
 
 /**

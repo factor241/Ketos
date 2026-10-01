@@ -60,6 +60,15 @@ describe('isWindowVisible', () => {
     expect(isWindowVisible(state({ panX: 0, panY: -10_000 }), WINDOW)).toBe(false)
   })
 
+  it('keeps a window whose open panel is the only visible part (Т3.12)', () => {
+    // The frame sits past the margin while its open left panel reaches into
+    // the visible canvas: culling follows the whole footprint.
+    const framed = { ...WINDOW, x: -1800, leftPanelOpen: true, leftPanelWidth: 300 }
+    expect(isWindowVisible(state(), framed)).toBe(false)
+    const panelInside = { ...framed, x: -700 }
+    expect(isWindowVisible(state(), panelInside)).toBe(true)
+  })
+
   it('keeps the culling margin so a window just outside does not pop', () => {
     // One pixel beyond the view, still inside the margin: rendered.
     expect(isWindowVisible(state({ panX: -(WINDOW.width + 1) }), WINDOW)).toBe(true)

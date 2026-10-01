@@ -279,7 +279,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     expect(panel.container.textContent).not.toContain('Host refusal')
   })
 
-  it('renders artifacts tab, empty state, and artifact list derived from tool results', async () => {
+  it('renders the right panel empty state and artifact list derived from tool results', async () => {
     let revealedPath: string | null = null
     let revealedAction: string | undefined
     const node1 = toolNode({
@@ -324,19 +324,10 @@ describe('WindowChatsPanel project path and artifacts', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    // Open chats panel and go to MyProject
-    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    // The right panel carries the session's artifacts; it opens from the
+    // window header and shows its empty state first.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-right-panel"]') as Element)
     await runtime.flush()
-    fireEvent.click(panel.view.getByText('MyProject'))
-    await runtime.flush()
-
-    // Click Artifacts tab
-    const artifactsTab = panel.container.querySelector('[data-board-tab="artifacts"]') as Element
-    expect(artifactsTab).not.toBeNull()
-    fireEvent.click(artifactsTab)
-    await runtime.flush()
-
-    // With no artifacts, shows empty state
     expect(panel.container.querySelector('[data-board-artifacts-empty]')).not.toBeNull()
 
     // Now populate chat with tool result nodes
@@ -366,7 +357,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     expect(revealedAction).toBe('reveal')
   })
 
-  it('rail artifacts button opens panel directly in artifacts tab', async () => {
+  it('the right header control opens the file panel on the window artifacts', async () => {
     const prepared = await createBoardBench({
       session: {},
       sessionSummary: { cwd: '/work' },
@@ -390,16 +381,17 @@ describe('WindowChatsPanel project path and artifacts', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    // Panel is closed initially; click rail artifacts button
-    const railBtn = panel.container.querySelector('[data-board-action="window-right-panel"]') as Element
-    expect(railBtn).not.toBeNull()
-    fireEvent.click(railBtn)
+    // The panel is closed initially; the header control opens it on the
+    // right, where the artifacts live.
+    const button = panel.container.querySelector('[data-board-action="window-right-panel"]') as Element
+    expect(button).not.toBeNull()
+    fireEvent.click(button)
     await runtime.flush()
 
-    expect(board.store.getSnapshot().panelWindowId).toBe('a1')
-    expect(board.store.getSnapshot().panelCollapsed).toBe(false)
-    expect(board.store.getSnapshot().panelTab).toBe('artifacts')
-    expect(panel.container.querySelector('[data-board-artifacts-list]')).not.toBeNull()
+    expect(board.store.getSnapshot().windows['a1']?.rightPanelOpen).toBe(true)
+    const right = panel.container.querySelector('[data-board-panel-side="right"]') as HTMLElement
+    expect(right.getAttribute('data-board-panel-open')).toBe('')
+    expect(right.querySelector('[data-board-artifacts-list]')).not.toBeNull()
   })
 
   it('conversation strip displays artifacts count and opens artifacts tab on click', async () => {

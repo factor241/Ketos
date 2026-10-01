@@ -96,6 +96,7 @@ interface TooltipMeasurement {
   side: string
   gap: number
   axisOffset: number
+  text: string | null
   adjacent: boolean
   axisAligned: boolean
   insideBoard: boolean
@@ -278,6 +279,9 @@ async function measureTooltip(page: Page, selector: string): Promise<TooltipMeas
       side,
       gap,
       axisOffset,
+      text: bubble.textContent,
+      bubbleRect: { left: t.left, right: t.right, top: t.top, bottom: t.bottom, width: t.width, height: t.height },
+      anchorRect: { left: a.left, right: a.right, top: a.top, bottom: a.bottom, width: a.width, height: a.height },
       adjacent: gap >= 4 && gap <= 16,
       axisAligned: axisOffset <= 24,
       insideBoard: board === undefined ? false
@@ -694,6 +698,9 @@ describe('web e2e: spatial board geometry', () => {
 
   it('П-09: window tooltips sit beside their button at zoom 1 and 0.5 (R1 fixed inside the canvas)', async () => {
     await clickResetView(page)
+    // The seeded window sits at the board's top-left corner, under the mode
+    // badge: pan it clear so the measurement reaches the button itself.
+    await panBy(page, 80, 80)
     const zoom1 = await measureTooltip(page, `[data-board-window-id="${WINDOW_A}"] [data-board-action="window-close"]`)
     try {
       await setZoom(page, 0.5)
@@ -1046,15 +1053,27 @@ describe('web e2e: spatial board geometry', () => {
     expect(header).toEqual({ railCount: 0, left: true, right: true })
   }, 60_000)
 
-  it.fails('Т3.5: panels slide out from under the window edges, not over the window', async () => {
+  it('Т3.5: panels slide out from under the window edges, not over the window', async () => {
     await clickResetView(page)
-    const frame = await measureFrame(page, WINDOW_A)
+    const panelButton = page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-left-panel"]`)
     try {
-      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-left-panel"]`)
-        .click({ timeout: 2_000 })
+      // A panel another test left open would make this click a close.
+      if (await panelButton.getAttribute('aria-pressed') === 'true') {
+        await panelButton.click({ timeout: 2_000 })
+        await settle(page)
+      }
+      // The seeded window is pinned at the board's top-left corner, where the
+      // mode badge sits over its header: press the control directly.
+      await panelButton.evaluate((button: HTMLElement) => { button.click() })
+      // Let the slide-out animation finish before measuring the panel.
+      await page.waitForTimeout(500)
       await settle(page)
+      // Opening a panel that did not fit shifts the board (Т3.5), so the frame
+      // is measured after the click.
+      const frame = await measureFrame(page, WINDOW_A)
       const left = await page.evaluate(() => {
-        const panel = document.querySelector('[data-board-panel][data-board-panel-side="left"]')
+        // Every window renders both panels; only the opened one is visible.
+        const panel = document.querySelector('[data-board-panel][data-board-panel-side="left"][data-board-panel-open]')
         if (panel === null) return null
         const rect = panel.getBoundingClientRect()
         return { right: rect.right, height: rect.height }

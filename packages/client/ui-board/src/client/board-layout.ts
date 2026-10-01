@@ -7,11 +7,13 @@
 import {
   BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_PANEL_GROUP_BYS, BOARD_PANEL_ORDER_BYS,
   BOARD_SETTINGS_VERSION, BOARD_WINDOW_BODY_KINDS, BOARD_WINDOW_KINDS, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
-  BoardSettingsSchema, PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
+  BoardSettingsSchema, PANEL_DEFAULT_WIDTH, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH, PANEL_LEFT_MIN_WIDTH,
+  PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MAX_WIDTH, PANEL_RIGHT_MIN_WIDTH,
   type BoardLayoutDocument, type BoardLayoutWindow, type BoardSettings, type BoardSettingsBindings,
 } from '../board-settings.ts'
 import type { WindowId } from './contract/slots.ts'
 import { MIN_WINDOW_SIZE, WINDOW_Z_BASE, WINDOW_Z_MAX, type BoardState } from './store.ts'
+import { windowPanelOpen, windowPanelWidth } from './window/panel-geometry.ts'
 
 /** Whether a wire value is a plain JSON object. */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,6 +86,10 @@ function sanitizeWindow(raw: unknown): BoardLayoutWindow | undefined {
     width: Math.min(BOARD_LAYOUT_COORD_LIMIT, Math.max(MIN_WINDOW_SIZE.width, Math.abs(finite(raw.width, MIN_WINDOW_SIZE.width)))),
     height: Math.min(BOARD_LAYOUT_COORD_LIMIT, Math.max(MIN_WINDOW_SIZE.height, Math.abs(finite(raw.height, MIN_WINDOW_SIZE.height)))),
     zIndex: WINDOW_Z_BASE,
+    leftPanelOpen: raw.leftPanelOpen === true,
+    leftPanelWidth: bounded(raw.leftPanelWidth, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MIN_WIDTH, PANEL_LEFT_MAX_WIDTH),
+    rightPanelOpen: raw.rightPanelOpen === true,
+    rightPanelWidth: bounded(raw.rightPanelWidth, PANEL_RIGHT_DEFAULT_WIDTH, PANEL_RIGHT_MIN_WIDTH, PANEL_RIGHT_MAX_WIDTH),
   }
 }
 
@@ -114,6 +120,10 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
       width: window.width,
       height: window.height,
       zIndex: window.zIndex,
+      leftPanelOpen: windowPanelOpen(window, 'left'),
+      leftPanelWidth: windowPanelWidth(window, 'left'),
+      rightPanelOpen: windowPanelOpen(window, 'right'),
+      rightPanelWidth: windowPanelWidth(window, 'right'),
     })
   }
   const kept = new Set(order)

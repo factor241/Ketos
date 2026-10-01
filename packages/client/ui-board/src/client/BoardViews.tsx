@@ -108,7 +108,10 @@ export function BoardRoot({
   // otherwise cover its outer edge, its resize handle, or (in the overlay
   // presentation) the window's own bottom edge.
   // A collapsed panel is only its rail, so the chrome comes back.
-  const panelOpen = useStore(s => s.panelWindowId !== null && !s.panelCollapsed)
+  // Any open window panel is a management surface: the minimap stands down
+  // while one is open (Т1.14).
+  const panelOpen = useStore(s => Object.values(s.windows).some(window =>
+    window.leftPanelOpen === true || window.rightPanelOpen === true))
   const activePanelId = usePanelInfo(info => info.activePanelId)
   const returnWindowId = useStore(s => s.returnWindowId)
   // The simplified view swaps the frames' contents; the ring's resize handles

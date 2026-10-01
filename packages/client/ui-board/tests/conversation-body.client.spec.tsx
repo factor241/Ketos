@@ -171,7 +171,7 @@ describe('ConversationBody', () => {
 
   it('offers create and choose-chat actions when the bound session is missing', () => {
     const startChat = vi.fn(() => Promise.resolve())
-    const openWindowPanel = vi.fn()
+    const setWindowPanel = vi.fn()
     const state: BoardWindowSessionState = {
       ...ready(undefined),
       status: 'missing',
@@ -181,7 +181,7 @@ describe('ConversationBody', () => {
     const { getByText, container } = render(
       <ConversationBody {...bodyProps(state, {
         startChat,
-        actions: { consumeComposerIntent: vi.fn(), openWindowPanel },
+        actions: { consumeComposerIntent: vi.fn(), setWindowPanel },
       })} />,
     )
 
@@ -192,7 +192,7 @@ describe('ConversationBody', () => {
     expect(startChat).toHaveBeenCalledWith('a1')
 
     fireEvent.click(getByText('Choose a chat'))
-    expect(openWindowPanel).toHaveBeenCalledWith('a1')
+    expect(setWindowPanel).toHaveBeenCalledWith('a1', 'left', true)
   })
 
   it('shows the creation state before the session exists', () => {

@@ -9,11 +9,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  FileTypeIcon, IconArchiveOutline20, IconBranchOutline16, IconCheckOutline16,
+  IconArchiveOutline20, IconBranchOutline16, IconCheckOutline16,
   IconChevronRightOutline14, IconCloseOutline16, IconCopyOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16,
   IconPersonalizationOutline16, IconProjectAddOutline16, IconSearchOutline16,
-  IconTrashOutline16, Menu, Tag, Tooltip, relativeTime, writeClipboard,
+  IconTrashOutline16, Menu, Tooltip, relativeTime, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -25,8 +25,8 @@ import { isWindowHidden } from '../culling.ts'
 import { useBoardMenuDismiss } from '../board-popover.tsx'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor, type BoardChatGroup } from '../chat-list-model.ts'
-import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
+import { RightPanel } from './RightPanel.tsx'
 import { windowPanelRect } from './panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
@@ -35,6 +35,12 @@ export type WindowChatsPanelProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
+
+/** Relative age of one chat row, in the board's short units. */
+function ageLabel(updatedAt: number, t: WindowChatsPanelProps['t']): string {
+  const { unit, n } = relativeTime(updatedAt, Date.now())
+  return unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
+}
 
 /** One row's rename editor or confirm step, or null when none is open. */
 type RowEdit =
@@ -63,17 +69,12 @@ function isInvalidPathRefusal(error: unknown): boolean {
   return (rpcError as { code?: unknown }).code === 'workspace/invalid-path'
 }
 
-/** Relative age of one chat row, in the board's short units. */
-function ageLabel(updatedAt: number, t: WindowChatsPanelProps['t']): string {
-  const { unit, n } = relativeTime(updatedAt, Date.now())
-  return unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
-}
-
 function WindowChatsPanelView({
   window: cardWindow, useStore, actions, useSessionList, useWorkspaceList, useWindowSession,
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
-  listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath, t,
+  listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath,
+  openFileInPanel, documentPreviewFor, listWorkspaceDirectory, readWorkspaceFile, t,
 }: WindowChatsPanelProps) {
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
@@ -96,10 +97,8 @@ function WindowChatsPanelView({
   const [viewOpen, setViewOpen] = useState(false)
   const [drop, setDrop] = useState<DropKey>(null)
   const [error, setError] = useState<string | null>(null)
-  const [copiedArtifact, setCopiedArtifact] = useState<string | null>(null)
   const [pathCopied, setPathCopied] = useState<string | null>(null)
   const [canOpenPath, setCanOpenPath] = useState(false)
-  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const menuAnchor = useRef<HTMLButtonElement | null>(null)
   const viewAnchor = useRef<HTMLButtonElement | null>(null)
@@ -110,7 +109,6 @@ function WindowChatsPanelView({
   useBoardMenuDismiss(() => { setRowMenu(null) })
 
   useEffect(() => () => {
-    if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
     if (pathTimeoutRef.current !== null) clearTimeout(pathTimeoutRef.current)
   }, [])
 
@@ -146,7 +144,6 @@ function WindowChatsPanelView({
     actions.setPanelGroupExpanded(currentGroupKey, true)
   }, [currentGroupKey, actions])
 
-  const artifacts = useMemo(() => sessionArtifacts(session?.chat), [session?.chat])
   /** The rendered group holding one chat (the filtered tree first). */
   const groupOfChat = (sessionId: string): BoardChatGroup | undefined =>
     groups.find(group => group.chats.some(chat => chat.id === sessionId))
@@ -400,81 +397,6 @@ function WindowChatsPanelView({
     }
     createChat(cardWindow.id, group.cwd === '' ? {} : { cwd: group.cwd })
   }
-
-  const artifactsContent = artifacts.length === 0 ? (
-    <div className={css.artifactsEmpty} data-board-artifacts-empty="">
-      {t('artifacts.empty')}
-    </div>
-  ) : (
-    <div className={css.artifactsList} data-board-artifacts-list="">
-      {artifacts.map((artifact) => {
-        const isCopied = copiedArtifact === artifact.path
-        const kindLabel = t(`artifacts.${artifact.kind}`)
-        const kindTone = artifact.kind === 'created' ? 'success' : artifact.kind === 'modified' ? 'warning' : 'neutral'
-        return (
-          <div key={artifact.path} className={css.artifactRow} data-board-artifact={artifact.path}>
-            <div className={css.artifactIcon}>
-              <FileTypeIcon path={artifact.path} size={20} />
-            </div>
-            <div className={css.artifactBody}>
-              <span className={css.artifactPath} title={artifact.path}>
-                {artifact.path}
-              </span>
-              <div className={css.artifactMeta}>
-                <span data-board-artifact-kind={artifact.kind}>
-                  <Tag tone={kindTone}>
-                    {kindLabel}
-                  </Tag>
-                </span>
-                <span className={css.artifactTime}>
-                  {ageLabel(artifact.time, t)}
-                </span>
-              </div>
-            </div>
-            <div className={css.artifactActions}>
-              <Tooltip label={isCopied ? t('artifacts.copied') : t('artifacts.copy')} side="bottom">
-                <button
-                  type="button"
-                  data-row-action=""
-                  data-board-action="artifact-copy-path"
-                  className={css.pathAction}
-                  aria-label={t('artifacts.copy')}
-                  onClick={() => {
-                    if (copiedTimeoutRef.current !== null) clearTimeout(copiedTimeoutRef.current)
-                    void writeClipboard(artifact.path).then(() => {
-                      setCopiedArtifact(artifact.path)
-                      copiedTimeoutRef.current = setTimeout(() => {
-                        setCopiedArtifact(curr => (curr === artifact.path ? null : curr))
-                        copiedTimeoutRef.current = null
-                      }, 1500)
-                    })
-                  }}
-                >
-                  {isCopied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
-                </button>
-              </Tooltip>
-              {canOpenPath && (
-                <Tooltip label={t('artifacts.reveal')} side="bottom">
-                  <button
-                    type="button"
-                    data-row-action=""
-                    data-board-action="artifact-reveal"
-                    className={css.pathAction}
-                    aria-label={t('artifacts.reveal')}
-                    onClick={() => {
-                      void openWorkspacePath(artifact.path, 'reveal').catch(report)
-                    }}
-                  >
-                    <IconFolderOpen16 />
-                  </button>
-                </Tooltip>
-              )}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
 
   return (
     <>
@@ -803,8 +725,8 @@ function WindowChatsPanelView({
         )}
       </WindowPanelShell>
 
-      {/* The right panel is the window's file surface: its own header, width,
-          and the session's artifacts until the file tabs land (Э4.4). */}
+      {/* The right panel is the session's file surface: tabs, the files tree,
+          and file viewers (Т3.7–Т3.11). */}
       <WindowPanelShell
         side="right"
         open={rightOpen}
@@ -817,22 +739,18 @@ function WindowChatsPanelView({
         windowId={cardWindow.id}
         startGesture={startGesture}
       >
-        <div className={css.header}>
-          <span className={css.title}>{t('artifacts.tabArtifacts')}</span>
-          <Tooltip label={t('panel.collapse')} side="bottom">
-            <button
-              type="button"
-              data-row-action=""
-              data-board-action="panel-collapse-right"
-              className={css.action}
-              aria-label={t('panel.collapse')}
-              onClick={() => { actions.setWindowPanel(cardWindow.id, 'right', false) }}
-            >
-              <IconPanelLeftOutline16 className={css.panelRightIcon} />
-            </button>
-          </Tooltip>
-        </div>
-        <div className={css.list}>{artifactsContent}</div>
+        <RightPanel
+          windowId={cardWindow.id}
+          sessionId={windowSessionId}
+          cwd={session?.cwd}
+          t={t}
+          useStore={useStore}
+          actions={actions}
+          openFileInPanel={openFileInPanel}
+          documentPreviewFor={documentPreviewFor}
+          listWorkspaceDirectory={listWorkspaceDirectory}
+          readWorkspaceFile={readWorkspaceFile}
+        />
       </WindowPanelShell>
     </>
   )

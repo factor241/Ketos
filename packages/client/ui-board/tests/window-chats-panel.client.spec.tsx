@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 /**
- * Chats panel and artifacts tests:
+ * Chats panel and right-panel tests:
  * - Project path display and quick actions (copy path, open folder)
- * - Artifacts tab, empty state, and settled tool-result artifacts
- * - Rail and conversation strip quick openers
+ * - Right panel tabs, workspace files tree, viewers, and lane file links
  * - Path validation and isolation of ~/.ketos / filesystem roots
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
-import type { ChatSnapshot, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { ChatSnapshot, ConversationNode, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { WorkspaceCreateError } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -55,7 +54,7 @@ function toolNode(overrides: Partial<ToolResultNode> = {}): ToolResultNode {
   }
 }
 
-function chatWith(nodes: readonly ToolResultNode[]): ChatSnapshot {
+function chatWith(nodes: readonly ConversationNode[]): ChatSnapshot {
   return {
     phase: 'ready',
     legacy: {
@@ -109,6 +108,65 @@ async function openChatsPanel(options: Parameters<typeof createBoardBench>[0] = 
 /** The data-row keys of the rendered chat rows, in order. */
 function chatRowKeys(container: HTMLElement): (string | null)[] {
   return Array.from(container.querySelectorAll('[data-row-key^="chat:"]')).map(el => el.getAttribute('data-row-key'))
+}
+
+/** One workspace listing reply in the generated remote's resolved shape. */
+function level(
+  entries: readonly { name: string; type?: 'file' | 'directory' | 'other' }[],
+  truncated = false,
+): unknown {
+  return {
+    ok: true,
+    value: { path: '', entries: entries.map(entry => ({ type: 'file', ...entry })), truncated },
+  }
+}
+
+/** One workspace failure reply. */
+function readFailure(code: string, message = 'refused'): unknown {
+  return { ok: false, error: { code, message } }
+}
+
+/** One text-page reply. */
+function textPage(text: string): unknown {
+  return {
+    ok: true,
+    value: { absolutePath: '', version: 'v1', offset: 1, text, lines: text.split('\n').length, eof: true },
+  }
+}
+
+/** One complete-bytes reply over base64 data. */
+function bytePage(data: string): unknown {
+  return { ok: true, value: { absolutePath: '', version: 'v1', offset: 0, data, eof: true } }
+}
+
+/** Mount the board with one open window and its right panel revealed. */
+async function openRightPanel(options: Parameters<typeof createBoardBench>[0] = {}) {
+  const prepared = await createBoardBench(options)
+  runtimes.add(prepared.runtime)
+  await prepared.mountBoard()
+  const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+  const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
+  act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+  await prepared.runtime.flush()
+  fireEvent.click(panel.container.querySelector('[data-board-action="window-right-panel"]') as Element)
+  await prepared.runtime.flush()
+  return { prepared, panel, board }
+}
+
+/** Open the right panel's Files tab through Home. */
+function openFilesTab(panel: { container: HTMLElement }): void {
+  fireEvent.click(panel.container.querySelector('[data-board-action="right-tab-add"]') as Element)
+  fireEvent.click(panel.container.querySelector('[data-board-action="right-open-files"]') as Element)
+}
+
+/** Click one tree row by its absolute path. */
+function clickTreeRow(panel: { container: HTMLElement }, path: string): void {
+  fireEvent.click(panel.container.querySelector(`[data-board-right-path="${path}"]`) as Element)
+}
+
+/** Activate one right-panel tab by id. */
+function openTab(panel: { container: HTMLElement }, tabId: string): void {
+  fireEvent.click(panel.container.querySelector(`[data-board-action="right-tab"][data-board-tab-id="${tabId}"]`) as Element)
 }
 
 describe('WindowChatsPanel project path and artifacts', () => {
@@ -278,164 +336,6 @@ describe('WindowChatsPanel project path and artifacts', () => {
     expect(panel.container.textContent).not.toContain('Host refusal')
   })
 
-  it('renders the right panel empty state and artifact list derived from tool results', async () => {
-    let revealedPath: string | null = null
-    let revealedAction: string | undefined
-    const node1 = toolNode({
-      call: { name: 'write', argsRaw: '{"file_path":"/work/created.ts"}' },
-      meta: { diffs: [{ path: '/work/created.ts', oldText: null, newText: 'code' }] },
-      time: 2000,
-    })
-    const node2 = toolNode({
-      call: { name: 'read', argsRaw: '{"file_path":"/work/read.md"}' },
-      time: 2500,
-    })
-
-    const prepared = await createBoardBench({
-      session: {},
-      sessionSummary: { cwd: '/work/my-project' },
-      remoteSession: {
-        openWorkspacePath: async (req) => {
-          revealedPath = req.path
-          revealedAction = req.action
-          return { ok: true, value: { opened: true } }
-        },
-      },
-    })
-    runtimes.add(prepared.runtime)
-    const { runtime, chat } = prepared
-
-    await runtime.workspaces.update((draft) => {
-      draft.items = [{
-        workspaceId: 'ws-1' as never,
-        path: '/work/my-project',
-        title: 'MyProject',
-        sessionIds: ['session-1' as never],
-        createdAt: '2026-09-16T00:00:00.000Z',
-        updatedAt: '2026-09-16T00:00:00.000Z',
-      }]
-    })
-
-    await prepared.mountBoard()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
-
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
-    await runtime.flush()
-
-    // The right panel carries the session's artifacts; it opens from the
-    // window header and shows its empty state first.
-    fireEvent.click(panel.container.querySelector('[data-board-action="window-right-panel"]') as Element)
-    await runtime.flush()
-    expect(panel.container.querySelector('[data-board-artifacts-empty]')).not.toBeNull()
-
-    // Now populate chat with tool result nodes
-    act(() => {
-      chat.set(chatWith([node1, node2]))
-    })
-    await runtime.flush()
-
-    // Artifacts list appears
-    const list = panel.container.querySelector('[data-board-artifacts-list]')
-    expect(list).not.toBeNull()
-
-    const item1 = panel.container.querySelector('[data-board-artifact="/work/created.ts"]')
-    expect(item1).not.toBeNull()
-    expect(item1?.querySelector('[data-board-artifact-kind="created"]')).not.toBeNull()
-
-    const item2 = panel.container.querySelector('[data-board-artifact="/work/read.md"]')
-    expect(item2).not.toBeNull()
-    expect(item2?.querySelector('[data-board-artifact-kind="read"]')).not.toBeNull()
-
-    // Click reveal action
-    const revealBtn = item1?.querySelector('[data-board-action="artifact-reveal"]') as Element
-    expect(revealBtn).not.toBeNull()
-    fireEvent.click(revealBtn)
-    await runtime.flush()
-    expect(revealedPath).toBe('/work/created.ts')
-    expect(revealedAction).toBe('reveal')
-  })
-
-  it('the right header control opens the file panel on the window artifacts', async () => {
-    const prepared = await createBoardBench({
-      session: {},
-      sessionSummary: { cwd: '/work' },
-    })
-    runtimes.add(prepared.runtime)
-    const { runtime, chat } = prepared
-
-    act(() => {
-      chat.set(chatWith([
-        toolNode({
-          call: { name: 'write', argsRaw: '{"file_path":"/work/file.txt"}' },
-          meta: { diffs: [{ path: '/work/file.txt', oldText: null, newText: 'hi' }] },
-        }),
-      ]))
-    })
-
-    await prepared.mountBoard()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
-
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
-    await runtime.flush()
-
-    // The panel is closed initially; the header control opens it on the
-    // right, where the artifacts live.
-    const button = panel.container.querySelector('[data-board-action="window-right-panel"]') as Element
-    expect(button).not.toBeNull()
-    fireEvent.click(button)
-    await runtime.flush()
-
-    expect(board.store.getSnapshot().windows['a1']?.rightPanelOpen).toBe(true)
-    const right = panel.container.querySelector('[data-board-panel-side="right"]') as HTMLElement
-    expect(right.getAttribute('data-board-panel-open')).toBe('')
-    expect(right.querySelector('[data-board-artifacts-list]')).not.toBeNull()
-  })
-
-  it('conversation strip displays artifacts count and opens artifacts tab on click', async () => {
-    const prepared = await createBoardBench({
-      session: {},
-      sessionSummary: { cwd: '/work' },
-    })
-    runtimes.add(prepared.runtime)
-    const { runtime, chat } = prepared
-
-    act(() => {
-      chat.set(chatWith([
-        toolNode({
-          call: { name: 'write', argsRaw: '{"file_path":"/work/file1.txt"}' },
-          meta: { diffs: [{ path: '/work/file1.txt', oldText: null, newText: '1' }] },
-        }),
-        toolNode({
-          call: { name: 'write', argsRaw: '{"file_path":"/work/file2.txt"}' },
-          meta: { diffs: [{ path: '/work/file2.txt', oldText: null, newText: '2' }] },
-        }),
-      ]))
-    })
-
-    await prepared.mountBoard()
-    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
-
-    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
-    await runtime.flush()
-
-    // ConversationBody shows strip
-    const strip = panel.container.querySelector('[data-board-artifacts-strip]')
-    expect(strip).not.toBeNull()
-    expect(strip?.textContent).toContain('2')
-
-    // Click toggle button on strip
-    const toggle = strip?.querySelector('[data-board-action="artifacts-strip-toggle"]') as Element
-    expect(toggle).not.toBeNull()
-    fireEvent.click(toggle)
-    await runtime.flush()
-
-    expect(board.store.getSnapshot().panelCollapsed).toBe(false)
-    expect(board.store.getSnapshot().panelTab).toBe('artifacts')
-  })
-
   it('rejects registering ~/.ketos and warns on filesystem root', async () => {
     let currentPath = '/home/user/.ketos'
     const prepared = await createBoardBench({
@@ -505,6 +405,469 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     expect(runtime.workspaces.calls.some(call => call.method === 'create' && (call.args[0] as { path: string }).path === '/')).toBe(true)
+  })
+})
+
+describe('WindowChatsPanel right panel', () => {
+  it('opens Home, lists the workspace files, expands a directory, and opens a viewer tab (Т3.7)', async () => {
+    const listCalls: string[] = []
+    const readCalls: string[] = []
+    const { prepared, panel, board } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: async (_sessionId, path) => {
+          listCalls.push(path)
+          if (path === '/work') {
+            return level([
+              { name: 'src', type: 'directory' },
+              { name: 'docs', type: 'directory' },
+              { name: 'zfile.txt' },
+              { name: 'afile.txt' },
+              { name: 'pipe', type: 'other' },
+            ], true)
+          }
+          if (path === '/work/src') return level([{ name: 'main.ts' }])
+          return level([])
+        },
+        read: async (_sessionId, path) => { readCalls.push(path); return textPage(`content of ${path}`) },
+      },
+    })
+    const { runtime } = prepared
+
+    // A session without tabs shows the quiet line; `+` adds Home, twice adds
+    // nothing further because the open tab is activated instead.
+    expect(panel.container.querySelector('[data-board-right-empty]')).not.toBeNull()
+    const add = panel.container.querySelector('[data-board-action="right-tab-add"]') as Element
+    fireEvent.click(add)
+    fireEvent.click(add)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-home]')).not.toBeNull()
+    expect(panel.container.querySelectorAll('[data-board-action="right-tab"]')).toHaveLength(1)
+    const homeChip = panel.container.querySelector('[data-board-action="right-tab"]') as HTMLElement
+    expect(homeChip.getAttribute('data-board-tab-id')).toBe('home')
+    expect(homeChip.getAttribute('data-board-tab-kind')).toBe('home')
+    expect(homeChip.getAttribute('aria-selected')).toBe('true')
+
+    // «Файлы рабочей области» opens the Files tab and lists the root.
+    fireEvent.click(panel.container.querySelector('[data-board-action="right-open-files"]') as Element)
+    await runtime.flush()
+    expect(listCalls).toEqual(['/work'])
+    const pathRow = panel.container.querySelector('[data-board-right-files-path]') as HTMLElement
+    expect(pathRow.textContent).toBe('/work')
+    expect(pathRow.getAttribute('title')).toBe('/work')
+    expect(panel.container.querySelector('[data-board-action="right-files-reload"]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-right-row="truncated"]')?.textContent)
+      .toContain('The listing was truncated')
+    expect(Array.from(panel.container.querySelectorAll('[data-board-right-entry="directory"]'))
+      .map(element => element.getAttribute('data-board-right-path'))).toEqual(['/work/docs', '/work/src'])
+    expect(Array.from(panel.container.querySelectorAll('[data-board-right-entry="file"]'))
+      .map(element => element.getAttribute('data-board-right-path'))).toEqual(['/work/afile.txt', '/work/zfile.txt'])
+    expect(panel.container.querySelector('[data-board-right-entry="other"]')).not.toBeNull()
+
+    // Expanding a directory lists it once and shows its file row.
+    clickTreeRow(panel, '/work/src')
+    await runtime.flush()
+    expect(listCalls).toEqual(['/work', '/work/src'])
+    expect(panel.container.querySelector('[data-board-right-path="/work/src/main.ts"]')).not.toBeNull()
+
+    // A file row opens the viewer tab and reads through the text mode.
+    clickTreeRow(panel, '/work/src/main.ts')
+    await runtime.flush()
+    expect(readCalls).toEqual(['/work/src/main.ts'])
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent)
+      .toBe('content of /work/src/main.ts')
+    expect(board.store.getSnapshot().rightPanels['session-1']?.tabs.map(tab => tab.id))
+      .toContain('viewer:/work/src/main.ts')
+  })
+
+  it('activates an open viewer tab instead of duplicating it (Т3.11)', async () => {
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: async () => level([{ name: 'a.txt' }]),
+        read: async () => textPage('a'),
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a.txt')
+    await runtime.flush()
+
+    // Back to the tree, then open the same path again: the viewer tab is
+    // activated, not duplicated.
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a.txt')
+    await runtime.flush()
+    const viewerChips = panel.container.querySelectorAll('[data-board-action="right-tab"][data-board-tab-kind="viewer"]')
+    expect(viewerChips).toHaveLength(1)
+    expect(viewerChips[0]?.getAttribute('data-board-tab-id')).toBe('viewer:/work/a.txt')
+    expect(viewerChips[0]?.getAttribute('aria-selected')).toBe('true')
+    expect(panel.container.querySelectorAll('[data-board-action="right-tab"]')).toHaveLength(3)
+  })
+
+  it('renders each viewer by type and reports a refused read (Т3.7)', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:viewer' })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => {} })
+    const readCalls: string[] = []
+    const readAllCalls: string[] = []
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: async () => level([
+          { name: 'chart.png' },
+          { name: 'manual.pdf' },
+          { name: 'notes.md' },
+          { name: 'plain.txt' },
+          { name: 'Makefile' },
+          { name: 'bad.txt' },
+        ]),
+        read: async (_sessionId, path) => {
+          readCalls.push(path)
+          if (path === '/work/bad.txt') return readFailure('workspace-file/not-found', 'gone')
+          if (path === '/work/notes.md') return textPage('# Title')
+          return textPage(`text:${path}`)
+        },
+        readAll: async (_sessionId, path) => {
+          readAllCalls.push(path)
+          return bytePage(btoa(path === '/work/manual.pdf' ? '%PDF' : 'PNG'))
+        },
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+
+    clickTreeRow(panel, '/work/chart.png')
+    await runtime.flush()
+    const image = panel.container.querySelector('[data-board-right-viewer="image"]') as HTMLImageElement
+    expect(image.tagName).toBe('IMG')
+    expect(image.getAttribute('src')).toBe('blob:viewer')
+
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/manual.pdf')
+    await runtime.flush()
+    const frame = panel.container.querySelector('[data-board-right-viewer="pdf"]') as HTMLIFrameElement
+    expect(frame.tagName).toBe('IFRAME')
+    expect(frame.getAttribute('title')).toBe('manual.pdf')
+    expect(readAllCalls).toEqual(['/work/chart.png', '/work/manual.pdf'])
+
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/notes.md')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="markdown"]')?.textContent).toContain('Title')
+
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/plain.txt')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent).toBe('text:/work/plain.txt')
+
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/Makefile')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent).toBe('text:/work/Makefile')
+
+    openTab(panel, 'files')
+    await runtime.flush()
+    clickTreeRow(panel, '/work/bad.txt')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="failed"]')?.textContent)
+      .toBe('The file or folder does not exist')
+    expect(readCalls).toEqual(['/work/notes.md', '/work/plain.txt', '/work/Makefile', '/work/bad.txt'])
+  })
+
+  it('falls back to a text read when no preview implementation matches a path', async () => {
+    const readAllCalls: string[] = []
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      documentPreviews: { candidates: () => [] },
+      workspaceFiles: {
+        list: async () => level([{ name: 'a.weird' }]),
+        read: async () => textPage('fallback'),
+        readAll: async (_sessionId, path) => { readAllCalls.push(path); return bytePage('') },
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a.weird')
+    await runtime.flush()
+    expect(readAllCalls).toEqual([])
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent).toBe('fallback')
+  })
+
+  it('declines a bytes read for a viewer that has no byte renderer', async () => {
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      documentPreviews: {
+        candidates: () => [{
+          id: 'bytes', extensions: ['txt'], priority: 'builtin', title: () => 'Bytes', loading: 'bytes-complete',
+        }],
+      },
+      workspaceFiles: {
+        list: async () => level([{ name: 'a.txt' }]),
+        readAll: async () => bytePage(btoa('x')),
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a.txt')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="failed"]')?.textContent)
+      .toBe('This file could not be displayed')
+  })
+
+  it('keeps tabs per session and switches them with the window session (Т3.11)', async () => {
+    const { prepared, panel, board } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work/one', displayTitle: 'One' },
+      extraSessions: [{ id: 'session-2', displayTitle: 'Two', summary: { cwd: '/work/two' } }],
+    })
+    const { runtime } = prepared
+    await runtime.workspaces.update((draft) => {
+      draft.items = [workspaceView('ws-1', '/work/one', ['session-1', 'session-2'], 'One')]
+    })
+    await runtime.flush()
+
+    fireEvent.click(panel.container.querySelector('[data-board-action="right-tab-add"]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().rightPanels['session-1']?.tabs.map(tab => tab.id)).toEqual(['home'])
+
+    // Point the window at the second chat: the panel shows that session's
+    // (empty) tab set.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-row-key="chat:session-2"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-empty]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-tab-id="home"]')).toBeNull()
+
+    // The second session gets its own Home tab.
+    fireEvent.click(panel.container.querySelector('[data-board-action="right-tab-add"]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().rightPanels['session-2']?.tabs.map(tab => tab.id)).toEqual(['home'])
+
+    // Switching back restores the first session's tabs.
+    fireEvent.click(panel.container.querySelector('[data-row-key="chat:session-1"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-empty]')).toBeNull()
+    expect(panel.container.querySelector('[data-board-tab-id="home"]')).not.toBeNull()
+  })
+
+  it('opens files from the artifacts strip, tool cards, and message mentions (Т3.10)', async () => {
+    const readCalls: string[] = []
+    const prepared = await createBoardBench({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        read: async (_sessionId, path) => { readCalls.push(path); return textPage('body') },
+      },
+    })
+    runtimes.add(prepared.runtime)
+    const { runtime, chat } = prepared
+    act(() => {
+      chat.set(chatWith([
+        toolNode({
+          seq: 1,
+          call: { name: 'write', argsRaw: '{"file_path":"/work/artifact.txt"}' },
+          meta: { diffs: [{ path: '/work/artifact.txt', oldText: null, newText: 'x' }] },
+        }),
+        toolNode({
+          seq: 2,
+          call: { name: 'read', argsRaw: '{"file_path":"/work/tool.txt"}' },
+          meta: { path: '/work/tool.txt', lines: [{ number: 1, text: 'x' }], totalLines: 1 },
+        }),
+        {
+          kind: 'assistant',
+          seq: 3,
+          time: 0,
+          turn: 1,
+          step: 1,
+          blocks: [{ kind: 'text', text: 'See `/work/note.md` now.' }],
+        },
+      ]))
+    })
+    await prepared.mountBoard()
+    const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const board = runtime.storeOf('board.dock') as unknown as BoardInstance
+    act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
+    await runtime.flush()
+
+    // The artifacts strip's chip opens a viewer tab and reveals the panel.
+    fireEvent.click(panel.container.querySelector('[data-board-action="artifact-open"][data-board-artifact="/work/artifact.txt"]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().windows['a1']?.rightPanelOpen).toBe(true)
+    expect(board.store.getSnapshot().rightPanels['session-1']?.tabs.map(tab => tab.id))
+      .toContain('viewer:/work/artifact.txt')
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent).toBe('body')
+
+    // The tool card's file chip opens the file it names.
+    fireEvent.click(panel.container.querySelector('[data-board-action="tool-open-file"][data-board-file-path="/work/tool.txt"]') as Element)
+    await runtime.flush()
+    expect(board.store.getSnapshot().rightPanels['session-1']?.activeTabId).toBe('viewer:/work/tool.txt')
+
+    // An inline path mention in a message renders an open control.
+    const mention = panel.container.querySelector('button[title="/work/note.md"]') as Element
+    expect(mention).not.toBeNull()
+    expect(mention.getAttribute('aria-label')).toBe('Open file /work/note.md')
+    fireEvent.click(mention)
+    await runtime.flush()
+    expect(board.store.getSnapshot().rightPanels['session-1']?.activeTabId).toBe('viewer:/work/note.md')
+    expect(readCalls).toContain('/work/note.md')
+  })
+
+  it('reloads expanded levels and ignores answers a replaced request already settled', async () => {
+    const listCalls: string[] = []
+    const pending: { path: string; resolve: (reply: unknown) => void }[] = []
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: (_sessionId, path) => {
+          listCalls.push(path)
+          return new Promise((resolve) => { pending.push({ path, resolve }) })
+        },
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+
+    // The root level paints its loading line until its listing settles.
+    expect(panel.container.querySelector('[data-board-right-row="loading"]')).not.toBeNull()
+    await act(async () => { pending[0]?.resolve(level([{ name: 'dir', type: 'directory' }])) })
+    await runtime.flush()
+    clickTreeRow(panel, '/work/dir')
+    await runtime.flush()
+    expect(listCalls).toEqual(['/work', '/work/dir'])
+
+    // Reload drops the levels and asks for the expanded ones again.
+    fireEvent.click(panel.container.querySelector('[data-board-action="right-files-reload"]') as Element)
+    await runtime.flush()
+    expect(listCalls).toEqual(['/work', '/work/dir', '/work', '/work/dir'])
+
+    // The answer the reload replaced settles late: it paints nothing.
+    await act(async () => { pending[1]?.resolve(level([{ name: 'stale.txt' }])) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-path="/work/dir/stale.txt"]')).toBeNull()
+
+    await act(async () => {
+      pending[2]?.resolve(level([{ name: 'dir', type: 'directory' }]))
+      pending[3]?.resolve(level([{ name: 'fresh.txt' }]))
+    })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-path="/work/dir/fresh.txt"]')).not.toBeNull()
+
+    // Closing the tab unmounts the tree; a listing still in flight settles
+    // into nothing.
+    fireEvent.click(panel.container.querySelector('[data-board-action="right-files-reload"]') as Element)
+    await runtime.flush()
+    const filesChip = panel.container.querySelector('[data-board-tab-id="files"]') as HTMLElement
+    fireEvent.click(filesChip.parentElement?.querySelector('[data-board-action="right-tab-close"]') as Element)
+    await runtime.flush()
+    await act(async () => { pending[4]?.resolve(level([{ name: 'gone.txt' }])) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-path="/work/gone.txt"]')).toBeNull()
+  })
+
+  it('never paints a read that settled after its tab was switched away', async () => {
+    const pendingReads: ((reply: unknown) => void)[] = []
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: async () => level([{ name: 'a.txt' }]),
+        read: () => new Promise((resolve) => { pendingReads.push(resolve) }),
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a.txt')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="loading"]')).not.toBeNull()
+
+    // Switching to the files tab aborts the read; its late answer paints
+    // nothing, and returning to the viewer tab reads again.
+    openTab(panel, 'files')
+    await runtime.flush()
+    await act(async () => { pendingReads[0]?.(textPage('stale')) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer]')).toBeNull()
+
+    openTab(panel, 'viewer:/work/a.txt')
+    await runtime.flush()
+    await act(async () => { pendingReads[1]?.(textPage('fresh')) })
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="text"]')?.textContent).toBe('fresh')
+
+    // Closing the active viewer tab activates the files tab.
+    const viewerChip = panel.container.querySelector('[data-board-tab-id="viewer:/work/a.txt"]') as HTMLElement
+    fireEvent.click(viewerChip.parentElement?.querySelector('[data-board-action="right-tab-close"]') as Element)
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-files]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-right-viewer]')).toBeNull()
+  })
+
+  it('localizes workspace failures in the tree and the viewer', async () => {
+    const listCalls: string[] = []
+    const { prepared, panel } = await openRightPanel({
+      session: {},
+      sessionSummary: { cwd: '/work' },
+      workspaceFiles: {
+        list: async (_sessionId, path) => {
+          listCalls.push(path)
+          if (path === '/work') {
+            return level([
+              { name: 'a', type: 'directory' },
+              { name: 'b', type: 'directory' },
+              { name: 'c', type: 'directory' },
+              { name: 'empty', type: 'directory' },
+              { name: 'bad.txt' },
+            ])
+          }
+          if (path === '/work/a') return readFailure('workspace-file/not-found')
+          if (path === '/work/b') return readFailure('workspace-file/outside-workspace')
+          if (path === '/work/c') return readFailure('workspace-file/not-directory')
+          return level([])
+        },
+        read: async () => readFailure('gateway/internal', 'boom'),
+      },
+    })
+    const { runtime } = prepared
+    openFilesTab(panel)
+    await runtime.flush()
+    clickTreeRow(panel, '/work/a')
+    clickTreeRow(panel, '/work/b')
+    clickTreeRow(panel, '/work/c')
+    clickTreeRow(panel, '/work/empty')
+    await runtime.flush()
+
+    expect(listCalls).toEqual(['/work', '/work/a', '/work/b', '/work/c', '/work/empty'])
+    const failed = Array.from(panel.container.querySelectorAll('[data-board-right-row="failed"]'))
+    expect(failed.map(element => element.textContent)).toEqual([
+      'The file or folder does not exist',
+      'The path is outside the workspace',
+      'That path is not a folder',
+    ])
+    expect(panel.container.querySelector('[data-board-right-row="empty"]')?.textContent)
+      .toBe('This folder is empty')
+
+    clickTreeRow(panel, '/work/bad.txt')
+    await runtime.flush()
+    expect(panel.container.querySelector('[data-board-right-viewer="failed"]')?.textContent)
+      .toBe('Unavailable: boom')
   })
 })
 

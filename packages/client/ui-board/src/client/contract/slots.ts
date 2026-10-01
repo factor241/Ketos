@@ -11,6 +11,7 @@ import type {
 import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { HostObservable, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -435,6 +436,27 @@ export interface BoardWindowSessionState {
 }
 
 /**
+ * Loading mode of one document-preview implementation, as the board's own face
+ * projects it: structural, so the preview package's types never enter the
+ * public board contract.
+ */
+export interface BoardDocumentPreview {
+  /** Whether the viewer reads complete bytes or the first page of lines. */
+  readonly loading: 'text-pages' | 'bytes-complete'
+}
+
+/** One directory level the right panel's files tree reads. */
+export type BoardDirectoryLevelOutcome =
+  | { readonly ok: true; readonly entries: readonly WorkspaceDirectoryEntry[]; readonly truncated: boolean }
+  | { readonly ok: false; readonly code: string; readonly message: string }
+
+/** One file read the right panel's viewer performs. */
+export type BoardFileReadOutcome =
+  | { readonly ok: true; readonly kind: 'text'; readonly text: string }
+  | { readonly ok: true; readonly kind: 'bytes'; readonly data: string }
+  | { readonly ok: false; readonly code: string; readonly message: string }
+
+/**
  * Apply-side face shared by the window registrations: the per-window session
  * channel (a keyed hook so one registration serves every window) plus the
  * composer's session commands. Components never see the channel itself.
@@ -742,6 +764,50 @@ export interface BoardWindowInjected {
    * @returns the artifacts newest first, or an empty list when the client holds no chat for it.
    */
   loadTaskArtifacts: (sessionId: SessionId) => readonly BoardArtifactRow[]
+  /**
+   * Open one file of the window's session in a viewer tab of its right panel
+   * and reveal the panel (Т3.10). The path may be absolute or relative to the
+   * session's working directory; an existing tab for the same absolute path is
+   * activated instead of duplicated.
+   * @param windowId - window whose session opens the file.
+   * @param path - file path as the lane reported it.
+   */
+  openFileInPanel: (windowId: WindowId, path: string) => void
+  /**
+   * Loading mode and localized title of the first registered document-preview
+   * implementation matching one path, or undefined when none matches.
+   * @param path - file path to match by extension.
+   * @returns the matching preview projection, or undefined.
+   */
+  documentPreviewFor: (path: string) => BoardDocumentPreview | undefined
+  /**
+   * List one directory of a session workspace for the right panel's files tab.
+   * @param sessionId - session whose workspace resolves the path.
+   * @param path - absolute directory path.
+   * @param signal - cancels the listing when the reading pane goes away.
+   * @returns the level's entries and truncation, or the host failure.
+   */
+  listWorkspaceDirectory: (
+    sessionId: SessionId,
+    path: string,
+    signal?: AbortSignal,
+  ) => Promise<BoardDirectoryLevelOutcome>
+  /**
+   * Read one file of a session workspace for the right panel's viewer:
+   * `text-pages` reads the first page of lines, `bytes-complete` reads the
+   * complete file as base64.
+   * @param sessionId - session whose workspace resolves the path.
+   * @param path - absolute file path.
+   * @param mode - content delivery mode the matching preview declared.
+   * @param signal - cancels the read when the viewer tab goes away.
+   * @returns the read content, or the host failure.
+   */
+  readWorkspaceFile: (
+    sessionId: SessionId,
+    path: string,
+    mode: BoardDocumentPreview['loading'],
+    signal: AbortSignal,
+  ) => Promise<BoardFileReadOutcome>
 }
 
 

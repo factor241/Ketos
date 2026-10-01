@@ -7,6 +7,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: the ctx.settingsScope merge and the shared describe mirror the
 // layout persistence reads through.
@@ -15,6 +16,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionInput, TakenDraft } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import z from '@deepseek-ai/schemastery'
+import { resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
 import type {
@@ -72,9 +74,9 @@ export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec }
 /** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
   'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'conversation', 'modelDirectories', 'layout',
-  'fileUpload', 'settingsScope',
+  'fileUpload', 'settingsScope', 'documentPreviews',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
-  'remote.fileReferences', 'remote.sessionReferenceResolver',
+  'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.workspaceFiles',
   // The per-session model directory resolves the host catalog through the
   // caller's context (ui-model-selection tracks the caller), so the board must
   // declare the namespace it makes the service read.
@@ -809,6 +811,40 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       if (ctx.sessions.binding(sessionId) === undefined) return []
       const target = ctx.uiConversation.binding(sessionId).target('chat')
       return sessionArtifacts(target.getSnapshot())
+    },
+    openFileInPanel: (windowId, path) => {
+      const sessionId = bridge.sessionFor(windowId)
+      // A lane click implies the window's session; the guard covers the gap
+      // while a rebind settles and the previous rows are still painted.
+      if (sessionId === undefined) return
+      const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+      const absolute = resolveWorkspacePath(cwd, path)
+      instance.actions.openRightTab(sessionId, { id: `viewer:${absolute}`, kind: 'viewer', path: absolute })
+      instance.actions.setWindowPanel(windowId, 'right', true)
+    },
+    documentPreviewFor: (path) => {
+      const first = ctx.documentPreviews.candidates(path)[0]
+      return first === undefined ? undefined : { loading: first.loading }
+    },
+    listWorkspaceDirectory: async (sessionId, path, signal) => {
+      const result = await ctx.remote.workspaceFiles.list(sessionId, path, signal)
+      return result.ok
+        ? { ok: true, entries: result.value.entries, truncated: result.value.truncated }
+        : { ok: false, code: result.error.code, message: result.error.message }
+    },
+    readWorkspaceFile: async (sessionId, path, mode, signal) => {
+      if (mode === 'bytes-complete') {
+        const result = await ctx.remote.workspaceFiles.readAll(sessionId, path, signal)
+        return result.ok
+          ? { ok: true, kind: 'bytes', data: result.value.data }
+          : { ok: false, code: result.error.code, message: result.error.message }
+      }
+      // No explicit line limit: the host's configured page cap applies, and a
+      // caller-chosen limit above it would be refused.
+      const result = await ctx.remote.workspaceFiles.read(sessionId, path, {}, signal)
+      return result.ok
+        ? { ok: true, kind: 'text', text: result.value.text }
+        : { ok: false, code: result.error.code, message: result.error.message }
     },
   })
 

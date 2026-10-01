@@ -1,0 +1,333 @@
+/* Right panel of one board window: the tab strip, the Home tab, the workspace
+   files tree, and the file viewers. It rides the panel shell's column layout:
+   a fixed header and the scrolling body. */
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  max-width: 160px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.chipActive {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.chipLabel {
+  min-width: 0;
+  padding: 3px 4px 3px 8px;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.chipActive .chipLabel {
+  color: var(--dsw-alias-label-primary);
+}
+
+.chipClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.chipClose:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.add:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.headerGap {
+  flex: 1;
+}
+
+.collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.collapse:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The left panel's glyph mirrored: the divider moves to the right side. */
+.collapseIcon {
+  transform: scaleX(-1);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-label);
+}
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.homeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-height: 30px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.homeRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.homeIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.homeText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filesHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 4px 6px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.filesPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.filesReload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.filesReload:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 4px;
+}
+
+.level {
+  padding-left: 14px;
+}
+
+.entry {
+  min-width: 0;
+}
+
+.entryRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  text-align: left;
+  cursor: pointer;
+}
+
+.entryRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.entryIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.entryName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entryOther {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.entryOther:hover {
+  background: transparent;
+}
+
+.rowNote {
+  padding: 6px 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.markdown {
+  min-width: 0;
+  padding: 4px 2px;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-content);
+}
+
+.text {
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-mono, ui-monospace, monospace);
+  font-size: var(--board-font-hint);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  margin: 4px auto;
+  border-radius: 8px;
+  corner-shape: round;
+}
+
+.frame {
+  flex: 1;
+  width: 100%;
+  min-height: 320px;
+  border: 0;
+  border-radius: 8px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+}

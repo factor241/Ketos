@@ -2390,6 +2390,9 @@ importers:
       '@deepseek-ai/dsh-api-workspace-controller':
         specifier: workspace:^
         version: link:../../api/workspace-controller
+      '@deepseek-ai/dsh-api-workspace-files':
+        specifier: workspace:^
+        version: link:../../api/workspace-files
       '@deepseek-ai/dsh-attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -2435,6 +2438,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-sidebar':
         specifier: workspace:^
         version: link:../ui-sidebar
+      '@deepseek-ai/dsh-client-ui-sidebar-documentpreview':
+        specifier: workspace:^
+        version: link:../ui-sidebar-documentpreview
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
@@ -2450,6 +2456,9 @@ importers:
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings
+      '@deepseek-ai/dsh-util-workspace-path':
+        specifier: workspace:^
+        version: link:../../util/workspace-path
       '@ketos/clone-core':
         specifier: workspace:^
         version: link:../../ketos/clone-core

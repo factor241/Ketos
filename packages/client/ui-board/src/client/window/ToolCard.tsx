@@ -17,6 +17,7 @@ import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import {
   DiffBlock,
+  FileTypeIcon,
   IconStopFill16,
   IconWarningOutline16,
   JsonBlock,
@@ -24,7 +25,9 @@ import {
   SearchBlock,
   TerminalBlock,
   WebBlock,
+  classifyFileType,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { pathPartsOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { BoardTranslate } from '../locale.ts'
 import {
   diffBlockLabels, readBlockLabels, searchBlockLabels, terminalBlockLabels, webBlockLabels,
@@ -48,7 +51,56 @@ export interface ToolCardProps {
   readonly onRepeat?: (() => void) | undefined
   /** Resolve one durable result image into a browser URL; absent keeps the JSON fallback. */
   readonly loadImage?: ((attachment: ImageAttachmentRef) => Promise<string>) | undefined
+  /** Open one file the card names in the window's right panel; absent renders no file links. */
+  readonly openFile?: ((path: string) => void) | undefined
 }
+
+/**
+ * File paths one card names, in order and deduplicated: the file one `read`
+ * reports, or the changed files of a diff. Other cards name no openable path.
+ * @param node - running call or settled result.
+ * @param kind - the block kind the node's tool name maps to.
+ * @returns the paths to offer as file links.
+ */
+function toolFilePaths(node: ToolCallBlock, kind: ToolCardKind): readonly string[] {
+  if (kind === 'read') {
+    const label = readCardData(node)?.label
+    return label === undefined || label === '' ? [] : [label]
+  }
+  if (kind !== 'diff') return []
+  const hunks = diffCardData(node)
+  if (hunks === null) return []
+  const paths: string[] = []
+  for (const hunk of hunks) {
+    if (!paths.includes(hunk.path)) paths.push(hunk.path)
+  }
+  return paths
+}
+
+/** The chips one card offers for the files it names. */
+const FileLinks = memo(function FileLinks({ paths, open }: {
+  readonly paths: readonly string[]
+  readonly open: (path: string) => void
+}) {
+  return (
+    <div className={css.files} data-board-tool-files="">
+      {paths.map(path => (
+        <button
+          key={path}
+          type="button"
+          className={css.fileChip}
+          data-board-action="tool-open-file"
+          data-board-file-path={path}
+          title={path}
+          onClick={() => { open(path) }}
+        >
+          <FileTypeIcon kind={classifyFileType(path)} size={14} />
+          <span className={css.fileChipName}>{pathPartsOf(path).name}</span>
+        </button>
+      ))}
+    </div>
+  )
+})
 
 /** A settled result carries its discriminant; a running call carries none. */
 function isSettledNode(node: ToolCallBlock): node is ToolResultNode {
@@ -231,7 +283,7 @@ function nodeTitle(node: ToolCallBlock): string {
 }
 
 export const ToolCard = memo(function ToolCard({
-  node, t, canRepeat = false, onRepeat, loadImage,
+  node, t, canRepeat = false, onRepeat, loadImage, openFile,
 }: ToolCardProps) {
   const running = !isSettledNode(node)
   const failed = !running && node.isError
@@ -241,6 +293,7 @@ export const ToolCard = memo(function ToolCard({
   const title = nodeTitle(node)
   const kind = toolCardKind(toolNodeName(node))
   const state = running ? 'running' : failed ? 'failed' : 'done'
+  const filePaths = openFile === undefined ? [] : toolFilePaths(node, kind)
 
   let status: ReactNode = null
   if (running) {
@@ -306,6 +359,7 @@ export const ToolCard = memo(function ToolCard({
           truncatedLabel={total => t('json.truncated', { total })}
         />
       )}
+      {openFile !== undefined && filePaths.length > 0 && <FileLinks paths={filePaths} open={openFile} />}
     </div>
   )
 })

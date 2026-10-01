@@ -79,6 +79,7 @@ const baseState: BoardState = {
   returnWindowId: null,
   highlightWindowId: null,
   cloneEdits: {},
+  rightPanels: {},
   drafts: {},
 }
 

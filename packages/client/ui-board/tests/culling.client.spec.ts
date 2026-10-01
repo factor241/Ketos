@@ -48,6 +48,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     returnWindowId: null,
     highlightWindowId: null,
     cloneEdits: {},
+    rightPanels: {},
     drafts: {},
     ...overrides,
   }

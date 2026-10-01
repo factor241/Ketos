@@ -5,6 +5,7 @@ import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, 
 import { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../src/client/window/panel-geometry.ts'
 import type { BoardLayoutDocument } from '../src/board-settings.ts'
 import type { CloneId } from '@ketos/clone-core/types'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
 /** A window state literal with the fields a placement test does not vary. */
@@ -645,5 +646,103 @@ describe('createBoardStore', () => {
     actions.setExpandedWindow('w1' as WindowId)
     actions.closeWindow('w1' as WindowId)
     expect(store.getSnapshot().expandedWindowId).toBeNull()
+  })
+})
+
+describe('right panel state', () => {
+  const session = 's1' as SessionId
+
+  it('opens, dedupes, activates, and closes one session\'s tabs', () => {
+    const { actions, store } = createBoardStore().create()
+
+    actions.openRightTab(session, { id: 'home', kind: 'home' })
+    expect(store.getSnapshot().rightPanels['s1']).toEqual({
+      tabs: [{ id: 'home', kind: 'home' }],
+      activeTabId: 'home',
+      files: {},
+    })
+    // A tab id already open is activated, not duplicated.
+    actions.openRightTab(session, { id: 'home', kind: 'home' })
+    actions.openRightTab(session, { id: 'files', kind: 'files' })
+    actions.openRightTab(session, { id: 'viewer:/work/a.md', kind: 'viewer', path: '/work/a.md' })
+    actions.openRightTab(session, { id: 'viewer:/work/b.md', kind: 'viewer', path: '/work/b.md' })
+    expect(store.getSnapshot().rightPanels['s1']?.tabs.map(tab => tab.id)).toEqual([
+      'home', 'files', 'viewer:/work/a.md', 'viewer:/work/b.md',
+    ])
+
+    actions.activateRightTab(session, 'home')
+    expect(store.getSnapshot().rightPanels['s1']?.activeTabId).toBe('home')
+    // An unknown tab and an unknown session are ignored.
+    actions.activateRightTab(session, 'missing')
+    expect(store.getSnapshot().rightPanels['s1']?.activeTabId).toBe('home')
+    actions.activateRightTab('s2' as SessionId, 'home')
+    expect(store.getSnapshot().rightPanels['s2']).toBeUndefined()
+
+    // Closing the active tab activates its previous neighbour.
+    actions.activateRightTab(session, 'viewer:/work/b.md')
+    actions.closeRightTab(session, 'viewer:/work/b.md')
+    expect(store.getSnapshot().rightPanels['s1']?.activeTabId).toBe('viewer:/work/a.md')
+
+    // Closing the active first tab falls to the new first one.
+    actions.activateRightTab(session, 'home')
+    actions.closeRightTab(session, 'home')
+    expect(store.getSnapshot().rightPanels['s1']?.activeTabId).toBe('files')
+
+    // Closing a non-active tab leaves the active one alone; unknown ids and
+    // sessions write nothing.
+    actions.closeRightTab(session, 'viewer:/work/a.md')
+    expect(store.getSnapshot().rightPanels['s1']?.activeTabId).toBe('files')
+    actions.closeRightTab(session, 'missing')
+    actions.closeRightTab('s2' as SessionId, 'home')
+    expect(store.getSnapshot().rightPanels['s1']?.tabs.map(tab => tab.id)).toEqual(['files'])
+
+    // The last close leaves the session bucket empty and inactive.
+    actions.closeRightTab(session, 'files')
+    expect(store.getSnapshot().rightPanels['s1']).toEqual({ tabs: [], activeTabId: null, files: {} })
+  })
+
+  it('keeps one files tree per files tab and ignores writers without a bucket', () => {
+    const { actions, store } = createBoardStore().create()
+
+    // Every writer is a no-op until a bucket exists.
+    actions.filesLoading(session, 'files', '/root')
+    actions.filesLoaded(session, 'files', '/root', { entries: [], truncated: false })
+    actions.filesFailed(session, 'files', '/root', 'code', 'message')
+    actions.filesToggle(session, 'files', '/root')
+    actions.filesReset(session, 'files')
+    expect(store.getSnapshot().rightPanels).toEqual({})
+
+    // Start seeds the root as expanded and is idempotent.
+    actions.filesStart(session, 'files', '/root')
+    actions.filesStart(session, 'files', '/other')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']).toEqual({
+      root: '/root', levels: {}, expanded: ['/root'],
+    })
+
+    actions.filesToggle(session, 'files', '/root/sub')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.expanded).toEqual(['/root', '/root/sub'])
+    actions.filesToggle(session, 'files', '/root/sub')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.expanded).toEqual(['/root'])
+
+    actions.filesLoading(session, 'files', '/root')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.levels['/root']).toEqual({ kind: 'loading' })
+    actions.filesLoaded(session, 'files', '/root', {
+      entries: [{ name: 'a.txt', type: 'file' }], truncated: true,
+    })
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.levels['/root']).toEqual({
+      kind: 'ready', entries: [{ name: 'a.txt', type: 'file' }], truncated: true,
+    })
+    actions.filesFailed(session, 'files', '/root/sub', 'workspace-file/not-found', 'missing')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.levels['/root/sub']).toEqual({
+      kind: 'failed', code: 'workspace-file/not-found', message: 'missing',
+    })
+
+    actions.filesReset(session, 'files')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']?.levels).toEqual({})
+
+    // Closing the tab takes its tree with it.
+    actions.openRightTab(session, { id: 'files', kind: 'files' })
+    actions.closeRightTab(session, 'files')
+    expect(store.getSnapshot().rightPanels['s1']?.files['files']).toBeUndefined()
   })
 })

@@ -2,6 +2,8 @@
  * Spatial multi-window board store.
  */
 import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@deepseek-ai/dsh-client-store'
+import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { CloneEdit } from './clone-draft.ts'
 import {
@@ -66,6 +68,38 @@ export interface ComposerIntent {
   readonly pickFiles?: boolean
 }
 
+/** One tab of a window's right panel. */
+export interface BoardRightPanelTab {
+  /** 'home', 'files', or `viewer:<absolute path>`; the id is the dedupe key. */
+  readonly id: string
+  readonly kind: 'home' | 'files' | 'viewer'
+  /** Absolute path of a viewer tab. */
+  readonly path?: string
+}
+
+/** One directory level of a files tab. */
+export type BoardFilesLevel =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly entries: readonly WorkspaceDirectoryEntry[]; readonly truncated: boolean }
+  | { readonly kind: 'failed'; readonly code: string; readonly message: string }
+
+/** One files tab's tree (mirrors ui-sidebar-files' state). */
+export interface BoardFilesTabState {
+  /** Absolute workspace root. */
+  readonly root: string
+  /** Level state by absolute directory path. */
+  readonly levels: Record<string, BoardFilesLevel>
+  /** Expanded absolute directory paths, root included. */
+  readonly expanded: string[]
+}
+
+/** One session's right-panel tabs and files trees. */
+export interface BoardRightPanelState {
+  tabs: BoardRightPanelTab[]
+  activeTabId: string | null
+  files: Record<string, BoardFilesTabState>
+}
+
 type BoardActions = {
   setPan: (draft: BoardState, panX: number, panY: number) => void
   /** Shift the view by one screen-pixel pan delta; the stored pan moves by its negation. */
@@ -102,6 +136,37 @@ type BoardActions = {
   setWindowPanel: (draft: BoardState, id: WindowId, side: 'left' | 'right', open: boolean) => void
   /** Store one panel's width, clamped to its side's range. */
   setWindowPanelWidth: (draft: BoardState, id: WindowId, side: 'left' | 'right', width: number) => void
+  /** Open one right-panel tab of a session, or activate the tab with the same id. */
+  openRightTab: (draft: BoardState, sessionId: SessionId, tab: BoardRightPanelTab) => void
+  /** Activate one open right-panel tab; an id the session does not hold is ignored. */
+  activateRightTab: (draft: BoardState, sessionId: SessionId, tabId: string) => void
+  /** Close one right-panel tab and activate its nearest remaining neighbour. */
+  closeRightTab: (draft: BoardState, sessionId: SessionId, tabId: string) => void
+  /** Seed one files tab's tree at its workspace root, root expanded. */
+  filesStart: (draft: BoardState, sessionId: SessionId, tabId: string, root: string) => void
+  /** Mark one directory level as being listed. */
+  filesLoading: (draft: BoardState, sessionId: SessionId, tabId: string, path: string) => void
+  /** Record one directory level's contents. */
+  filesLoaded: (
+    draft: BoardState,
+    sessionId: SessionId,
+    tabId: string,
+    path: string,
+    level: { readonly entries: readonly WorkspaceDirectoryEntry[]; readonly truncated: boolean },
+  ) => void
+  /** Record why one directory level could not be listed. */
+  filesFailed: (
+    draft: BoardState,
+    sessionId: SessionId,
+    tabId: string,
+    path: string,
+    code: string,
+    message: string,
+  ) => void
+  /** Open or collapse one directory of a files tab. */
+  filesToggle: (draft: BoardState, sessionId: SessionId, tabId: string, path: string) => void
+  /** Drop one files tab's loaded levels, keeping what is expanded. */
+  filesReset: (draft: BoardState, sessionId: SessionId, tabId: string) => void
   setPanelGroupBy: (draft: BoardState, groupBy: BoardPanelGroupBy) => void
   setPanelOrderBy: (draft: BoardState, orderBy: BoardPanelOrderBy) => void
   /** Open or close one group node of the working-folders tree. */
@@ -225,6 +290,12 @@ export interface BoardState {
    * layout document does not carry it: a reload starts from the stored record.
    */
   cloneEdits: Record<string, CloneEdit>
+  /**
+   * Right-panel tabs and files trees per session, in memory only. The tabs
+   * belong to the Session, not the window: rebinding a window to another
+   * session shows that session's tabs, and switching back restores them.
+   */
+  rightPanels: Record<string, BoardRightPanelState>
 }
 
 /**
@@ -399,6 +470,30 @@ function draftWindowDraft(draft: BoardState, windowId: WindowId): BoardWindowDra
 }
 
 /**
+ * One session's right-panel bucket, created empty on first use.
+ * @param draft - the board draft.
+ * @param sessionId - session whose panel is written.
+ * @returns the session's bucket.
+ */
+function rightPanelBucket(draft: BoardState, sessionId: SessionId): BoardRightPanelState {
+  const existing = draft.rightPanels[sessionId]
+  if (existing !== undefined) return existing
+  draft.rightPanels[sessionId] = { tabs: [], activeTabId: null, files: {} }
+  return draft.rightPanels[sessionId]
+}
+
+/**
+ * One files tab's tree, or undefined when the session or tab has none.
+ * @param draft - the board draft.
+ * @param sessionId - session whose panel is read.
+ * @param tabId - id of the files tab.
+ * @returns the tab's tree state, when it exists.
+ */
+function rightPanelFiles(draft: BoardState, sessionId: SessionId, tabId: string): BoardFilesTabState | undefined {
+  return draft.rightPanels[sessionId]?.files[tabId]
+}
+
+/**
  * Rewrite every window's z-index from the current paint order. The band is
  * finite so windows never reach the floating chrome above it; past the last
  * distinct slot (more than {@link WINDOW_Z_MAX} windows) windows share the top
@@ -494,6 +589,7 @@ export function createBoardStore(): BoardStoreHandle {
       returnWindowId: null,
       highlightWindowId: null,
       cloneEdits: {},
+      rightPanels: {},
     }),
     actions: {
       setPan: (draft, panX, panY) => {
@@ -651,6 +747,59 @@ export function createBoardStore(): BoardStoreHandle {
           : Math.min(PANEL_RIGHT_MAX_WIDTH, Math.max(PANEL_RIGHT_MIN_WIDTH, Math.round(width)))
         if (side === 'left') win.leftPanelWidth = clamped
         else win.rightPanelWidth = clamped
+      },
+      openRightTab: (draft, sessionId, tab) => {
+        const bucket = rightPanelBucket(draft, sessionId)
+        if (!bucket.tabs.some(existing => existing.id === tab.id)) bucket.tabs.push(tab)
+        bucket.activeTabId = tab.id
+      },
+      activateRightTab: (draft, sessionId, tabId) => {
+        const bucket = draft.rightPanels[sessionId]
+        if (bucket === undefined || !bucket.tabs.some(tab => tab.id === tabId)) return
+        bucket.activeTabId = tabId
+      },
+      closeRightTab: (draft, sessionId, tabId) => {
+        const bucket = draft.rightPanels[sessionId]
+        if (bucket === undefined) return
+        const index = bucket.tabs.findIndex(tab => tab.id === tabId)
+        if (index < 0) return
+        bucket.tabs.splice(index, 1)
+        Reflect.deleteProperty(bucket.files, tabId)
+        if (bucket.activeTabId !== tabId) return
+        bucket.activeTabId = bucket.tabs[index - 1]?.id ?? bucket.tabs[0]?.id ?? null
+      },
+      filesStart: (draft, sessionId, tabId, root) => {
+        const bucket = rightPanelBucket(draft, sessionId)
+        if (bucket.files[tabId] !== undefined) return
+        bucket.files[tabId] = { root, levels: {}, expanded: [root] }
+      },
+      filesLoading: (draft, sessionId, tabId, path) => {
+        const files = rightPanelFiles(draft, sessionId, tabId)
+        if (files === undefined) return
+        files.levels[path] = { kind: 'loading' }
+      },
+      filesLoaded: (draft, sessionId, tabId, path, level) => {
+        const files = rightPanelFiles(draft, sessionId, tabId)
+        if (files === undefined) return
+        files.levels[path] = { kind: 'ready', entries: level.entries, truncated: level.truncated }
+      },
+      filesFailed: (draft, sessionId, tabId, path, code, message) => {
+        const files = rightPanelFiles(draft, sessionId, tabId)
+        if (files === undefined) return
+        files.levels[path] = { kind: 'failed', code, message }
+      },
+      filesToggle: (draft, sessionId, tabId, path) => {
+        const files = rightPanelFiles(draft, sessionId, tabId)
+        if (files === undefined) return
+        const at = files.expanded.indexOf(path)
+        if (at >= 0) files.expanded.splice(at, 1)
+        else files.expanded.push(path)
+      },
+      filesReset: (draft, sessionId, tabId) => {
+        const bucket = draft.rightPanels[sessionId]
+        const files = bucket?.files[tabId]
+        if (bucket === undefined || files === undefined) return
+        bucket.files[tabId] = { root: files.root, levels: {}, expanded: [...files.expanded] }
       },
       setPanelGroupBy: (draft, groupBy) => {
         draft.panelGroupBy = groupBy

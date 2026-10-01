@@ -45,6 +45,9 @@
       "path": "../ui-sidebar"
     },
     {
+      "path": "../ui-sidebar-documentpreview"
+    },
+    {
       "path": "../ui-slots"
     },
     {
@@ -61,6 +64,12 @@
     },
     {
       "path": "../../api/workspace-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/workspace-files/tsconfig.client.json"
+    },
+    {
+      "path": "../../util/workspace-path"
     },
     {
       "path": "../ui-settings"

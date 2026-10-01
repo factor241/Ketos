@@ -95,6 +95,47 @@ export interface BoardBenchOptions {
     /** Selection spy; the default accepts every selection. */
     readonly select?: (selection: { provider: string; model: string; reasoningEffort?: string }) => Promise<void>
   }
+  /** Workspace file reads the right panel's files tab and viewer perform. */
+  readonly workspaceFiles?: {
+    readonly list?: (sessionId: SessionId, path: string, signal?: AbortSignal) => Promise<unknown>
+    readonly read?: (sessionId: SessionId, path: string, range: unknown, signal?: AbortSignal) => Promise<unknown>
+    readonly readAll?: (sessionId: SessionId, path: string, signal?: AbortSignal) => Promise<unknown>
+  }
+  /** Document-preview registry double overrides; the default matches by extension. */
+  readonly documentPreviews?: {
+    readonly candidates?: (path: string) => readonly unknown[]
+  }
+}
+
+/** One document-preview definition as the board's projected face reads it. */
+interface DocumentPreviewDouble {
+  readonly id: string
+  readonly extensions: readonly string[]
+  readonly priority: 'builtin'
+  readonly title: () => string
+  readonly loading: 'bytes-complete' | 'text-pages'
+}
+
+/** Suffixes the bench's default preview double reads as complete bytes. */
+const BENCH_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'] as const
+
+/**
+ * Default preview registry double: images and PDFs read complete bytes, every
+ * other path reads a page of text.
+ * @param path - file path the panel is about to view.
+ * @returns the matching definitions in automatic-selection order.
+ */
+function defaultPreviewCandidates(path: string): readonly DocumentPreviewDouble[] {
+  const name = path.replaceAll('\\', '/').toLowerCase()
+  const base = name.slice(name.lastIndexOf('/') + 1)
+  const extension = base.includes('.') ? base.slice(base.lastIndexOf('.') + 1) : ''
+  if ((BENCH_IMAGE_EXTENSIONS as readonly string[]).includes(extension)) {
+    return [{ id: 'image', extensions: BENCH_IMAGE_EXTENSIONS, priority: 'builtin', title: () => 'Image', loading: 'bytes-complete' }]
+  }
+  if (extension === 'pdf') {
+    return [{ id: 'pdf', extensions: ['pdf'], priority: 'builtin', title: () => 'PDF', loading: 'bytes-complete' }]
+  }
+  return [{ id: 'text', extensions: [], priority: 'builtin', title: () => 'Text', loading: 'text-pages' }]
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -377,10 +418,25 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   }
   const settingsScope = createSettingsScopeDouble(options.settingsView)
   runtime.ctx.provide('settingsScope', { describe: () => settingsScope.face } as never)
+  // Workspace file reads the right panel performs: a listing, a page of text,
+  // and complete bytes. Every verb accepts the producer's signal.
+  const workspaceFiles = {
+    list: options.workspaceFiles?.list
+      ?? (async () => ({ ok: true as const, value: { path: '', entries: [], truncated: false } })),
+    read: options.workspaceFiles?.read
+      ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 1, text: '', lines: 0, eof: true } })),
+    readAll: options.workspaceFiles?.readAll
+      ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 0, data: '', eof: true } })),
+  }
+  // The document-preview registry the board's `documentPreviewFor` reads.
+  runtime.ctx.provide('documentPreviews', {
+    candidates: options.documentPreviews?.candidates ?? defaultPreviewCandidates,
+  } as never)
   const remote = {
     // Remote change events: the board subscribes for settings-driven refreshes.
     $on: () => () => {},
     settings,
+    workspaceFiles,
     agentPresets: {
       list: options.agentPresets?.list
         ?? (async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: true } })),
@@ -413,7 +469,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
   }))
   runtime.ctx.provide('remote.settings', settings as never)
-  for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.session']) {
+  for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.session', 'remote.workspaceFiles']) {
     runtime.ctx.provide(name, {} as never)
   }
 

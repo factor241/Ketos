@@ -14,9 +14,10 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
+import { FileTypeIcon, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MarkdownFileMentions, MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconChevronUpOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { pathPartsOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   AssistantBlock, ChatSnapshot, ConversationNode, ToolResultNode,
@@ -138,17 +139,18 @@ function observedRpcIds(chat: ChatSnapshot): ReadonlySet<string> {
 }
 
 /** One prose row; memoized on primitive props so a streamed chunk leaves it alone. */
-const LaneMessage = memo(function LaneMessage({ kind, text, labels }: {
+const LaneMessage = memo(function LaneMessage({ kind, text, labels, mentions }: {
   readonly kind: 'user' | 'steering' | 'assistant'
   readonly text: string
   readonly labels: MarkdownLabels
+  readonly mentions: MarkdownFileMentions | undefined
 }) {
   return (
     <div
       className={clsx(css.message, kind === 'assistant' ? css.assistant : css.user)}
       data-board-message={kind}
     >
-      {kind === 'assistant' ? <MarkdownText text={text} labels={labels} /> : text}
+      {kind === 'assistant' ? <MarkdownText text={text} labels={labels} fileMentions={mentions} /> : text}
     </div>
   )
 })
@@ -265,8 +267,10 @@ function pendingTitle(t: BoardTranslate, kind: string): string {
 export function ConversationBody({
   window: cardWindow, t, useStore, actions, useWindowSession, useSessionPendingInteraction, ...injected
 }: ConversationBodyProps) {
-  // `injected` stays whole for the composer; the window creation callback rides it.
+  // `injected` stays whole for the composer; the window creation and file
+  // openers ride it.
   const ensureWindowSession = injected.ensureWindowSession
+  const openFileInPanel = injected.openFileInPanel
   const session = useWindowSession(cardWindow.id)
   const sessionId = session?.sessionId
   // The pending approval or question of the window's session, owned by the root
@@ -349,6 +353,24 @@ export function ConversationBody({
     footnotes: t('markdown.footnotes'),
   }), [t])
 
+  // Lane file mentions: an inline-code token that looks like a path opens a
+  // viewer tab in this window's right panel (Т3.10). The memo keeps the
+  // markdown renderer's streaming cache key stable between chunks.
+  const fileMentions = useMemo<MarkdownFileMentions>(() => ({
+    resolve: (token) => {
+      if (sessionId === undefined || !token.includes('/') || /\s/.test(token)) return undefined
+      return {
+        open: () => { openFileInPanel(cardWindow.id, token) },
+        label: t('right.openFile', { path: token }),
+        title: token,
+      }
+    },
+  }), [sessionId, openFileInPanel, cardWindow.id, t])
+
+  const openToolFile = useCallback((path: string): void => {
+    openFileInPanel(cardWindow.id, path)
+  }, [openFileInPanel, cardWindow.id])
+
   // The lane and composer fill the window body.
 
   const handleScroll = (): void => {
@@ -430,7 +452,7 @@ export function ConversationBody({
               <button
                 type="button"
                 data-board-action="lane-choose-chat"
-                onClick={() => { actions.openWindowPanel(cardWindow.id) }}
+                onClick={() => { actions.setWindowPanel(cardWindow.id, 'left', true) }}
               >
                 {t('conversation.chooseChat')}
               </button>
@@ -453,6 +475,7 @@ export function ConversationBody({
                   canRepeat={session?.hasMore === true}
                   onRepeat={loadOlder}
                   loadImage={loadToolImage}
+                  openFile={openToolFile}
                 />
               )
             case 'turn-error':
@@ -467,7 +490,15 @@ export function ConversationBody({
                 />
               )
             default:
-              return <LaneMessage key={row.key} kind={row.kind} text={row.text} labels={markdownLabels} />
+              return (
+                <LaneMessage
+                  key={row.key}
+                  kind={row.kind}
+                  text={row.text}
+                  labels={markdownLabels}
+                  mentions={fileMentions}
+                />
+              )
           }
         })}
 
@@ -541,18 +572,26 @@ export function ConversationBody({
 
       {artifacts.length > 0 && (
         <div className={css.artifactsStrip} data-board-artifacts-strip="">
-          <button
-            type="button"
-            className={css.artifactsStripToggle}
-            data-board-action="artifacts-strip-toggle"
-            aria-label={t('artifacts.count', { n: artifacts.length })}
-            onClick={() => {
-              actions.openWindowPanel(cardWindow.id, 'artifacts')
-            }}
-          >
+          <span className={css.artifactsStripCount}>
             <span className={css.artifactsStripBadge}>{artifacts.length}</span>
-            <span className={css.artifactsStripText}>{t('artifacts.count', { n: artifacts.length })}</span>
-          </button>
+            <span className={css.artifactsStripText} aria-label={t('artifacts.count', { n: artifacts.length })}>
+              {t('artifacts.count', { n: artifacts.length })}
+            </span>
+          </span>
+          {artifacts.map(artifact => (
+            <button
+              key={artifact.path}
+              type="button"
+              className={css.artifactsChip}
+              data-board-action="artifact-open"
+              data-board-artifact={artifact.path}
+              title={artifact.path}
+              onClick={() => { openFileInPanel(cardWindow.id, artifact.path) }}
+            >
+              <FileTypeIcon path={artifact.path} size={14} />
+              <span className={css.artifactsChipName}>{pathPartsOf(artifact.path).name}</span>
+            </button>
+          ))}
         </div>
       )}
 

@@ -201,3 +201,39 @@
   corner-shape: round;
   background: var(--dsw-alias-bg-layer-1);
 }
+
+/* File links: the file names one card names open a viewer tab in the window's
+   right panel (Т3.10). */
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.fileChip:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.fileChipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

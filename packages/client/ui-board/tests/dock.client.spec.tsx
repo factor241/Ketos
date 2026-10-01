@@ -419,7 +419,8 @@ describe('board dock', () => {
     const dock = runtime.storeOf('board.dock') as BoardInstance
     act(() => { dock.actions.openWindow(windowState({ id: 'a2' as WindowId, ordinal: 3 })) })
     await runtime.flush()
-    fireEvent.click(panel.view.getAllByLabelText('Expand the chats panel').at(-1) as Element)
+    // The topmost window is the last frame in paint order.
+    fireEvent.click([...panel.container.querySelectorAll('[data-board-action="window-left-panel"]')].at(-1) as Element)
     await runtime.flush()
     const openPanel = panel.container.querySelector('[data-board-panel]:not([aria-hidden="true"])')
     if (!(openPanel instanceof HTMLElement)) throw new Error('the chats panel did not open')
@@ -569,14 +570,14 @@ describe('board dock', () => {
       .toHaveLength(2)
     const before = dock()?.getBoundingClientRect()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     // The dock keeps its place; the minimap stands down.
     expect(dock()).not.toBeNull()
     expect(dock()?.getBoundingClientRect()).toEqual(before)
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-layer="dock"], [data-board-layer="minimap"]'))
       .toHaveLength(2)

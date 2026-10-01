@@ -77,7 +77,7 @@ describe('window title', () => {
 
     // The real user path: open the window's chats panel, drill into the
     // ungrouped project, and pick the other chat.
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(panel.view.getByText('Ungrouped'))
     await prepared.runtime.flush()
@@ -198,7 +198,7 @@ describe('window title', () => {
     await prepared.runtime.flush()
     expect(headerTitle(panel)).toBe('Chat one')
 
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(panel.view.getByText('Ungrouped'))
     await prepared.runtime.flush()
@@ -215,7 +215,7 @@ describe('window title', () => {
     expect(renamed).toEqual(['Склад'])
     expect(headerTitle(panel)).toBe('Склад')
     // The dock stands down while the chats panel is open; collapse it to read the row.
-    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await prepared.runtime.flush()
     expect((panel.container.querySelector('[data-board-action="dock-row"]') as Element).getAttribute('data-board-title')).toBe('Склад')
   })
@@ -235,7 +235,7 @@ describe('window title', () => {
     act(() => { store.actions.openWindow({ id: 'a1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 4, width: 552, height: 648 }) })
     await prepared.runtime.flush()
 
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(panel.view.getByText('Ungrouped'))
     await prepared.runtime.flush()

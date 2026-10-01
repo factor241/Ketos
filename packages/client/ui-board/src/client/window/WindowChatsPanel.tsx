@@ -27,7 +27,7 @@ import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor } from '../chat-list-model.ts'
 import { sessionArtifacts } from './artifacts-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
-import { panelPresentation, panelWidthFor, railRect, windowedPanelRect } from './panel-geometry.ts'
+import { panelPresentation, panelWidthFor, windowedPanelRect } from './panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
 export type WindowChatsPanelProps =
@@ -83,7 +83,6 @@ function WindowChatsPanelView({
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
   listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath, t,
-  detailZoomThreshold,
 }: WindowChatsPanelProps) {
   const mounted = useStore(s => s.panelWindowId === cardWindow.id)
   const collapsed = useStore(s => s.panelCollapsed)
@@ -92,9 +91,6 @@ function WindowChatsPanelView({
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
-  // Below the detail threshold the frame shows its simplified card; the rail
-  // would be unreadable and untargetable there (Д6.1, П-18).
-  const belowDetail = useStore(s => s.zoom < detailZoomThreshold)
   const open = mounted && !collapsed
   const { panX, zoom, width: viewportWidth } = useStore(
     // Geometry only while the panel is open: a collapsed rail does not follow
@@ -187,7 +183,6 @@ function WindowChatsPanelView({
   const rect = windowedPanelRect(cardWindow, view, width)
   // The collapsed rail hugs the frame's edge, so the panel stays one click
   // away without a duplicate header button.
-  const rail = railRect(cardWindow, side)
 
   const startGesture = useBoardPointerGesture()
 
@@ -435,45 +430,8 @@ function WindowChatsPanelView({
     createChat(cardWindow.id, project.cwd === '' ? {} : { cwd: project.cwd })
   }
 
-  const railButton = (label: string, icon: ReactNode, onClick: () => void, action: string): ReactNode => (
-    <Tooltip label={label} side="right">
-      <button type="button" data-board-action={action} className={css.railButton} aria-label={label} onClick={onClick}>
-        {icon}
-      </button>
-    </Tooltip>
-  )
-
   return (
     <>
-      {!open && !belowDetail && (
-        <div
-          data-board-panel-rail=""
-          data-board-culled={hidden ? '' : undefined}
-          className={clsx(css.rail, hidden && css.hidden)}
-          style={{ left: rail.left, top: rail.top, width: rail.width, height: rail.height }}
-        >
-          {railButton(t('panel.expand'), <IconPanelLeftOutline16 />, () => { actions.openWindowPanel(cardWindow.id) }, 'panel-rail-expand')}
-          {railButton(t('panel.newChat'), <IconNewChatOutline16 />, () => {
-            actions.openWindowPanel(cardWindow.id)
-            setLevel({ kind: 'projects' })
-            void startChat(cardWindow.id).catch(report)
-          }, 'panel-rail-new-chat')}
-          {railButton(t('panel.addFolder'), <IconProjectAddOutline16 />, () => {
-            actions.openWindowPanel(cardWindow.id)
-            setLevel({ kind: 'browse' })
-          }, 'panel-rail-add-folder')}
-          {railButton(t('panel.railArtifacts'), <FileTypeIcon path="artifacts.txt" size={16} />, () => {
-            actions.openWindowPanel(cardWindow.id, 'artifacts')
-            setLevel({ kind: 'chats', workspaceId: activeWorkspaceId })
-          }, 'panel-rail-artifacts')}
-          {railButton(t('panel.search'), <IconSearchOutline16 />, () => {
-            actions.openWindowPanel(cardWindow.id)
-            setLevel({ kind: 'projects' })
-            setSearchOpen(true)
-          }, 'panel-rail-search')}
-        </div>
-      )}
-
       <div
         data-board-panel={presentation.kind}
         data-board-panel-side={presentation.kind === 'beside' ? side : undefined}

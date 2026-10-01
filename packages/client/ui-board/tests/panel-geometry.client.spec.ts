@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PANEL_RAIL_HEIGHT, PANEL_RAIL_WIDTH,
-  panelPresentation, panelWidthFor, railRect, windowedPanelRect,
+  PANEL_MAX_WIDTH, PANEL_MIN_WIDTH,
+  panelPresentation, panelWidthFor, windowedPanelRect,
 } from '../src/client/window/panel-geometry.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -52,17 +52,5 @@ describe('windowedPanelRect', () => {
     const covered = { ...WINDOW, x: 0, width: 2000 }
     expect(panelPresentation(covered, VIEW, 320)).toEqual({ kind: 'overlay' })
     expect(windowedPanelRect(covered, VIEW, 320)).toEqual({ left: 0, top: WINDOW.y, width: 320, height: WINDOW.height })
-  })
-})
-
-describe('railRect', () => {
-  it('centres the compact rail on the frame edge it opens from', () => {
-    expect(railRect(WINDOW, 'left')).toEqual({
-      left: WINDOW.x - PANEL_RAIL_WIDTH,
-      top: WINDOW.y + (WINDOW.height - PANEL_RAIL_HEIGHT) / 2,
-      width: PANEL_RAIL_WIDTH,
-      height: PANEL_RAIL_HEIGHT,
-    })
-    expect(railRect(WINDOW, 'right').left).toBe(WINDOW.x + WINDOW.width)
   })
 })

@@ -17,7 +17,7 @@
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseOutline16, IconFullscreenOutline16, StateDot, Tooltip,
+  IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
@@ -275,6 +275,7 @@ function WindowFrameView({
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
   const panelWindowId = useStore(s => s.panelWindowId)
   const panelCollapsed = useStore(s => s.panelCollapsed)
+  const panelTab = useStore(s => s.panelTab)
   // Culled windows stay mounted: their lane, draft,
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
@@ -351,6 +352,21 @@ function WindowFrameView({
               <IconCloseOutline16 />
             </button>
           </Tooltip>
+          {/* The window's two panels replace the old rail: the left one holds
+              the working folders, the right one the file tabs (Т3.2). */}
+          {hasPanel && (
+            <Tooltip label={t('window.leftPanel')} side="bottom">
+              <button
+                type="button"
+                data-board-action="window-left-panel"
+                onClick={() => { actions.openWindowPanel(cardWindow.id) }}
+                className={clsx(css.headerButton, isPanelOpen && panelTab === 'chats' && css.headerButtonActive)}
+                aria-label={t('window.leftPanel')}
+              >
+                <IconPanelLeftOutline16 />
+              </button>
+            </Tooltip>
+          )}
           <WindowTitleControl
             window={cardWindow}
             t={t}
@@ -359,19 +375,34 @@ function WindowFrameView({
             useCloneList={useCloneList}
           />
         </div>
-        {features?.fullscreen === true && (
+        {(hasPanel || features?.fullscreen === true) && (
           <div className={css.headerRight}>
-            <Tooltip label={t('window.fullscreen')} side="bottom">
-              <button
-                type="button"
-                data-board-action="window-fullscreen"
-                onClick={() => { expandToStandard(cardWindow.id) }}
-                className={css.headerButton}
-                aria-label={t('window.fullscreen')}
-              >
-                <IconFullscreenOutline16 />
-              </button>
-            </Tooltip>
+            {hasPanel && (
+              <Tooltip label={t('window.rightPanel')} side="bottom">
+                <button
+                  type="button"
+                  data-board-action="window-right-panel"
+                  onClick={() => { actions.openWindowPanel(cardWindow.id, 'artifacts') }}
+                  className={clsx(css.headerButton, isPanelOpen && panelTab === 'artifacts' && css.headerButtonActive)}
+                  aria-label={t('window.rightPanel')}
+                >
+                  <IconPanelLeftOutline16 className={css.panelRightIcon} />
+                </button>
+              </Tooltip>
+            )}
+            {features.fullscreen === true && (
+              <Tooltip label={t('window.fullscreen')} side="bottom">
+                <button
+                  type="button"
+                  data-board-action="window-fullscreen"
+                  onClick={() => { expandToStandard(cardWindow.id) }}
+                  className={css.headerButton}
+                  aria-label={t('window.fullscreen')}
+                >
+                  <IconFullscreenOutline16 />
+                </button>
+              </Tooltip>
+            )}
           </div>
         )}
       </WindowHeaderDrag>

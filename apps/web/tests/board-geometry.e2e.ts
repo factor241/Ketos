@@ -1014,21 +1014,9 @@ describe('web e2e: spatial board geometry', () => {
     if (before.dock === null) throw new Error('dock box is missing')
     const dock1 = before.dock
     try {
-      // The rail is a sibling of the frames inside the canvas layer (world
-      // coordinates), not a child of the frame, and its DOM order follows the
-      // paint stack: click whichever rail the current view actually shows.
-      const railPoint = await page.evaluate(() => {
-        const buttons = [...document.querySelectorAll('[data-board-panel-rail] [data-board-action="panel-rail-expand"]')]
-        const button = buttons.find((element) => {
-          const rect = element.getBoundingClientRect()
-          return rect.width > 0 && rect.left >= 0 && rect.right <= window.innerWidth
-            && rect.top >= 0 && rect.bottom <= window.innerHeight
-        })
-        if (button === undefined) throw new Error('no panel rail is inside the viewport')
-        const rect = button.getBoundingClientRect()
-        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-      })
-      await page.mouse.click(railPoint.x, railPoint.y)
+      // The window's own header carries the panel control now (Т3.2).
+      await page.locator(`[data-board-window-id="${WINDOW_A}"] [data-board-action="window-left-panel"]`)
+        .click({ timeout: 2_000 })
       await settle(page)
       const open = await measureFloating(page)
       expect({
@@ -1043,7 +1031,7 @@ describe('web e2e: spatial board geometry', () => {
     }
   }, 60_000)
 
-  it.fails('Т3.1/Т3.2: a chat window has no rail and its header carries both panel buttons', async () => {
+  it('Т3.1/Т3.2: a chat window has no rail and its header carries both panel buttons', async () => {
     await clickResetView(page)
     const header = await page.evaluate((id) => {
       const frame = document.querySelector(`[data-board-window-id="${id}"]`)

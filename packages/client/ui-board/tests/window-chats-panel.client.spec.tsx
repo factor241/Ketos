@@ -101,7 +101,7 @@ async function openChatsPanel(options: Parameters<typeof createBoardBench>[0] = 
   const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
   act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
   await prepared.runtime.flush()
-  fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+  fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
   await prepared.runtime.flush()
   return { prepared, panel, board }
 }
@@ -146,7 +146,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
 
     // Navigate to MyProject group
@@ -187,7 +187,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('MyProject'))
     await runtime.flush()
@@ -223,7 +223,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = prepared.runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await prepared.runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await prepared.runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
     await prepared.runtime.flush()
@@ -263,7 +263,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     const board = runtime.storeOf('board.dock') as unknown as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-add-folder"]') as Element)
     await runtime.flush()
@@ -325,7 +325,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel and go to MyProject
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('MyProject'))
     await runtime.flush()
@@ -391,7 +391,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Panel is closed initially; click rail artifacts button
-    const railBtn = panel.container.querySelector('[data-board-action="panel-rail-artifacts"]') as Element
+    const railBtn = panel.container.querySelector('[data-board-action="window-right-panel"]') as Element
     expect(railBtn).not.toBeNull()
     fireEvent.click(railBtn)
     await runtime.flush()
@@ -473,7 +473,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
     await runtime.flush()
 
     // Open chats panel and browse folder
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
     await runtime.flush()
@@ -518,7 +518,7 @@ describe('WindowChatsPanel project path and artifacts', () => {
 })
 
 describe('WindowChatsPanel list controls', () => {
-  it('opens the projects level with the search field from the rail search button', async () => {
+  it('opens the projects level with the search field from the panel header', async () => {
     const { prepared, panel } = await openChatsPanel({ session: {} })
     const { runtime } = prepared
     await runtime.workspaces.update((draft) => {
@@ -530,7 +530,13 @@ describe('WindowChatsPanel list controls', () => {
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-search"]') as Element)
+    // The window header control is the only way back in; walking back to the
+    // projects level reveals the panel's own search control.
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[class*="back"]') as Element)
+    await runtime.flush()
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-search"]') as Element)
     await runtime.flush()
 
     expect(panel.container.querySelector('[data-board-row-edit="search"] input')).not.toBeNull()

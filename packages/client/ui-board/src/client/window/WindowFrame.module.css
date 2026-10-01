@@ -158,6 +158,17 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The panel toggle of the side whose panel is open reads as pressed. */
+.headerButtonActive {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The left panel's glyph mirrored: the divider moves to the right side. */
+.panelRightIcon {
+  transform: scaleX(-1);
+}
+
 /* The name is the rename trigger: a text-weight button that takes the header's
    remaining width, so a long chat title elides instead of pushing the controls. */
 .titleButton {

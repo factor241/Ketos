@@ -499,7 +499,7 @@ describe('board slot composition', () => {
     expect(title()).toBe('Chat two')
   })
 
-  it('keeps a rail for every chat window and opens the panel beside the frame', async () => {
+  it('opens the panel beside the frame from the window header control', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -511,13 +511,14 @@ describe('board slot composition', () => {
     })
     await runtime.flush()
 
-    // The rail keeps the panel one click away while the panel itself is hidden.
-    const rail = panel.container.querySelector('[data-board-panel-rail]') as HTMLElement
-    expect(rail).not.toBeNull()
+    // The header control keeps the panel one click away while it is closed;
+    // every chat window carries its own.
     const hidden = panel.container.querySelector('[data-board-panel]') as HTMLElement
     expect(hidden.getAttribute('data-board-panel-open')).toBeNull()
+    expect(panel.container.querySelector('[data-board-action="window-left-panel"]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-action="window-right-panel"]')).not.toBeNull()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     const shown = panel.container.querySelector('[data-board-panel]') as HTMLElement
     const window = board.store.getSnapshot().windows['a1'] as BoardWindowState
@@ -556,14 +557,14 @@ describe('board slot composition', () => {
     expect(board.store.getSnapshot().panelWidth).toBe(beforeDrag + 40)
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
 
-    // The collapse control lives in the panel's own header.
-    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    // The collapse control lives in the panel's own header; the header's own
+    // button brings the panel back.
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
-    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
 
     // Escape closes the panel first and leaves the window alone.
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.keyDown(document, { key: 'Escape' })
     await runtime.flush()
@@ -596,7 +597,7 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('Two'))
     await runtime.flush()
@@ -695,7 +696,7 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.view.getByText('Two'))
     await runtime.flush()
@@ -738,7 +739,7 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
     await runtime.flush()
@@ -766,7 +767,7 @@ describe('board slot composition', () => {
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Add a folder…"]') as Element)
     await runtime.flush()
@@ -894,11 +895,11 @@ describe('board slot composition', () => {
     })
     await runtime.flush()
     const frame = panel.container.querySelector('[data-board-window="agent"]') as HTMLElement
-    // Detail mode at zoom 1: the card is absent, the frame handles and the
-    // chats rail are present.
+    // Detail mode at zoom 1: the card is absent, and the frame handles and
+    // the header's panel controls are present.
     expect(frame.querySelector('[data-board-action="window-simplified-card"]')).toBeNull()
     expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(8)
-    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
+    expect(frame.querySelector('[data-board-action="window-left-panel"]')).not.toBeNull()
 
     act(() => { board.actions.setZoom(0.3) })
     await runtime.flush()
@@ -909,10 +910,10 @@ describe('board slot composition', () => {
     expect(card.getAttribute('data-board-status')).toBe('ready')
     // Type is world-sized for 12 screen pixels at the 0.4 threshold.
     expect(card.style.fontSize).toBe('30px')
-    // The frame handles, the screen-space ring, and the chats rail stand down.
+    // The frame handles and the screen-space ring stand down with the chrome;
+    // the header (and its panel controls) stays mounted but hidden.
     expect(frame.querySelectorAll('[data-board-handle]')).toHaveLength(0)
     expect(panel.container.querySelector('[data-board-handle-ring]')).toBeNull()
-    expect(panel.container.querySelector('[data-board-panel-rail]')).toBeNull()
 
     // Clicking the card restores the detail view: the zoom rises to the
     // threshold and the window is centred.
@@ -1034,7 +1035,7 @@ describe('board slot composition', () => {
 
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel-open]')).not.toBeNull()
 
@@ -1364,7 +1365,7 @@ describe('board slot composition', () => {
 
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     // A menu opened before the overlay still owns the first press; the overlay
     // itself would claim a click made while it is up (that is its pick). The
     // panel stands the floating chrome down, so the menu here is the window
@@ -1401,7 +1402,7 @@ describe('board slot composition', () => {
 
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelector('[data-board-panel][data-board-panel-open]')).not.toBeNull()
 
@@ -1418,7 +1419,7 @@ describe('board slot composition', () => {
     expect(input.value).toBe('/fi')
   })
 
-  it('brings the dock and minimap back when the chats panel collapses to its rail', async () => {
+  it('brings the minimap back when the chats panel collapses', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -1428,18 +1429,18 @@ describe('board slot composition', () => {
       board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     // The expanded panel is a management surface: the minimap stands down
     // while the bottom dock stays (Т1.14).
     expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(0)
 
-    fireEvent.click(panel.container.querySelector('button[aria-label="Collapse the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="panel-collapse"]') as Element)
     await runtime.flush()
     expect(panel.container.querySelectorAll('[data-board-layer="dock"]')).toHaveLength(1)
     expect(panel.container.querySelectorAll('[data-board-layer="minimap"]')).toHaveLength(1)
-    expect(panel.container.querySelector('[data-board-panel-rail]')).not.toBeNull()
+    expect(panel.container.querySelector('[data-board-panel-open]')).toBeNull()
 
     // In fullscreen a collapsed panel takes no Escape: the mode leaves at once.
     fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
@@ -1471,7 +1472,7 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
     act(() => { board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
 
     const rows = [...panel.container.querySelectorAll('[data-row-key^="project:"]')] as HTMLElement[]
@@ -1587,7 +1588,7 @@ describe('board slot composition', () => {
       board.actions.openWindow(windowState({ id: 'a1' as WindowId, customTitle: 'Agent' }))
     })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     const windowFrame = panel.container.querySelector('[data-board-window-id="a1"]') as HTMLElement
 
@@ -1614,7 +1615,7 @@ describe('board slot composition', () => {
     // Row drag: a pointerup after the window closed must not commit.
     act(() => { board.actions.openWindow(windowState({ id: 'a2' as WindowId, customTitle: 'Agent 2' })) })
     await runtime.flush()
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     const rows = [...panel.container.querySelectorAll('[data-row-key^="project:"]')] as HTMLElement[]
     Object.defineProperty(document, 'elementFromPoint', { value: () => rows[1], configurable: true })
@@ -1697,7 +1698,7 @@ describe('board slot composition', () => {
     expect(panel.container.textContent).toContain('сообщение в ленте')
 
     // Panel state: the projects level with an active search filter.
-    fireEvent.click(panel.container.querySelector('button[aria-label="Expand the chats panel"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     fireEvent.click(panel.container.querySelector('button[aria-label="Search chats"]') as Element)
     const search = panel.container.querySelector('[data-board-row-edit="search"] input') as HTMLInputElement

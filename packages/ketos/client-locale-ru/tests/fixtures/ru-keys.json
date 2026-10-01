@@ -304,7 +304,6 @@
     "panel.dismiss",
     "panel.error.emptyPath",
     "panel.error.ketosHome",
-    "panel.expand",
     "panel.groupFlat",
     "panel.groupWorkspace",
     "panel.loading",
@@ -320,7 +319,6 @@
     "panel.pick.failed",
     "panel.pickFolder",
     "panel.projects",
-    "panel.railArtifacts",
     "panel.rename",
     "panel.resize",
     "panel.rowMenu",
@@ -443,7 +441,9 @@
     "window.kind.dashboard",
     "window.kind.settings",
     "window.kind.tasks",
+    "window.leftPanel",
     "window.rename",
+    "window.rightPanel",
     "window.unavailable"
   ],
   "chat": [

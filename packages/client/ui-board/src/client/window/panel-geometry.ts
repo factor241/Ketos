@@ -1,9 +1,7 @@
 /**
- * Geometry of one window's chats panel. The panel is a layer of its own beside
- * the frame: collapsed it is a narrow rail hugging the frame's left edge, open
- * it is a resizable column that slides out of that edge.
- * All values are world units, so the panel follows the window while it is
- * dragged, resized, or the canvas pans and zooms.
+ * Geometry of one window's chats panel: a resizable column that slides out of
+ * the frame's edge. All values are world units, so the panel follows the
+ * window while it is dragged, resized, or the canvas pans and zooms.
  */
 import type { BoardWindowState } from '../contract/slots.ts'
 // The panel width bounds are part of the durable layout contract (the settings
@@ -15,12 +13,6 @@ export { PANEL_DEFAULT_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH } from '../../boa
 
 /** Share of the window width the panel never exceeds, before the caps apply. */
 const PANEL_WINDOW_SHARE_MAX = 0.45
-
-/** Collapsed rail width: a compact strip holding four controls. */
-export const PANEL_RAIL_WIDTH = 44
-
-/** Collapsed rail height: five 36px controls, their gaps, and the rail's padding. */
-export const PANEL_RAIL_HEIGHT = 212
 
 /** One rectangle in world units. */
 export interface PanelRect {
@@ -85,19 +77,4 @@ export function windowedPanelRect(window: BoardWindowState, view: PanelView, wid
   }
   if (presentation.side === 'left') return { left: window.x - width, top: window.y, width, height: window.height }
   return { left: window.x + window.width, top: window.y, width, height: window.height }
-}
-
-/**
- * The collapsed rail's rectangle: a compact strip centred on the frame's edge.
- * @param window - the window the panel belongs to.
- * @param side - the side the open panel takes.
- * @returns the rail rectangle in world units.
- */
-export function railRect(window: BoardWindowState, side: 'left' | 'right'): PanelRect {
-  return {
-    left: side === 'left' ? window.x - PANEL_RAIL_WIDTH : window.x + window.width,
-    top: window.y + (window.height - PANEL_RAIL_HEIGHT) / 2,
-    width: PANEL_RAIL_WIDTH,
-    height: PANEL_RAIL_HEIGHT,
-  }
 }

@@ -418,7 +418,7 @@ describe('clone roster in the board chrome', () => {
 
     // Picking the window's own interview from the chats panel must show it in
     // this window rather than minting an empty agent window on the way.
-    fireEvent.click(panel.container.querySelector('[data-board-action="panel-rail-expand"]') as Element)
+    fireEvent.click(panel.container.querySelector('[data-board-action="window-left-panel"]') as Element)
     await runtime.flush()
     const ungrouped = panel.view.queryByText('Ungrouped')
     if (ungrouped !== null) {

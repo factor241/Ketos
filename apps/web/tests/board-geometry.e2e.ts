@@ -1292,6 +1292,76 @@ describe('web e2e: spatial board geometry', () => {
     expect(failures).toEqual([])
   }, 120_000)
 
+  it('Т1.6/Т1.13: the dock and the minimap stay clear of each other at every board width', async () => {
+    const failures: string[] = []
+    try {
+      for (const width of [600, 820, 1160, 1640]) {
+        await page.setViewportSize({ width, height: WIDE_VIEWPORT.height })
+        await settle(page)
+        await clickResetView(page)
+        const chrome = await measureFloating(page)
+        if (chrome.board === null || chrome.dock === null || chrome.minimap === null) {
+          failures.push(`${String(width)}: chrome box is missing`)
+          continue
+        }
+        // The strip keeps the 16px bottom inset and never grows past the
+        // board's width minus the 24px inset on each side (Т1.6).
+        if (Math.abs(chrome.board.bottom - chrome.dock.bottom - 16) > 4) {
+          failures.push(`${String(width)}: dock bottom inset is off`)
+        }
+        if (chrome.dock.width > width - 48 + 1) {
+          failures.push(`${String(width)}: dock is wider than the board minus its inset`)
+        }
+        // The top-right minimap keeps its own corner (Т1.13).
+        if (intersects(chrome.dock, chrome.minimap)) {
+          failures.push(`${String(width)}: dock and minimap intersect`)
+        }
+      }
+    } finally {
+      await page.setViewportSize(WIDE_VIEWPORT)
+      await settle(page)
+      await clickResetView(page)
+    }
+    expect(failures).toEqual([])
+  }, 120_000)
+
+  it('Т1.6: the dock scrolls sideways once its icons outgrow the board', async () => {
+    await clickResetView(page)
+    // Fill the strip through the catalog itself: the dock's own add menu opens
+    // agent windows until twenty icons outgrow the board.
+    while (await page.evaluate(() => document.querySelectorAll('[data-board-dock-row]').length) < 20) {
+      await page.locator('[data-board-action="dock-add"]').click()
+      await page.locator('[role="menuitem"]', { hasText: 'Agent window' }).first().click()
+      await settle(page)
+    }
+    try {
+      // The 20-icon strip outgrows the narrower board: the dock caps at the
+      // board width minus the 48px inset and scrolls.
+      await page.setViewportSize({ width: 820, height: WIDE_VIEWPORT.height })
+      await settle(page)
+      const before = await page.evaluate(() => {
+        const dock = document.querySelector<HTMLElement>('[data-board-layer="dock"]')
+        if (dock === null) return null
+        return { scrollLeft: dock.scrollLeft, overflow: dock.scrollWidth > dock.clientWidth }
+      })
+      if (before === null) throw new Error('dock box is missing')
+      expect(before.overflow).toBe(true)
+
+      // A wheel over the strip scrolls it sideways instead of panning the board.
+      const box = await page.locator('[data-board-layer="dock"]').boundingBox()
+      if (box === null) throw new Error('dock box is missing')
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.wheel(0, 240)
+      await settle(page)
+      const scrolled = await page.evaluate(() =>
+        document.querySelector<HTMLElement>('[data-board-layer="dock"]')?.scrollLeft ?? 0)
+      expect(scrolled).toBeGreaterThan(before.scrollLeft)
+    } finally {
+      await page.setViewportSize(WIDE_VIEWPORT)
+      await settle(page)
+    }
+  }, 180_000)
+
   it('issued zero model calls and stayed clean', () => {
     expect(tripwire.warnings).toEqual([])
     expect(tripwire.pageErrors).toEqual([])

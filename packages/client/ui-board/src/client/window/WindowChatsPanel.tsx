@@ -548,7 +548,7 @@ function WindowChatsPanelView({
           </div>
         )}
 
-        <div className={css.list}>
+        <div className={css.list} data-board-panel-list="">
           {browsing && (
             <FolderBrowser
               t={t}

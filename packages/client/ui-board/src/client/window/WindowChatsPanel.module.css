@@ -282,7 +282,9 @@
   gap: 2px;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 0 6px 8px;
+  /* The 4px side inset plus the row's own 8px keep the resting age within
+     12px of the list's right edge. */
+  padding: 0 4px 8px;
 }
 
 .row {
@@ -374,12 +376,23 @@
 }
 
 .sessionRow {
+  position: relative;
   display: flex;
   align-items: center;
-  padding-left: 18px;
 }
 
 .sessionRow .row {
+  flex: 1;
   min-height: 28px;
+  /* The tree indent lives inside the full-width row, so the button and its
+     current-session highlight span the list exactly like a folder row. */
+  padding-left: 26px;
   font-size: 13px;
+}
+
+.sessionRow .rowAction {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
 }

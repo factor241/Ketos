@@ -219,7 +219,7 @@ async function resetToIdentityView(page: Page): Promise<void> {
   const target = { selector: '[data-surface="canvas"]', index: 0 }
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const current = await readTransform(page)
-    if (Math.abs(current.scale - 1) > 0.002) {
+    if (Math.abs(current.scale - 1) > 0.0005) {
       // One event's delta is clamped to ±50, so a distant zoom converges over
       // several recomputed strokes.
       const delta = Math.min(50, Math.max(-50, Math.log(current.scale) / BOARD_ZOOM_K))
@@ -233,7 +233,7 @@ async function resetToIdentityView(page: Page): Promise<void> {
     return
   }
   const settled = await readTransform(page)
-  if (Math.abs(settled.scale - 1) > 0.002 || Math.abs(settled.panX) >= 1 || Math.abs(settled.panY) >= 1) {
+  if (Math.abs(settled.scale - 1) > 0.0005 || Math.abs(settled.panX) >= 1 || Math.abs(settled.panY) >= 1) {
     throw new Error(`identity view did not converge: zoom ${String(settled.scale)}, pan ${String(settled.panX)}, ${String(settled.panY)}`)
   }
 }
@@ -1155,23 +1155,34 @@ describe('web e2e: spatial board geometry', () => {
     }, { id: windowId, side })
   }
 
-  it('Т3.3: the session age sits flush right in the working-folder row', async () => {
+  it('Т3.3: the session row spans the list and its age keeps the right edge', async () => {
     await resetToIdentityView(page)
     try {
       await openPanel(WINDOW_A, 'window-left-panel')
       await page.waitForTimeout(500)
       await settle(page)
-      const gap = await page.evaluate(() => {
-        const row = document.querySelector('[data-board-chat-current]')
-        const meta = row?.querySelector('[class*="rowMeta"]')
-        if (row === null || meta === null || meta === undefined) return null
-        return Math.round(row.getBoundingClientRect().right - meta.getBoundingClientRect().right)
+      const layout = await page.evaluate(() => {
+        const panel = document.querySelector('[data-board-panel-side="left"]')
+        const list = panel?.querySelector('[data-board-panel-list]')
+        const group = panel?.querySelector('[data-board-group-toggle]')
+        const session = panel?.querySelector('[data-row-key^="chat:"]')
+        const meta = session?.querySelector('[class*="rowMeta"]')
+        if (list === null || list === undefined || group === null || group === undefined
+          || session === null || session === undefined || meta === null || meta === undefined) return null
+        const listRect = list.getBoundingClientRect()
+        return {
+          groupWidth: group.getBoundingClientRect().width,
+          sessionWidth: session.getBoundingClientRect().width,
+          ageRightGap: listRect.right - meta.getBoundingClientRect().right,
+        }
       })
-      // At rest the trailing action stands down, so the age keeps the row's
-      // 8px inner padding as its only gap to the right edge.
-      expect(gap).not.toBeNull()
-      expect(gap).toBeGreaterThanOrEqual(0)
-      expect(gap).toBeLessThanOrEqual(12)
+      expect(layout).not.toBeNull()
+      // The session row spans the list exactly like the folder row, and at
+      // rest (the trailing action stands down) its age keeps the list's right
+      // edge; the action overlays the age on hover.
+      expect(Math.abs((layout?.sessionWidth ?? 0) - (layout?.groupWidth ?? 0))).toBeLessThanOrEqual(1)
+      expect(layout?.ageRightGap ?? Number.POSITIVE_INFINITY).toBeGreaterThanOrEqual(0)
+      expect(layout?.ageRightGap ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(12.5)
     } finally {
       await page.keyboard.press('Escape')
       await resetToIdentityView(page)

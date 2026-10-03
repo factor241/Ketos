@@ -608,6 +608,9 @@
     "brand.localBuild",
     "cancel",
     "close",
+    "codeBlock.title",
+    "codeBlock.unwrap",
+    "codeBlock.wrap",
     "collapse",
     "copied",
     "copy",
@@ -640,7 +643,8 @@
     "submit",
     "submitting",
     "truncated",
-    "unknown"
+    "unknown",
+    "workspace.defaultName"
   ],
   "conversation": [
     "access.confirm.acknowledge",

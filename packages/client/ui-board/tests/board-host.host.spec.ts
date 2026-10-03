@@ -1,6 +1,6 @@
 /** Board host half: the durable layout is the plugin entry's live configuration. */
 import { describe, expect, it } from 'vitest'
-import type { BoardLayoutDocument } from '../src/board-settings.ts'
+import type { BoardSettings } from '../src/board-settings.ts'
 import { BOARD_SETTINGS_VERSION } from '../src/board-settings.ts'
 import { Config, apply } from '../src/index.ts'
 
@@ -40,8 +40,8 @@ describe('ui-board host half', () => {
   it('exposes the layout as a live configurable entry: writes merge, replace drops, invalid values reject', async () => {
     const { configurationFixture } = await import('../../../settings/settings/tests/configuration-fixture.ts')
     const { ctx } = await configurationFixture({ schema: Config, apply })
-    const read = (): BoardLayoutDocument =>
-      ctx.settings.describe().find(row => row.ns === 'first')!.value as BoardLayoutDocument
+    const read = (): BoardSettings =>
+      ctx.settings.describe().find(row => row.ns === 'first')!.value as BoardSettings
 
     expect(read()).toMatchObject({
       version: BOARD_SETTINGS_VERSION,

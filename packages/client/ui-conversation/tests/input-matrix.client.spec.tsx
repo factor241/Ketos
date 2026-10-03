@@ -106,7 +106,8 @@ function bench(over?: {
   const serialize = vi.fn(over?.serialize ?? (() => Promise.resolve<readonly SubmitAttachment[]>([])))
   const release = vi.fn()
   const createDrafts = vi.fn(over?.createDrafts ?? (() => []))
-  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink, createDrafts, commandAttachments: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} attachments-unsupported` } })
+  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink, createDrafts,
+    commandAttachments: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} attachments-unsupported` } })
   const wiring = shell
   const view = mountBar(shell, over)
   const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
@@ -134,6 +135,7 @@ describe('matrix row: plain', () => {
       actx: SCTX,
       defaultSink: () => Promise.resolve({ kind: 'success' }),
       inbox: { getSnapshot: () => undefined, subscribe },
+      createDrafts: () => [],
       commandAttachments: {
         serialize: () => Promise.resolve([]),
         release: () => {},

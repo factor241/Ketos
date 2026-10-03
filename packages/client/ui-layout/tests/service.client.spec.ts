@@ -48,7 +48,7 @@ describe('LayoutController', () => {
 
   it('declares a sidebar and clears it through the returned disposer', () => {
     const panels = fakePanels()
-    const service = new LayoutController(panels, () => true)
+    const service = new LayoutController(panels, () => true, createSnapshotStore({ activePanelId: null }))
     const dispose = service.declarePanelSidebar('board' as MainPanelId, false)
     expect(panels.setPanelSidebar).toHaveBeenCalledWith('board', false)
     dispose()

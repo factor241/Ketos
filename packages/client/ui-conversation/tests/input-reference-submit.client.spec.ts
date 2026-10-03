@@ -305,7 +305,7 @@ describe('submit transaction hardening', () => {
 it('captures click and Enter submission intent before async admission, excluding empty submits', async () => {
   const report = vi.fn()
   const submissionState = vi.fn(() => ({ runMode: 'default' as const, running: false }))
-  const shell = new SessionInputShell({ actx: {} as Context, defaultSink: async () => ({ kind: 'success' }), commandAttachments, submissionState, messageSubmitted: report })
+  const shell = new SessionInputShell({ createDrafts: () => [], actx: {} as Context, defaultSink: async () => ({ kind: 'success' }), commandAttachments, submissionState, messageSubmitted: report })
   try {
     shell.submit('queue', 'click')
     expect(submissionState).not.toHaveBeenCalled()
@@ -324,7 +324,7 @@ it('captures click and Enter submission intent before async admission, excluding
 it.each(['capture', 'report'])('analytics %s failure does not interrupt a message', async (stage) => {
   const sink = vi.fn(async (): Promise<SubmitOutcome> => ({ kind: 'success' }))
   const fail = () => { throw new Error('analytics unavailable') }
-  const shell = new SessionInputShell({ actx: {} as Context, defaultSink: sink, commandAttachments,
+  const shell = new SessionInputShell({ createDrafts: () => [], actx: {} as Context, defaultSink: sink, commandAttachments,
     ...stage === 'capture' ? { submissionState: fail } : { messageSubmitted: fail } })
   try {
     shell.setDraft('message')
@@ -348,7 +348,7 @@ it.each(['handled', 'claim', 'message'] as const)('counts only a message after a
     serializeReference: async () => '', openReference: () => false, toggleSource: () => {},
     adjudicate: () => pending.promise,
   }
-  const shell = new SessionInputShell({ actx: {} as Context, inputTriggers: () => inputTriggers,
+  const shell = new SessionInputShell({ createDrafts: () => [], actx: {} as Context, inputTriggers: () => inputTriggers,
     submissionState, messageSubmitted: report, defaultSink: sink, commandAttachments })
   try {
     shell.setDraft('/compact')
@@ -375,7 +375,7 @@ it('retains occurrence time and Session facts across arbitration and independent
   let running = true
   let now = 100
   const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
-  const shell = new SessionInputShell({ actx: {} as Context, commandAttachments,
+  const shell = new SessionInputShell({ createDrafts: () => [], actx: {} as Context, commandAttachments,
     submissionState: () => Object.freeze({ runMode: running ? 'plan' : 'default', running }),
     messageSubmitted: submitted,
     inputTriggers: () => ({

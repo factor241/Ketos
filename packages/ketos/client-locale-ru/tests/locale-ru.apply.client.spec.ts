@@ -192,7 +192,7 @@ describe('ketos ru language pack', () => {
       expect(b.locale().bind('chat')('stats.dialog.title')).toBe('Статистика сессии')
       expect(b.locale().bind('settings.locale')('language.title')).toBe('Язык')
       expect(b.locale().bind('settings.models')('customBaseUrlInvalid')).toBe('Введите корректный URL с HTTP или HTTPS.')
-      expect(b.locale().bind('schedule.catalog')('status.overdue')).toBe('Просрочено')
+      expect(b.locale().bind('schedule.catalog')('frequency.once')).toBe('Один раз')
       expect(b.locale().bind('open-in-app')('app.explorer')).toBe('Проводник')
       expect(b.locale().bind('sidebarRight')('dock.splitPane')).toBe('Разделить')
       // Rebranding: the community pack's product-name strings are Ketos, while

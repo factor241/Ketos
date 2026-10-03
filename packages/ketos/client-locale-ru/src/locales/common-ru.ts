@@ -13,6 +13,9 @@ export const ru = {
   'brand.localBuild': 'Кетос',
   'cancel': 'Отмена',
   'close': 'Закрыть',
+  'codeBlock.title': 'Блок кода',
+  'codeBlock.wrap': 'Переносить строки',
+  'codeBlock.unwrap': 'Не переносить строки',
   'collapse': 'Свернуть',
   'copied': 'Скопировано',
   'copy': 'Копировать',
@@ -46,4 +49,5 @@ export const ru = {
   'submitting': 'Отправка…',
   'truncated': 'Усечено',
   'unknown': 'Неизвестно',
+  'workspace.defaultName': 'Рабочая область по умолчанию',
 } satisfies Record<CommonKey, string>

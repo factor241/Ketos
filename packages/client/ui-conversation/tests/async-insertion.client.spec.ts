@@ -5,9 +5,10 @@ import { expect, it, vi } from 'vitest'
 import { SessionInputShell } from '../src/client/input/facade.ts'
 
 function shell(): SessionInputShell {
-  return new SessionInputShell({ actx: new Context(), defaultSink: vi.fn(), commandAttachments: {
-    serialize: async () => [], release: () => {}, unsupportedNotice: () => '',
-  } })
+  return new SessionInputShell({ actx: new Context(), defaultSink: vi.fn(), createDrafts: () => [],
+    commandAttachments: {
+      serialize: async () => [], release: () => {}, unsupportedNotice: () => '',
+    } })
 }
 
 it('inserts text beside an existing reference and undoes only that insertion', async () => {

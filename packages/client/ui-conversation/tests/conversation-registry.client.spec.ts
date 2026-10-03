@@ -87,7 +87,6 @@ function fakeSessions(ctx: Context): { sessions: ISessions; binding: SessionBind
     retain: () => reference,
     using: async (_target, _options, operation) => await operation(reference),
     retainInfo: () => createSnapshotStore({ referenceCount: 1, retainedBy: {} }),
-    openStream: () => {},
     subagentAddress: () => undefined,
     refreshProjections: () => Promise.reject(new Error('unused fake Sessions operation')),
     refresh: () => Promise.reject(new Error('unused fake Sessions operation')),

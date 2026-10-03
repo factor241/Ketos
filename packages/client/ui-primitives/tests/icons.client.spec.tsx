@@ -18,15 +18,8 @@ const iconNames = Object.keys(icons)
 
 describe('product icon set', () => {
   it('exports regular and medium variants for all 94 public glyphs', () => {
-    expect(iconNames.length).toBe(192)
-    // Four Ketos board glyphs keep their legacy size-suffixed names because the
-    // board imports them by name; everything from the shared sets is paired.
-    expect(iconNames.filter(name => /\d+$/.test(name)).sort()).toEqual([
-      'IconCodeOutline16',
-      'IconExitFullscreenCornersOutline16',
-      'IconExitFullscreenOutline16',
-      'IconFullscreenCornersOutline16',
-    ])
+    expect(iconNames.length).toBe(188)
+    expect(iconNames.filter(name => /\d+$/.test(name))).toEqual([])
     const regular = iconNames.filter(name => name.endsWith('Regular')).map(name => name.slice(0, -'Regular'.length))
     const medium = iconNames.filter(name => name.endsWith('Medium')).map(name => name.slice(0, -'Medium'.length))
     expect(medium.sort()).toEqual(regular.sort())

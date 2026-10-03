@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-ketos-board-window-fullscreen.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-16-ketos-board-window-fullscreen.md
-2026-09-16-ketos-board-window-fullscreen.md: 2847ad3a5f6213d1b7185afe9bbba0c2987065c1
-2026-09-16-ketos-board-window-fullscreen.zh.md: fadcd01fc8f305ddb54e41ed4af6eb5fb8196e54
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel:
+  en: bebf8d583791f849
+  zh: 3bfc69fd01244fe7
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel/problem:
+  en: b98058e0237da736
+  zh: c13b87683e8c2f7e
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel/decision:
+  en: 5c334817ca14da8e
+  zh: 639f269774f64d82
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel/alternatives-considered:
+  en: dec07a287aef53ca
+  zh: d42f79c89fef3f60
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel/consequences:
+  en: d9f1447397444324
+  zh: 073b82b67c0e78fd
+/agent-note-board-windows-fill-the-panel-in-fullscreen-instead-of-handing-off-to-the-main-panel/related:
+  en: 27ea0f02562df28c
+  zh: ccbc6f913a8108e2

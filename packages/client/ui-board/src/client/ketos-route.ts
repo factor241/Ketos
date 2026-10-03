@@ -5,10 +5,10 @@
  */
 
 /**
- * Resolve one route path against the document's own base URL.
- * @param path - host route path, absolute (`/api/...`) or relative.
+ * Resolve one mount-relative route key against the document's own base URL.
+ * @param key - route path without its leading slash (`api/...`).
  * @returns the request URL under the application's mount.
  */
-export function ketosRoute(path: string): URL {
-  return new URL(path.replace(/^\//, ''), document.baseURI)
+export function ketosRoute(key: string): URL {
+  return new URL(key, document.baseURI)
 }

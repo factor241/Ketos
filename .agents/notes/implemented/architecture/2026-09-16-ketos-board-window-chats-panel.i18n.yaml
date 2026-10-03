@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-ketos-board-window-chats-panel.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-16-ketos-board-window-chats-panel.md
-2026-09-16-ketos-board-window-chats-panel.md: 6e6ecd3f0712c2a5846e8537ed39d23eaf678585
-2026-09-16-ketos-board-window-chats-panel.zh.md: 8c0c4d79e427ed606d7ca8a36fb2e7d248551692
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel:
+  en: c9dc4ebe6de8e287
+  zh: 3305b20c6e3be5fe
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel/problem:
+  en: 5feb16db10077206
+  zh: 366460b3b82acf9a
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel/decision:
+  en: 29f8cc93f3aa1534
+  zh: 44446e8f69b7e9ff
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel/alternatives-considered:
+  en: 846725c638d0be8a
+  zh: 5cda6dc26136146a
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel/consequences:
+  en: 05b52718f735d2dc
+  zh: 312228527c4c1dd9
+/agent-note-board-windows-navigate-projects-and-chats-from-a-chats-panel/related:
+  en: 6319a575856ee7b0
+  zh: b79b8f469002b5c9

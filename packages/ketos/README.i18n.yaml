@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/README.md
-README.md: d9a60baf2a6b5af855c3042911862ef764cec447
-README.zh.md: 080484348da660fdf8217e46b7ea9f895ac78a20
+/:
+  en: d2f6d37b2bac0c62
+  zh: 00e0e4d8d5408128
+/ketos-ketos-soft-fork-packages:
+  en: 301f71cede8d6dde
+  zh: 2435714fe71cbb2a
+/ketos-ketos-soft-fork-packages/summary:
+  en: e8fa9febc306cd65
+  zh: a3995a2028ea3131
+/ketos-ketos-soft-fork-packages/table-of-contents:
+  en: 2652973e058755b4
+  zh: 2652973e058755b4
+/ketos-ketos-soft-fork-packages/packages:
+  en: 7f7b7415e4f99c51
+  zh: 605f41f341fcffdb
+/ketos-ketos-soft-fork-packages/conventions:
+  en: 066301113267b23f
+  zh: b3dd8a4c7bf7f233
+/ketos-ketos-soft-fork-packages/related-documentation:
+  en: 4013062313cafc20
+  zh: 877337133b3b5f24
+/ketos-ketos-soft-fork-packages/dev-note:
+  en: b75c8458928b72b9
+  zh: 02cbcc6baa338b07

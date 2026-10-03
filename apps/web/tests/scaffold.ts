@@ -1567,6 +1567,9 @@ function normalizeAria(snapshot: string, workspaceCwd: string, age: boolean): st
     .replace(/\d{1,2}月\d{1,2}日 \d{2}:\d{2}/g, '{{clock}}')
     .replace(/(?<!\d)\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:\s*[AP]M)?(?!\d)/gi, '{{clock}}')
     .replace(/(?<!\d)\d{2}:\d{2}(?!\d)/g, '{{clock}}')
+    // The scroll-to-bottom control reflects a transient viewport position at
+    // capture time, not the scenario's milestone.
+    .replace(/^- button "Back to bottom"\n/gm, '')
 }
 
 /**

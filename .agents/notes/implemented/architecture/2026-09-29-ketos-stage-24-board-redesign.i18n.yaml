@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-29-ketos-stage-24-board-redesign.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-29-ketos-stage-24-board-redesign.md
-2026-09-29-ketos-stage-24-board-redesign.md: bc776ea8ad628d5623b5d05b55905d3162c78ba8
-2026-09-29-ketos-stage-24-board-redesign.zh.md: 4c1a8798f1a6076a936991bc5e51e8111fa72ae4
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels:
+  en: c6a66e02b91c1f59
+  zh: 2fc16060d48bbd33
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels/problem:
+  en: 1bfd44652c708c77
+  zh: c807e42314542363
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels/decision:
+  en: 79001c73df394548
+  zh: f796078f217a80c5
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels/alternatives-considered:
+  en: e87c3ffc811acdea
+  zh: 254416c2eeca62ea
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels/consequences:
+  en: a3fc3b430fe94bac
+  zh: 51f6ca6475f08de5
+/agent-note-ketos-stage-24-the-board-s-bottom-dock-interface-modes-and-per-window-panels/related:
+  en: 841bf7bf70519887
+  zh: 2dc92df44e5f3fd6

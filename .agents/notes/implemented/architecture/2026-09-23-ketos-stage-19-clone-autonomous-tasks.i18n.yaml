@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-ketos-stage-19-clone-autonomous-tasks.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-23-ketos-stage-19-clone-autonomous-tasks.md
-2026-09-23-ketos-stage-19-clone-autonomous-tasks.md: 2560674f1dcf9808a730b22d5e41cbe8265a7b0b
-2026-09-23-ketos-stage-19-clone-autonomous-tasks.zh.md: fd37cf91206defe3f74cfe30a68ffc903771581b
+/agent-note-an-autonomous-clone-task-is-a-goal-over-a-live-session-stored-in-clone-tasks-and-reported-through-one-per-agent-tool:
+  en: 40b8bef08fbc5b94
+  zh: b0f63c4fb3a36643
+/agent-note-an-autonomous-clone-task-is-a-goal-over-a-live-session-stored-in-clone-tasks-and-reported-through-one-per-agent-tool/problem:
+  en: 496adbef18535e8a
+  zh: 4d06122f08237394
+/agent-note-an-autonomous-clone-task-is-a-goal-over-a-live-session-stored-in-clone-tasks-and-reported-through-one-per-agent-tool/decision:
+  en: 67e7cff6bf0cc775
+  zh: 4625899ecf55eddb
+/agent-note-an-autonomous-clone-task-is-a-goal-over-a-live-session-stored-in-clone-tasks-and-reported-through-one-per-agent-tool/alternatives-considered:
+  en: c0cb65944b406085
+  zh: 12ccf596667f5fed
+/agent-note-an-autonomous-clone-task-is-a-goal-over-a-live-session-stored-in-clone-tasks-and-reported-through-one-per-agent-tool/consequences:
+  en: 088f26a948082918
+  zh: 9f1d9a36bd46bcf3

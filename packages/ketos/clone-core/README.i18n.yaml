@@ -1,6 +1,109 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/clone-core/README.md
-README.md: f6b10d152a101affac7a470f426c8d3bcfc093b8
-README.zh.md: 77125a6fa8746d1bc3e98c3efcdfb965c9688709
+/:
+  en: 2a30c4703627efe4
+  zh: 5c357f576ea6624b
+/ketos-clone-core:
+  en: 2558298e4b18c6a0
+  zh: 0d485e8debad662c
+/ketos-clone-core/summary:
+  en: 7f9819bef199c687
+  zh: 5f3158786db4dedc
+/ketos-clone-core/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: ffab54373e9e61f0
+/ketos-clone-core/use-this-package:
+  en: 9628dcb0dac3cae5
+  zh: 382698363ccafa6b
+/ketos-clone-core/use-this-package/the-route:
+  en: 49780195c680b8c8
+  zh: 882db11992fc1ddd
+/ketos-clone-core/use-this-package/the-memory-route:
+  en: 25f865cde28aa5dd
+  zh: 44265939aff17dd3
+/ketos-clone-core/use-this-package/the-tasks-route:
+  en: 0b007caa53fa7656
+  zh: a9b3f7147d7c72b6
+/ketos-clone-core/use-this-package/observable-behavior:
+  en: 0334ba18b081d0af
+  zh: a39fe7d06ff110a9
+/ketos-clone-core/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 24acd380126d0e00
+/ketos-clone-core/understand-the-implementation/schema:
+  en: 39f2108bdacdcd2d
+  zh: 3d8294b68529ed6f
+/ketos-clone-core/understand-the-implementation/clone-session-scope:
+  en: 8a03f2ccca776691
+  zh: 097c8ecd5cb0a75c
+/ketos-clone-core/understand-the-implementation/methodology-vocabulary:
+  en: 1ede4563c1248c81
+  zh: 6cb0c00a6cc6e12a
+/ketos-clone-core/understand-the-implementation/forward-only-runner:
+  en: b8ff6c553b9dc2a1
+  zh: 3da1f1736b508ff3
+/ketos-clone-core/understand-the-implementation/source-map:
+  en: 7d35d6ca899844e7
+  zh: c447af50432be5b1
+/ketos-clone-core/further-exploration:
+  en: 5a4db36f1f48fc2f
+  zh: ec1c041fa7c7c6ae
+/ketos-clone-core/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/ketos-clone-core/model-experience/a-session-that-is-not-bound-to-a-clone:
+  en: 3700c338a9cd9290
+  zh: 3700c338a9cd9290
+/ketos-clone-core/model-experience/a-session-that-is-not-bound-to-a-clone/what-the-model-sees:
+  en: 3c07a229039c8920
+  zh: 16a0494c72e123bf
+/ketos-clone-core/model-experience/a-session-that-is-not-bound-to-a-clone/token-effect:
+  en: 91698c7ed8980701
+  zh: eaa588bbc4019760
+/ketos-clone-core/model-experience/a-session-that-is-not-bound-to-a-clone/kv-cache-effect:
+  en: 4c91f53ff90aa93c
+  zh: 2e96e6321cf82da1
+/ketos-clone-core/model-experience/the-clone-session:
+  en: 91ce5d7cb8e9522d
+  zh: 91ce5d7cb8e9522d
+/ketos-clone-core/model-experience/the-clone-session/what-the-model-sees:
+  en: 66aa3501b0ec965b
+  zh: 58c5711c23cbd2a0
+/ketos-clone-core/model-experience/the-clone-session/token-effect:
+  en: ae6ea191a5f87223
+  zh: 6a6fc15ffc32d2ab
+/ketos-clone-core/model-experience/the-clone-session/kv-cache-effect:
+  en: 1c8cfaa0644b396f
+  zh: 034d98a099c62c45
+/ketos-clone-core/model-experience/the-interview-session:
+  en: 0146ff20ed886d13
+  zh: 0146ff20ed886d13
+/ketos-clone-core/model-experience/the-interview-session/what-the-model-sees:
+  en: 9cb53ba8f63db951
+  zh: 0c2e2f48165903bf
+/ketos-clone-core/model-experience/the-interview-session/token-effect:
+  en: ac79fb68d089997d
+  zh: fa094f97fd1eeca1
+/ketos-clone-core/model-experience/the-interview-session/kv-cache-effect:
+  en: f904a9f7753a7679
+  zh: 6383466060f90b42
+/ketos-clone-core/model-experience/the-task-session:
+  en: 6040b53cac4a91aa
+  zh: 6040b53cac4a91aa
+/ketos-clone-core/model-experience/the-task-session/what-the-model-sees:
+  en: 0a8a7c88dcbfe8a7
+  zh: 9c09dbc855c420f2
+/ketos-clone-core/model-experience/the-task-session/token-effect:
+  en: 54e10c9f43803d92
+  zh: 8d5da5d6b25fd623
+/ketos-clone-core/model-experience/the-task-session/kv-cache-effect:
+  en: 906440111f33681d
+  zh: 3bf29524cc327477
+/ketos-clone-core/known-limitations-and-deferred-work:
+  en: 1f141ecbdf0bff25
+  zh: 96ad732dac346035
+/ketos-clone-core/known-limitations-and-deferred-work/dev-note:
+  en: 2c21dcd6bf55561c
+  zh: 9e4c616dfd7c642c

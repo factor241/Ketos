@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-ketos-board-dialog-streaming.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-19-ketos-board-dialog-streaming.md
-2026-09-19-ketos-board-dialog-streaming.md: af7c72ce13a2545bb9aff5836a44ddba57bfd861
-2026-09-19-ketos-board-dialog-streaming.zh.md: e9ae9b30acec24ced8357e386715c6dd82b9c370
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures:
+  en: 5673b6a1a5bcd432
+  zh: 1a49dcb051bde5a9
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures/problem:
+  en: 8d5a02d4f6a3c5cd
+  zh: e4223ae54b9f9fd8
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures/decision:
+  en: 4c3672c85222b0ed
+  zh: bcc3723594d8e4f4
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures/alternatives-considered:
+  en: 245d79433e658b2b
+  zh: 7c41928cf0a8547a
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures/consequences:
+  en: 54ecde9c41bd2dbe
+  zh: d7ebf92e19ca72cf
+/agent-note-board-window-dialog-parity-optimistic-echo-streaming-queue-and-failures/related:
+  en: ba2e89a3e8d42c82
+  zh: 2d84fc0fe8b19c27

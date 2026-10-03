@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-ketos-navigation-shell.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-ketos-navigation-shell.md
-2026-09-18-ketos-navigation-shell.md: 9af49c65dfd2068ac80edf3edcbdf6a9f2161444
-2026-09-18-ketos-navigation-shell.zh.md: 5e22fb043a3c894d32a2fcf057c19787e2a00381
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip:
+  en: 15187cb79f6d2ec3
+  zh: 7f5dd284944a6392
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip/problem:
+  en: a2e2b7614574fd61
+  zh: 4e69707cb5aed9d5
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip/decision:
+  en: a1b1e25cb26716ca
+  zh: d9b9971f27a5c129
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip/alternatives-considered:
+  en: ed5d26f451745b86
+  zh: 544ba5405f7a3756
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip/consequences:
+  en: 51eb0ba16682884c
+  zh: 223d44f32f0c6385
+/agent-note-navigation-shell-dock-status-omnibox-delivery-inspector-chip/related:
+  en: 479d330f0d33e616
+  zh: dbb23151329cf130

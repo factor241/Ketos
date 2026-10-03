@@ -468,6 +468,83 @@
   "packages/client/ui-attachment/tests/composer-attachments.client.spec.tsx": {
     "ab22ebe23f59b5aa76d42502a0421f3953d1d170e8a4f900a0c442daf6f1397d": 1
   },
+  "packages/client/ui-board/src/client/window/tool-card-model.ts": {
+    "6fe9024d30e0d4757a348b83d246925b3f5aeaf2e79a0eff4bf12f3c9fb5826b": 1
+  },
+  "packages/client/ui-board/tests/apply.client.spec.tsx": {
+    "6a6e8a8153db4720d76c4de715a011a6e6084dee5298730d882f704359c2232f": 2
+  },
+  "packages/client/ui-board/tests/artifacts-model.client.spec.ts": {
+    "63dc9418215582e9a239a7ed392c2cfd9ee306046aba5861a0e1d50e4083f45f": 1
+  },
+  "packages/client/ui-board/tests/board-persistence.client.spec.ts": {
+    "33ee1cc7ac3d47df64d8902a142f10d9d9b490ad29b2f082631229a15f3a0133": 1
+  },
+  "packages/client/ui-board/tests/board-settings.client.spec.ts": {
+    "9bd5234d274c23de0a81749f087c3dcd3b1a3f9e8a1a11db9d0874156531931f": 1
+  },
+  "packages/client/ui-board/tests/canvas.client.spec.tsx": {
+    "89e0798dc59bf59509b06fda7046ec16d78d608180cc4a7152d14b481960bb3b": 1,
+    "f3652719123751a849b7c02e90469eab113d065830c930d79f3d4b55dec163f2": 4,
+    "17c966a7aeb01f04185da18acd4a371b095a3d95f6cf43d1a4773d227a9b0a28": 1,
+    "f90b32d478765d111fa9abf60a8b3916bd6d2715765109a53fdb1fcfc7fde5dc": 2,
+    "acb40e25b14798a1ed6da19e97c863cd3b1656c7be7130519a557423c0151637": 1
+  },
+  "packages/client/ui-board/tests/chat-list.client.spec.ts": {
+    "a26e68f39ad989010896d2708936147958caed12aa09c0c437c16b390b300847": 1,
+    "9e15edd8ac4f116882ffc5ea13e0260943785747155fb61ea2ac2c93b0ce8f4a": 1
+  },
+  "packages/client/ui-board/tests/clone-body.client.spec.tsx": {
+    "68fa95e49f5f6c8991c43b52b1fed9f056a78ef95cd06d671481a72e8665efab": 1
+  },
+  "packages/client/ui-board/tests/clone-memory.client.spec.tsx": {
+    "27e89633869fb81ccc05f7403758a5160b61304f4e5e1032757077187cc27640": 1
+  },
+  "packages/client/ui-board/tests/clone-window-bar.client.spec.tsx": {
+    "f63d4cc95f251e52bbc49776c2b2e6e3b1db3baa30d1e36769c58bb37f4a32f5": 1
+  },
+  "packages/client/ui-board/tests/composer.client.spec.tsx": {
+    "546609dffe0f99f22bb42514abe1cfb3a6fbf82bf2e2656ec4e4ec9dfca38653": 1,
+    "f7fef75ecb09f802a7fe8f39c65bf95ace1ec699efbcd4b748bb18052608f1c4": 1,
+    "bff6c3d1ffccb86e47e00df24d44f5207186a80e4bdc6380a8830a39ef55729f": 1,
+    "f1a2d94756e9f903ac44801d838b8de2dfef4bdf6bf306a2d265fa2dedc1bce0": 1
+  },
+  "packages/client/ui-board/tests/conversation-body.client.spec.tsx": {
+    "22d1d53d4aba96162196dbd426e0c70f55f111bf785e8820d226e4656aa9cd4d": 1
+  },
+  "packages/client/ui-board/tests/leaks.client.spec.tsx": {
+    "71daab7c2bdb31767508d751a1f14fd11689cde7e5428ff70a9b8c2e14c664df": 1,
+    "894915fc6a33f404acdd94bdcc7072876e74f5c297b6147bd7aa73fdda19bf5c": 1,
+    "590ed54e6c21afbbf48ee6af4a2912fb9309971b3a60ca6102ed308443fb262f": 1
+  },
+  "packages/client/ui-board/tests/open-window.client.spec.ts": {
+    "32596ab2668143f0f029ba295eb09ad0f1afbb243e8c2e4e3c439bc97b3c35c2": 1
+  },
+  "packages/client/ui-board/tests/session-bridge.client.spec.ts": {
+    "590ed54e6c21afbbf48ee6af4a2912fb9309971b3a60ca6102ed308443fb262f": 1,
+    "a093f05b16c2939fddc47bef0b5541e396d0c9841be2a64ec48f235727d3add3": 5
+  },
+  "packages/client/ui-board/tests/slots.client.spec.tsx": {
+    "68617b8c8904d6dcea35960017aa58c2714f4fe4657787b49c8ee5038620c57c": 4,
+    "1251bed96838418f7aad4ee6535f5c7f990f1c8de04b6e982cf43bbdc7623c9a": 1,
+    "6a6e8a8153db4720d76c4de715a011a6e6084dee5298730d882f704359c2232f": 2
+  },
+  "packages/client/ui-board/tests/tasks-api.client.spec.ts": {
+    "a29280eef654d6dbf5d38421733cc7c0c35417a34265ce5921014bb7363e857f": 5,
+    "44bbbabf2d7e7c65dbcd4093d5b2dcc01b779144ed3e838e38f26530c2e8e847": 1
+  },
+  "packages/client/ui-board/tests/tasks-body.client.spec.tsx": {
+    "41a1e4b8e235db616589900167db99f0a1a291fde97a4a56b601ce5172f840c0": 1
+  },
+  "packages/client/ui-board/tests/tool-card.client.spec.tsx": {
+    "352b2026751cda79bba379ecc41054ff844e6dd74f01ac66f0385890eab31c9d": 2,
+    "3619e8cf59897b00137ab162e83ca7e185bbc1abaf60cef7aad725925e91de2f": 2
+  },
+  "packages/client/ui-board/tests/window-chats-panel.client.spec.tsx": {
+    "63dc9418215582e9a239a7ed392c2cfd9ee306046aba5861a0e1d50e4083f45f": 1,
+    "00acc50f99a91300361ef007492993bbecc8746593975d69d909ee74407a5a38": 3,
+    "032625de584629132e437eb6135e24814a6995dac98e825945d7579b1e726dba": 5
+  },
   "packages/client/ui-chat/src/client/chat/ChatView.tsx": {
     "50ce0a6085bdfd7032e5a391ed34cd078768ad8f46cc885eb54571cf8edd4bee": 1
   },
@@ -1361,6 +1438,45 @@
     "0683cfd7f792f1b6333bc8c419d8ce32a7a630179280a31083a8f664e26e0ec0": 1,
     "0cf18056bb99a9f7435d55db31bed426d69b9973f7e15ebbca466f9e08ac9ee3": 1,
     "52faf4558fcd91bd27dbdfa7e497843e8eeb75ea5f68ee231335018d5b3f2053": 2
+  },
+  "packages/ketos/client-locale-ru/tests/locale-ru.apply.client.spec.ts": {
+    "2e78263d16d54ccfd8d322bcdf1bf738bd8134e15c24063ece9a1d1b52f4ebd9": 1
+  },
+  "packages/ketos/clone-core/src/memory.ts": {
+    "68339bc22a8268f449addb3744f3f67f2bdbd42723f1b1cf19da386dde91ec5f": 1,
+    "67e91c133131a184ef9910b2a267e4d91d3db9d352dd0c00b73656e82e7ff1a1": 1,
+    "6b7740178669064f0494a5e71039c10d26512f918e30ae8d0c3ea59f27969486": 1,
+    "f4fec0631e53cd4a2461f6bbc05bb65c6d25d41d5be6a285b4b50c5938b0b44f": 1
+  },
+  "packages/ketos/clone-core/src/repository.ts": {
+    "4631e81955a837e2a60f8630fd608e817840f6146a9c82792f6b24290b4343b4": 1,
+    "5746a26e3d73fc1a859040647c014b11b5fe187ab0c09b0abe7493dae2875b71": 1,
+    "ab00b4499c9dff4120e19803c63aa84df170b152df454b4dd196686530091bf0": 1,
+    "5389b5fbf1af7ef8f576469d5befd23a6e4ea7e592216ccc086a0467b03b89a4": 1
+  },
+  "packages/ketos/clone-core/src/schema.ts": {
+    "39dd41f7a72c3e7110ffff8d7a1fbd2946e70c022b2fa962a83adb1563b0194e": 1
+  },
+  "packages/ketos/clone-core/src/task-repository.ts": {
+    "e269817cd43bdc834e44584c51dca32a4e3b5d41effc3aef1eeb18f6b66c5476": 1,
+    "103692a2dde4ae21779ad77b057dbabbb07b046e034ecf4f210c819d505eca81": 1,
+    "c8c8b9bb2e7fc0363f0cc0126eef23fb9970fd14f809f34ee12106fbf08ec6cb": 1,
+    "b5bbd88d7f09a8ffc59333a39adfc7615b693701c36cb93bfe659f0934ee77a0": 1,
+    "68e3a9c571682535d2f1dc4554a64936bedfdc54763d5b21be129b137a10deda": 1
+  },
+  "packages/ketos/clone-core/tests/composition.spec.ts": {
+    "8fc883c85f405f3b7b5e6d12ee3f4a43ba67ad9ca728411e3d418859982ed473": 1,
+    "268546d3d36838f4a694d58aa96c9411c9db5a0781ecc709ea97218002ba895a": 1,
+    "59c63f734e8bba862325f776e3fcbebd78a84cfb4161f8df41c216950d9bf351": 1,
+    "1a16358bcb3fe4112241b730ec86811907d1d4989d77f97cd7c8aaeb8159e3d5": 1,
+    "d884eefefa2479e33cbdb0cbfa22c08784301d0ba8727ee8f57dec132439ac93": 1,
+    "819b6d0755383e9e3583be4f69865c520746a2295d4eccd1d6ea5a0fba8afea0": 1
+  },
+  "packages/ketos/clone-core/tests/interview-tool.spec.ts": {
+    "d4e9e9aa17f6810ca0fe2e9673ddd10ce41e0c1556278236781f62be150a55c0": 1
+  },
+  "packages/ketos/clone-core/tests/memory-tools.spec.ts": {
+    "d1baac5fc4415005457a30915ff3afca6d78d367fdca500f19bd9b9b0df4a07e": 1
   },
   "packages/llm/deepseek-llm-api-extensions/src/index.ts": {
     "1f519aabb00553384bc9c1c57064a1ed6fcd757032061e1b14e0718d91dd4817": 1

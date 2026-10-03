@@ -1,6 +1,6 @@
 # Отчёт этапа 1. Стенд разработки и базовая среда
 
-> Заполнен по шаблону `stage-report-template.md`. Ветка `stage-01-dev-stand`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-01` (от `main` `fd640dc`). Финальный коммит этапа — голова этой ветки на момент приёмки.
+> Заполнен по шаблону `stage-report-template.md`. Ветка `stage-01-dev-stand`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-01` (от `main` `этап 01`). Финальный коммит этапа — голова этой ветки на момент приёмки.
 
 ## 1. Итог этапа
 
@@ -27,7 +27,7 @@
 ## 4. Отклонения
 
 - 17 базовых ошибок `pnpm run lint` в `packages/client/ui-board` исправлены по итогам критического ревью (механические скобки, поведение не менялось); lint зелёный, доска стартует этапы 2–4 с чистого гейта.
-- `test:coverage` на macOS: платформенные `subprocess-local/src/linux-execve.ts` и `code-runtime-python/src/index.ts` закрыты исключениями не-Linux хостов (`nonLinuxOnlyCoverageExclusions`; Linux-линия CI сохраняет оба файла под per-file 100%); `llm-pi-ai/src/adapter.ts` (4 места из форк-коммита `a4b5114`) закрыт тестами после ревью, полный прогон зелёный.
+- `test:coverage` на macOS: платформенные `subprocess-local/src/linux-execve.ts` и `code-runtime-python/src/index.ts` закрыты исключениями не-Linux хостов (`nonLinuxOnlyCoverageExclusions`; Linux-линия CI сохраняет оба файла под per-file 100%); `llm-pi-ai/src/adapter.ts` (4 места из форк-коммита `этап 01`) закрыт тестами после ревью, полный прогон зелёный.
 - `packages/client/ui-board/src/**` исключён из per-file покрытия по MVP-политике (Agent Note); исключение снимается, когда этапы 2–4 принесут поведенческие тесты.
 - Пробный стиль дев-цикла проверялся на `ui-theme` (`base.css`), а не на `ui-board/tokens.css`, как предлагал план: доска ещё не подключена к ростору (этап 2), её бандл в браузере не рендерится; цепочка watch для доски проверена изменением `lib/client.js`.
 - Исправленные по пути базовые дефекты: shebang `sync-dictionaries.mjs` (падал `verify-application-entrypoints`), ключ `'cordis'` в ru-словарях (падал `vendor rescope` в `hygiene`), ожидание fish-логотипа в `built-boot.expected.e2e.ts`, macOS-симлинк tmp в фикстуре `browser-bundled-externals.spec.ts`, гонка `hang`-replay в `queue-actions.e2e.ts` (тест не дожидался рендера `partial`). Однократный таймаут `hmr-config.spec.ts` не воспроизвёлся.
@@ -37,7 +37,7 @@
 | Команда | Результат |
 |---|---|
 | `pnpm install` | зелёный |
-| `pnpm run build` | зелёный; build-запись на `fd640dc` |
+| `pnpm run build` | зелёный; build-запись на `этап 01` |
 | `pnpm run test:gui` | 380 файлов, 5435 passed, 1 skipped |
 | `pnpm run test:coverage` | зелёный: 1267 файлов, 22 506 тестов, 1 ожидаемый провал, 131 skipped (после ревью) |
 | `pnpm run typecheck`, `pnpm run constraints`, `pnpm run lint` | зелёные (после ревью) |

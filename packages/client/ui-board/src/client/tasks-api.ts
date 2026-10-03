@@ -78,7 +78,7 @@ function isFailureCode(value: unknown): value is TaskFailureCode {
 
 /** One JSON request against the tasks route. */
 async function request(body: unknown): Promise<Response> {
-  return await fetch(ketosRoute(TASKS_PATH), {
+  return await fetch(ketosRoute(TASKS_PATH.slice(1)), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),

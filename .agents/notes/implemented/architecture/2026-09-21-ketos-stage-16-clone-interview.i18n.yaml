@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-ketos-stage-16-clone-interview.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-ketos-stage-16-clone-interview.md
-2026-09-21-ketos-stage-16-clone-interview.md: ab0b8d3562adba07052fade58422991f667331ff
-2026-09-21-ketos-stage-16-clone-interview.zh.md: 83fb4ff7d9237c03b1746598e4a1923bafac8b13
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window:
+  en: 58e18e8d24e5b1a2
+  zh: d3d18d9f36da60ff
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window/problem:
+  en: c5757c88d2801186
+  zh: 40d73165365e4d64
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window/decision:
+  en: 828df0ddd3a042b5
+  zh: 46b6133d6b1c4ea2
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window/alternatives-considered:
+  en: 664a3c9db01d8097
+  zh: a79ff57ce678c881
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window/consequences:
+  en: 6178f4fff908f423
+  zh: 07d0715fde33a79d
+/agent-note-the-clone-interview-is-a-per-agent-scope-derived-from-stored-bindings-and-hosted-by-the-clone-window/related:
+  en: 94f187c712609414
+  zh: 25dded95f2f3928c

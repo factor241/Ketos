@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-client-domain-graph-upstream-exceptions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-19-client-domain-graph-upstream-exceptions.md
-2026-09-19-client-domain-graph-upstream-exceptions.md: 87f33ed288738691694f4de01ef4d0ccc4132de7
-2026-09-19-client-domain-graph-upstream-exceptions.zh.md: ae46a3ac9117097ee354337ed705e6805738539e
+/agent-note-client-domain-graph-frozen-upstream-exceptions:
+  en: 238caf3ef829d43b
+  zh: 2df77a6d79fc47e4
+/agent-note-client-domain-graph-frozen-upstream-exceptions/problem:
+  en: 74fac3daa3deed65
+  zh: 49ee0e5ea6efc385
+/agent-note-client-domain-graph-frozen-upstream-exceptions/decision:
+  en: 3e22ce414821000e
+  zh: 6e96a1d3006be08d
+/agent-note-client-domain-graph-frozen-upstream-exceptions/alternatives-considered:
+  en: 904aee1819c9dd2c
+  zh: 2f94f450c653a4d7
+/agent-note-client-domain-graph-frozen-upstream-exceptions/consequences:
+  en: a15816f0dc4b9371
+  zh: e616008bbf0112fd
+/agent-note-client-domain-graph-frozen-upstream-exceptions/testing:
+  en: e8ce8f10cbb2fcee
+  zh: 8ee49c0c147652fe
+/agent-note-client-domain-graph-frozen-upstream-exceptions/related:
+  en: 284a0c997ab16c90
+  zh: 1116fbba74153b74

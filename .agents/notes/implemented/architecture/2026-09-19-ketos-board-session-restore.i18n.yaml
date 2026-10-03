@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-ketos-board-session-restore.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-19-ketos-board-session-restore.md
-2026-09-19-ketos-board-session-restore.md: 3a40716c8e65cd417d9f53c5ace4168d0f5f7d0f
-2026-09-19-ketos-board-session-restore.zh.md: 2ccbf24738ee825cfe58a9a1b362e1daa694a928
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list:
+  en: f37c49d03360f887
+  zh: 3347385d6dd040fb
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list/problem:
+  en: 8346b6580d2f89ce
+  zh: 65899e4a71b5315a
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list/decision:
+  en: bca571549e26c765
+  zh: 77d3160ca24bbb51
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list/alternatives-considered:
+  en: d26613cb89cd2d58
+  zh: 005e8a97bdc87235
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list/consequences:
+  en: 5c37abad11a979f2
+  zh: d5672d056e091ef4
+/agent-note-board-windows-restore-their-harness-sessions-and-reconcile-them-against-the-session-list/related:
+  en: 5702889d2c305aec
+  zh: 0fc93621ebbc7e17

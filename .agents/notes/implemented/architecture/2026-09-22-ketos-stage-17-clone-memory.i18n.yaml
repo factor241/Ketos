@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-ketos-stage-17-clone-memory.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-22-ketos-stage-17-clone-memory.md
-2026-09-22-ketos-stage-17-clone-memory.md: 856e09e8a814dbc8fcc7f8cdcc694593a6383136
-2026-09-22-ketos-stage-17-clone-memory.zh.md: 1687df1903215081fbcfc65f05c0f21d24f3cabf
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window:
+  en: 3fa8ad9041769f19
+  zh: a084e1b36099e7c0
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window/problem:
+  en: 54493939e503324b
+  zh: e14ff5d698da21d7
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window/decision:
+  en: d9fc52ad594c30bd
+  zh: 2df8d8d54a154190
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window/alternatives-considered:
+  en: e7b23cdd02315d88
+  zh: 5bf929abc17eeff9
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window/consequences:
+  en: 351a520816764863
+  zh: d653fa11925eb621
+/agent-note-clone-memory-is-one-fts5-store-in-clones-db-composed-into-the-clone-session-scope-and-edited-in-the-clone-window/related:
+  en: 2529f8fe7f2121e3
+  zh: bfe7decfeec13ded

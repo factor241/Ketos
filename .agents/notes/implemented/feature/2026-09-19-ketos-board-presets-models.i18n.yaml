@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-ketos-board-presets-models.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-19-ketos-board-presets-models.md
-2026-09-19-ketos-board-presets-models.md: 503942539aa1b47a46fd4122852d6a038534fe09
-2026-09-19-ketos-board-presets-models.zh.md: b66a2f052a82c864eabe44c219b2131c0950a47e
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals:
+  en: 2fbecef9eb8f37ea
+  zh: d8abf057d3d0dd63
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals/problem:
+  en: 563233979d5d1184
+  zh: 64c585e6d2b6a44a
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals/decision:
+  en: 141f5410ddf6d5b5
+  zh: 47299acaa23c5565
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals/alternatives-considered:
+  en: 86adc11935f5cf09
+  zh: 2ac30636feaef4d6
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals/consequences:
+  en: 4156223c6befe7aa
+  zh: 80cbb27f4e4420e3
+/agent-note-board-window-preset-and-model-selection-defaults-catalog-and-refusals/related:
+  en: 60d04f40203a9cfd
+  zh: 109acf1de00a0760

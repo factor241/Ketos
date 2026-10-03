@@ -1,6 +1,6 @@
 # Отчёт этапа 13. Рабочая директория и артефакты агента
 
-> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-13-workdir-artifacts`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-13` (от принятой ветки этапа 12 `stage-12-tools-approvals`; базовый коммит `269e8b7`). План этапа — `ketos_v7_master_plan/stage-13-workdir-artifacts.md` (ревизия 17); задачи — Beads `ketos-5v2.14.1`–`ketos-5v2.14.4`, эпик `ketos-5v2.14`.
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-13-workdir-artifacts`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-13` (от принятой ветки этапа 12 `stage-12-tools-approvals`; базовый коммит `этап 13`). План этапа — `ketos_v7_master_plan/stage-13-workdir-artifacts.md` (ревизия 17); задачи — Beads `ketos-5v2.14.1`–`ketos-5v2.14.4`, эпик `ketos-5v2.14`.
 
 ## 1. Итог этапа
 

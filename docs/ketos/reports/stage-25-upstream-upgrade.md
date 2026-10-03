@@ -18,9 +18,9 @@
 
 ## 3. У0.2. Worktree и базовая линия
 
-- `git fetch upstream --tags` выполнен; `dsh-v0.2.0-rc.2` = `639ed015397290b3745d163aafe02ffee4aa3f84`.
+- `git fetch upstream --tags` выполнен; `dsh-v0.2.0-rc.2` = `этап 25`.
 - `git worktree add "/Volumes/Projects/Ketos bot.worktrees/stage-25" -b stage-25-upstream-0.2.0-rc.2 main`; `pnpm install` и `pnpm run build` зелёные.
-- Деревья подтверждены: `git rev-parse f5d8f1e^{tree}` = `git rev-parse c291e79^{tree}` = `e482b49bef64726be8f79380bb35bae569dc3c48`.
+- Деревья подтверждены: `git rev-parse этап 25^{tree}` = `git rev-parse этап 25^{tree}` = `этап 25`.
 
 ### 3.1. Базовая линия на main
 
@@ -35,7 +35,7 @@
 
 ### 3.2. Пробное слияние
 
-`git merge-tree --write-tree --name-only --merge-base=c291e79 main dsh-v0.2.0-rc.2` — **109 конфликтов** (совпадает с разделом 3.7 плана), результат слияния — дерево `cbcde7eb2c216c970c8d19f6911e4660e3efad94`.
+`git merge-tree --write-tree --name-only --merge-base=этап 25 main dsh-v0.2.0-rc.2` — **109 конфликтов** (совпадает с разделом 3.7 плана), результат слияния — дерево `этап 25`.
 
 Драйвер пар переводов сообщил об ошибках формата записей пар (`merge-translation-pairing`) для 13 файлов `*.i18n.yaml` — они в списке конфликтов и разрешаются в У1.2 (взять апстрим и перегенерировать).
 
@@ -45,10 +45,10 @@
 
 ### У1.1. Пересадка корня и слияние
 
-- Проверено: `git rev-parse f5d8f1e^{tree}` = `git rev-parse c291e79^{tree}` = `e482b49bef64726be8f79380bb35bae569dc3c48`.
-- `git replace --graft f5d8f1e c291e79` → `git merge-base HEAD dsh-v0.2.0-rc.2` = `c291e7961a515f6d7af9304e7fd1d257929aef26`.
+- Проверено: `git rev-parse этап 25^{tree}` = `git rev-parse этап 25^{tree}` = `этап 25`.
+- `git replace --graft этап 25 этап 25` → `git merge-base HEAD dsh-v0.2.0-rc.2` = `этап 2561a515f6d7af9304e7fd1d257929aef26`.
 - `git merge --no-ff dsh-v0.2.0-rc.2` — 108 конфликтов содержимого + 1 «изменён у нас, удалён у них» (109 файлов), все разрешены (раздел 5).
-- Коммит слияния `0839fc35e3`; пересадка удалена (`git replace -l` пуст); `git merge-base HEAD dsh-v0.2.0-rc.2` = `639ed015397290b3745d163aafe02ffee4aa3f84` (коммит тега), родители слияния — `25dcc7f4` (main) и `639ed015` (тег).
+- Коммит слияния `этап 25`; пересадка удалена (`git replace -l` пуст); `git merge-base HEAD dsh-v0.2.0-rc.2` = `этап 25` (коммит тега), родители слияния — `этап 25` (main) и `этап 25` (тег).
 
 ### У1.2. Сгенерированные файлы
 
@@ -56,7 +56,7 @@
 
 ### У1.3. Бренд
 
-Авто-слияние потеряло брендовые строки только там, где апстрим переписал те же места: CLI-диагностика (`startup-diagnostics.ts`, `profile-boot.ts`, `dump-config-schema.ts`), потребители `ketos web:` (web-app spec, e2e профилей web, server-restart), `apps/cli/reference/README.md`/`.zh.md`. Всё возвращено отдельным коммитом `8f7c2c2b6c`; пары `apps/cli/reference` перезаписаны. Сверка со списком «потерянных» строк (`main` содержал `ketos`, слияние — нет) дала ровно 4 файла: два reference-README (возвращены), `app-boot/src/profile.ts` (7→1: апстрим удалил шесть сообщений вместе с кодом), `app-boot/tests/profile.spec.ts` (ожидание удалённой функции). Новые поверхности апстрима (document-preview, sidebar-terminal, плагин-менеджер и др.) не ребрендированы — это У3.1/У3.2 по решению Р-6.
+Авто-слияние потеряло брендовые строки только там, где апстрим переписал те же места: CLI-диагностика (`startup-diagnostics.ts`, `profile-boot.ts`, `dump-config-schema.ts`), потребители `ketos web:` (web-app spec, e2e профилей web, server-restart), `apps/cli/reference/README.md`/`.zh.md`. Всё возвращено отдельным коммитом `этап 25`; пары `apps/cli/reference` перезаписаны. Сверка со списком «потерянных» строк (`main` содержал `ketos`, слияние — нет) дала ровно 4 файла: два reference-README (возвращены), `app-boot/src/profile.ts` (7→1: апстрим удалил шесть сообщений вместе с кодом), `app-boot/tests/profile.spec.ts` (ожидание удалённой функции). Новые поверхности апстрима (document-preview, sidebar-terminal, плагин-менеджер и др.) не ребрендированы — это У3.1/У3.2 по решению Р-6.
 
 ### У1.4. Правки поведения Кетоса
 
@@ -77,7 +77,7 @@
 
 | Правка | В апстриме `dsh-v0.2.0-rc.2` | Действие в У1 |
 |---|---|---|
-| `x-opencode-session` (`llm-pi-ai/adapter.ts`, `d5675c2`) | нет | **Перенесена первой**; тесты `opencode-go` сохранены |
+| `x-opencode-session` (`llm-pi-ai/adapter.ts`, `этап 25`) | нет | **Перенесена первой**; тесты `opencode-go` сохранены |
 | `ISessions.openStream` (этап 24) | нет; апстрим убрал выбор сессии (`current`/`open`) | **Снята:** открытие — владельческое `retain`/`using`/`release`; доска переводится на `retain` в У2 |
 | `keepDefault` в `selectModel` (этап 21), backend + client | нет | **Перенесена**: гейт поверх фонового сохранения апстрима; `RemoteResult`-сигнатура клиента сохранена |
 | `workspace/invalid-path` (`$DSH_HOME`, `~/.ketos`, `~/.dsh`) | код ошибки есть | **Сохранена** авто-слиянием; условие прочитано и совпадает с правилом |
@@ -109,11 +109,11 @@
 
 | Коммит | Содержание |
 |---|---|
-| `0839fc35e3` | Merge upstream dsh-v0.2.0-rc.2 into Ketos (109 конфликтов, пересадка удалена) |
-| `8f7c2c2b6c` | fix(brand): Ketos-написания CLI-диагностики и потребителей `ketos web:` |
-| `e94bb80868` | chore(upstream): перегенерация каталогов/доков, восстановление scaffold и Ketos-уведомления |
-| `a2479d2360` | docs(ketos): отчёт этапа 25 |
-| `dc022705b4` | docs(ketos): процедура синхронизации и таблица правок Кетоса |
+| `этап 25` | Merge upstream dsh-v0.2.0-rc.2 into Ketos (109 конфликтов, пересадка удалена) |
+| `этап 25` | fix(brand): Ketos-написания CLI-диагностики и потребителей `ketos web:` |
+| `этап 25` | chore(upstream): перегенерация каталогов/доков, восстановление scaffold и Ketos-уведомления |
+| `этап 25` | docs(ketos): отчёт этапа 25 |
+| `этап 25` | docs(ketos): процедура синхронизации и таблица правок Кетоса |
 
 ## 10. Что осталось на У2
 
@@ -156,7 +156,7 @@
 - `packages/api/session-controller/tests/session-models.host.spec.ts`
 - `packages/api/session-controller/tests/sessions-service.client.spec.ts`
 - `packages/boot/app-boot/src/profile.ts`
-- `packages/boot/app-boot/tests/hmr-config.spec.ts`
+- `hmr-config.spec.ts`
 - `packages/boot/app-boot/tests/profile.spec.ts`
 - `packages/bundle/headless/README.i18n.yaml`
 - `packages/bundle/headless/README.md`

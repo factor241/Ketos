@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-29-ketos-board-detail-view-and-resize.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-ketos-board-detail-view-and-resize.md
-2026-09-29-ketos-board-detail-view-and-resize.md: 51444ec702b11ac6b58f00b8891c11577c4ee204
-2026-09-29-ketos-board-detail-view-and-resize.zh.md: 1bce05451ff959833d432fff1038254580e1a272
+/agent-note-board-detail-view-and-window-resize:
+  en: 95a7b66293a8170e
+  zh: 744da4e2a5c9cc5a
+/agent-note-board-detail-view-and-window-resize/problem:
+  en: 73d7b6f14d3e0bab
+  zh: 02ba75ac65cb1299
+/agent-note-board-detail-view-and-window-resize/decision:
+  en: 7864ae550e667e55
+  zh: c7f47b7a17c1d945
+/agent-note-board-detail-view-and-window-resize/alternatives-considered:
+  en: cc11233bd7027ced
+  zh: 66238c1ca91be7e5
+/agent-note-board-detail-view-and-window-resize/consequences:
+  en: a1351954ead1048b
+  zh: 38098c8caf128462
+/agent-note-board-detail-view-and-window-resize/testing:
+  en: 9959ea7552128b7d
+  zh: fc0d8f01ecfedb56
+/agent-note-board-detail-view-and-window-resize/related:
+  en: d4b85e3e894b00cb
+  zh: bc9d902d26af7413

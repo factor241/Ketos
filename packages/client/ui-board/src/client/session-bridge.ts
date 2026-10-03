@@ -112,7 +112,7 @@ function queueRow(item: UserMessage, placement: BoardQueueRow['placement']): Boa
     .join(' ').replace(/\s+/g, ' ').trim()
   const chars = Array.from(flat)
   const text = item.content.every(block => block.type === 'text')
-    ? item.content.map(block => block.type === 'text' ? block.text : '').join('')
+    ? item.content.map(block => block.text).join('')
     : null
   return {
     id: String(item.id),

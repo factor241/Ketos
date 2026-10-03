@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-ketos-stage-14-multi-window-perf.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-ketos-stage-14-multi-window-perf.md
-2026-09-21-ketos-stage-14-multi-window-perf.md: 1184aa108b190b83b48f95d748cf68e3287bee32
-2026-09-21-ketos-stage-14-multi-window-perf.zh.md: d0f779b0050a9513755f408ae3ec30b78f1f0e0d
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource:
+  en: f286df6e1085e872
+  zh: bf94ced4e9b88dab
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource/problem:
+  en: 61c85975d652f47a
+  zh: 6568a5a58216464d
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource/decision:
+  en: 810e0be2b1882d99
+  zh: 35638a0e43cec67a
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource/alternatives-considered:
+  en: f06480c5af78bb02
+  zh: ed5bbb1d4622b27d
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource/consequences:
+  en: 9eaff2f24f724b4e
+  zh: 19c63c539ba36abb
+/agent-note-board-windows-report-real-context-occupancy-keep-their-state-under-ten-live-sessions-and-release-every-window-resource/related:
+  en: 643a3953ff8c6d4b
+  zh: 4935345f882bbd66

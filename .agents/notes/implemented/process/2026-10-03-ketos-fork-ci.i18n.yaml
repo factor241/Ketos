@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-03-ketos-fork-ci.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-03-ketos-fork-ci.md
-2026-10-03-ketos-fork-ci.md: 94129d05e3165f13dddde3a71c27abbddf723f21
-2026-10-03-ketos-fork-ci.zh.md: 369f6ea93f7c220a691f9cf9b7b3ab725c148b6a
+/agent-note-fork-owned-ci-for-factor241-ketos:
+  en: 7ebe9f864f64e35b
+  zh: 646d989edbb670b5
+/agent-note-fork-owned-ci-for-factor241-ketos/problem:
+  en: 5d7b5c09391d26da
+  zh: 64a254668ed2f9a7
+/agent-note-fork-owned-ci-for-factor241-ketos/decision:
+  en: 1d2a602df45788d3
+  zh: bfb08b6e14800785
+/agent-note-fork-owned-ci-for-factor241-ketos/alternatives-considered:
+  en: 6d1de8b53140004d
+  zh: 1f9592980fa7c61f
+/agent-note-fork-owned-ci-for-factor241-ketos/consequences:
+  en: 990df1700820a020
+  zh: f13cb930cafa5bcb
+/agent-note-fork-owned-ci-for-factor241-ketos/testing:
+  en: a33f743ea997037d
+  zh: c3354619a2ab98ef
+/agent-note-fork-owned-ci-for-factor241-ketos/related:
+  en: 1272c81565541ded
+  zh: ded7788846bf3a10

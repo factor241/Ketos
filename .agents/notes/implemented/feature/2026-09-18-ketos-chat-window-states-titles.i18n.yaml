@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-ketos-chat-window-states-titles.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-ketos-chat-window-states-titles.md
-2026-09-18-ketos-chat-window-states-titles.md: d2379f0df518d776e15d1db905db9b5a5e802449
-2026-09-18-ketos-chat-window-states-titles.zh.md: 732341b280a67615df027725785fcf6c7b5a639e
+/agent-note-board-window-states-naming-and-composer-intake:
+  en: 30262f733ca230f1
+  zh: 0049cb62c378cfb5
+/agent-note-board-window-states-naming-and-composer-intake/problem:
+  en: d745736ecfbf10f1
+  zh: 2cffd0b99d6664ea
+/agent-note-board-window-states-naming-and-composer-intake/decision:
+  en: a66366635d16dbc3
+  zh: 4a648fe85100be89
+/agent-note-board-window-states-naming-and-composer-intake/alternatives-considered:
+  en: 641ce22827b29542
+  zh: 10e041202af80c9b
+/agent-note-board-window-states-naming-and-composer-intake/consequences:
+  en: 3b22f430f84819b7
+  zh: 8cd02ee0f69e7186
+/agent-note-board-window-states-naming-and-composer-intake/related:
+  en: 38d64dc3f5defc21
+  zh: 79c79d048a5057e8

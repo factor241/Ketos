@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-ketos-board-gestures-culling.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-ketos-board-gestures-culling.md
-2026-09-17-ketos-board-gestures-culling.md: c7a19dafc03b5b2120ed8f3717e6a177efa1ce31
-2026-09-17-ketos-board-gestures-culling.zh.md: 19c549dc6581642c690be6f2c52fbce403719910
+/agent-note-board-gestures-culling-and-the-window-manager-budgets:
+  en: 0795d9c0fc8856b6
+  zh: 8fe5db2d547b4dbc
+/agent-note-board-gestures-culling-and-the-window-manager-budgets/problem:
+  en: 1c0414c24d0e3ff1
+  zh: e38a0813b70adc27
+/agent-note-board-gestures-culling-and-the-window-manager-budgets/decision:
+  en: 44fcf2e41f3608b6
+  zh: 124f36540940368e
+/agent-note-board-gestures-culling-and-the-window-manager-budgets/alternatives-considered:
+  en: 995f5b9e5bf7dd1a
+  zh: e2166afc3d73c846
+/agent-note-board-gestures-culling-and-the-window-manager-budgets/consequences:
+  en: 53144f1f14184489
+  zh: f20aa38845210f74
+/agent-note-board-gestures-culling-and-the-window-manager-budgets/related:
+  en: 104cd748e5e233a9
+  zh: 6681cfb8ff76c02f

@@ -152,9 +152,9 @@ export async function withDefaultWeb(
       await expect.poll(() => {
         test.signal.throwIfAborted()
         if (exited) throw new Error(`Web exited before readiness\n${stdout}\n${stderr}`)
-        return /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
+        return /ketos web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
       }, { timeout: test.task.timeout }).toBeDefined()
-      const url = /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)![1]!
+      const url = /ketos web: (http:\/\/[^\s]+)/u.exec(stdout)![1]!
       await inspect({ root, url, request })
     } finally {
       const result = await close()

@@ -10,7 +10,7 @@ import { generateConfigSchema, type ConfigSchemaDump } from '@deepseek-ai/dsh-ap
 import { collectConfigDumpLayers } from './dump-config.ts'
 import { INSTALL_ANCHOR, prepareProfile } from './profile-boot.ts'
 
-const NAME = 'dsh'
+const NAME = 'ketos'
 
 /**
  * Print one JSON Schema document; incomplete collection or projection sets exitCode to 1.

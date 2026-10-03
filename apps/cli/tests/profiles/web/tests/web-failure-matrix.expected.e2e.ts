@@ -128,8 +128,8 @@ function start(f: ReturnType<typeof fixture>, extra: string[] = []) {
     } catch (cause) { throw new Error(`Web condition failed\n${stdout}\n${stderr}\n${readFileSync(f.diagnostics, 'utf8')}\n${readFileSync(f.events, 'utf8')}`, { cause }) }
   }
   async function serves(currentServer = false) {
-    await wait(() => /dsh web: http:\/\//u.test(stdout))
-    const url = currentServer ? readFileSync(f.serverUrl, 'utf8') : /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
+    await wait(() => /ketos web: http:\/\//u.test(stdout))
+    const url = currentServer ? readFileSync(f.serverUrl, 'utf8') : /ketos web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
     if (!url) throw new Error('Missing Web URL')
     const auth = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10_000) })
     const cookie = auth.headers.get('set-cookie')?.split(';', 1)[0]
@@ -177,7 +177,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
         if (required) {
           const result = await app.child
           exit(result, 1)
-          expect(result.stdout).not.toContain('dsh web: http://')
+          expect(result.stdout).not.toContain('ketos web: http://')
           expect(result.stderr).toContain('startup failed:')
           expect(app.events()).toBe('witness apply 1\nwitness dispose 1\n')
         } else {
@@ -239,7 +239,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
       const result = await app.child
       exit(result, 1)
       expect(result.stderr).toContain(diagnostic)
-      expect(result.stdout).not.toContain('dsh web: http://')
+      expect(result.stdout).not.toContain('ketos web: http://')
       expect(app.events()).toBe('')
     } finally { exit(await app.close(), 1) }
   })

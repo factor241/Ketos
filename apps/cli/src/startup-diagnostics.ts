@@ -61,7 +61,7 @@ export async function reportStartupFailure(
     await mkdir(logDir, { recursive: true, mode: 0o700 })
     await writeFile(logPath, report, { flag: 'wx', mode: 0o600 })
   } catch (writeError) {
-    await write(`\ndsh: warning: could not write startup diagnostics: ${String(writeError)}\nFull diagnostics:\n${report}`)
+    await write(`\nketos: warning: could not write startup diagnostics: ${String(writeError)}\nFull diagnostics:\n${report}`)
     return
   }
   await write(`\nFull diagnostics: ${logPath}\n`)

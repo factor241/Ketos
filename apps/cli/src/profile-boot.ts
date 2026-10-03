@@ -259,7 +259,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       try { await release() } catch (error) { failures.push(error) }
     }
     if (failures.length === 1) throw failures[0]
-    if (failures.length > 1) throw new AggregateError(failures, 'dsh: profile cleanup failed')
+    if (failures.length > 1) throw new AggregateError(failures, 'ketos: profile cleanup failed')
   })()
   try {
     const composed = await composeProfile(
@@ -319,7 +319,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     return { ctx, shutdown }
   } catch (error) {
     try { await dispose() } catch (cleanupError) {
-      throw new AggregateError([error, cleanupError], 'dsh: profile startup and cleanup failed')
+      throw new AggregateError([error, cleanupError], 'ketos: profile startup and cleanup failed')
     }
     throw error
   }

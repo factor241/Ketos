@@ -17,13 +17,13 @@ The `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` profiles auto-initialize 
 An existing profile rejects `--from-default-profile` without changing or booting it; omit the option to use it. A residual target directory is also preserved and requires a different profile name. An unknown template or a shipped target name fails before creating the target. Unknown-template diagnostics name the valid templates. Initialization is committed before bundle resolution and application boot, so a later failure leaves the new profile on disk and the retry omits the creation option. All three config-dump modes accept the option and initialize the target without booting it.
 
 ```sh
-dsh rescue --from-default-profile web
-dsh rescue
+ketos rescue --from-default-profile web
+ketos rescue
 ```
 
 ### App arguments
 
-The launcher's flags come first and end at the first token it does not recognize; everything from there on is handed to the booted profile verbatim through `ctx.cmdlineArgs`, where any injected app plugin may parse it ([`dsh-cmdline`](../../../packages/boot/cmdline/README.md)). `dsh rescue --from-default-profile web --no-open` therefore initializes before handing `--no-open` to Web, `dsh --profile web --port 8080` reaches the web app's `--port`, `dsh --profile web --help` prints that app's help and boots nothing, and `dsh --help` (no profile to hand it to) prints the launcher's own. `-V`/`--version` prints the launcher's version when it appears before the app-argument boundary.
+The launcher's flags come first and end at the first token it does not recognize; everything from there on is handed to the booted profile verbatim through `ctx.cmdlineArgs`, where any injected app plugin may parse it ([`dsh-cmdline`](../../../packages/boot/cmdline/README.md)). `ketos rescue --from-default-profile web --no-open` therefore initializes before handing `--no-open` to Web, `dsh --profile web --port 8080` reaches the web app's `--port`, `dsh --profile web --help` prints that app's help and boots nothing, and `dsh --help` (no profile to hand it to) prints the launcher's own. `-V`/`--version` prints the launcher's version when it appears before the app-argument boundary.
 
 A composition mounts once. An ordinary plugin injects `cmdlineArgs`, parses this app's arguments, and provides what it resolved as a service; each row configured from flags injects that service, and Loader waits for it before evaluating the row's config (`port: !!js ctx.webStartup.port ?? 3080`). A flag therefore beats the value written beside it. This precedence requires the row to retain that expression; a user patch that replaces the whole `config` with literals removes the runtime read. Help and rejected arguments request exit — nonzero for a rejection, 0 for help — without activating rows that depend on the provider's service. With HMR enabled, a patch-file edit re-evaluates expressions against services that are still up, so it cannot reset a served port.
 
@@ -65,7 +65,7 @@ Earlier union branches that may alter inputs and dictionary keys that may rename
 
 Collection imports trusted modules and may invoke Config getters and lazy builders, but never applies plugins, executes transform callbacks, or evaluates configuration expressions. Imports can block or retain process handles before or after output; automated callers should enforce an external timeout. The dump does not force-exit or own disposal of import-time resources. Ordinary import/builder stdout is routed to stderr; direct file-descriptor writes are not intercepted. Profile preparation retains YAML dump initialization writes. Only schema declarations are emitted, not actual configured values; declared defaults and raw plugin errors can still contain sensitive data. Review output before sharing. See [app-boot](../../../packages/boot/app-boot/README.md) for the collector API.
 
-Treat the output as a regenerated, pre-stable reference, not a versioned persisted catalog. `$schema` identifies the JSON Schema validation dialect; `x-cordis` follows dsh releases. Regenerate after changing dsh or plugins, and follow `$ref` and `configRef` rather than hard-coding definition names, ordering, or text. Incompatible dialect changes select a new `$schema`; annotation changes do not use Session-format migrations.
+Treat the output as a regenerated, pre-stable reference, not a versioned persisted catalog. `$schema` identifies the JSON Schema validation dialect; `x-cordis` follows ketos releases. Regenerate after changing dsh or plugins, and follow `$ref` and `configRef` rather than hard-coding definition names, ordering, or text. Incompatible dialect changes select a new `$schema`; annotation changes do not use Session-format migrations.
 
 <a id="startup-diagnostics"></a>
 ## Startup diagnostics
@@ -102,17 +102,17 @@ Git-hosted plugins that ship sources build during install through their `prepare
 
 ## Web profile
 
-`dsh web` uses the profile shorthand. Launcher flags are parsed first; the remaining flags belong to the web app, whose ordinary bundle provider parses them. `--host` and `--port` override the composed values of the rows that carry them, repeatable `--trusted-host` contributes invocation authorities through `ctx.webRuntime.trustedHosts` (a deployment expression concatenates its own authorities), and `--no-open` disables the default-browser handoff for this invocation. The client-plugin HMR receiver is always mounted and stays idle until `pnpm run dev:web` rebuilds client bundles; that command builds once, starts this same launcher, and keeps client bundles rebuilt, or with `--no-serve` runs only the watchers beside a `dsh web` started elsewhere.
+`ketos web` uses the profile shorthand. Launcher flags are parsed first; the remaining flags belong to the web app, whose ordinary bundle provider parses them. `--host` and `--port` override the composed values of the rows that carry them, repeatable `--trusted-host` contributes invocation authorities through `ctx.webRuntime.trustedHosts` (a deployment expression concatenates its own authorities), and `--no-open` disables the default-browser handoff for this invocation. The client-plugin HMR receiver is always mounted and stays idle until `pnpm run dev:web` rebuilds client bundles; that command builds once, starts this same launcher, and keeps client bundles rebuilt, or with `--no-serve` runs only the watchers beside a `ketos web` started elsewhere.
 
 ```sh
-dsh web
-dsh web --no-open
-dsh web --patch ./extra.cordis.yml
-dsh web --dump-config
-dsh web --help
+ketos web
+ketos web --no-open
+ketos web --patch ./extra.cordis.yml
+ketos web --dump-config
+ketos web --help
 ```
 
-The production Web runner needs built package and frontend artifacts (`pnpm run build`). It serves `http://127.0.0.1:3080` by default and, for a local launch, opens that canonical host URL only after the complete Loader tree settles. A non-empty inherited `SSH_CONNECTION` or `SSH_TTY` suppresses the browser handoff because the SSH client or editor owns the local forwarded address; the host URL is still printed. The CLI intentionally does not support `--host 0.0.0.0` and exits with a usage error. Immediately before a local handoff it prints `dsh web: opening the default browser; pass --no-open to disable`; if the operating-system handoff fails, a diagnostic on stderr states the reason, leaves the server running, and names the URL for manual use. `--trusted-host` adds named authorities accepted by the `/api` browser-trust fence.
+The production Web runner needs built package and frontend artifacts (`pnpm run build`). It serves `http://127.0.0.1:3080` by default and, for a local launch, opens that canonical host URL only after the complete Loader tree settles. A non-empty inherited `SSH_CONNECTION` or `SSH_TTY` suppresses the browser handoff because the SSH client or editor owns the local forwarded address; the host URL is still printed. The CLI intentionally does not support `--host 0.0.0.0` and exits with a usage error. Immediately before a local handoff it prints `ketos web: opening the default browser; pass --no-open to disable`; if the operating-system handoff fails, a diagnostic on stderr states the reason, leaves the server running, and names the URL for manual use. `--trusted-host` adds named authorities accepted by the `/api` browser-trust fence.
 
 Process shutdown gives the plugin tree up to five seconds to dispose. The first `SIGINT`/`SIGTERM` starts that graceful drain — `SIGTERM` is a supervisor's ordinary stop request and exits 0 on every surface, `SIGINT` reports 130; a second signal forces immediate exit. If one-shot normal completion is already stuck in disposal, the first `Ctrl+C` is the escalation and exits immediately instead of being swallowed.
 

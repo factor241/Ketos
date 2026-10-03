@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconEllipsisOutline16, Input, Menu, Modal, Pill, type MenuEntry,
+  Button, IconEllipsisOutlineRegular, Input, Menu, Modal, Pill, type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CloneSessionBinding, CloneSkill, CloneStatus } from '@ketos/clone-core/types'
@@ -625,7 +625,7 @@ export function CloneBody({
                       setSkillMenu({ index, name: skill.name })
                     }}
                   >
-                    <IconEllipsisOutline16 />
+                    <IconEllipsisOutlineRegular />
                   </button>
                 </div>
               )

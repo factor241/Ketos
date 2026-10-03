@@ -7,11 +7,11 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconBrowseOutline16,
-  IconChecklistOutline14,
-  IconCordisPluginOutline14,
-  IconGaugeOutline16,
-  IconSettingsOutline16,
+  IconBrowseOutlineRegular,
+  IconChecklistOutlineRegular,
+  IconPluginPinwheelOutlineRegular,
+  IconGaugeOutlineRegular,
+  IconSettingsOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { WindowKind } from '../contract/slots.ts'
 import { folderPaletteIndex, titleInitials } from './window-icon.ts'
@@ -33,11 +33,11 @@ function paletteClass(index: number): string | undefined {
  */
 export function windowKindGlyph(kind: WindowKind): ReactNode {
   switch (kind) {
-    case 'settings': return <IconSettingsOutline16 />
-    case 'connectors': return <IconCordisPluginOutline14 />
-    case 'dashboard': return <IconGaugeOutline16 />
-    case 'tasks': return <IconChecklistOutline14 />
-    default: return <IconBrowseOutline16 />
+    case 'settings': return <IconSettingsOutlineRegular />
+    case 'connectors': return <IconPluginPinwheelOutlineRegular />
+    case 'dashboard': return <IconGaugeOutlineRegular />
+    case 'tasks': return <IconChecklistOutlineRegular />
+    default: return <IconBrowseOutlineRegular />
   }
 }
 

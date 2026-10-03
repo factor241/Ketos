@@ -40,7 +40,8 @@ describe('the board in the shipped web roster', () => {
     const client = await start()
     expect(client.ctx.slots.entries('main').map(entry => entry.options.key)).toContain('board')
     expect(client.ctx.slots.entries('sidebar.brand.actions').map(entry => entry.options.id)).toContain('board')
-    expect(client.ctx.slots.entries('sidebar.panellist')).toEqual([])
+    // The upstream plugin-manager row owns the panel-list entry; the board adds none.
+    expect(client.ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).not.toContain('board')
   }, COLD_BOOT_TIMEOUT_MS)
 
   it('rebuilds the row through the Loader without duplicating board contributions', async ({ start }) => {

@@ -18,8 +18,8 @@ import type { ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-ui-c
 import {
   DiffBlock,
   FileTypeIcon,
-  IconStopFill16,
-  IconWarningOutline16,
+  IconStopFillRegular,
+  IconWarningOutlineRegular,
   JsonBlock,
   ReadBlock,
   SearchBlock,
@@ -307,7 +307,7 @@ export const ToolCard = memo(function ToolCard({
   } else if (unavailable) {
     status = (
       <div className={css.status} data-board-tool-status="unavailable">
-        <IconWarningOutline16 />
+        <IconWarningOutlineRegular />
         <span className={css.statusName}>{title}</span>
         <span className={css.statusNote}>{t('conversation.toolUnavailable')}</span>
         {canRepeat && onRepeat !== undefined && (
@@ -320,7 +320,7 @@ export const ToolCard = memo(function ToolCard({
   } else if (interrupted) {
     status = (
       <div className={css.status} data-board-tool-status="stopped">
-        <IconStopFill16 />
+        <IconStopFillRegular />
         <span className={css.statusName}>{title}</span>
         <span className={css.statusNote}>{t('conversation.toolStopped')}</span>
       </div>
@@ -328,7 +328,7 @@ export const ToolCard = memo(function ToolCard({
   } else if (failed) {
     status = (
       <div className={css.status} data-board-tool-status="failed">
-        <IconWarningOutline16 />
+        <IconWarningOutlineRegular />
         <span className={css.statusName}>{title}</span>
         <span className={css.statusNote}>{t('conversation.toolFailed')}</span>
         {node.error !== undefined && (

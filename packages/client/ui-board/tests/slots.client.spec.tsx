@@ -362,8 +362,9 @@ describe('board slot composition', () => {
     await prepared.mountBoard()
     const { runtime } = prepared
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const header = runtime.renderSlot('conversation.session.header.utilities', {})
-    const blankHeader = runtime.renderSlot('conversation.session.header.blank', {})
+    const sessionReference = runtime.sessions.retain('session-1' as SessionId, { source: 'testView' })
+    const header = runtime.renderSlot('conversation.session.header.utilities', {}, { session: sessionReference })
+    const blankHeader = runtime.renderSlot('conversation.session.header.blank', {}, { session: sessionReference })
     const board = runtime.storeOf('board.dock') as BoardInstance
     const conversation = runtime.ctx.get('conversation') as unknown as {
       seedStandardDraft: (sessionId: string, text: string) => { addFiles: (files: readonly File[]) => boolean }
@@ -427,7 +428,8 @@ describe('board slot composition', () => {
     await prepared.mountBoard()
     const { runtime } = prepared
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
-    const header = runtime.renderSlot('conversation.session.header.utilities', {})
+    const sessionReference = runtime.sessions.retain('session-1' as SessionId, { source: 'testView' })
+    const header = runtime.renderSlot('conversation.session.header.utilities', {}, { session: sessionReference })
     const board = runtime.storeOf('board.dock') as BoardInstance
     const conversation = runtime.ctx.get('conversation') as unknown as {
       seedStandardDraft: (sessionId: string, text: string) => unknown
@@ -472,30 +474,37 @@ describe('board slot composition', () => {
       panel.container.querySelector('[data-board-action="window-rename"]')?.getAttribute('data-board-title') ?? null
     expect(title()).toBe('Chat one')
 
+    // Opening a Session in the standard interface retains it for `mainView`
+    // (ui-workspace owns the selection); the board watches the list's
+    // main-view holder.
+    let mainReference = runtime.sessions.retain('session-2' as SessionId, { source: 'mainView' })
+    const openInMain = async (id: string): Promise<void> => {
+      mainReference.release()
+      mainReference = runtime.sessions.retain(id as SessionId, { source: 'mainView' })
+      await runtime.flush()
+    }
+
     // Т2.16: the sidebar switch (not an expand) arms no rules — opening
     // another Session in the standard interface leaves the window alone.
     fireEvent.click(brand.container.querySelector('[data-board-action="open-board"]') as Element)
-    await runtime.sessions.setCurrent('session-2')
-    await runtime.flush()
+    await openInMain('session-2')
     expect(title()).toBe('Chat one')
 
     // Back on the window's own Session (the rules run, but the holder guard
     // keeps the window where it is), then expand to arm them: the next
     // existing Session the user opens moves the expanded window (Т2.13).
-    await runtime.sessions.setCurrent('session-1')
-    await runtime.flush()
+    await openInMain('session-1')
     expect(title()).toBe('Chat one')
     fireEvent.click(panel.container.querySelector('button[aria-label="Open fullscreen"]') as Element)
     await runtime.flush()
-    await runtime.sessions.setCurrent('session-2')
-    await runtime.flush()
+    await openInMain('session-2')
     expect(title()).toBe('Chat two')
 
     // A brand-new blank Session leaves the window alone (Т2.15).
     await runtime.sessions.add({ id: 'session-3', summary: { displayTitle: 'New chat', blank: true } })
-    await runtime.sessions.setCurrent('session-3')
-    await runtime.flush()
+    await openInMain('session-3')
     expect(title()).toBe('Chat two')
+    mainReference.release()
   })
 
   it('opens the panel beside the frame from the window header control', async () => {
@@ -682,10 +691,10 @@ describe('board slot composition', () => {
     await runtime.flush()
     expect(toggle()?.getAttribute('data-board-group-toggle')).toBe('open')
     // Clicking another chat binds this window to it and keeps the panel open.
-    const before = runtime.sessions.calls.filter(call => call.method === 'openStream').length
+    const before = runtime.sessions.calls.filter(call => call.method === 'retain').length
     fireEvent.click(panel.view.getByText('Beta'))
     await runtime.flush()
-    expect(runtime.sessions.calls.filter(call => call.method === 'openStream').length).toBe(before + 1)
+    expect(runtime.sessions.calls.filter(call => call.method === 'retain').length).toBe(before + 1)
     expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Beta')
     expect(panel.container.querySelector('[data-board-panel-side="left"]')?.getAttribute('data-board-panel-open')).toBe('')
 
@@ -728,7 +737,7 @@ describe('board slot composition', () => {
 
     // The window's session is the picked chat: the panel marks that row current.
     expect(panel.container.querySelector('[data-board-chat-current]')?.textContent).toContain('Second chat')
-    expect(runtime.sessions.calls.some(call => call.method === 'openStream' && call.args[0] === 'chat-2')).toBe(true)
+    expect(runtime.sessions.calls.some(call => call.method === 'retain' && call.args[0] === 'chat-2')).toBe(true)
   })
 
   it('manages projects from the panel: rename, reorder, delete', async () => {

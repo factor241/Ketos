@@ -16,7 +16,7 @@ import type {
   InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  FishLogo, IconPanelLeftOutline16, Tooltip,
+  FishLogo, IconPanelLeftOutlineRegular, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import clsx from 'clsx'
 import { BOARD_POPOVER_Z, type BoardStoreHandle } from './store.ts'
@@ -400,7 +400,7 @@ function BoardModeBadge({ actions, t, openStandardInterface }: {
           onClick={openStandardInterface}
           className={css.modeBadgeButton}
         >
-          <IconPanelLeftOutline16 />
+          <IconPanelLeftOutlineRegular />
         </button>
       </Tooltip>
     </div>

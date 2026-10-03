@@ -15,8 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  FileTypeIcon, IconCloseOutline16, IconFolderClose16, IconFolderOpen16, IconPanelLeftOutline16,
-  IconPlusOutline16, IconRefreshOutline16, MarkdownText, Tooltip, classifyFileType,
+  FileTypeIcon, IconCloseOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular, IconPanelLeftOutlineRegular,
+  IconPlusOutlineRegular, IconRefreshOutlineRegular, MarkdownText, Tooltip, classifyFileType,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -227,8 +227,8 @@ function TreeEntry({ parent, entry, tree }: {
           onClick={() => { tree.onToggle(path) }}
         >
           {expanded
-            ? <IconFolderOpen16 className={css.entryIcon} />
-            : <IconFolderClose16 className={css.entryIcon} />}
+            ? <IconFolderOpenRegular className={css.entryIcon} />
+            : <IconFolderCloseRegular className={css.entryIcon} />}
           <span className={css.entryName}>{entry.name}</span>
         </button>
         {expanded && <div className={css.level}><TreeLevel path={path} tree={tree} /></div>}
@@ -354,7 +354,7 @@ function FilesPane({ sessionId, tabId, state, t, actions, windowId, openFileInPa
           title={t('right.reload')}
           onClick={() => { actions.filesReset(sessionId, tabId) }}
         >
-          <IconRefreshOutline16 />
+          <IconRefreshOutlineRegular />
         </button>
       </div>
       <div className={css.tree}>
@@ -396,7 +396,7 @@ function TabChip({ tab, active, t, onActivate, onClose }: {
         aria-label={t('right.closeTab')}
         onClick={onClose}
       >
-        <IconCloseOutline16 />
+        <IconCloseOutlineRegular />
       </button>
     </div>
   )
@@ -431,7 +431,7 @@ export function RightPanel({
           data-board-action="right-open-files"
           onClick={() => { actions.openRightTab(sessionId, { id: 'files', kind: 'files' }) }}
         >
-          <IconFolderOpen16 className={css.homeIcon} />
+          <IconFolderOpenRegular className={css.homeIcon} />
           <span className={css.homeText}>{t('right.workspaceFiles')}</span>
         </button>
       </div>
@@ -486,7 +486,7 @@ export function RightPanel({
               title={t('right.newTab')}
               onClick={() => { actions.openRightTab(sessionId, { id: 'home', kind: 'home' }) }}
             >
-              <IconPlusOutline16 />
+              <IconPlusOutlineRegular />
             </button>
           </div>
         )}
@@ -499,7 +499,7 @@ export function RightPanel({
             aria-label={t('panel.collapse')}
             onClick={() => { actions.setWindowPanel(windowId, 'right', false) }}
           >
-            <IconPanelLeftOutline16 className={css.collapseIcon} />
+            <IconPanelLeftOutlineRegular className={css.collapseIcon} />
           </button>
         </Tooltip>
       </div>

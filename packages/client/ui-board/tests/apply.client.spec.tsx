@@ -214,7 +214,7 @@ describe('board plugin registration', () => {
 
     // Both restored windows reached their sessions before any window mounted.
     expect(prepared.runtime.sessions.calls
-      .filter(call => call.method === 'openStream')
+      .filter(call => call.method === 'retain')
       .map(call => call.args[0])).toEqual(['session-1', 'session-2'])
   })
 

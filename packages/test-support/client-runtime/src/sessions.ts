@@ -311,7 +311,7 @@ export class TestSessions implements ISessions {
 
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
-    method: 'create' | 'openStream' | 'refreshProjections' | 'refresh' | 'search' | 'fork'
+    method: 'create' | 'retain' | 'refreshProjections' | 'refresh' | 'search' | 'fork'
     args: unknown[]
   }[] = []
 
@@ -520,6 +520,7 @@ export class TestSessions implements ISessions {
     target: SessionTarget,
     options: SessionRetainOptions = { source: 'testFixture' },
   ): SessionReference {
+    this.calls.push({ method: 'retain', args: [target] })
     const { source, signal } = options
     signal?.throwIfAborted()
     if (this.closed) throw new Error('test Session Controller is disposed')
@@ -623,16 +624,6 @@ export class TestSessions implements ISessions {
     const id = await this.createStub(opts)
     this.require(id)
     return id
-  }
-
-  /**
-   * Service-level stream-open call (recorded; the selection stays untouched,
-   * which is the production contract this double exists to observe).
-   * @param id - session id.
-   */
-  openStream(id: SessionId): void {
-    this.calls.push({ method: 'openStream', args: [id] })
-    this.require(id)
   }
 
   /** Resolve a retained or catalog-derived address independently of a view. */

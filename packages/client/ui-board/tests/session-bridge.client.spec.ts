@@ -60,19 +60,25 @@ async function twoChatBench(hooks: BoardSessionBridgeHooks = {}) {
   return { prepared, bridge }
 }
 
-/** Session ids the service double was asked to stream-open, in call order. */
-function openedSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
-  return prepared.runtime.sessions.calls.filter(call => call.method === 'openStream').map(call => call.args[0])
-}
-
-/** Session ids the service double was asked to select as current, in call order. */
-function selectedSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
-  return prepared.runtime.sessions.calls.filter(call => call.method === 'open').map(call => call.args[0])
+/** Session ids the bridge retained, in call order. */
+function retainedSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
+  return prepared.runtime.sessions.calls.filter(call => call.method === 'retain').map(call => call.args[0])
 }
 
 /** Session ids the service double was asked to create, in call order. */
 function createdSessions(prepared: { runtime: SlotTestRuntime }): readonly unknown[] {
   return prepared.runtime.sessions.calls.filter(call => call.method === 'create').map(call => call.args[0])
+}
+
+/** Install one pending-inbox projection value on the bench session. */
+function setInbox(prepared: { runtime: SlotTestRuntime }, sessionId: SessionId, inbox: {
+  readonly 'next-turn': readonly unknown[]
+  readonly 'next-step': readonly unknown[]
+}): void {
+  const session = prepared.runtime.ctx.sessions.binding(sessionId)?.session
+  if (session === undefined) throw new Error('missing session face')
+  const projections = session.projections as unknown as { set(key: string, value: unknown): void }
+  projections.set('inbox', inbox)
 }
 
 describe('BoardSessionBridge', () => {
@@ -240,7 +246,7 @@ describe('BoardSessionBridge', () => {
     expect(bridge.windowIds()).toEqual([])
   })
 
-  it('restores every stored pair, opening each session once', async () => {
+  it('restores every stored pair, retaining each session once', async () => {
     const { prepared, bridge } = await twoChatBench()
     const first = 'a1' as WindowId
     const second = 'a2' as WindowId
@@ -248,7 +254,7 @@ describe('BoardSessionBridge', () => {
     bridge.restore({ a1: 'session-1', a2: 'session-2' }, [first, second])
     await prepared.runtime.flush()
 
-    expect(openedSessions(prepared)).toEqual(['session-1', 'session-2'])
+    expect(retainedSessions(prepared)).toEqual(['session-1', 'session-2'])
     expect(bridge.channel(first).getSnapshot()).toMatchObject({ status: 'ready', sessionId: 'session-1' })
     expect(bridge.channel(second).getSnapshot()).toMatchObject({
       status: 'ready',
@@ -342,7 +348,7 @@ describe('BoardSessionBridge', () => {
     })
     await prepared.runtime.flush()
     expect(channel.getSnapshot().status).toBe('ready')
-    expect(openedSessions(prepared)).toEqual(['session-1', 'session-1'])
+    expect(retainedSessions(prepared)).toEqual(['session-1', 'session-1'])
   })
 
   it('restores windows without changing the application current session (A5)', async () => {
@@ -354,10 +360,9 @@ describe('BoardSessionBridge', () => {
     bridge.restore({ a1: 'session-1', a2: 'session-2' }, [first, second])
     await prepared.runtime.flush()
 
-    // Each window's stream opened in place, and the shell's selection never
-    // moved: the board is not the user, so restoring it must not pick a chat.
-    expect(openedSessions(prepared)).toEqual(['session-1', 'session-2'])
-    expect(selectedSessions(prepared)).toEqual([])
+    // Each window retained its own reference without moving the shell's
+    // selection: the board is not the user, so restoring it must not pick a chat.
+    expect(retainedSessions(prepared)).toEqual(['session-1', 'session-2'])
     expect(prepared.runtime.sessions.list.getSnapshot().current).toBe(before)
     expect(bridge.channel(first).getSnapshot().status).toBe('ready')
   })
@@ -730,28 +735,6 @@ describe('BoardSessionBridge submissions and queue projections', () => {
       async () => ({ ok: true as const, value: { accepted: true as const } }),
     )
     await prepared.runtime.sessions.updateSessionSnapshot(sessionId, (draft) => {
-      draft.queue = [
-        {
-          id: 'q1' as never,
-          messageId: 'm1' as never,
-          placement: 'queued',
-          rpcId: 'request-admitted' as never,
-          content: [
-            { type: 'text', text: 'потом поправь отчёт' },
-            { type: 'file', attachment: { attachmentId: 'f1' as never, name: 'report.pdf', bytes: 4096 } },
-          ],
-          preview: 'потом поправь отчёт',
-          text: 'потом поправь отчёт',
-        },
-        {
-          id: 'q2' as never,
-          messageId: 'm2' as never,
-          placement: 'steering',
-          content: [{ type: 'text', text: 'корректировка' }],
-          preview: 'корректировка',
-          text: 'корректировка',
-        },
-      ]
       draft.pendingSubmissions = [
         {
           requestId: 'request-admitted' as never,
@@ -769,13 +752,35 @@ describe('BoardSessionBridge submissions and queue projections', () => {
         },
       ]
     })
+    setInbox(prepared, sessionId, {
+      'next-turn': [
+        {
+          id: 'q1',
+          role: 'user',
+          source: { kind: 'user', rpcId: 'request-admitted' },
+          content: [
+            { type: 'text', text: 'потом поправь отчёт' },
+            { type: 'file', attachment: { attachmentId: 'f1', name: 'report.pdf', bytes: 4096 } },
+          ],
+        },
+      ],
+      'next-step': [
+        {
+          id: 'q2',
+          role: 'user',
+          source: { kind: 'user' },
+          content: [{ type: 'text', text: 'корректировка' }],
+        },
+      ],
+    })
     await prepared.runtime.flush()
 
     expect(channel.getSnapshot().queue).toEqual([
       {
         id: 'q1',
+        // Text plus attachment leaves no single editable text block.
+        text: null,
         preview: 'потом поправь отчёт',
-        text: 'потом поправь отчёт',
         placement: 'queued',
         attachments: [{ kind: 'file', name: 'report.pdf', bytes: 4096 }],
       },
@@ -867,14 +872,15 @@ describe('BoardSessionBridge submissions and queue projections', () => {
     if (sessionId === undefined) throw new Error('missing session id')
     await prepared.runtime.sessions.updateSessionSnapshot(sessionId, (draft) => {
       draft.running = true
-      draft.queue = [{
-        id: 'q1' as never,
-        messageId: 'm1' as never,
-        placement: 'queued',
+    })
+    setInbox(prepared, sessionId, {
+      'next-turn': [{
+        id: 'q1',
+        role: 'user',
+        source: { kind: 'user' },
         content: [{ type: 'text', text: 'дождётся хода' }],
-        preview: 'дождётся хода',
-        text: 'дождётся хода',
-      }]
+      }],
+      'next-step': [],
     })
     await prepared.runtime.flush()
 

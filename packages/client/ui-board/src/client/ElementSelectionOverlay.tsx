@@ -5,7 +5,7 @@
  * callback so the control under the pointer never activates.
  */
 import { useEffect, useRef } from 'react'
-import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { isBoardEditingTarget } from './editing-target.ts'
 import type { BoardTranslate } from './locale.ts'
 import css from './ElementSelectionOverlay.module.css'
@@ -76,7 +76,7 @@ export function ElementSelectionOverlay({
           className={css.cancel}
           aria-label={t('inspector.cancel')}
         >
-          <IconCloseOutline16 />
+          <IconCloseOutlineRegular />
         </button>
       </div>
     </div>

@@ -180,14 +180,20 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // window already shows the Session (the return control then leads there) or
   // the Session is still blank (a brand-new Session leaves the window alone).
   // The rules run only for an expanded window: switching interfaces with the
-  // sidebar control never rebinds anything (Т2.16).
-  let currentSession = ctx.sessions.list.getSnapshot().current
-  ctx.effect(() => ctx.sessions.list.subscribe(() => {
+  // sidebar control never rebinds anything (Т2.16). The standard interface's
+  // current Session is the one retained for `mainView` (ui-workspace owns the
+  // selection; the Session list no longer carries it).
+  const mainViewedSession = (): SessionId | undefined => {
     const list = ctx.sessions.list.getSnapshot()
-    const next = list.current
+    return list.ids.find(id => (list.byId[id]?.retainedBy.mainView ?? 0) > 0)
+  }
+  let currentSession = mainViewedSession()
+  ctx.effect(() => ctx.sessions.list.subscribe(() => {
+    const next = mainViewedSession()
     if (next === currentSession) return
     currentSession = next
     if (next === undefined) return
+    const list = ctx.sessions.list.getSnapshot()
     const expanded = instance.getSnapshot().expandedWindowId
     if (expanded === null) return
     if (list.byId[next]?.blank === true) return

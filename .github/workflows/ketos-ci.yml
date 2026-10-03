@@ -1,0 +1,151 @@
+# The fork's required Linux signal. Upstream ci.yml targets the upstream
+# organization's enterprise runners (and resolves them through
+# DSH_CI_FAILOVER_* repository variables), so on factor241/Ketos its jobs stay
+# queued forever; upstream ci-master.yml listens to master pushes and runs on
+# self-hosted pools. This workflow runs the same keyless gates on standard
+# GitHub-hosted ubuntu-24.04 runners and leaves the upstream workflow files
+# untouched for upstream syncs.
+name: ketos-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  # Daily coverage lane; scheduled runs execute the default branch.
+  schedule:
+    - cron: '23 3 * * *'
+
+concurrency:
+  # A fresh push or pull-request head replaces its obsolete run.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PRIMARY_NODE_VERSION: '24'
+  # CI runs must never report to the production telemetry endpoint baked
+  # into apps/cli/cordis.yml (AppCLIEntry disables the row when set).
+  DSH_TELEMETRY_DISABLED: '1'
+  # Standard ubuntu-24.04 hosted runners carry 4 vCPU; the values match the
+  # 4-core row of ci-master.yml's consolidated-runner topology.
+  DSH_GATE_CONCURRENCY: '4'
+  DSH_OXLINT_THREADS: '4'
+  DSH_PUBLINT_CONCURRENCY: '4'
+  DSH_SNAPSHOT_MAX_CONCURRENCY: '4'
+  DSH_COVERAGE_MAX_WORKERS: '4'
+
+jobs:
+  linux-gates:
+    name: linux / node 24
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      # Redirect the Node compile cache (enabled by pnpm and TypeScript) off
+      # the root partition's /tmp before the first pnpm call.
+      - name: Redirect Node compile cache to runner temp
+        run: echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Configure pnpm store path
+        id: pnpm-store
+        run: |
+          store_root="$HOME/.local/share/pnpm/store"
+          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
+          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare bubblewrap (unrestrict userns)
+        run: bash scripts/prepare-ci-bubblewrap.sh
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Run GUI and host tests
+        run: pnpm run test:gui
+
+      - name: Run documentation gates
+        run: pnpm run doc-sync
+
+      - name: Run hygiene gates
+        run: pnpm run hygiene
+
+      - name: Replay web snapshots on built artifacts
+        run: DSH_SNAPSHOT=replay pnpm run test:web:built
+
+  coverage:
+    name: linux / node 24 / coverage
+    # The per-file coverage gate is the slowest lane and is not required for
+    # pull requests; the daily schedule and manual dispatch run it.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Redirect Node compile cache to runner temp
+        run: echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Configure pnpm store path
+        id: pnpm-store
+        run: |
+          store_root="$HOME/.local/share/pnpm/store"
+          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
+          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare bubblewrap (unrestrict userns)
+        run: bash scripts/prepare-ci-bubblewrap.sh
+
+      - name: Run coverage gate
+        run: pnpm run test:coverage

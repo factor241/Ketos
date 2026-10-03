@@ -83,11 +83,12 @@ jobs:
       - name: Prepare bubblewrap (unrestrict userns)
         run: bash scripts/prepare-ci-bubblewrap.sh
 
-      # Guard against a false green: the e2e suites self-skip when the key is
-      # absent, so a missing/misconfigured secret would otherwise pass as
-      # "all skipped". This job only runs on trusted events (the `if:` above
-      # excludes keyless PRs), so the secret MUST be present — fail loudly if not.
-      - name: Preflight (require DEEPSEEK_API_KEY)
+      # The e2e suites self-skip when the key is absent. Upstream fails loudly
+      # here so a misconfigured secret cannot pass as an all-skipped green;
+      # factor241/Ketos runs keyless until DEEPSEEK_API_KEY_EXTERNAL is
+      # configured, and treats the self-skip as the expected state there
+      # (docs/ketos/ci-fork.md).
+      - name: Preflight (report DEEPSEEK_API_KEY)
         env:
           # Repo secret DEEPSEEK_API_KEY_EXTERNAL holds the external-API key;
           # the tests read process.env.DEEPSEEK_API_KEY, so map it across here.
@@ -95,11 +96,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "::error::DEEPSEEK_API_KEY is empty. The e2e suite would self-skip and"
-            echo "::error::report a false green. Configure the repo secret DEEPSEEK_API_KEY_EXTERNAL."
-            exit 1
+            echo "::warning::DEEPSEEK_API_KEY_EXTERNAL is not configured: the real-API suite will self-skip."
+          else
+            echo "DEEPSEEK_API_KEY present."
           fi
-          echo "DEEPSEEK_API_KEY present."
 
       # The e2e suites boot the example bins in `lib` mode (DSH_EXAMPLE_MODE=lib):
       # the built artifact under plain Node, resolving plugins through real package

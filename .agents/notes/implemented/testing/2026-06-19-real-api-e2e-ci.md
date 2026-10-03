@@ -12,7 +12,7 @@ The default gate ([.github/workflows/ci.yml](../../../../.github/workflows/ci.ym
 
 ## Decision
 
-A dedicated workflow, [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml), separate from ci.yml, runs only `pnpm run test:e2e` against the external API using a repo secret, on trusted events, with a preflight that converts a missing secret into a loud failure instead of a false green. The keyless workflow remains separate so forkable quality gates and secret-consuming real-API gates keep different trigger and credential policies.
+A dedicated workflow, [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml), separate from ci.yml, runs only `pnpm run test:e2e` against the external API using a repo secret, on trusted events, with a preflight that converts a missing secret into a loud failure instead of a false green. The keyless workflow remains separate so forkable quality gates and secret-consuming real-API gates keep different trigger and credential policies. On factor241/Ketos the preflight reports a missing key as a warning and lets the suite self-skip, because that fork runs keyless until its owner configures the secret ([fork CI note](../process/2026-10-03-ketos-fork-ci.md)).
 
 ### A separate workflow, not a job in ci.yml
 
@@ -42,6 +42,8 @@ The gate is a *clean-skip nicety*, not the secret's security boundary (see § Se
 ### Preflight: fail loud, never false-green
 
 Because the job only runs on trusted events where the secret is expected, the preflight is an unconditional presence check: empty key → `exit 1` with a `::error::` annotation naming the secret to configure. This is the crux that makes a self-skipping suite safe to gate on. Without it, a deleted/renamed/misconfigured secret would make `test:e2e` skip every real suite and report all-green — a silent regression of the entire safety net. The guard turns "secret missing" from an invisible false pass into a visible failure. (Its correctness was verified live: the run before the secret existed failed at exactly this step.)
+
+factor241/Ketos deviates deliberately: its preflight emits a `::warning::` and continues, so a keyless pull request reaches the self-skipping suite and passes; the keyless state is recorded in [docs/ketos/ci-fork.md](../../../../docs/ketos/ci-fork.md) and the [fork CI note](../process/2026-10-03-ketos-fork-ci.md).
 
 ### Secret mapping and hygiene
 

@@ -6,7 +6,6 @@
  * under the revision it read.
  */
 import z from '@deepseek-ai/schemastery'
-import type { WindowBodyKind, WindowKind } from './client/contract/slots.ts'
 
 /** How the chats panel arranges its list. */
 export type BoardPanelGroupBy = 'workspace' | 'flat'
@@ -39,6 +38,12 @@ export const PANEL_MAX_WIDTH = 420
 
 /** Width the legacy chats panel opened with, kept as the schema default. */
 export const PANEL_DEFAULT_WIDTH = 300
+
+/** Window category, selecting the `board.window` frame that renders it. */
+export type WindowKind = 'agent' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'tasks'
+
+/** Window content category, selecting the `board.window.body` occupant inside the frame. */
+export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'clone-memory' | 'tasks'
 
 /** Settings namespace owning the durable board layout. */
 export const BOARD_SETTINGS_NAMESPACE = 'ui-board'

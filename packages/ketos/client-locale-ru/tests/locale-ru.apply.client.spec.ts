@@ -16,7 +16,6 @@ import {
   apply as localeApply, inject as localeInject, type LocaleRuntime,
 } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, BOARD_NS, COMMON_NS } from '../src/client/index.ts'
-import { apply as hostApply } from '../src/index.ts'
 import { boardRu, packRu, ru as commonRu } from '../src/locales/index.ts'
 
 /** Adds a hook that keeps the first settings describe pending until released. */
@@ -130,13 +129,6 @@ describe('ketos ru language pack', () => {
         expect(value).not.toBe('')
       }
     }
-  })
-
-  it('mounts and disposes the host half as an ordinary no-op plugin', async () => {
-    const ctx = new Context()
-    const host = ctx.plugin({ apply: hostApply })
-    await host.await()
-    await host.dispose()
   })
 
   it('defaults to ru when the browser names the exact ru tag', async () => {

@@ -1,81 +1,11 @@
 {
-  "extends": "../../../tsconfig.base.client.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "lib/types"
-  },
-  "include": [
-    "src"
-  ],
+  "files": [],
   "references": [
     {
-      "path": "../../../vendor/cordis"
+      "path": "./tsconfig.host.json"
     },
     {
-      "path": "../locale"
-    },
-    {
-      "path": "../store"
-    },
-    {
-      "path": "../ui-layout"
-    },
-    {
-      "path": "../file-upload/tsconfig.client.json"
-    },
-    {
-      "path": "../ui-conversation"
-    },
-    {
-      "path": "../ui-chat"
-    },
-    {
-      "path": "../ui-model-selection"
-    },
-    {
-      "path": "../ui-workspace"
-    },
-    {
-      "path": "../ui-primitives"
-    },
-    {
-      "path": "../ui-renderer"
-    },
-    {
-      "path": "../ui-sidebar"
-    },
-    {
-      "path": "../ui-sidebar-documentpreview"
-    },
-    {
-      "path": "../ui-slots"
-    },
-    {
-      "path": "../../api/remotes/tsconfig.client.json"
-    },
-    {
-      "path": "../../preset/agent-preset-registry"
-    },
-    {
-      "path": "../../api/session-controller/tsconfig.client.json"
-    },
-    {
-      "path": "../../llm/llm"
-    },
-    {
-      "path": "../../api/workspace-controller/tsconfig.client.json"
-    },
-    {
-      "path": "../../api/workspace-files/tsconfig.client.json"
-    },
-    {
-      "path": "../../util/workspace-path"
-    },
-    {
-      "path": "../ui-settings"
-    },
-    {
-      "path": "../../ketos/clone-core/tsconfig.client.json"
+      "path": "./tsconfig.client.json"
     }
   ]
 }

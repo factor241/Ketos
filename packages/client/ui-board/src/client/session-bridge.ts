@@ -236,7 +236,7 @@ interface WindowRecord {
   /** Whether the session subscriptions of {@link releaseSession} are live. */
   attached: boolean
   /** The retained reference keeping the window's session alive while attached. */
-  reference?: SessionReference
+  reference?: SessionReference | undefined
   /** Whether an attach pass is mid-flight, so a list notification cannot re-enter it. */
   attaching: boolean
   /** Release the subscriptions and the session reference that belong to the current session. */

@@ -15,7 +15,7 @@ fork 拥有一个 CI 工作流 [.github/workflows/ketos-ci.yml](../../../../.git
 - `ketos-ci` 在 `push` 到 `main`、`pull_request` 进入 `main` 以及 `workflow_dispatch` 时触发。其 `linux / node 24` 任务运行在 `ubuntu-24.04` 上：`pnpm install --frozen-lockfile`、`scripts/prepare-ci-bubblewrap.sh`、`pnpm run build`、`typecheck`、`lint`、`test:gui`、`doc-sync`、`hygiene` 以及 `DSH_SNAPSHOT=replay pnpm run test:web:built`。并行度取值与 ci-master.yml 合并式拓扑的 4-core 行一致。
 - 同一工作流的 `coverage` 任务仅在每日定时和手动 dispatch 时运行 `pnpm run test:coverage`；pull request 跳过它。
 - [scripts/prepare-ci-bubblewrap.sh](../../../../scripts/prepare-ci-bubblewrap.sh) 优先从 Launchpad 下载固定载荷，并保留 `archive.ubuntu.com` 作为备用。版本与 SHA256 固定值不变，`sha256sum --check` 仍然强制。
-- [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml) 的 E2E preflight 将缺失的 `DEEPSEEK_API_KEY_EXTERNAL` 报告为警告而非失败。无密钥运行时所有真实 API 用例自我跳过；配置 secret 后恢复真实运行。
+- [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml) 的 E2E preflight 将缺失的 `DEEPSEEK_API_KEY_EXTERNAL` 报告为警告而非失败。无密钥运行时所有真实 API 用例自我跳过；配置 secret 后恢复真实运行。载荷修复后，套件能够到达测试；唯一失败的无密钥断言——CLI 帮助行在 stage-0.3 的 `ketos` 品牌化后仍期望 `dsh plugin --profile`——已更新为 `ketos plugin --profile`。
 - 缺少 secret、environment 或 runner 的基础设施工作流记录在 [docs/ketos/ci-fork.md](../../../../docs/ketos/ci-fork.md)：其中 7 个通过 `gh workflow disable` 禁用；另有 11 个文件尚未被 GitHub Actions 注册到 `main`，无法通过 API 禁用，也不会在 pull request 或 `main` 推送时触发。上游 `ci.yml` 与 `ci-master.yml` 保持逐字节不变，作为未来上游验收的参照。
 
 ## Alternatives considered

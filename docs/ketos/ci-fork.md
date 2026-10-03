@@ -8,7 +8,7 @@
 |---|---|---|
 | ketos-ci, задание `linux / node 24` (`ketos-ci.yml`) | push в `main`, pull_request в `main`, workflow_dispatch | `ubuntu-24.04`, Node 24: `pnpm install --frozen-lockfile`, `scripts/prepare-ci-bubblewrap.sh`, `build`, `typecheck`, `lint`, `test:gui`, `doc-sync`, `hygiene`, `DSH_SNAPSHOT=replay pnpm run test:web:built`. Обязательный Linux-сигнал для PR и `main`. |
 | ketos-ci, задание `linux / node 24 / coverage` (`ketos-ci.yml`) | schedule `23 3 * * *` (ежедневно), workflow_dispatch | `pnpm run test:coverage` — порог 100% по файлам; на pull request не запускается. |
-| E2E (real DeepSeek API) (`e2e.yml`) | push в `main`, pull_request, schedule `17 0 * * *`, workflow_dispatch | `pnpm run test:e2e` против внешнего DeepSeek API. Без секрета `DEEPSEEK_API_KEY_EXTERNAL` preflight печатает warning, real-API сценарии самопропускаются. |
+| E2E (real DeepSeek API) (`e2e.yml`) | push в `main`, pull_request, schedule `17 0 * * *`, workflow_dispatch | `pnpm run test:e2e` против внешнего DeepSeek API — проверка собранного приложения. Ключ в форк не добавляется (владелец работает через OpenCode Go), preflight печатает warning, real-API сценарии самопропускаются. |
 | Node Addon System (`node-addon-system.yml`) | pull request и push по путям `native/system/**` | Матрица платформенных сборок на стандартных раннерах; обычных PR не касается. |
 | Expected filenames (`expected-filenames.yml`) | pull request по путям с `golden` в имени файла | Запрет golden-имён; обычных PR не касается. |
 
@@ -41,11 +41,7 @@
 
 ## Ключ DeepSeek
 
-```sh
-gh secret set DEEPSEEK_API_KEY_EXTERNAL -R factor241/Ketos
-```
-
-Workflow `e2e.yml` читает именно `DEEPSEEK_API_KEY_EXTERNAL` (и маппит его в `DEEPSEEK_API_KEY`, который читают тесты). Без ключа E2E остаётся зелёным с самопропуском real-API сценариев; после добавления ключа ежедневные, push- и PR-запуски выполняют реальные вызовы.
+Ключ в форк не добавляется: пользователь работает в Кетосе через подписку OpenCode Go. E2E в форке остаётся проверкой собранного приложения — bubblewrap, официальная сборка, запуск example bins; real-API сценарии самопропускаются при пустом `DEEPSEEK_API_KEY_EXTERNAL`, и это осознанное решение, записанное в Agent Note. Перезапись эталонов сессий (`pnpm run test:snapshot:record`) требует ключа и выполняется вне CI.
 
 ## Что не покрыто в форке
 

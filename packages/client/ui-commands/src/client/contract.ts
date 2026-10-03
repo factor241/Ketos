@@ -1,7 +1,7 @@
 /**
  * Frozen contract of the client command surface. Types only. The
  * CommandUiRuntime (`ctx.commandUi`) implements this face; business packages
- * consume `register` alone.
+ * consume its registration and dismissal operations.
  */
 import type { ComponentType } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -17,14 +17,42 @@ export interface SelectConfirmation {
   readonly confirmLabel: string
 }
 
+/** Caller-owned group name and localized heading for popup options. */
+export interface SelectOptionGroup {
+  readonly name: string
+  readonly label: string
+}
+
+/** Search behavior selected by the popup owner. */
+export type PopupSearchMode = 'substring' | 'fuzzy-label'
+
 /** One option row of a popupSelect shell. */
 export interface SelectOption {
   readonly id: string
   readonly label: string
+  /** Optional short marker rendered as a superscript beside the label. */
+  readonly badge?: string
   readonly detail?: string
+  /** Equal group names share a sticky heading; groups retain first-occurrence order. */
+  readonly group?: SelectOptionGroup
+  /**
+   * The row the shell's highlight parks on when the panel opens, so an accept
+   * gesture made without looking confirms the value in use. A business package
+   * that marks a row `active` for presentation alone would make that row the
+   * default pick.
+   */
   readonly active?: boolean
   /** Optional in-page risk gate owned by the shared popup shell. */
   readonly confirmation?: SelectConfirmation
+}
+
+/** Command-owned search copy, resolved when its popup opens. */
+export interface PopupSearchLabels {
+  readonly placeholder: string
+  /** Empty catalog, before filtering. */
+  readonly empty: string
+  /** Nonempty catalog with no matching rows. */
+  readonly noResults: string
 }
 
 /**
@@ -35,6 +63,13 @@ export interface SelectOption {
  */
 export interface PopupSelectSpec {
   readonly kind: 'popupSelect'
+  /** Defaults to substring search; fuzzy-label ranks names within each group. */
+  readonly searchMode?: PopupSearchMode
+  /**
+   * Supply localized search copy for this opening; omitted uses the shell's generic copy.
+   * @returns search placeholder and empty-state labels.
+   */
+  searchLabels?(): PopupSearchLabels
   options(session: ClientSessionContext, signal: AbortSignal): Promise<readonly SelectOption[]>
   onSelect(option: SelectOption, session: ClientSessionContext): void | Promise<void>
 }
@@ -108,6 +143,8 @@ export interface CommandUiContract {
    * Duplicate names throw at registration.
    */
   decorate(decoration: CommandDecoration): () => void
+  /** Close this command's open popups and confirmations without consuming composer drafts. */
+  dismiss(name: string): void
   /** Resolve the per-session popup controller for one session scope (wiring/overlay layer). */
   popupFor(actx: ClientContext): unknown
 }

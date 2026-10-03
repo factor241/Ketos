@@ -1,14 +1,13 @@
 /** Strict per-session header/body content inserted into the resident conversation layout. */
 
-import { useEffect } from 'react'
 import clsx from 'clsx'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
   ConversationSessionHeaderSlotProps, ConversationSessionSlotProps,
 } from '../contract/slots.ts'
-import { conversationPhase } from '../contract/snapshot.ts'
 import { resolveActiveView } from '../view-selection.ts'
+import { DefaultConversationViews } from './DefaultConversationViews.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the strict session body contract. */
@@ -54,53 +53,52 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
 /**
  * Renders Session header chrome above the resident conversation scrollport.
  * @param props - Strict Session store, view ledger, navigation, render, and locale shares.
- * @returns the hidden blank-session header or visible title and tabs.
+ * @returns Session navigation controls, with title and tabs after conversation starts.
  */
 export function ConversationSessionHeader({
-  sessionId, useSession, useSessions, useConversation, useConversationViews, useStore,
+  sessionId, hideChrome, useSessions, useConversationViews, useStore,
   renderSlot, open, selectView, t,
 }: ConversationSessionHeaderProps) {
   const tabs = useConversationViews(value => value)
   const selectedId = useStore(s => s.view)
   const active = resolveActiveView(tabs, selectedId)
   const ancestry = useSessions(s => deriveAncestry(s, sessionId), equalBreadcrumbs)
-  const session = useSession(s => s)
-  const conversation = useConversation(s => s)
-  const hideChrome = session.blank && conversationPhase(session, conversation) === 'blank'
-
+  // A blank Session renders no banner: only the blank seat stays mounted, and
+  // the parent header collapses while it renders nothing.
   if (hideChrome) {
-    // A blank Session renders no banner at all: only the blank seat stays
-    // mounted, and the wrapper collapses to nothing when it renders nothing.
     return (
-      <div className={clsx(css.header, css.headerHidden)}>
-        <div className={css.headerBlankSeat}>
-          {renderSlot('conversation.session.header.blank', {})}
-        </div>
+      <div className={css.headerBlankSeat}>
+        {renderSlot('conversation.session.header.blank', {})}
       </div>
     )
   }
-
+  const showTabs = tabs.length > 1
   return (
-    <header className={css.header}>
+    <>
       <div className={css.titleRow}>
         <div className={css.titleCluster}>
           <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
             {ancestry.map((summary, index) => {
               const last = index === ancestry.length - 1
-              const title = (
-                <button
-                  type="button"
-                  className={clsx(
-                    css.crumb,
-                    summary.subagent && css.crumbSubagent,
-                    last && css.crumbCurrent,
-                  )}
-                  disabled={last}
-                  onClick={() => { open(summary.id) }}
-                >
-                  {summary.displayTitle}
-                </button>
-              )
+              // The current crumb has no navigation, so it is plain text
+              // rather than a disabled button: on darwin desktop a button
+              // would subtract itself from the header's drag row (ui-web
+              // base.css) and leave the title inert for dragging too.
+              const title = last
+                ? (
+                  <span className={clsx(css.crumb, summary.subagent && css.crumbSubagent, css.crumbCurrent)}>
+                    {summary.displayTitle}
+                  </span>
+                )
+                : (
+                  <button
+                    type="button"
+                    className={clsx(css.crumb, summary.subagent && css.crumbSubagent)}
+                    onClick={() => { open(summary.id) }}
+                  >
+                    {summary.displayTitle}
+                  </button>
+                )
               const lineage = last || summary.subagent
               const lineageOwner = {
                 lineageSessionId: summary.id,
@@ -144,8 +142,10 @@ export function ConversationSessionHeader({
           {renderSlot('conversation.session.header.corner', {})}
         </div>
       </div>
-      {tabs.length > 1 && (
-        <div className={css.tabs} role="tablist">
+      {showTabs && (
+        // data-conversation-tabs: marks the tab strip, which the window-chrome
+        // geometry and the browser coverage lane anchor on.
+        <div className={css.tabs} role="tablist" data-conversation-tabs="">
           {tabs.map(viewTab => (
             <button
               key={viewTab.id}
@@ -160,7 +160,7 @@ export function ConversationSessionHeader({
           ))}
         </div>
       )}
-    </header>
+    </>
   )
 }
 
@@ -170,35 +170,6 @@ export function ConversationSessionHeader({
  * @param props - Strict Session input/store, view ledger, and render shares.
  * @returns the active view area, or null while the Session remains blank.
  */
-export function ConversationSession({
-  useSession, useConversation, useConversationViews, useInput, inputActions, useStore, actions,
-  renderSlot, bindDraftMirror, openView,
-}: ConversationSessionProps) {
-  const tabs = useConversationViews(value => value)
-  const selectedId = useStore(s => s.view)
-  const active = resolveActiveView(tabs, selectedId)
-  const session = useSession(s => s)
-  const conversation = useConversation(s => s)
-  const inputState = useInput(s => s)
-  const storedDraft = useStore(s => s.draft)
-  const viewRequest = useStore(s => s.viewRequest ?? null)
-
-  useEffect(() => {
-    if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
-    const unmirror = bindDraftMirror(actions.setDraft)
-    return () => { unmirror() }
-    // Mount-only (deps pinned to inputActions): later store writes come from
-    // the machine mirror, not this seed effect.
-  }, [inputActions])
-
-  if (session.blank && conversationPhase(session, conversation) === 'blank') return null
-  return (
-    <div className={css.viewArea}>
-      {active !== undefined && renderSlot('conversation.view', {
-        viewRequest,
-        openView,
-        completeViewRequest: actions.completeViewRequest,
-      }, { only: active.id })}
-    </div>
-  )
+export function ConversationSession(props: ConversationSessionProps) {
+  return <DefaultConversationViews {...props} />
 }

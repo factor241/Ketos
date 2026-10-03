@@ -6,12 +6,13 @@
 
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
-import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
+import { getDshRuntimeVersion, loadLayeredEnv, StartupError } from '@deepseek-ai/dsh-app-boot'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
+import { reportStartupFailure } from './startup-diagnostics.ts'
+import type { RunProfileOptions } from './profile-boot.ts'
 
 // Ketos reroutes the deployment home to ~/.ketos through the standard DSH_HOME
 // variable (resolveDshHome's internal ~/.dsh default stays untouched). This
@@ -20,38 +21,44 @@ import { parseDshArgs } from './args.ts'
 // bundled from this file. `??=` keeps an explicit DSH_HOME as the user's choice.
 process.env.DSH_HOME ??= join(homedir(), '.ketos')
 
-// Both the source tree (apps/cli/src) and the bundled bin (apps/cli/lib) sit
-// one directory under apps/cli, so the checked-in manifest resolves with the
-// same relative hop from either artifact.
-function readVersion(): string {
-  const manifest = JSON.parse(
-    readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
-  ) as { version?: unknown }
-  return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
+/** Installation-owned dependencies supplied by a packaged CLI launcher. */
+export type RunCliOptions = Pick<RunProfileOptions, 'packageManager'> & {
+  /** Permit plugin commands for Desktop's existing profile; reserved for its installed carrier. */
+  manageDesktopProfile?: boolean
 }
 
 /**
  * Run the public dsh command-line interface.
+ * @param options - Package runtime and Desktop profile access supplied by the installation.
  * @returns a promise that settles when the selected command mode finishes.
  */
-export async function runCli(): Promise<void> {
-  const invocation = parseDshArgs(process.argv.slice(2), readVersion())
+export async function runCli(options: RunCliOptions = {}): Promise<void> {
+  const version = getDshRuntimeVersion()
+  const { manageDesktopProfile, ...profileOptions } = options
+  const invocation = parseDshArgs(process.argv.slice(2), version, manageDesktopProfile)
 
   switch (invocation.mode) {
     case 'profile': {
       const { runProfile } = await import('./profile-boot.ts')
-      await runProfile({
-        environment: loadLayeredEnv('dsh'),
-        profile: invocation.profile,
-        fromDefaultProfile: invocation.fromDefaultProfile,
-        patchFiles: invocation.patches,
-        args: invocation.args,
-      })
+      try {
+        await runProfile({
+          environment: loadLayeredEnv('dsh'),
+          profile: invocation.profile,
+          fromDefaultProfile: invocation.fromDefaultProfile,
+          patchFiles: invocation.patches,
+          args: invocation.args,
+          ...profileOptions,
+        })
+      } catch (error) {
+        if (!(error instanceof StartupError)) throw error
+        await reportStartupFailure(error, { home: resolveDshHome(), version, profile: invocation.profile })
+        process.exit(1)
+      }
       break
     }
     case 'plugin': {
       const { runPlugin } = await import('./plugin.ts')
-      process.exit(runPlugin(invocation.profile, invocation.args))
+      process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))
       break
     }
     case 'dump-config': {
@@ -62,6 +69,11 @@ export async function runCli(): Promise<void> {
         invocation.patches,
         invocation.fromDefaultProfile,
       )
+      break
+    }
+    case 'dump-config-schema': {
+      const { runDumpConfigSchema } = await import('./dump-config-schema.ts')
+      await runDumpConfigSchema(invocation.profile, invocation.patches, invocation.fromDefaultProfile)
       break
     }
     default:

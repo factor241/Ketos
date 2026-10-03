@@ -18,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import z from '@deepseek-ai/schemastery'
 import { resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
+import { presetDisplayText } from '@deepseek-ai/dsh-agent-preset-registry/display'
 import type {
   CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch, TaskId,
 } from '@ketos/clone-core/types'

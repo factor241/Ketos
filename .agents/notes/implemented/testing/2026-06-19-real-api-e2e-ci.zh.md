@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-一个与 ci.yml 分离的专用工作流 [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml) 使用 repo secret 对外部 API 运行且仅运行 `pnpm run test:e2e`，仅在可信事件上触发，并带有一个 preflight 检查：将缺失的 secret 转化为明确的失败而非虚假的绿色。无密钥工作流保持独立，使可 fork 的质量门禁与消费 secret 的真实 API 门禁各自拥有不同的触发和凭证策略。
+一个与 ci.yml 分离的专用工作流 [.github/workflows/e2e.yml](../../../../.github/workflows/e2e.yml) 使用 repo secret 对外部 API 运行且仅运行 `pnpm run test:e2e`，仅在可信事件上触发，并带有一个 preflight 检查：将缺失的 secret 转化为明确的失败而非虚假的绿色。无密钥工作流保持独立，使可 fork 的质量门禁与消费 secret 的真实 API 门禁各自拥有不同的触发和凭证策略。在 factor241/Ketos 上，preflight 将缺失的密钥报告为警告并让套件自我跳过，因为该 fork 在所有者配置 secret 之前以无密钥方式运行（[fork CI 记录](../process/2026-10-03-ketos-fork-ci.zh.md)）。
 
 ### 独立工作流，而非 ci.yml 中的一个 job
 
@@ -42,6 +42,8 @@ Dependabot 子句基于 PR **作者**（`pull_request.user.login`）而非 `gith
 ### Preflight：明确失败，绝不虚假报绿
 
 由于 job 仅在 secret 应当存在的可信事件上运行，preflight 是一个无条件的存在性检查：密钥为空→`exit 1` 并附带 `::error::` 注解指明需要配置的 secret 名称。这是让自跳过套件可以安全地作为门禁的关键。没有它，被删除/重命名/错误配置的 secret 会让 `test:e2e` 跳过所有真实套件并报告全绿——整个安全网的静默退化。该守卫将「secret 缺失」从不可见的虚假通过转化为可见的失败。（其正确性已在实际中验证：secret 存在之前的运行恰好在此步骤失败。）
+
+factor241/Ketos 有意偏离：其 preflight 发出 `::warning::` 后继续，使无密钥的 pull request 能到达自我跳过的套件并通过；无密钥状态记录在 [docs/ketos/ci-fork.md](../../../../docs/ketos/ci-fork.md) 与 [fork CI 记录](../process/2026-10-03-ketos-fork-ci.zh.md)。
 
 ### Secret 映射与卫生
 

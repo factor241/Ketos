@@ -1,12 +1,10 @@
 # Этап 25. Обновление ядра до dsh-v0.2.0-rc.2 — отчёт
 
-> План: [upstream-upgrade-plan.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/upstream-upgrade-plan.md) (разделы 1–4, этапы У0–У6).
-> Эпик Beads: `ketos-tu8`. Ветка: `stage-25-upstream-0.2.0-rc.2`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-25`.
-> Решения Р-1 … Р-7 приняты 2026-10-03 по рекомендации (раздел 4 плана; записаны в описании эпика).
+> План: [upstream-upgrade-plan.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/upstream-upgrade-plan.md) (разделы 1–4, этапы У0–У6). Эпик Beads: `ketos-tu8`. Ветка: `stage-25-upstream-0.2.0-rc.2`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-25`. Решения Р-1 … Р-7 приняты 2026-10-03 по рекомендации (раздел 4 плана; записаны в описании эпика).
 
 ## 1. Итог этапа
 
-Выполнены У0 и У1: решения и задачи зафиксированы в Beads, `~/.ketos` заархивирован, worktree `stage-25` создан, базовая линия снята; апстрим `dsh-v0.2.0-rc.2` влит через одноразовую пересадку корня (109 конфликтов разрешены), пересадка удалена, `main` получил настоящего общего предка с апстримом. Все 17 правок Кетоса разобраны (перенесены/сняты), генерируемые файлы и пары перегенерированы, профили Кетоса собраны с Р-3/Р-5. Перезапись эталонов и зелёная сборка упираются в адаптацию У2: плагины доски и русской локали ждут удалённый апстримом `settingsScope`, поэтому веб-загрузка падает до исправления. Подробности и вход для У2 — в разделах 6–10.
+Выполнены У0, У1 и У2: решения и задачи зафиксированы в Beads, `~/.ketos` заархивирован, worktree `stage-25` создан, базовая линия снята; апстрим `dsh-v0.2.0-rc.2` влит через одноразовую пересадку корня (109 конфликтов разрешены), пересадка удалена, `main` получил настоящего общего предка с апстримом. Все 17 правок Кетоса разобраны (перенесены/сняты), генерируемые файлы и пары перегенерированы, профили Кетоса собраны с Р-3/Р-5. Код Кетоса адаптирован к API 0.2.0-rc.2: доска и русская локаль переведены на `configForms`, мост окон удерживает сессии через `retain`/`release`, карточки инструментов читают записи разговора v4, у обоих пакетов появились компиляторные фасады, `clone-core` следует объединённому `agent/created`. Обе компиляторные феи, `lint`, `hygiene` (18/18) и `doc-sync` без учёта записи изменения типов сессий зелёные; перезаписанные эталоны перечислены в разделе 7, оставшиеся расхождения — в разделе 10.
 
 ## 2. У0.1. Решения, учёт, резервные копии
 
@@ -91,39 +89,69 @@
 | Адрес Launchpad в `prepare-ci-bubblewrap.sh` | изменён (0.12.0-1, Launchpad build-URL) | **Снята:** апстрим исправил 404; SHA-пин сохранён |
 | `e2e.yml`: `::warning::` вместо падения без ключа | — | **Сохранена** авто-слиянием |
 
-## 7. Эталоны, перезаписанные и отложенные
+## 7. Эталоны: перезаписано, отложено, диффы
 
-- Перезаписано: пары переводов (9 записей), сгенерированные каталоги/графы (раздел 4, У1.2).
-- Отложено до У2 (блокировано `settingsScope`): `snapshots/web/goal-multi-turn-actions/ui.expected.md`, `lifecycle-chrome/{hero,plan-active}.expected.md`, `message-actions/ui.expected.md`, `queue-actions/{editing,ui}.expected.md`, `turn-tail-actions/{running,settled}.expected.md`, `apps/web/tests/expected/onboarding-deepseek-config/welcome.expected.md`, `apps/cli/tests/expected/launcher-help.txt`.
-- Требуют новой записи моделью (`test:snapshot:record`, ключ DeepSeek вне CI): сценарии с `snapshots/**/session.v*.jsonl` не перезаписывались; список конкретных записей даст прогон `test:snapshot` в У5.
+- Перезаписано в У1.2: пары переводов (9 записей), сгенерированные каталоги/графы.
+- Перезаписано в У2 (`DSH_SNAPSHOT=refresh`, каждый дифф просмотрен):
+  - `snapshots/web/lifecycle-chrome/{hero,plan-active}.expected.md` и `plan-active-zh.expected.md` — добавлена кнопка «Go to board»/«前往看板» (переключатель интерфейсов Кетоса), убранная кнопка «Open right sidebar» вернулась после восстановления углового слота пустой сессии, hero-фраза нормализована в `{{hero-headline}}`.
+  - `snapshots/web/voice-input/ui.expected.md` и `snapshots/web/fresh-round-trip/blank-reload.expected.md` — та же нормализация hero-фразы (апстримный набор вращающихся фраз из `main`).
+  - `snapshots/web/goal-multi-turn-actions/{ui,ui-expanded}.expected.md` — из эталонов убран транзитный контрол «Back to bottom»: его видимость зависит от позиции прокрутки в момент снимка и нормализуется общей функцией `captureStableAria`.
+  - `apps/web/tests/expected/onboarding-deepseek-config/welcome.expected.md` — кетосовский текст приветствия (`内测声明`/Кетос) вместо апстримного `预览版说明`.
+- `message-actions`, `queue-actions`, `turn-tail-actions`, `seeded-history` и остальные сценарии проходят против апстримных эталонов без перезаписи.
+- `apps/cli/tests/expected/launcher-help.txt` не перезаписывался: ключевой снимок `built-bin.e2e.ts` проходит на апстримном эталоне (`ketos web:` уже в нём из У1.3).
+- Требуют новой записи моделью (`test:snapshot:record`, ключ DeepSeek вне CI): сценарии с `snapshots/**/session.v*.jsonl` не перезаписывались; список конкретных записей даст прогон `test:snapshot` в У5. Записанные сессии формата v4 взяты из апстрима в У1.
 
-## 8. Вход для У2: typecheck
+## 8. Ход У2 (по пунктам задания)
 
-Тела обеих фейсов красные; после `pnpm run clean` и полной пересборки:
+1. **`settingsScope` → `configForms`.** Апстрим удалил `settings-file`/`settingsScope`; новый сервис — `ctx.configForms` (`ui-settings/client`): общее зеркало `describe()` и формы по namespace. Доска читает `ctx.configForms.describe()`, ru-пакет — `ctx.configForms.get<LocaleSettings>('locale')`; хост-половина доски вместо `settings.register` объявляет `Config = BoardSettingsSchema.volatile()` (корневая volatile-схема = весь документ редактируем), профильная строка `ui-board` становится namespace. Проверено в браузере: `pnpm ketos web` поднимается без «did not activate», доска открывается, раскладка сохраняется и восстанавливается; adopt читает `view.value` (резолвнутую секцию), а не `view.user` (сырой слой без `version`).
+2. **Сессии окон: `retain`/`release`.** `BoardSessionBridge.attach` берёт `retain(sessionId, { source: 'boardWindow' })`, `releaseSession`/`release`/`dispose` освобождают; при переключении состояние записи обновляется до освобождения, чтобы повторный `reconcile` во время публикации teardown не перепривязал старую сессию. Тесты утечек проверяют `retainInfo(...).retainedBy.boardWindow` (1 на окно, 0 после закрытия). A5-тест «restores windows without changing the application current session» остался и проверяет отсутствие `mainView`-удержания. Очередь окна читается из проекции `inbox` (next-turn = queued, next-step = steering), отклонение раскладки не меняет текущую сессию приложения. `docs/ketos/upstream-sync.md`: строка `openStream` — «снята, заменена апстримным `retain`/`release`».
+3. **Компиляторные фасады.** У `ui-board` и `client-locale-ru` появились solution-корень и листья `tsconfig.host.json`/`tsconfig.client.json` по правилу «Keep compiler faces explicit»; `WindowKind`/`WindowBodyKind` перенесены в `board-settings.ts`, чтобы хостовая фея не импортировала клиентский контракт; тесты хост-половин переименованы в `*.host.spec.ts`. Ошибок TS6306/TS6307 нет.
+4. **Типы и словари.** `ui-settings-models` собрался без правок (18 ошибок отчёта были артефактом неполной пересборки); `clone-core` читает `source` из объединённого события `agent/created` (вместо удалённого `agent/session-start`), тест композиции проверяет FAILED-энтри и `fiber.await()`; ru-словарь получил новые ключи `common` (`codeBlock.*`, `workspace.defaultName`) и потерял удалённые (`json.collapseNode/expandNode`), корпус-фикстура обновлена.
+5. **Записи разговора v4.** `tool-card-model` различает фазы `preparing`/`start` (`argsRaw` только у start), `ToolCard`/`ConversationBody`/`artifacts-model` работают на `ToolResultNode`/`ConversationNode` v4; `ConversationBody` читает pending-взаимодействия через `useSessionStatus(...).pendingInteraction`; кнопка right-sidebar вернулась в угловой слот пустой сессии; тесты tool-card (включая preparing), conversation-body, artifacts-model, clone-window-bar и фикстуры зелёные; карточки терминал/чтение/дифф/поиск проверены в браузере.
+6. **Тесты `apps/web`.** 53 ошибки типов из отчёта У1 закрыты ещё в У1 (`scaffold.ts` на `createRuntimeResolution`); Кетос-тесты `board-geometry.e2e.ts` и другие изменённые файлы работают на новом scaffold без правок. Дополнительно починены реальные расхождения: mount-относительные URL роутов доски (`CLONES_PATH.slice(1)` вместо абсолютного `/api/...`), `manifest.webmanifest` без `id` (каждый mount получает свою идентичность), пара favicon/`index.html` по media-query, угловой слот пустой сессии.
+7. **Эталоны и таймауты.** См. раздел 7. Из пяти таймаутов У1 (`lifecycle-chrome`, `message-actions`, `queue-actions`, `turn-tail-actions`, `goal-multi-turn-actions`) все проходят: причина была не в таймаутах как таковых, а в каскаде — первый golden с hero-фразой/доской падал, сценарий не отправлял промпт, фикстура не потреблялась и следующие тесты упирались в timeout. Отдельно исправлены: нормализация hero-фразы и «Back to bottom» в `captureStableAria`, возврат кнопки right-sidebar, `slice(1)`-роуты. WebKit установлен (`playwright install webkit`), сценарии на нём проходят.
+8. **Иконки.** Удалены неиспользуемые `IconFullscreenCornersOutline16`, `IconExitFullscreenCornersOutline16`, а также осиротевшие после переименования `IconExitFullscreenOutline16`/`IconCodeOutline16`; набор иконок снова 94 пары Regular/Medium.
 
-- Клиентская фея (`tsc -b tsconfig.client.json`): 33 ошибки — 13 × TS6306 в `packages/client/ui-board/tsconfig.json` (ссылки на корневые проекты, которые апстрим перевёл на leaf-конфиги `tsconfig.client.json`) → **«новое поведение (конфигурация)»**; 2 × TS6306 в `packages/ketos/client-locale-ru/tsconfig.json` → **«новое поведение (конфигурация)»**; 18 ошибок ключей локали в `ui-settings-models` (`ModelsSection`, `ModelInputTypes`, `ProviderEditor`, `CustomProviderCard`, `protocol-label`) → **«изменение типа»** (словарь локали собран не полностью после перестройки ссылок); 1 ошибка `hub.ts: Cannot find name 'id'` → **«правка Кетоса не перенесена»**, исправлена в этой сессии (`session.sessionId`).
-- Хостовая фея (`tsc -b tsconfig.host.json`): 56 ошибок — 3 в `packages/ketos/clone-core/src/session.ts` (событие `agent/session-start` изменило тип/регистрацию → **«изменение типа»** плюс необъявленные параметры); 53 в `apps/web/tests/*` (`LaunchOptions.profile`/`firstUse`/`developerTools`, `definitions`, `runningJobs`, сигнатуры `scaffold`/test-support) → **«новое поведение» тестовых API**; `apps/web/tests/scaffold.ts` — остаточные сигнатуры после перевода на `createRuntimeResolution` (**«новое поведение»**).
-- Ошибок «Cannot find module» в пакетах Кетоса после правки `agent-presets → agent-preset-registry` нет.
+## 8a. Вход для У2: typecheck (исходное состояние)
+
+Тела обеих фейсов были красные; после `pnpm run clean` и полной пересборки: клиентская фея — 33 ошибки (13 + 2 TS6306 конфигурации, 18 ключей локали `ui-settings-models`, 1 `hub.ts` — исправлена в прошлой сессии); хостовая — 56 ошибок (3 `clone-core` `agent/session-start`, 53 `apps/web/tests/*` по тестовым API, исправлены в У1). Ошибок «Cannot find module» после `agent-presets → agent-preset-registry` не было.
 
 ## 9. Коммиты этапа
 
-| Коммит | Содержание |
+Коммиты У0–У1 перечислены темами (короткие хеши в отчёте заменены метками: гейт `verify-repository-references` запрещает идентификаторы коммитов в поддерживаемых файлах).
+
+| Тема | Содержание |
 |---|---|
-| `этап 25` | Merge upstream dsh-v0.2.0-rc.2 into Ketos (109 конфликтов, пересадка удалена) |
-| `этап 25` | fix(brand): Ketos-написания CLI-диагностики и потребителей `ketos web:` |
-| `этап 25` | chore(upstream): перегенерация каталогов/доков, восстановление scaffold и Ketos-уведомления |
-| `этап 25` | docs(ketos): отчёт этапа 25 |
-| `этап 25` | docs(ketos): процедура синхронизации и таблица правок Кетоса |
+| merge upstream | Merge upstream dsh-v0.2.0-rc.2 into Ketos (109 конфликтов, пересадка удалена) |
+| fix(brand) | Ketos-написания CLI-диагностики и потребителей `ketos web:` |
+| chore(upstream) | перегенерация каталогов/доков, восстановление scaffold и Ketos-уведомления |
+| docs(ketos) | отчёт этапа 25; процедура синхронизации и таблица правок Кетоса |
+| fix(ketos) | migrate board and ru locale to upstream configForms service |
+| fix(ketos) | retain board window sessions and adapt to upstream session APIs |
+| build(ketos) | give ui-board and client-locale-ru explicit compiler faces |
+| fix(ketos) | adapt clone-core and ru locale to upstream types |
+| feat(ketos) | adapt the board to v4 conversation records and upstream settings APIs |
+| fix(ketos) | finish the У2 client API migration |
+| fix(ketos) | mount-aware routes, blank-header corner, and refreshed web goldens |
+| chore(ketos) | drop unused legacy icon exports |
+| fix(ketos) | pass repository gates and refresh remaining web goldens |
 
-## 10. Что осталось на У2
+## 10. Проверки и что осталось
 
-1. Перенести плагины доски и `client-locale-ru` с удалённого `settings-file`/`settingsScope` на новый сервис настроек апстрима — без этого веб-загрузка падает (`web boot: 2 entries did not activate`).
-2. Перевести `ui-board` на новую модель сессий (`retain`/`release` вместо `openStream`/`current`), включая `session-bridge.ts`.
-3. Обновить ссылки `ui-board`/`client-locale-ru` на leaf-конфиги (`tsconfig.client.json`), убрать TS6306.
-4. Переименовать `@deepseek-ai/dsh-agent-presets/display` (сделано механически) и добить остальные переименования/записи разговора v4 в карточках.
-5. Адаптировать `clone-core` к новым событиям сессии (`agent/session-start`).
-6. Перезаписать эталоны У1.5 (`snapshots/web/*.expected.md`, `launcher-help.txt`, `welcome.expected.md`) после зелёной сборки.
-7. Решить судьбу неиспользуемых иконок `IconFullscreenCornersOutline16`/`IconExitFullscreenCornersOutline16` (после снятия правки `ui-sidebar-right`).
+| Гейт | Базовая линия (main) | Сейчас |
+|---|---|---|
+| `pnpm run typecheck` | exit 0 | exit 0 (обе феи, 0 ошибок) |
+| `pnpm run lint` | exit 0 | exit 0 |
+| `pnpm run test:gui` | 6129 passed, 1 skipped | 10186 passed, 1 skipped, 33 failed |
+| `DSH_SNAPSHOT=replay pnpm run test:web` | 394 passed, 15 skipped (409) | 623 passed, 17 skipped, 13 failed |
+| `board-geometry.e2e.ts` | 35/35 | 35/35 |
+| `pnpm run doc-sync` | 34 passed, 0 failed | 40 passed, 1 failed |
+| `pnpm run hygiene` | 16 passed, 0 failed | 18 passed, 0 failed |
+| `pnpm run build` | exit 0 | exit 0 |
+
+Расхождения `test:gui` (33) — не регрессии У2: 26 тестов `ui-settings-account` и 1 `ui-settings-general` требуют отключённого решением Р-5 пакета аккаунта; 3 snapshot-теста `ui-sidebar` ожидают апстримный бренд вместо кетосовского (localBuildBrand/брендовые бейджи); 3 аудита `ui-theme` (radius/menu/elevation) не знают CSS доски и требуют кетосовских исключений. Расхождения `test:web` (13): 9 — сценарии аккаунта/десктоп-аккаунта, отключённого Р-5 (`bonus-notice`, `desktop-locale`, `desktop-onboarding` ×3, `menu-material`, `onboarding-native`, `settings-appearance`, `window-drag-coverage`); 2 `plugin-install-github` — среда (прокси Git); 1 `hmr-live` — watcher `dev:web` на этом хосте; 1 `startup-rpc-budget` — доска добавляет стартовые `ketos.clones`/`ketos.tasks` и запись раскладки (4 `settings/describe` против бюджета 2). `doc-sync`: единственный красный гейт — `verify-persistence-changes` («Breaking changes relative to the accepted Session format 4 baseline require format 5 or later»): слияние принесло изменения схемы сессии, запись изменения формата — задача У4 (данные и модели), в этом задании У3–У6 не запускались.
+
+Что осталось: **У3** — бренд новых страниц, русская локаль новых ключей (schedule.catalog переведён лишь частично: устаревшие ключи `status.*`/`relative.*` в ru-корпусе сохранены, новые апстримные — нет), проверка аналитики/аккаунта; **У4** — сессии v4 на копии `~/.ketos`, запись изменения типов (`persistence-changes --record`) и `startup-rpc-budget`; **У5** — полный прогон гейтов, CI форка, `board-geometry` (уже 35/35), бюджеты MVP; **У6** — `upstream-sync.md`/Agent Note/отчёт/граф, приёмка, слияние в `main`.
 
 ## Приложение А. Список конфликтов пробного слияния (109)
 

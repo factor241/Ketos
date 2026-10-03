@@ -85,8 +85,8 @@ function bodyOf(server: CloneServer, op: string): Record<string, unknown> {
 function stubCloneRoute(initial: readonly CloneDto[]): CloneServer {
   const server: CloneServer = { clones: [...initial], bindings: [], memories: [], tasks: [], calls: [] }
   vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
-    if (String(input) === '/api/ketos.memory') return memoryAnswer(server, init)
-    if (String(input) === '/api/ketos.tasks') return taskAnswer(server, init)
+    if (new URL(String(input)).pathname === '/api/ketos.memory') return memoryAnswer(server, init)
+    if (new URL(String(input)).pathname === '/api/ketos.tasks') return taskAnswer(server, init)
     const method = init?.method ?? 'GET'
     if (method === 'GET') return Response.json({ ok: true, clones: server.clones })
     const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>

@@ -1,4 +1,6 @@
 - button "New session"
+- button "Go to board":
+  - img
 - button "Collapse sidebar"
 - button "New session": New Session
 - navigation "Global panels":
@@ -14,7 +16,7 @@
 - button "Settings"
 - banner:
   - button "Open right sidebar"
-- text: Into the Unknown Preview
+- text: {{hero-headline}}
 - button "Choose workspace": workspace
 - button "Standard mode"
 - textbox "Describe what you want to build, / commands, @ files or sessions"

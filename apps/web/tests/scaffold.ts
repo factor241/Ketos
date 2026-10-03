@@ -1602,8 +1602,19 @@ export async function captureStableAria(
   }
   const region = page.locator(selector).first()
   const age = options.normalizeAge === true
+  // The blank hero rotates its phrase on a timer; tokenize whatever it shows
+  // now so a golden pins the layout instead of the random pick. The first
+  // nested span carries the accessible phrase (the visual copy is aria-hidden).
+  const hero = page.locator('[data-testid="hero-headline"] > span > span:first-child')
+  const heroPhrase = await hero.count() === 0 ? null : await hero.first().textContent()
+  const replacements = [
+    ...options.replacements ?? [],
+    ...(heroPhrase === null || heroPhrase === undefined || heroPhrase === ''
+      ? []
+      : [[heroPhrase, '{{hero-headline}}'] as const]),
+  ]
   const normalize = (snapshot: string): string => {
-    for (const [value, token] of options.replacements ?? []) {
+    for (const [value, token] of replacements) {
       snapshot = snapshot.split(value).join(token)
     }
     return normalizeAria(snapshot, workspaceCwd, age)

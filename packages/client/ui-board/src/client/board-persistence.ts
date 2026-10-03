@@ -197,8 +197,11 @@ export class BoardLayoutPersistence {
     const view = snapshot.view?.namespaces.find(entry => entry.ns === BOARD_SETTINGS_NAMESPACE)
     if (view === undefined) return
     this.serverChecked = true
+    // `user` marks that the entry was written; `value` is the schema-resolved
+    // section, which is what the board adopts (the raw layer omits defaults,
+    // including the document `version`).
     if (view.user === undefined) return
-    const settings = sanitizeBoardLayout(view.user)
+    const settings = sanitizeBoardLayout(view.value)
     if (settings === undefined) return
     if (this.cacheRevision === undefined || view.revision > this.cacheRevision) {
       const { bindings, ...layout } = settings

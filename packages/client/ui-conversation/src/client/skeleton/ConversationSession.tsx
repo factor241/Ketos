@@ -64,11 +64,15 @@ export function ConversationSessionHeader({
   const active = resolveActiveView(tabs, selectedId)
   const ancestry = useSessions(s => deriveAncestry(s, sessionId), equalBreadcrumbs)
   // A blank Session renders no banner: only the blank seat stays mounted, and
-  // the parent header collapses while it renders nothing.
+  // the parent header collapses while it renders nothing. The corner keeps its
+  // standing seats (the right-sidebar expand control) as in a started Session.
   if (hideChrome) {
     return (
       <div className={css.headerBlankSeat}>
         {renderSlot('conversation.session.header.blank', {})}
+        <div className={css.headerCorner} data-conversation-header-corner="">
+          {renderSlot('conversation.session.header.corner', {})}
+        </div>
       </div>
     )
   }

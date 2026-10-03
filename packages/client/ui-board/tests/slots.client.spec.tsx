@@ -214,8 +214,10 @@ describe('board slot composition', () => {
     // The memory body occupies the clone frame's content region; this bench has
     // no route, so the refused read renders its own failure row rather than an
     // empty memory.
+    await vi.waitFor(() => {
+      expect(cloneFrame?.querySelector('[data-board-memory-notice="read"]')).not.toBeNull()
+    })
     expect(cloneFrame?.querySelector('[data-board-memory-list]')).not.toBeNull()
-    expect(cloneFrame?.querySelector('[data-board-memory-notice="read"]')).not.toBeNull()
     expect(cloneFrame?.querySelector('[data-board-memory-empty]')).toBeNull()
   })
 

@@ -65,17 +65,19 @@ function layout(overrides: Record<string, Json> = {}): Json {
   return { ...base, ...overrides }
 }
 
-/** One namespace view over the stored document. */
+/** One namespace view over the stored document; a supplied user layer also resolves to the value. */
 function namespaceView(overrides: Partial<SettingsNamespaceView> = {}): SettingsNamespaceView {
+  const { user, ...rest } = overrides
   return {
     ns: BOARD_SETTINGS_NAMESPACE,
     schema: {},
-    value: layout(),
+    value: overrides.value ?? user ?? layout(),
     autoGenerate: false,
     applies: 'live',
     secrets: [],
     revision: 1,
-    ...overrides,
+    ...(user === undefined ? {} : { user }),
+    ...rest,
   }
 }
 

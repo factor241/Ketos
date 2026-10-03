@@ -182,12 +182,7 @@ describe('board plugin registration', () => {
         namespaces: [{
           ns: 'ui-board',
           schema: {},
-          value: {},
-          autoGenerate: false,
-          applies: 'live',
-          secrets: [],
-          revision: 3,
-          user: {
+          value: {
             version: 1,
             panX: 0,
             panY: 0,
@@ -205,6 +200,13 @@ describe('board plugin registration', () => {
             panelGroupBy: 'workspace',
             panelOrderBy: 'updated',
           },
+          autoGenerate: false,
+          applies: 'live',
+          secrets: [],
+          revision: 3,
+          // The raw layer only marks the entry as written; the board adopts
+          // the resolved value above.
+          user: { version: 1 },
         }],
       },
     })

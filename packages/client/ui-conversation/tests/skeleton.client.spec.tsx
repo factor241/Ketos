@@ -562,7 +562,9 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByRole('tablist')).toBeNull()
     expect(b.slotCalls).not.toContain('conversation.session.header.utilities')
     expect(b.slotCalls).not.toContain('conversation.session.header.actions')
-    expect(b.view.queryByTestId('view-conversation.session.header.corner')).toBeNull()
+    // The corner keeps its standing seats on a blank Session (the right-sidebar
+    // expand control), so its empty outlet frame still renders.
+    expect(b.view.getByTestId('view-conversation.session.header.corner')).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden
@@ -591,10 +593,9 @@ describe('ConversationRoot resident composer', () => {
         headerBlank: <button type="button" data-testid="return-control">Return</button>,
       },
     )
-    // A blank Session renders no banner and keeps the blank seat alone: an
-    // occupant of the utility row (or the corner) never renders for it, while
-    // the entry registered on the blank seat stays reachable.
-    expect(b.slotCalls).not.toContain('conversation.session.header.corner')
+    // A blank Session renders no banner and no utility row; the entry registered
+    // on the blank seat stays reachable, and the corner keeps its standing seats.
+    expect(b.slotCalls).toContain('conversation.session.header.corner')
     expect(b.view.getByTestId('return-control')).toBeTruthy()
     expect(b.view.queryByTestId('utility-control')).toBeNull()
   })

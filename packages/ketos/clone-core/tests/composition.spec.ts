@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, FiberState, Service } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { assembleContextFor } from '@deepseek-ai/dsh-agent'
@@ -304,7 +304,10 @@ describe('clone package real Loader composition', () => {
   })
 
   it('fails loading when the required path is missing', async () => {
-    await expect(boot(false)).rejects.toThrow('$.path missing required value')
+    const booted = await boot(false)
+    const entry = [...booted.ctx.loader.entries()].find(row => row.options.name === '@ketos/clone-core')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow('$.path missing required value')
   })
 })
 

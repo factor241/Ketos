@@ -617,8 +617,6 @@
     "delete",
     "edit",
     "expand",
-    "json.collapseNode",
-    "json.expandNode",
     "json.label",
     "load.failed",
     "loading",

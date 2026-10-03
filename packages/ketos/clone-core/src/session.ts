@@ -441,8 +441,7 @@ export class CloneSessionCoordinator {
         this.queued.delete(session.id)
       }
     })
-    this.ctx.on('agent/created', ({ agent }) => { this.request(agent) })
-    this.ctx.on('agent/session-start', ({ agent, source }) => {
+    this.ctx.on('agent/created', ({ agent, source }) => {
       // A restored session may belong to a clone from an earlier process; a
       // fresh one cannot be bound yet, so it is not worth opening the database.
       if (source === 'resume') this.touchesClones = true

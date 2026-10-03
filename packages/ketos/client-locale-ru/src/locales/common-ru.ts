@@ -26,8 +26,6 @@ export const ru = {
   'delete': 'Удалить',
   'edit': 'Изменить',
   'expand': 'Развернуть',
-  'json.collapseNode': 'Свернуть узел JSON',
-  'json.expandNode': 'Развернуть узел JSON',
   'json.label': 'JSON',
   'load.failed': 'Не удалось загрузить',
   'loading': 'Загрузка…',

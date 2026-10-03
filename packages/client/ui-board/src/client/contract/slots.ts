@@ -450,7 +450,7 @@ export type BoardDirectoryLevelOutcome =
 /** One file read the right panel's viewer performs. */
 export type BoardFileReadOutcome =
   | { readonly ok: true; readonly kind: 'text'; readonly text: string }
-  | { readonly ok: true; readonly kind: 'bytes'; readonly data: string }
+  | { readonly ok: true; readonly kind: 'bytes'; readonly data: Uint8Array }
   | { readonly ok: false; readonly code: string; readonly message: string }
 
 /**

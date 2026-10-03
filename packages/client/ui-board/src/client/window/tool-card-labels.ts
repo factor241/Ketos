@@ -18,6 +18,7 @@ export function terminalBlockLabels(t: BoardTranslate): TerminalBlockLabels {
   return {
     signal: signal => t('terminal.signal', { signal }),
     exitCode: code => t('terminal.exitCode', { code }),
+    noExitCode: t('terminal.noExitCode'),
     running: t('terminal.running'),
     failed: t('terminal.failed'),
     done: t('terminal.done'),
@@ -39,6 +40,9 @@ export function terminalBlockLabels(t: BoardTranslate): TerminalBlockLabels {
 export function readBlockLabels(t: BoardTranslate): ReadBlockLabels {
   return {
     window: (shown, total) => t('read.window', { shown, total }),
+    codeLabel: t('codeBlock.title'),
+    wrapLabel: t('codeBlock.wrap'),
+    unwrapLabel: t('codeBlock.unwrap'),
     copy: t('markdown.copy'),
     copied: t('markdown.copied'),
     collapseAria: t('block.collapseAria'),
@@ -55,13 +59,15 @@ export function readBlockLabels(t: BoardTranslate): ReadBlockLabels {
  */
 export function diffBlockLabels(t: BoardTranslate): DiffBlockLabels {
   return {
+    codeLabel: t('codeBlock.title'),
+    wrapLabel: t('codeBlock.wrap'),
+    unwrapLabel: t('codeBlock.unwrap'),
     copy: t('markdown.copy'),
     copied: t('markdown.copied'),
     collapseAria: t('block.collapseAria'),
     collapse: t('block.collapse'),
     expandAria: hidden => t('block.expandAria', { count: hidden }),
     expand: hidden => t('block.expand', { count: hidden }),
-    files: count => count === 1 ? t('diff.files.one', { count }) : t('diff.files.other', { count }),
   }
 }
 

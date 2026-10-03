@@ -183,6 +183,7 @@ describe('board plugin registration', () => {
           ns: 'ui-board',
           schema: {},
           value: {},
+          autoGenerate: false,
           applies: 'live',
           secrets: [],
           revision: 3,

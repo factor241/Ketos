@@ -31,6 +31,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { FileAttachmentRef, ImageAttachmentRef, ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import type { PendingSubmissionAttachment, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -257,12 +258,6 @@ export interface BoardSessionBridgeHooks {
   defaultPreset?: () => string
   /** Remember one preset the user chose on a blank session as the new default. */
   rememberPreset?: (presetId: string) => void
-  /**
-   * Deployment preset-selection policy known before a window is created, or
-   * undefined while no roster has answered. Only an explicit false suppresses
-   * the automatic default; absence keeps the last per-window read in charge.
-   */
-  presetPickerEnabled?: () => boolean | undefined
 }
 
 /**
@@ -489,7 +484,6 @@ export class BoardSessionBridge {
   async uploadFile(windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>): Promise<BoardUploadResult> {
     const sessionId = this.windows.get(windowId)?.sessionId
     if (sessionId === undefined) return { error: this.t('attachment.noSession') }
-    if (!this.ctx.fileUpload.available) return { error: this.t('attachment.unsupported') }
     try {
       // The blob body takes the host's background upload carrier, like the main
       // composer's file intake.
@@ -579,10 +573,10 @@ export class BoardSessionBridge {
     if (presetId === '') return
     // The deployment's policy wins over a remembered pick: with visible
     // selection disabled the host composes the deployment default, and a stale
-    // user choice must not silently compose a different session. The apply-side
-    // policy is authoritative when known (it predates this window); a per-window
-    // roster read covers deployments without that hook.
-    if (this.hooks.presetPickerEnabled?.() === false || !this.presetPickerEnabled) return
+    // user choice must not silently compose a different session. The developer
+    // preference is the live policy; the per-window flag also covers a roster
+    // read this deployment refused.
+    if (!this.ctx.configForms.developerTools.enabled.getSnapshot() || !this.presetPickerEnabled) return
     const row = this.ctx.sessions.list.getSnapshot().byId[sessionId]
     if (row?.blank !== true) return
     if (row.projectionValues?.agentPreset === presetId) return
@@ -1492,12 +1486,13 @@ export class BoardSessionBridge {
           ...(row.isDefault ? { isDefault: true } : {}),
         }
       })
-      this.presetPickerEnabled = result.value.modeSelectionEnabled
+      const enabled = this.ctx.configForms.developerTools.enabled.getSnapshot()
+      this.presetPickerEnabled = enabled
       // A concurrent automatic apply may have just published a refusal; the
       // roster landing is not an acknowledgement of it.
       this.patch(windowId, {
         presets,
-        presetPickerEnabled: result.value.modeSelectionEnabled,
+        presetPickerEnabled: enabled,
       })
     } catch {
       // A deployment without the preset remote hides the chip instead of

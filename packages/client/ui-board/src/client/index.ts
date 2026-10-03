@@ -131,15 +131,18 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     persistBindings: (bindings) => { persistence.writeBindings(bindings) },
     defaultPreset: () => instance.getSnapshot().defaultPreset,
     rememberPreset: (presetId) => { instance.actions.setDefaultPreset(presetId) },
-    presetPickerEnabled: () => presetPickerPolicy,
   })
 
   // Deployment preset roster for the board chrome's window-creation entries.
   // Read once at apply through the same display fold the window chip uses; a
   // failed read leaves the roster empty (the plain creation entries remain).
   const presetRoster = createSnapshotStore<BoardPresetRoster>({ presets: [], pickerEnabled: false })
-  /** Latest deployment policy, undefined until a roster read answers. */
-  let presetPickerPolicy: boolean | undefined
+  // Preset selection follows developer mode, the upstream policy for new-task
+  // mode selection; the roster read no longer carries its own policy.
+  const presetPickerEnabled = (): boolean => ctx.configForms.developerTools.enabled.getSnapshot()
+  ctx.effect(() => ctx.configForms.developerTools.enabled.subscribe(() => {
+    presetRoster.set({ ...presetRoster.getSnapshot(), pickerEnabled: presetPickerEnabled() })
+  }), 'ui-board: preset picker policy')
   // The creation roster is read once at apply and again whenever the chrome's
   // menu opens: roots can change between menu visits, and a stale row would
   // store a default the host no longer composes.
@@ -147,7 +150,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     try {
       const result = await ctx.remote.agentPresets.list()
       if (!result.ok) return
-      presetPickerPolicy = result.value.modeSelectionEnabled
       const presetT = ctx.locale.bind('settings.agentPreset')
       presetRoster.set({
         presets: result.value.presets
@@ -161,7 +163,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
               ...(row.isDefault ? { isDefault: true } : {}),
             }
           }),
-        pickerEnabled: result.value.modeSelectionEnabled,
+        pickerEnabled: presetPickerEnabled(),
       })
     } catch {
       // A deployment without the preset remote keeps the plain creation entries.
@@ -829,7 +831,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       instance.actions.setWindowPanel(windowId, 'right', true)
     },
     documentPreviewFor: (path) => {
-      const first = ctx.documentPreviews.candidates(path)[0]
+      // The board's own viewer reads text pages or complete bytes; a preview
+      // that renders through a registered component (office documents) is
+      // outside its viewer, so it is skipped and the text fallback reports
+      // whether the file can be read as text.
+      const first = ctx.documentPreviews.candidates(path).find(
+        (candidate): candidate is typeof candidate & { loading: 'text-pages' | 'bytes-complete' } =>
+          candidate.loading !== 'renderer',
+      )
       return first === undefined ? undefined : { loading: first.loading }
     },
     listWorkspaceDirectory: async (sessionId, path, signal) => {
@@ -840,7 +849,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     },
     readWorkspaceFile: async (sessionId, path, mode, signal) => {
       if (mode === 'bytes-complete') {
-        const result = await ctx.remote.workspaceFiles.readAll(sessionId, path, signal)
+        const result = await ctx.remote.workspaceFiles.readBytes(sessionId, path, {}, signal)
         return result.ok
           ? { ok: true, kind: 'bytes', data: result.value.data }
           : { ok: false, code: result.error.code, message: result.error.message }

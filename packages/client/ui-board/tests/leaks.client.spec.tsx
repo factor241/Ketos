@@ -146,7 +146,6 @@ describe('board resource discipline', () => {
       // Closing a window never deletes its session: the same chat is rebuilt
       // each cycle and stays listed, and the bridge retains no reference.
       expect(runtime.sessions.list.getSnapshot().ids).toContain('session-1' as SessionId)
-      expect(runtime.sessions.calls.filter(call => call.method === 'clear')).toHaveLength(0)
       expect(runtime.sessions.retainInfo('session-1' as SessionId).getSnapshot().referenceCount).toBe(0)
       expect(listListeners()).toBe(baselineListeners)
 

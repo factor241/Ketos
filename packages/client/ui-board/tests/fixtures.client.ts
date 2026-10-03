@@ -61,7 +61,6 @@ export interface BoardBenchOptions {
   }[]
   /** Background upload service overrides; the default stages every file as `receipt-1`. */
   fileUpload?: {
-    readonly available?: boolean
     readonly upload?: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
   }
   /** Preset roster double; the default answers an empty roster with selection enabled. */
@@ -84,6 +83,8 @@ export interface BoardBenchOptions {
   }
   /** View the shared describe mirror holds before the board mounts; omitted starts idle. */
   readonly settingsView?: SettingsDescribeValue
+  /** Developer-mode preference the board's preset picker policy reads (default enabled). */
+  readonly developerTools?: boolean
   /** Per-session chat target resolver; if omitted, defaults to the bench's shared chat store. */
   readonly chatTargetFor?: (sessionId: string) => ObservableSnapshot<ChatSnapshot | undefined>
   /** Custom session creation behavior overriding the default stub. */
@@ -99,7 +100,7 @@ export interface BoardBenchOptions {
   readonly workspaceFiles?: {
     readonly list?: (sessionId: SessionId, path: string, signal?: AbortSignal) => Promise<unknown>
     readonly read?: (sessionId: SessionId, path: string, range: unknown, signal?: AbortSignal) => Promise<unknown>
-    readonly readAll?: (sessionId: SessionId, path: string, signal?: AbortSignal) => Promise<unknown>
+    readonly readBytes?: (sessionId: SessionId, path: string, options: unknown, signal?: AbortSignal) => Promise<unknown>
   }
   /** Document-preview registry double overrides; the default matches by extension. */
   readonly documentPreviews?: {
@@ -215,6 +216,7 @@ export function chatSnapshot(
     nodes: {
       get: () => undefined,
       source: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
+      turnDataSource: () => ({ getSnapshot: () => [], subscribe: () => () => {} }),
       processSource: () => ({ getSnapshot: () => undefined, subscribe: () => () => {} }),
       values: () => [],
     },
@@ -408,6 +410,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     ns: 'ui-board',
     schema: {},
     value: {},
+    autoGenerate: false,
     applies: 'live',
     secrets: [],
     revision: 0,
@@ -417,7 +420,17 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       ?? (async () => ({ ok: true as const, value: emptyView() })),
   }
   const configForms = createConfigFormsDouble(options.settingsView)
-  runtime.ctx.provide('configForms', { describe: () => configForms.face } as never)
+  const developerTools = createSnapshotStore(options.developerTools ?? true)
+  runtime.ctx.provide('configForms', {
+    describe: () => configForms.face,
+    developerTools: {
+      enabled: {
+        getSnapshot: () => developerTools.getSnapshot(),
+        subscribe: (listener: () => void) => developerTools.subscribe(listener),
+      },
+      setEnabled: async (enabled: boolean) => { developerTools.set(enabled) },
+    },
+  } as never)
   // Workspace file reads the right panel performs: a listing, a page of text,
   // and complete bytes. Every verb accepts the producer's signal.
   const workspaceFiles = {
@@ -425,8 +438,8 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       ?? (async () => ({ ok: true as const, value: { path: '', entries: [], truncated: false } })),
     read: options.workspaceFiles?.read
       ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 1, text: '', lines: 0, eof: true } })),
-    readAll: options.workspaceFiles?.readAll
-      ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 0, data: '', eof: true } })),
+    readBytes: options.workspaceFiles?.readBytes
+      ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 0, data: new Uint8Array(), eof: true } })),
   }
   // The document-preview registry the board's `documentPreviewFor` reads.
   runtime.ctx.provide('documentPreviews', {
@@ -439,7 +452,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     workspaceFiles,
     agentPresets: {
       list: options.agentPresets?.list
-        ?? (async () => ({ ok: true as const, value: { presets: [], authorable: false, modeSelectionEnabled: true } })),
+        ?? (async () => ({ ok: true as const, value: { presets: [], authorable: false } })),
       select: options.agentPresets?.select ?? (async () => ({ ok: true as const, value: undefined })),
     },
     commands: {
@@ -462,7 +475,6 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   })
   // Background uploads: the runtime's stub is replaced with one that stages a
   // receipt the prompt can carry, so file intake works unless a test opts out.
-  runtime.fileUpload.available = options.fileUpload?.available ?? true
   runtime.fileUpload.upload = options.fileUpload?.upload ?? (async () => ({
     ok: true as const,
     value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
@@ -484,7 +496,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       id: extra.id,
       session: extra.session ?? options.session ?? {},
       summary: { displayTitle: extra.displayTitle, ...extra.summary },
-    }, { current: false })
+    })
   }
   if (options.createSession !== undefined) {
     runtime.sessions.stubCreate(options.createSession)

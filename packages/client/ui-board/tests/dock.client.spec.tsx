@@ -340,7 +340,6 @@ describe('board dock', () => {
               { id: 'ptc', trust: 'user', isDefault: false, name: 'PTC mode' },
             ],
             authorable: true,
-            modeSelectionEnabled: true,
           },
         }),
       },
@@ -357,13 +356,13 @@ describe('board dock', () => {
 
   it('keeps the plain agent entry when the deployment disables preset selection', async () => {
     const { panel } = await bench({
+      developerTools: false,
       agentPresets: {
         list: async () => ({
           ok: true as const,
           value: {
             presets: [{ id: 'standard', trust: 'user', isDefault: true, name: 'Standard' }],
             authorable: true,
-            modeSelectionEnabled: false,
           },
         }),
       },

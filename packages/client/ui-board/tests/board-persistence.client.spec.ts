@@ -71,6 +71,7 @@ function namespaceView(overrides: Partial<SettingsNamespaceView> = {}): Settings
     ns: BOARD_SETTINGS_NAMESPACE,
     schema: {},
     value: layout(),
+    autoGenerate: false,
     applies: 'live',
     secrets: [],
     revision: 1,

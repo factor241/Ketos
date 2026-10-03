@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import type { RunningToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { PreparingToolCall, StartedToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { ToolCard } from '../src/client/window/ToolCard.tsx'
 import {
   diffCardData, imageCardData, questionCardData, readCardData, searchCardData,
@@ -38,11 +38,26 @@ function settled(overrides: Partial<ToolResultNode> = {}): ToolResultNode {
 }
 
 /** One running tool call with the fixture defaults a test does not override. */
-function running(overrides: Partial<RunningToolCall> = {}): RunningToolCall {
+function running(overrides: Partial<StartedToolCall> = {}): StartedToolCall {
   return {
+    phase: 'start',
     callId: 'call-1',
     name: 'bash',
     argsRaw: '{"command":"sleep 5"}',
+    turn: 1,
+    step: 1,
+    time: 0,
+    subCalls: [],
+    ...overrides,
+  }
+}
+
+/** One preparing tool call: the name is known, its arguments are not yet. */
+function preparing(overrides: Partial<PreparingToolCall> = {}): PreparingToolCall {
+  return {
+    phase: 'preparing',
+    callId: 'call-1',
+    name: 'bash',
     turn: 1,
     step: 1,
     time: 0,
@@ -77,6 +92,9 @@ describe('tool node readers', () => {
     expect(toolNodeName(running())).toBe('bash')
     expect(toolNodeArgsRaw(settled())).toBe('{"command":"ls"}')
     expect(toolNodeArgsRaw(running())).toBe('{"command":"sleep 5"}')
+    // A preparing call names the tool but has no argument text yet.
+    expect(toolNodeName(preparing())).toBe('bash')
+    expect(toolNodeArgsRaw(preparing())).toBe('')
   })
 
   it('declines a lost call head, a half-streamed payload, and non-object JSON', () => {

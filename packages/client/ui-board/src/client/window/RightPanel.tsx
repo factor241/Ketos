@@ -123,27 +123,24 @@ function viewerKindOf(path: string): 'image' | 'pdf' | 'markdown' | 'text' {
 type ViewerState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'text'; readonly text: string }
-  | { readonly kind: 'bytes'; readonly data: string }
+  | { readonly kind: 'bytes'; readonly data: Uint8Array }
   | { readonly kind: 'failed'; readonly code: string; readonly message: string }
 
-/** Object URL of one base64 payload, revoked when the payload or viewer goes away. */
-function useObjectUrl(data: string): string {
-  const url = useMemo(() => {
-    const bytes = Uint8Array.from(atob(data), character => character.charCodeAt(0))
-    return URL.createObjectURL(new Blob([bytes]))
-  }, [data])
+/** Object URL of one byte payload, revoked when the payload or viewer goes away. */
+function useObjectUrl(data: Uint8Array): string {
+  const url = useMemo(() => URL.createObjectURL(new Blob([Uint8Array.from(data)])), [data])
   useEffect(() => () => { URL.revokeObjectURL(url) }, [url])
   return url
 }
 
 /** One image viewer over complete bytes. */
-function ImageViewer({ data, name }: { readonly data: string; readonly name: string }): ReactNode {
+function ImageViewer({ data, name }: { readonly data: Uint8Array; readonly name: string }): ReactNode {
   const url = useObjectUrl(data)
   return <img className={css.image} src={url} alt={name} data-board-right-viewer="image" />
 }
 
 /** One PDF viewer over complete bytes. */
-function PdfViewer({ data, name }: { readonly data: string; readonly name: string }): ReactNode {
+function PdfViewer({ data, name }: { readonly data: Uint8Array; readonly name: string }): ReactNode {
   const url = useObjectUrl(data)
   return <iframe className={css.frame} title={name} src={url} data-board-right-viewer="pdf" />
 }

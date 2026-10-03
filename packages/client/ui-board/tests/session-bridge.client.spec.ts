@@ -227,13 +227,15 @@ describe('BoardSessionBridge', () => {
     await prepared.runtime.flush()
 
     const upload = vi.fn(async () => ({ ok: true as const, value: { receiptId: 'receipt-1' } }))
-    prepared.runtime.fileUpload.available = true
     prepared.runtime.fileUpload.upload = upload
     await expect(bridge.uploadFile(windowId, 'a.txt', new Uint8Array([1]))).resolves.toEqual({ receiptId: 'receipt-1' })
 
-    prepared.runtime.fileUpload.available = false
+    prepared.runtime.fileUpload.upload = async () => ({
+      ok: false as const,
+      error: { code: 'session/not-found', message: 'gone' },
+    })
     const refused = await bridge.uploadFile(windowId, 'a.txt', new Uint8Array([1]))
-    expect(refused.error).toBe('File uploads are unavailable on this host')
+    expect(refused.error).toBe('The session no longer exists')
   })
 
   it('drops every record on disposal', async () => {
@@ -356,14 +358,14 @@ describe('BoardSessionBridge', () => {
     const first = 'a1' as WindowId
     const second = 'a2' as WindowId
 
-    const before = prepared.runtime.sessions.list.getSnapshot().current
     bridge.restore({ a1: 'session-1', a2: 'session-2' }, [first, second])
     await prepared.runtime.flush()
 
     // Each window retained its own reference without moving the shell's
     // selection: the board is not the user, so restoring it must not pick a chat.
     expect(retainedSessions(prepared)).toEqual(['session-1', 'session-2'])
-    expect(prepared.runtime.sessions.list.getSnapshot().current).toBe(before)
+    const list = prepared.runtime.sessions.list.getSnapshot()
+    expect(list.ids.some(id => (list.byId[id]?.retainedBy.mainView ?? 0) > 0)).toBe(false)
     expect(bridge.channel(first).getSnapshot().status).toBe('ready')
   })
 
@@ -432,7 +434,6 @@ describe('BoardSessionBridge', () => {
     const { prepared, bridge } = await twoChatBench()
     const blank = await prepared.runtime.sessions.add(
       { id: 'blank-1', summary: { blank: true, displayTitle: 'New Session' } },
-      { current: false },
     )
     await prepared.runtime.workspaces.update((draft) => {
       draft.items = [{
@@ -501,7 +502,7 @@ describe('BoardSessionBridge', () => {
 
   it('binds a chat gesture that races the window own session creation', async () => {
     const { prepared, bridge } = await bench()
-    await prepared.runtime.sessions.add({ id: 'session-2', summary: { displayTitle: 'Project chat' } }, { current: false })
+    await prepared.runtime.sessions.add({ id: 'session-2', summary: { displayTitle: 'Project chat' } })
     let release: () => void = () => {}
     const gate = new Promise<void>((resolve) => { release = resolve })
     let created = 0
@@ -1007,7 +1008,6 @@ describe('BoardSessionBridge preset lifecycle', () => {
       { id: 'broken-one', trust: 'user', isDefault: false, name: 'Broken one', broken: 'composition failed to load' },
     ],
     authorable: true,
-    modeSelectionEnabled: true,
   }
 
   /** Bench with a configurable roster, a selected-preset spy, and a blank window session. */
@@ -1015,11 +1015,13 @@ describe('BoardSessionBridge preset lifecycle', () => {
     blank?: boolean
     select?: (sessionId: unknown, presetId: string) => Promise<unknown>
     roster?: unknown
+    developerTools?: boolean
   } = {}) {
     const select = vi.fn(options.select ?? (async () => ({ ok: true as const, value: undefined })))
     const prepared = await createBoardBench({
       session: { prompt: () => Promise.resolve({ ok: true, value: { accepted: true } }) },
       sessionSummary: { blank: options.blank ?? true },
+      ...(options.developerTools === undefined ? {} : { developerTools: options.developerTools }),
       agentPresets: {
         list: async () => ({ ok: true as const, value: options.roster ?? ROSTER }),
         select,
@@ -1059,11 +1061,8 @@ describe('BoardSessionBridge preset lifecycle', () => {
   })
 
   it('suppresses the remembered default when the deployment disables visible selection', async () => {
-    const { prepared, select } = await presetBench()
-    const bridge = new BoardSessionBridge(prepared.runtime.ctx, {
-      defaultPreset: () => 'ptc',
-      presetPickerEnabled: () => false,
-    })
+    const { prepared, select } = await presetBench({ developerTools: false })
+    const bridge = new BoardSessionBridge(prepared.runtime.ctx, { defaultPreset: () => 'ptc' })
     bridge.ensure('a1' as WindowId)
     await prepared.runtime.flush()
     expect(select).not.toHaveBeenCalled()
@@ -1158,13 +1157,13 @@ describe('BoardSessionBridge preset lifecycle', () => {
     await prepared.runtime.flush()
     expect(channel.getSnapshot().presetError).toBeDefined()
 
-    releaseRoster?.({ ok: true, value: { presets: [], authorable: false, modeSelectionEnabled: true } })
+    releaseRoster?.({ ok: true, value: { presets: [], authorable: false } })
     await prepared.runtime.flush()
     expect(channel.getSnapshot().presetError).toBeDefined()
   })
 
   it('publishes broken rows, the deployment default, and the picker policy', async () => {
-    const { prepared } = await presetBench({ roster: { ...ROSTER, modeSelectionEnabled: false } })
+    const { prepared } = await presetBench({ developerTools: false })
     const bridge = new BoardSessionBridge(prepared.runtime.ctx)
     const windowId = 'a1' as WindowId
     const channel = bridge.channel(windowId)

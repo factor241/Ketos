@@ -145,14 +145,14 @@ export interface BoardBench {
   locale: LocaleRuntime
   /** The chat target observable the bridge subscribes to for the created session. */
   chat: SnapshotStore<ChatSnapshot | undefined>
-  /** The describe mirror double backing `ctx.settingsScope`. */
-  settings: SettingsScopeDouble
+  /** The describe mirror double backing `ctx.configForms`. */
+  settings: ConfigFormsDouble
   /** Mount the board plugin on the prepared runtime. */
   mountBoard: () => Promise<{ dispose: () => Promise<void> }>
 }
 
-/** Settings describe mirror double the bench installs as the `settingsScope` service. */
-export interface SettingsScopeDouble {
+/** Settings describe mirror double the bench installs as the `configForms` service. */
+export interface ConfigFormsDouble {
   /** The mirror read/fold face the board derives from. */
   readonly face: SettingsDescribeFace
   /**
@@ -172,7 +172,7 @@ export interface SettingsScopeDouble {
  * @param view - view held before any ensure; omitted starts the mirror idle.
  * @returns the double, its face, and the accepted-view log.
  */
-export function createSettingsScopeDouble(view?: SettingsDescribeValue): SettingsScopeDouble {
+export function createConfigFormsDouble(view?: SettingsDescribeValue): ConfigFormsDouble {
   const store = createSnapshotStore<SettingsMirrorSnapshot>({
     status: view === undefined ? 'idle' : 'ready',
     view,
@@ -416,8 +416,8 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     replace: options.remoteSettings?.replace
       ?? (async () => ({ ok: true as const, value: emptyView() })),
   }
-  const settingsScope = createSettingsScopeDouble(options.settingsView)
-  runtime.ctx.provide('settingsScope', { describe: () => settingsScope.face } as never)
+  const configForms = createConfigFormsDouble(options.settingsView)
+  runtime.ctx.provide('configForms', { describe: () => configForms.face } as never)
   // Workspace file reads the right panel performs: a listing, a page of text,
   // and complete bytes. Every verb accepts the producer's signal.
   const workspaceFiles = {
@@ -432,9 +432,9 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
   runtime.ctx.provide('documentPreviews', {
     candidates: options.documentPreviews?.candidates ?? defaultPreviewCandidates,
   } as never)
-  const remote = {
-    // Remote change events: the board subscribes for settings-driven refreshes.
-    $on: () => () => {},
+  // Remote change events ride the runtime's TestRemote (`runtime.remote.$on`
+  // and `emit`); the namespaces below become `ctx.remote.<name>` services.
+  runtime.remote.provideNamespaces({
     settings,
     workspaceFiles,
     agentPresets: {
@@ -459,8 +459,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       openWorkspacePath: options.remoteSession?.openWorkspacePath
         ?? (async () => ({ ok: true as const, value: { opened: true } })),
     },
-  }
-  runtime.ctx.provide('remote', remote as never)
+  })
   // Background uploads: the runtime's stub is replaced with one that stages a
   // receipt the prompt can carry, so file intake works unless a test opts out.
   runtime.fileUpload.available = options.fileUpload?.available ?? true
@@ -468,10 +467,6 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     ok: true as const,
     value: { receiptId: 'receipt-1', file: { id: 'file-1', name: 'file' } },
   }))
-  runtime.ctx.provide('remote.settings', settings as never)
-  for (const name of ['remote.commands', 'remote.agentPresets', 'remote.goals', 'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.session', 'remote.workspaceFiles']) {
-    runtime.ctx.provide(name, {} as never)
-  }
 
   if (options.session !== undefined) {
     // Pre-add the fixture session: the double's add() stabilizes through act,
@@ -506,7 +501,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
     runtime,
     locale,
     chat,
-    settings: settingsScope,
+    settings: configForms,
     mountBoard: () => runtime.mount({ inject: [...inject], apply }),
   }
 }

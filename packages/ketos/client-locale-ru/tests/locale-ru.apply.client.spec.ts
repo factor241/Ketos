@@ -73,7 +73,7 @@ async function bench(storedPreference: string | undefined, options: BenchOptions
   new TestRemote(ctx, { settings: { describe, mutate } })
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   await ctx.plugin({ inject: [...localeInject], apply: localeApply }).await()
-  const pack = ctx.plugin({ inject: ['locale', 'settingsScope'], apply })
+  const pack = ctx.plugin({ inject: ['locale', 'configForms'], apply })
   await pack.await()
   return {
     ctx,
@@ -230,7 +230,7 @@ describe('ketos ru language pack', () => {
     expect(b.locale().getLocale().active).toBe('en')
     expect(b.mutate).not.toHaveBeenCalled()
     await b.disposePack()
-    const reapply = b.ctx.plugin({ inject: ['locale', 'settingsScope'], apply })
+    const reapply = b.ctx.plugin({ inject: ['locale', 'configForms'], apply })
     await reapply.await()
     expect(b.locale().getLocale().active).toBe('en')
     await reapply.dispose()

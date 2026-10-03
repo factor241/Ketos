@@ -8,7 +8,7 @@
  * the plugin's apply; components only write the store.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-// Type-only: the ctx.settingsScope Context merge and the mirror face the board
+// Type-only: the ctx.configForms Context merge and the mirror face the board
 // derives from (the shared describe reader; cross-plugin collaboration goes
 // through the service, never a value import).
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'

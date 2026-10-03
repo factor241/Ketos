@@ -15,7 +15,7 @@ import {
 } from '../src/client/board-persistence.ts'
 import { createBoardStore, WINDOW_Z_BASE, type BoardStoreHandle, type BoardStoreInstance } from '../src/client/store.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
-import { createBoardBench, createSettingsScopeDouble, type SettingsScopeDouble } from './fixtures.client.ts'
+import { createBoardBench, createConfigFormsDouble, type ConfigFormsDouble } from './fixtures.client.ts'
 
 /** The wire value type the settings views carry, as the remote assembly types it. */
 type Json = SettingsNamespaceView['value']
@@ -100,12 +100,12 @@ type ReplaceDouble = ReturnType<typeof vi.fn<ReplaceSignature>>
 function bench(view: SettingsDescribeValue = EMPTY_VIEW): {
   instance: BoardStoreInstance
   persistence: BoardLayoutPersistence
-  settings: SettingsScopeDouble
+  settings: ConfigFormsDouble
   replace: ReplaceDouble
 } {
   const ctx = new Context()
   const instance = createBoardStore().create()
-  const settings = createSettingsScopeDouble(view)
+  const settings = createConfigFormsDouble(view)
   const replace: ReplaceDouble = vi.fn(async (
     _ns: string,
     _section: Record<string, unknown>,

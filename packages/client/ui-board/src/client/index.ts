@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-// Type-only: the ctx.settingsScope merge and the shared describe mirror the
+// Type-only: the ctx.configForms merge and the shared describe mirror the
 // layout persistence reads through.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
@@ -74,7 +74,7 @@ export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec }
 /** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
   'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'conversation', 'modelDirectories', 'layout',
-  'fileUpload', 'settingsScope', 'documentPreviews',
+  'fileUpload', 'configForms', 'documentPreviews',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.workspaceFiles',
   // The per-session model directory resolves the host catalog through the
@@ -123,7 +123,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const boardStore: BoardStoreHandle = { ...handle, create: () => instance }
   // The shared describe mirror is the one settings reader in the browser; the
   // board derives from it so startup costs no extra settings/describe call.
-  const persistence = new BoardLayoutPersistence(ctx, ctx.settingsScope.describe(), instance)
+  const persistence = new BoardLayoutPersistence(ctx, ctx.configForms.describe(), instance)
 
   // Window sessions: one bridge per plugin fiber, one channel per window. The
   // bridge's bindings map is the second half of the stored settings section.

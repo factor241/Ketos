@@ -4324,6 +4324,41 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@ketos/clone-core -->
+<a id="ketosclone-core"></a>
+
+## `@ketos/clone-core`
+
+- `inject`: `connection` · `agents` · `sessionProjections`
+- `source`: [`packages/ketos/clone-core/src/index.ts:44`](../packages/ketos/clone-core/src/index.ts)
+
+```ts config-catalog
+/** Deployment configuration of the clone domain. */
+export interface Config {
+  /**
+   * Path of the clone database file. The shipped web profile passes
+   * `dshHomePath('clones.db')`; the parent directory is created owner-only
+   * before the file is opened.
+   */
+  path: string
+  /**
+   * Largest number of active memories the prompt snapshot lists. The default
+   * suits a clone that remembers a handful of working facts; deeper lookup is
+   * the `clone_memory_search` tool.
+   */
+  memoryEntries?: number
+  /** Largest total length, in characters, of the prompt memory snapshot. */
+  memoryChars?: number
+  /**
+   * Round budget a new autonomous task hands to its goal: how many model
+   * rounds the clone may take before the round driver blocks the goal with
+   * `round-limit`. The upper bound is a validation invariant, not a setting.
+   */
+  defaultMaxRounds?: number
+}
+```
+<!-- END GENERATED config-catalog:@ketos/clone-core -->
+
 ## 无配置的可加载插件
 
 这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。
@@ -4344,6 +4379,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-board` | — | [`packages/client/ui-board/src/index.ts`](../packages/client/ui-board/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-brand-official` | — | [`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-chat` | — | [`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-commands` | — | [`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts) |
@@ -4428,6 +4464,7 @@ export interface Config {
 | `@deepseek-ai/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
 | `@deepseek-ai/dsh-webhook` | `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` | [`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts) |
 | `@deepseek-ai/dsh-workspace` | `storageDomain` · `sessionPersistence` | [`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts) |
+| `@ketos/client-locale-ru` | — | [`packages/ketos/client-locale-ru/src/index.ts`](../packages/ketos/client-locale-ru/src/index.ts) |
 <!-- END GENERATED config-catalog:no-config -->
 
 ## Seam 包（不可直接加载）

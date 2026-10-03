@@ -68,6 +68,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-agent-preset` | no | Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor |
 | `@deepseek-ai/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@deepseek-ai/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
+| `@deepseek-ai/dsh-client-ui-board` | no | Web spatial board: canvas pan/zoom with draggable agent, clone, and task windows, plus dock, Omnibox, minimap, chats panel, and persisted layout on the shared Harness theme |
 | `@deepseek-ai/dsh-client-ui-brand-official` | no | Official DeepSeek Harness brand occupants for the Web client's sidebar slots |
 | `@deepseek-ai/dsh-client-ui-chat` | no | Chat Conversation target, node definitions, renderers, and details surface |
 | `@deepseek-ai/dsh-client-ui-commands` | no | Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry |
@@ -273,6 +274,13 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@deepseek-ai/dsh-jobs-local` | yes | Process-local implementation of the DeepSeek Harness background job registry seam |
 | `@deepseek-ai/dsh-tool-jobs` | yes | Model-facing background job control tools (job_output, job_list, job_kill) over the ctx.jobs registry |
+
+## ketos
+
+| Package | Config | Description |
+|---|---|---|
+| `@ketos/client-locale-ru` | no | Ketos language pack: the Russian locale, its common, settings, and board dictionaries, and the ru default for Russian browsers without a stored preference |
+| `@ketos/clone-core` | yes | Ketos clone domain: the clones.db node:sqlite database, its forward-only schema, the clone repository, the /api/ketos.clones Fetch route, and the interview mode that drafts a clone profile |
 
 ## llm
 

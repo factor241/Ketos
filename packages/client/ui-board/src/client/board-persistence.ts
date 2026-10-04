@@ -140,7 +140,10 @@ export class BoardLayoutPersistence {
     const { bindings, ...layout } = cached.settings
     this.instance.actions.hydrate(layout)
     this.cacheRevision = cached.revision
-    this.lastLayout = serialize(layout)
+    // The baseline is the normalized capture, not the stored document: a
+    // version-1 section still carrying the removed panel fields must not make
+    // the first frame look like a layout change and write the section back.
+    this.lastLayout = serialize(captureBoardLayout(this.instance.getSnapshot()))
     this.bindings = bindings
     this.lastBindings = serialize(bindings)
     this.adoptListener?.(cached.settings)
@@ -206,7 +209,9 @@ export class BoardLayoutPersistence {
     if (this.cacheRevision === undefined || view.revision > this.cacheRevision) {
       const { bindings, ...layout } = settings
       this.instance.actions.hydrate(layout)
-      this.lastLayout = serialize(layout)
+      // Same normalized baseline as the cache path: an adopted legacy document
+      // is written back only by a later real layout gesture, never at startup.
+      this.lastLayout = serialize(captureBoardLayout(this.instance.getSnapshot()))
       this.bindings = bindings
       this.lastBindings = serialize(bindings)
       // The adopted section is what the next first frame should paint.

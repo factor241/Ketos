@@ -229,6 +229,9 @@ export function SessionRail({
     [sessionList, workspaceList],
   )
   const [dockElement, setDockElement] = useState<HTMLElement | null>(null)
+  // The clone strip reads the roster, so the first board render loads it; a
+  // startup that never opens the board stays free of clone requests.
+  useEffect(() => { refreshClones() }, [refreshClones])
   // The stored clone order covers the roster: a clone added since the last
   // adoption is appended through the same action the drag uses, so a reorder
   // never writes an order that forgets the clones it did not move.

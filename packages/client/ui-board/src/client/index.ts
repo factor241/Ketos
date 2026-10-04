@@ -226,7 +226,10 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
   // clone editor read. A failed read keeps the last published list and leaves
   // the roster unloaded, so a transient failure reads as "still loading" with a
-  // retry rather than as a deleted clone; every mutation re-reads it.
+  // retry rather than as a deleted clone; every mutation re-reads it. The read
+  // is lazy — the dock's clone strip and a clone window load it on first mount,
+  // and the creation menu refreshes it on open — so a startup that never opens
+  // the board costs no clone request.
   const cloneRoster = createSnapshotStore<BoardCloneRoster>({ clones: [], loaded: false })
   /** Newest roster read; an older answer never overwrites a newer one. */
   let cloneReadSeq = 0
@@ -237,15 +240,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       cloneRoster.set({ clones: result.value, loaded: true })
     })
   }
-  refreshClones()
 
   // Task roster: the /api/ketos.tasks list the tasks windows read. The read
   // covers every clone and the windows filter it client-side, so two windows
   // scoped to different clones cannot overwrite each other's list. Like the
   // clone roster, a failed read keeps the last published list and leaves the
   // roster unloaded, so a transient failure reads as "still loading" with a
-  // retry rather than as a deployment without tasks; every task mutation and
-  // the windows' poll re-read it.
+  // retry rather than as a deployment without tasks; a tasks window loads it
+  // on mount, and every task mutation and the windows' poll re-read it.
   const taskRoster = createSnapshotStore<BoardTaskRoster>({ tasks: [], loaded: false })
   /** Newest task read; an older answer never overwrites a newer one. */
   let taskReadSeq = 0
@@ -256,7 +258,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       taskRoster.set({ tasks: result.value, loaded: true })
     })
   }
-  refreshTasks()
 
   /**
    * Start one stored task on a fresh session and report the outcome. The

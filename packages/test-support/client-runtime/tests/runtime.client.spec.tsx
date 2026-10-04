@@ -221,6 +221,7 @@ describe('sessions', () => {
       sessionId: 's1' as SessionId, atSeq: 7, increaseTitle: true,
     })).resolves.toBe('s1')
     expect(runtime.sessions.calls).toEqual([
+      { method: 'retain', args: [address] },
       { method: 'refreshProjections', args: ['s2'] },
       { method: 'fork', args: [{ sessionId: 's1', atSeq: 7, increaseTitle: true }] },
     ])

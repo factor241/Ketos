@@ -279,6 +279,10 @@ export function Tooltip({ label, shortcutKeys, side = 'right', align = 'center',
   useEffect(() => {
     if (pos === null || suppressAncestors !== null) return
     closeOpenTooltip = dismiss
+    // Every passive cleanup in a root runs before any registry effect mounts,
+    // so within one root the cleanup still owns the registry; the guard keeps
+    // a separately flushed root's replacement bubble registered.
+    /* v8 ignore next -- no current React version orders a single root's effects as create-before-cleanup. */
     return () => { if (closeOpenTooltip === dismiss) closeOpenTooltip = null }
   }, [dismiss, pos, suppressAncestors])
 

@@ -849,6 +849,75 @@ describe('Tooltip', () => {
     )
     expect(screen.getByRole('tooltip').textContent).toBe('Open sidebar')
   })
+
+  it('trusts an engine visibility verdict over computed style', () => {
+    const checkVisibility = vi.fn(() => false)
+    Object.defineProperty(HTMLElement.prototype, 'checkVisibility', { configurable: true, value: checkVisibility })
+    try {
+      render(<Tooltip label="Verdict"><button type="button">anchor</button></Tooltip>)
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      expect(checkVisibility).toHaveBeenCalled()
+      expect(screen.queryByRole('tooltip')).toBeNull()
+    } finally {
+      delete (HTMLElement.prototype as { checkVisibility?: unknown }).checkVisibility
+    }
+  })
+
+  it('ignores an observer fit queued after the bubble withdrew', () => {
+    render(<Tooltip label="Queued"><button type="button">anchor</button></Tooltip>)
+    const anchor = screen.getByText('anchor')
+    fireEvent.mouseEnter(anchor)
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+    const observer = observers.at(-1)!
+    act(() => {
+      fireEvent.mouseLeave(anchor)
+      observer.deliver()
+    })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('leaves the open-tooltip registry to the bubble that replaced it', () => {
+    // The replacing bubble sits first in tree order, so its registry effect
+    // commits before the replaced bubble's cleanup runs.
+    const view = render(
+      <>
+        <Tooltip key="second" label="Second"><button type="button">second</button></Tooltip>
+        <Tooltip key="first" label="First"><button type="button">first</button></Tooltip>
+      </>,
+    )
+    fireEvent.focus(screen.getByText('first'))
+    expect(screen.getByRole('tooltip').textContent).toBe('First')
+    fireEvent.mouseEnter(screen.getByText('second'))
+    expect(screen.getAllByRole('tooltip').map(bubble => bubble.textContent)).toEqual(['Second'])
+    view.rerender(<Tooltip key="second" label="Second"><button type="button">second</button></Tooltip>)
+    expect(screen.getByRole('tooltip').textContent).toBe('Second')
+    fireEvent.mouseLeave(screen.getByText('second'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('keeps one bubble open across independently rendered roots', () => {
+    // The replacing root mounts first: roots flush in creation order, so its
+    // registry effect commits before the replaced root's cleanup.
+    const first = render(<Tooltip label="Second root"><button type="button">second-root</button></Tooltip>)
+    const second = render(<Tooltip label="First root"><button type="button">first-root</button></Tooltip>)
+    try {
+      fireEvent.focus(screen.getByText('first-root'))
+      expect(screen.getByRole('tooltip').textContent).toBe('First root')
+      fireEvent.mouseEnter(screen.getByText('second-root'))
+      expect(screen.getAllByRole('tooltip').map(bubble => bubble.textContent)).toEqual(['Second root'])
+    } finally {
+      first.unmount()
+      second.unmount()
+    }
+  })
+
+  it('keeps a pinned bubble while the pointer moves outside the anchor', () => {
+    render(<Tooltip label="Pinned" openOnClick><button type="button">anchor</button></Tooltip>)
+    fireEvent.click(screen.getByText('anchor'))
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+    fireEvent.pointerMove(document.body, { pointerId: 9 })
+    expect(screen.getByRole('tooltip')).toBeTruthy()
+  })
 })
 
 
@@ -956,6 +1025,75 @@ describe('Tooltip with a popover host', () => {
       anchor = rect(200, 220)
       act(() => { listener?.() })
       expect(screen.getByRole('tooltip').style.left).toBe('222px')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it.each([
+    ['top', 'center', 'translate(-50%, -100%) scale(2)', 'bottom center'],
+    ['top', 'end', 'translate(-100%, -100%) scale(2)', 'bottom right'],
+    ['bottom', 'center', 'translateX(-50%) scale(2)', 'top center'],
+    ['bottom', 'end', 'translateX(-100%) scale(2)', 'top right'],
+  ] as const)('scales a hosted %s/%s bubble about the anchor-facing edge', (side, align, transform, origin) => {
+    // The anchor keeps the requested side: near the bottom for 'top' and near
+    // the top for 'bottom', so only scaledTransform is under test.
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'tooltip'
+        ? new DOMRect(0, 0, 20, 20)
+        : side === 'top' ? new DOMRect(10, 70, 40, 10) : new DOMRect(10, 10, 40, 10)
+    })
+    try {
+      render(
+        <PopoverHostProvider scale={2} boundary={() => new DOMRect(0, 0, 100, 100)}>
+          <Tooltip label="Scaled" side={side} align={align}><button type="button">anchor</button></Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      const bubble = screen.getByRole('tooltip')
+      expect(bubble.style.transform).toBe(transform)
+      expect(bubble.style.transformOrigin).toBe(origin)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('hosts a right-side bubble at the anchor mid-height and gutter', () => {
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'tooltip' ? new DOMRect(300, 0, 40, 20) : new DOMRect(100, 100, 100, 20)
+    })
+    try {
+      render(
+        <PopoverHostProvider boundary={() => new DOMRect(0, 0, 400, 300)}>
+          <Tooltip label="Right"><button type="button">anchor</button></Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      const bubble = screen.getByRole('tooltip')
+      expect(bubble.style.left).toBe('210px')
+      expect(bubble.style.top).toBe('110px')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it.each([
+    ['bottom', 'top', new DOMRect(100, 120, 100, 30), '112px'],
+    ['top', 'bottom', new DOMRect(100, 20, 100, 40), '68px'],
+  ] as const)('flips a hosted %s bubble to %s inside the host boundary', (side, flipped, anchorRect, top) => {
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'tooltip' ? new DOMRect(0, 0, 100, 100) : anchorRect
+    })
+    try {
+      render(
+        <PopoverHostProvider boundary={() => new DOMRect(0, 0, 400, 200)}>
+          <Tooltip label="Tall" side={side}><button type="button">anchor</button></Tooltip>
+        </PopoverHostProvider>,
+      )
+      fireEvent.mouseEnter(screen.getByText('anchor'))
+      const bubble = screen.getByRole('tooltip')
+      expect(bubble.getAttribute('data-side')).toBe(flipped)
+      expect(bubble.style.top).toBe(top)
     } finally {
       spy.mockRestore()
     }

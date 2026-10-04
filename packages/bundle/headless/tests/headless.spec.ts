@@ -516,7 +516,7 @@ describe('headless runner', () => {
     })
     expect(await test.run()).toMatchObject({
       code: 1,
-      err: 'dsh: a task is required, for example: dsh --profile headless "run the tests"\n',
+      err: 'ketos: a task is required, for example: ketos --profile headless "run the tests"\n',
     })
     await test.ctx.fiber.dispose()
   })
@@ -898,7 +898,7 @@ describe('headless runner', () => {
     })
     const result = await test.run()
     expect(result.code).toBe(1)
-    expect(result.err).toBe('dsh: log is corrupt\n')
+    expect(result.err).toBe('ketos: log is corrupt\n')
     await test.ctx.fiber.dispose()
   })
 

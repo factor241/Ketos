@@ -13,7 +13,7 @@ async function home(): Promise<string> {
 }
 
 function startupError(reason: unknown): StartupError {
-  const error = new StartupError('dsh: startup failed: 1 required plugin did not activate', [
+  const error = new StartupError('ketos: startup failed: 1 required plugin did not activate', [
     { id: 'webserver', module: './webserver.mjs', required: true, fiberState: 3, outcome: { kind: 'failed', error: reason } },
     { id: 'waiting', module: './waiting.mjs', required: false, fiberState: 0, outcome: { kind: 'pending', missing: ['webServer'] } },
   ])
@@ -33,7 +33,7 @@ describe('startup diagnostic files', () => {
     })
     onTestFinished(() => { write.mockRestore() })
     await reportStartupFailure(startupError('failed'), { home: dir, version: '1.2.3', profile: 'web' })
-    expect(write).toHaveBeenCalledWith(expect.stringContaining('dsh: startup failed:'), expect.any(Function))
+    expect(write).toHaveBeenCalledWith(expect.stringContaining('ketos: startup failed:'), expect.any(Function))
     expect(write).toHaveBeenCalledWith(expect.stringContaining(`Full diagnostics: ${join(dir, 'logs')}`), expect.any(Function))
   })
 
@@ -129,8 +129,8 @@ describe('startup diagnostic files', () => {
       home: dir, version: '1.2.3', profile: 'web',
     }, (text) => { chunks.push(text) })
     const output = chunks.join('')
-    expect(output).toContain('dsh: startup failed:')
-    expect(output).toContain('dsh: warning: could not write startup diagnostics:')
+    expect(output).toContain('ketos: startup failed:')
+    expect(output).toContain('ketos: warning: could not write startup diagnostics:')
     expect(output).toContain('Full diagnostics:\n')
     expect(output).toContain('original details')
     expect(output).toContain('CUSTOM')

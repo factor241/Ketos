@@ -200,7 +200,12 @@ export interface MemoryBudget {
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
-    /** The interview kickoff this package queues; never a human message. */
+    /**
+     * The interview kickoff this package queues; never a human message.
+     * Readers preserve this message without `@ketos/clone-core`; only the
+     * kickoff projection reads the kind to mark the interview as opened.
+     * @persistenceAttribution
+     */
     'ketos-clone-interview': {
       readonly kind: 'ketos-clone-interview'
       readonly form: 'notice'

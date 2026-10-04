@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-04-ketos-clone-interview-source.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-04-ketos-clone-interview-source.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-04-ketos-clone-interview-source:
+  en: 5caf3a93c8ca70b1
+  zh: 313370a050943a5b
+/2026-10-04-ketos-clone-interview-source/summary:
+  en: 07711ab5b2e749f7
+  zh: c938f5fe112ee88a
+/2026-10-04-ketos-clone-interview-source/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-04-ketos-clone-interview-source/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-04-ketos-clone-interview-source/compatibility:
+  en: 8978da38f6d4d30a
+  zh: 78e7caaa41fb3808
+/2026-10-04-ketos-clone-interview-source/verification:
+  en: 049e9dd1b2db5213
+  zh: 49142add8cb37545
+/2026-10-04-ketos-clone-interview-source/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

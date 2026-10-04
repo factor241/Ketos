@@ -1,12 +1,12 @@
-Usage: dsh [--profile] <name> [options] [app-args...]
-       dsh plugin --profile <name> <pnpm-args...>
+Usage: ketos [--profile] <name> [options] [app-args...]
+       ketos plugin --profile <name> <pnpm-args...>
 
-dsh: boot a DeepSeek Harness profile — an ordered stack of plugin-bundle patch
-layers under your own overrides.
+ketos: boot a Ketos profile — an ordered stack of plugin-bundle patch layers
+under your own overrides.
 
 Arguments:
   args                           arguments for the booted profile's app (see:
-                                 dsh --profile <name> --help)
+                                 ketos --profile <name> --help)
 
 Options:
   -V, --version                  output the version number
@@ -22,11 +22,11 @@ Options:
                                  or --patch overlays and exit
 
 Examples:
-  dsh web                                   boot the web profile (same as: dsh --profile web)
-  dsh rescue --from-default-profile web
-                                            create rescue from the shipped web template, then boot it
-  dsh headless "run the tests"              answer one task, print the result, and exit
-  dsh tui --patch ./extra.yml               boot a custom profile with one extra overlay
-  dsh tui --resume <session>                arguments after the launcher flags reach the app
-  dsh web --help                            the web app's own flags and help
-  dsh plugin --profile tui add <package>    install a plugin into the tui profile
+  ketos web                                   boot the web profile (same as: ketos --profile web)
+  ketos rescue --from-default-profile web
+                                              create rescue from the shipped web template, then boot it
+  ketos headless "run the tests"              answer one task, print the result, and exit
+  ketos tui --patch ./extra.yml               boot a custom profile with one extra overlay
+  ketos tui --resume <session>                arguments after the launcher flags reach the app
+  ketos web --help                            the web app's own flags and help
+  ketos plugin --profile tui add <package>    install a plugin into the tui profile

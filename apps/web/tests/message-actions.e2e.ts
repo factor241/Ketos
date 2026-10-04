@@ -320,6 +320,9 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     // Keep a footer focused so opacity-hidden actions stay in the a11y tree
     // as an active/focused control during the capture.
     await page.getByRole('button', { name: 'Copy' }).first().focus()
+    // The focus-raised bubble turns visible only after its ResizeObserver box
+    // lands; wait for it so the capture cannot settle on the pre-render frame.
+    await page.getByRole('tooltip').first().waitFor({ state: 'visible', timeout: 5_000 })
     const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))
       .split(SEED_ID).join('{{seededId}}')
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)

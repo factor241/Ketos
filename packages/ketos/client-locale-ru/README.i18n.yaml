@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/client-locale-ru/README.md
 /:
-  en: 8fc3d861e7843c5f
-  zh: 4920af36c692bc52
+  en: 3bab1e76f1a4d6f5
+  zh: 6112e3fea0775771
 /ketos-client-locale-ru:
   en: ceed73c403bd1e89
   zh: 26c842d4e7f5aeb9

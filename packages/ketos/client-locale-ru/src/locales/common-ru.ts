@@ -14,8 +14,8 @@ export const ru = {
   'cancel': 'Отмена',
   'close': 'Закрыть',
   'codeBlock.title': 'Блок кода',
-  'codeBlock.wrap': 'Переносить строки',
   'codeBlock.unwrap': 'Не переносить строки',
+  'codeBlock.wrap': 'Переносить строки',
   'collapse': 'Свернуть',
   'copied': 'Скопировано',
   'copy': 'Копировать',
@@ -49,5 +49,5 @@ export const ru = {
   'submitting': 'Отправка…',
   'truncated': 'Усечено',
   'unknown': 'Неизвестно',
-  'workspace.defaultName': 'Рабочая область по умолчанию',
+  'workspace.defaultName': 'Рабочая папка по умолчанию',
 } satisfies Record<CommonKey, string>

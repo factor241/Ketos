@@ -1,5 +1,5 @@
 ---
-description: "Ketos language pack for the web GUI: the complete Russian UI corpus (44 namespaces), the ru default when the deployment's browser asks for Russian, and the community pack attribution and sync procedure."
+description: "Ketos language pack for the web GUI: the complete Russian UI corpus (58 namespaces), the ru default when the deployment's browser asks for Russian, and the community pack attribution and sync procedure."
 kind: "package-reference"
 ---
 

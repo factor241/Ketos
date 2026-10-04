@@ -75,7 +75,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Required services for catalogs, ambient Session marks, the right Sidebar, Remote queries, and original-Session navigation. */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.schedule', 'conversation', 'uiConversation', 'uiWorkspace', 'sessions',
+  'slots', 'locale', 'remote', 'remote.schedule', 'uiWorkspace', 'sessions',
   'workspaces', 'sidebarRightTabs', 'sidebarRight',
 ]
 
@@ -184,8 +184,13 @@ export function apply(ctx: ClientContext): void {
   }, TaskManagerIcon))
   // The created task is a Turn-level element, not a Tool-group row: the Turn
   // Definition publishes the settled result and this tail list entry renders
-  // the card beneath the closing prose.
-  ctx.uiConversation.events.register(scheduleTurnDefinition)
+  // the card beneath the closing prose. The registry is reached through a
+  // scoped injection: a hard `uiConversation` dependency would restart this
+  // plugin on every ui-conversation reload, and the slot churn re-rendered
+  // the conversation while the reloaded service was still absent.
+  ctx.inject(['uiConversation'], (scope) => {
+    scope.uiConversation.events.register(scheduleTurnDefinition)
+  })
   ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({
     name: 'conversation.chat.turnTail',
     id: 'schedule-created',

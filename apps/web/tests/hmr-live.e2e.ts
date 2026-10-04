@@ -11,7 +11,7 @@ import type { Fiber } from '@deepseek-ai/cordis'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
-import { REPO_ROOT } from './support.ts'
+import { newEnglishPage, REPO_ROOT } from './support.ts'
 
 const CLIENT_ARTIFACT_PATTERNS = [
   'apps/web/dist/**/*',
@@ -126,11 +126,16 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     ))
     const baseUrl = await waitForOutput(host, /ketos web: (http:\/\/[^\s]+)/, 'built ketos web')
     browser = await chromium.launch()
-    const page = await browser.newPage()
+    // Pin en-US: the edit targets the English dictionary, and a Russian-locale
+    // browser would render the ru hero instead (the Ketos language pack
+    // defaults to ru when the browser asks for it).
+    const page = await newEnglishPage(browser)
     const pageErrors: string[] = []
     page.on('pageerror', error => pageErrors.push(String(error)))
     await page.goto(baseUrl, { waitUntil: 'load' })
-    await page.getByText(oldText, { exact: true }).waitFor({ timeout: 15_000 })
+    // The picker's visible label is the workspace name; the scenario pins the
+    // fallback through the accessible name, which always carries the key.
+    await page.getByRole('button', { name: oldText, exact: true }).first().waitFor({ timeout: 15_000 })
     const pageIdentity = await page.evaluate(() => {
       // In-page code: an import would not survive serialization, and the page
       // entropy source available in every context is getRandomValues.
@@ -140,7 +145,7 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     })
 
     await writeFile(sourcePath, updatedSource)
-    await page.getByText(newText, { exact: true }).waitFor({ timeout: 30_000 })
+    await page.getByRole('button', { name: newText, exact: true }).first().waitFor({ timeout: 30_000 })
     expect(await page.evaluate(() => (window as Window & { __dshHmrPageIdentity?: string }).__dshHmrPageIdentity))
       .toBe(pageIdentity)
     expect(pageErrors).toEqual([])

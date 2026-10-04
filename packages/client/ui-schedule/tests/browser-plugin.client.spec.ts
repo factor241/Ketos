@@ -139,7 +139,7 @@ function declareTranscriptSeats(ctx: Context): () => void {
 describe('ui-schedule browser half', () => {
   it('declares only the services used by registration', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.schedule', 'conversation', 'uiConversation', 'uiWorkspace', 'sessions',
+      'slots', 'locale', 'remote', 'remote.schedule', 'uiWorkspace', 'sessions',
       'workspaces', 'sidebarRightTabs', 'sidebarRight',
     ])
   })

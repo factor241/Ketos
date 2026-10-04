@@ -299,6 +299,14 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         />
       </button>
     </div>
+    <div
+      class="brandActionRail"
+    >
+      <div
+        data-slot="sidebar.brand.actions"
+        style="display: contents;"
+      />
+    </div>
     <button
       aria-label="New session"
       class="newSession"
@@ -407,7 +415,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
                 <span
                   class="localBuildTitle"
                 >
-                  DSH Local Build
+                  Ketos Local Build
                 </span>
                 <span
                   class="buildVersion"
@@ -419,6 +427,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
           </span>
         </span>
       </button>
+      <div
+        data-slot="sidebar.brand.actions"
+        style="display: contents;"
+      />
       <button
         aria-label="Collapse sidebar"
         class="iconButton toggle"

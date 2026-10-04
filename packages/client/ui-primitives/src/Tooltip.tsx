@@ -274,12 +274,13 @@ export function Tooltip({ label, shortcutKeys, side = 'right', align = 'center',
   // The open bubble registers itself as the one the next show replaces; a
   // bubble that hides first leaves the registry empty. Nested tooltips are
   // excluded: their enclosing bubble withdraws through TooltipSuppression and
-  // must return when the nested one hides.
+  // must return when the nested one hides, so a top-level show re-armed by the
+  // same pointer event must not close them.
   useEffect(() => {
-    if (pos === null) return
+    if (pos === null || suppressAncestors !== null) return
     closeOpenTooltip = dismiss
     return () => { if (closeOpenTooltip === dismiss) closeOpenTooltip = null }
-  }, [dismiss, pos])
+  }, [dismiss, pos, suppressAncestors])
 
   useEffect(() => {
     if (pinned && (disabled || !openOnClick)) setPinned(false)

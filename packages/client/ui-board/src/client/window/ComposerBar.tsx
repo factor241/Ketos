@@ -38,6 +38,7 @@ import {
   IconStopFillRegular,
   IconTrashOutlineRegular,
   Menu,
+  MenuSurface,
   RiskConfirmation,
   Tooltip,
   type MenuEntry,
@@ -987,7 +988,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       </div>
 
       {mentionQuery !== null && (
-        <div
+        <MenuSurface
           className={css.popup}
           role="listbox"
           aria-label={t('mention.aria')}
@@ -1000,11 +1001,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               <span className={css.popupHint}>{mentionKindLabel(t, row.kind)}</span>
             </button>
           ))}
-        </div>
+        </MenuSurface>
       )}
 
       {slashRows.length > 0 && mentionQuery === null && (
-        <div
+        <MenuSurface
           className={css.popup}
           role="listbox"
           aria-label={t('command.menuAria')}
@@ -1017,7 +1018,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               <span className={css.popupDescription}>{commandDescription(t, row.name, row.description)}</span>
             </button>
           ))}
-        </div>
+        </MenuSurface>
       )}
 
       <form ref={cardRef} className={css.card} onSubmit={handleSubmit} data-composer-card="">

@@ -47,7 +47,7 @@
 .errorText {
   margin: 0;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-secondary);
@@ -190,14 +190,14 @@
 .image {
   max-width: 100%;
   max-height: 240px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
 }
 
 .imagePending {
   width: 96px;
   height: 64px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
   background: var(--dsw-alias-bg-layer-1);
 }
@@ -218,7 +218,7 @@
   max-width: 100%;
   padding: 2px 8px;
   border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font-family: inherit;

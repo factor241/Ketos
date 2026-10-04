@@ -565,7 +565,8 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
           {selected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
         </button>
         {openItems !== null && createPortal(
-          <div
+          <MenuSurface
+            compact={compact}
             ref={submenuRef}
             className={clsx(css.submenu, compact && css.compactList)}
             style={{
@@ -594,7 +595,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
                 </button>
               ))}
             </div>
-          </div>,
+          </MenuSurface>,
           host.container,
         )}
       </div>

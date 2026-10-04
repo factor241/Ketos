@@ -6,7 +6,7 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  border-radius: 16px;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-layer-2);
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);

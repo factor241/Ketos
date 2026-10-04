@@ -28,7 +28,7 @@
   align-items: center;
   flex: none;
   max-width: 160px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
 }
 
@@ -40,7 +40,7 @@
   min-width: 0;
   padding: 3px 4px 3px 8px;
   border: none;
-  border-radius: 8px 0 0 8px;
+  border-radius: var(--dsw-radius-sm) 0 0 var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font-family: inherit;
@@ -160,7 +160,7 @@
   min-height: 30px;
   padding: 3px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
@@ -223,7 +223,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
@@ -257,7 +257,7 @@
   min-height: 26px;
   padding: 2px 6px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
@@ -318,7 +318,7 @@
   display: block;
   max-width: 100%;
   margin: 4px auto;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
 }
 
@@ -327,7 +327,7 @@
   width: 100%;
   min-height: 320px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
   background: var(--dsw-alias-bg-layer-1);
 }

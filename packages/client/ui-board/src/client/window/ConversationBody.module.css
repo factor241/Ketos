@@ -63,7 +63,7 @@
 .turnError {
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   border: 0.5px solid var(--dsw-alias-state-error-primary);
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
@@ -98,7 +98,7 @@
   flex: none;
   padding: 2px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font-family: inherit;
@@ -130,7 +130,7 @@
 .missingActions button {
   padding: 4px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-interactive-bg-hover-solid);
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
@@ -146,7 +146,7 @@
   min-width: 0;
   max-width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-lg);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -167,7 +167,7 @@
 .echoThumb {
   width: 64px;
   height: 64px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   object-fit: cover;
 }
 
@@ -239,7 +239,7 @@
   margin: 0 var(--board-pad-lane);
   padding: 6px 10px;
   border: 0.5px solid var(--dsw-alias-state-business-primary);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   corner-shape: round;
   color: var(--dsw-alias-label-primary);
   font-size: var(--board-font-label);
@@ -297,7 +297,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 5px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-interactive-bg-hover-solid);
   font-weight: 600;
   font-size: 11px;
@@ -314,7 +314,7 @@
   flex: none;
   padding: 2px 8px;
   border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font-family: inherit;

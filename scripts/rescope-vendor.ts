@@ -141,10 +141,12 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/extensions/ui-cordis/src/client/CordisPreparingRow.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/CordisRunRow.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/locales.ts', upstream: ['cordis'] },
-  // The generated ru pack and its key manifest mirror the same `cordis` UI
-  // locale namespace as dictionary data, not package references.
+  // The generated ru pack, its key manifest, and the translation source mirror
+  // the same `cordis` UI locale namespace as dictionary data, not package
+  // references.
   { file: 'packages/ketos/client-locale-ru/src/locales/pack-ru.ts', upstream: ['cordis'] },
   { file: 'packages/ketos/client-locale-ru/tests/fixtures/ru-keys.json', upstream: ['cordis'] },
+  { file: 'packages/ketos/client-locale-ru/scripts/dictionary-overrides.json', upstream: ['cordis'] },
 ]
 
 /** A string that must appear exactly `count` times once the rescope has run. */

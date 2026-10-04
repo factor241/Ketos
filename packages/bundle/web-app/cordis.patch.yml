@@ -586,17 +586,9 @@
       config:
         default: standard
 
-# Р-5: Ketos enters through providers (including OpenCode Go), not the
-# DeepSeek account; its auth provider, account operations, and settings
-# surface stay unplugged.
-- id: deepseek-account
-  disabled: true
-
-- id: llm-deepseek-account
-  disabled: true
-
-- id: account-controller
-  disabled: true
-
-- id: ui-settings-account
-  disabled: true
+# Р-5: the DeepSeek account rows stay mounted exactly as upstream ships them.
+# `deepseek-account-platform` resolves `desktopPlatform: null` outside the
+# desktop profile, and the client half returns from `apply` without
+# `globalThis.dshDesktop`, so the account UI and its RPC are inactive in the
+# Ketos web profile by upstream design; Ketos enters through providers
+# (including OpenCode Go).

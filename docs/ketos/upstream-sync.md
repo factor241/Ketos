@@ -81,6 +81,10 @@ git merge --no-ff <тег> -m "Merge upstream <тег> into Ketos"
 | `scripts/prepare-ci-bubblewrap.sh` | Загрузка `.deb` сначала с Launchpad, `archive.ubuntu.com` — запасной | Ubuntu заменил точечную версию в пуле, старый URL отдавал 404 (задача ketos-cbn.1) | **Снята:** апстрим обновил пин до `bubblewrap 0.12.0-1` и качает его с постоянного Launchpad build-URL; проверено — HTTP 200 и SHA256 совпадает с пином | `bash -n`; прогон в `ketos-ci` на `ubuntu-24.04` |
 | .github/workflows/e2e.yml | Preflight при пустом ключе печатает `::warning::` вместо `exit 1` | Ключ в форк не добавляется; E2E остаётся проверкой собранного приложения | **Сохранена** авто-слиянием | E2E-запуск на PR/push форка доходит до тестов |
 
+## Профильные решения Кетоса
+
+- **Аккаунт DeepSeek (Р-5).** Пакеты `credentials/deepseek-account*`, `llm/llm-deepseek-account`, `api/account-controller`, `client/ui-settings-account` остаются в профиле `web-app` как в апстриме. Аккаунт активен только в настольной версии: `deepseek-account-platform` получает `desktopPlatform: null` вне профиля `desktop`, а клиентская половина выходит из `apply` без `globalThis.dshDesktop`. В веб-профиле Кетоса интерфейс и RPC аккаунта неактивны по устройству апстрима; вход — через провайдеров, включая OpenCode Go.
+
 ## Правило
 
 - Upstream-приёмка никогда не двигает внутренние идентификаторы (`@deepseek-ai/*`, `DSH_*`, профили, `dsh.*`-поля) — это и есть совместимость форка (решение 6).

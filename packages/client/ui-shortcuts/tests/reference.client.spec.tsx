@@ -147,7 +147,7 @@ it('saves individual edits and disables changes when configuration cannot be rea
   expect(screen.getByRole('alert').textContent).toContain('Check access permissions, then reload the page.')
   expect(screen.getByRole('alert').textContent).toContain(en['using-defaults'])
   act(() => { config.set({ ...config.getSnapshot(), error: 'future', usingDefaults: false }) })
-  expect(screen.getByRole('alert').textContent).toContain('Upgrade Harness and try again.')
+  expect(screen.getByRole('alert').textContent).toContain('Upgrade Ketos and try again.')
   expect(screen.getByRole('alert').textContent).toContain(en['using-accepted'])
   expect(screen.getByRole('dialog').contains(screen.getByRole('alert'))).toBe(false)
   expect(screen.getByRole('button', { name: en['reset-all'] }).hasAttribute('disabled')).toBe(true)
@@ -255,7 +255,7 @@ it.each((['web', 'desktop'] as const).flatMap(runtime => (['invalid', 'future'] 
   const text = screen.getByRole('alert').textContent
   expect(text).toContain(runtime === 'web' ? 'dsh.keybindings.v1' : 'userData/keybindings.json')
   expect(text).toContain(error === 'future'
-    ? dictionary === en ? 'Upgrade Harness' : '升级 Harness'
+    ? dictionary === en ? 'Upgrade Ketos' : '升级 Ketos'
     : dictionary === en ? 'Back up and repair' : '先备份并修复')
   expect(text).toContain(dictionary['using-accepted'])
   const reset = screen.getByRole('button', { name: dictionary['reset-all'] })

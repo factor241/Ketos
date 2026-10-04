@@ -113,6 +113,10 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      # The instrumented and uninstrumented heavy-suite gates share the 4 vCPU
+      # runner; the same budget keeps the upstream coverage lane green.
+      DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -151,4 +155,4 @@ jobs:
         run: bash scripts/prepare-ci-bubblewrap.sh
 
       - name: Run coverage gate
-        run: pnpm run test:coverage
+        run: pnpm run check:ci:coverage

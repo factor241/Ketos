@@ -7,7 +7,7 @@
 | Workflow | Триггеры | Содержание |
 |---|---|---|
 | ketos-ci, задание `linux / node 24` (`ketos-ci.yml`) | push в `main`, pull_request в `main`, workflow_dispatch | `ubuntu-24.04`, Node 24: `pnpm install --frozen-lockfile`, `scripts/prepare-ci-bubblewrap.sh`, `build`, `typecheck`, `lint`, `test:gui`, `doc-sync`, `hygiene`, `DSH_SNAPSHOT=replay pnpm run test:web:built`. Обязательный Linux-сигнал для PR и `main`. |
-| ketos-ci, задание `linux / node 24 / coverage` (`ketos-ci.yml`) | schedule `23 3 * * *` (ежедневно), workflow_dispatch | `pnpm run test:coverage` — порог 100% по файлам; на pull request не запускается. |
+| ketos-ci, задание `linux / node 24 / coverage` (`ketos-ci.yml`) | schedule `23 3 * * *` (ежедневно), workflow_dispatch | `pnpm run check:ci:coverage` — порог 100% по файлам в инструментированном гейте и параллельный гейт тяжёлых наборов без инструментирования; бюджет `DSH_COVERAGE_TEST_TIMEOUT_MS=90000`; на pull request не запускается. |
 | E2E (real DeepSeek API) (`e2e.yml`) | push в `main`, pull_request, schedule `17 0 * * *`, workflow_dispatch | `pnpm run test:e2e` против внешнего DeepSeek API — проверка собранного приложения. Ключ в форк не добавляется (владелец работает через OpenCode Go), preflight печатает warning, real-API сценарии самопропускаются. |
 | Node Addon System (`node-addon-system.yml`) | pull request и push по путям `native/system/**` | Матрица платформенных сборок на стандартных раннерах; обычных PR не касается. |
 | Expected filenames (`expected-filenames.yml`) | pull request по путям с `golden` в имени файла | Запрет golden-имён; обычных PR не касается. |
@@ -33,11 +33,10 @@
 | weighted-approval | `weighted-approval.yml` | Политика review-ownership апстрима пишет коммит-статусы; зависит от парного workflow ниже | отключён |
 | weighted-approval-review-event | `weighted-approval-review-event.yml` | Регистратор событий ревью для `weighted-approval`; безвредный echo | не зарегистрирован GitHub; срабатывает только на review-событие |
 | E2E (pi-ai Azure OpenAI and Anthropic) | `pi-ai-provider-e2e.yml` | Секреты `AZURE_OPENAI_API_KEY_EXTERNAL`, `ANTHROPIC_API_KEY_EXTERNAL` | не зарегистрирован GitHub; только `workflow_dispatch` |
-| E2E (E2B sandbox) | `e2b-e2e.yml` | Секрет `E2B_API_KEY_EXTERNAL` | не зарегистрирован GitHub; только `workflow_dispatch` |
 | Deploy documentation | `docs-pages.yml` | Окружение `github-pages` с tag-политикой и обязательными ревьюерами апстрима | не зарегистрирован GitHub; только `workflow_dispatch` |
 | Sandbox | `sandbox.yml` | Триггер только push в `master`; в форке не срабатывает | не зарегистрирован GitHub; не срабатывает на PR/push `main` |
 
-`gh workflow disable <файл>.yml -R factor241/Ketos` отключает workflow, зарегистрированные в реестре GitHub Actions: отключены 7 из 18. Остальные 11 файлов GitHub ещё не зарегистрировал на `main` (реестр сохранил набор из ранней истории репозитория), поэтому `disable` отвечает 404, а их триггеры не срабатывают на pull request и push в `main`; как только workflow появится в реестре, он отключается той же командой. Отключение обратимо: `gh workflow enable <файл>.yml -R factor241/Ketos`; файлы workflow при этом не меняются.
+`dsh-v0.2.0-rc.2` содержит 20 апстримных файлов workflow (плюс собственный `ketos-ci.yml`); файл `e2b-e2e.yml` удалён апстримом вместе с пакетами `packages/e2b`. `gh workflow disable <файл>.yml -R factor241/Ketos` отключает workflow, зарегистрированные в реестре GitHub Actions: GitHub зарегистрировал 9 файлов — `ketos-ci` активен; шесть апстримных отключены (`ci`, `build-preview-cloudflare`, `issue-lifecycle`, `issue-policy`, `release`, `release-vendor`); два апстримных активны и должны работать (`e2e`, `node-addon-system`). Остальные 12 апстримных файлов GitHub ещё не зарегистрировал на `main`, поэтому `disable` отвечает 404, а их триггеры не срабатывают на pull request и push в `main`; как только workflow появится в реестре, он отключается той же командой. В реестре форка остаются 41 запись из ранней истории репозитория (docker-, codeql-, storybook-, gp- и другие workflow, например `docker-build.yml`); их файлов в дереве `main` нет, поэтому на PR и push они не запускаются. Отключение обратимо: `gh workflow enable <файл>.yml -R factor241/Ketos`; файлы workflow при этом не меняются.
 
 ## Ключ DeepSeek
 

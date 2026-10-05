@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-ketos-board-layout-persistence.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-18-ketos-board-layout-persistence.md
-2026-09-18-ketos-board-layout-persistence.md: 5a5263edf59a781b06d5c15d1a9ce577a6589a10
-2026-09-18-ketos-board-layout-persistence.zh.md: ffc2df9b7dbd0583f13706fedf4609f15886f4ad
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace:
+  en: 7484703b52800632
+  zh: 49d99e6196c86ce6
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace/problem:
+  en: 6c68ad3a39b10f67
+  zh: e7cb9a32af7e6f05
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace/decision:
+  en: 9ff5f039a48e5663
+  zh: ccc8c70631cebdcf
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace/alternatives-considered:
+  en: 91cfc24c48160af1
+  zh: 1f1296a30fd2467e
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace/consequences:
+  en: 75c761b3f1ef0b96
+  zh: d5cc7b23e6c223a2
+/agent-note-board-layout-persistence-through-the-ui-board-settings-namespace/related:
+  en: df08bd75a61f9b07
+  zh: 380f5db1f9b16ef9

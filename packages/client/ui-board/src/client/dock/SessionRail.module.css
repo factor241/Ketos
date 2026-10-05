@@ -19,7 +19,7 @@
   overflow-y: hidden;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-  border-radius: 20px;
+  border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-bg-layer-2);
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
@@ -43,7 +43,7 @@
   width: 180px;
   padding: 6px 8px;
   border: 0.5px solid var(--dsw-alias-state-business-primary);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
@@ -160,7 +160,7 @@
   transform: translateX(-50%);
   max-width: 440px;
   padding: 6px 12px;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;

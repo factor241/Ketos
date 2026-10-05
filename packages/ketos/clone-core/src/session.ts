@@ -200,7 +200,12 @@ export interface MemoryBudget {
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
-    /** The interview kickoff this package queues; never a human message. */
+    /**
+     * The interview kickoff this package queues; never a human message.
+     * Readers preserve this message without `@ketos/clone-core`; only the
+     * kickoff projection reads the kind to mark the interview as opened.
+     * @persistenceAttribution
+     */
     'ketos-clone-interview': {
       readonly kind: 'ketos-clone-interview'
       readonly form: 'notice'
@@ -441,8 +446,7 @@ export class CloneSessionCoordinator {
         this.queued.delete(session.id)
       }
     })
-    this.ctx.on('agent/created', ({ agent }) => { this.request(agent) })
-    this.ctx.on('agent/session-start', ({ agent, source }) => {
+    this.ctx.on('agent/created', ({ agent, source }) => {
       // A restored session may belong to a clone from an earlier process; a
       // fresh one cannot be bound yet, so it is not worth opening the database.
       if (source === 'resume') this.touchesClones = true

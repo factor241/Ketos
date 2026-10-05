@@ -12,6 +12,8 @@ import type {
   CloneUpdatePatch,
 } from '@ketos/clone-core/types'
 
+import { ketosRoute } from './ketos-route.ts'
+
 /** Exact route the clone host package registers below `/api`. */
 const CLONES_PATH = '/api/ketos.clones'
 
@@ -69,7 +71,7 @@ function isBinding(value: unknown): value is CloneSessionBinding {
 
 /** One JSON request against the clone route. */
 async function request(body: unknown, signal?: AbortSignal): Promise<Response> {
-  return await fetch(CLONES_PATH, {
+  return await fetch(ketosRoute(CLONES_PATH.slice(1)), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -141,7 +143,7 @@ function isBindingList(value: unknown): value is readonly CloneSessionBinding[] 
  */
 export async function listClones(signal?: AbortSignal): Promise<CloneResult<readonly CloneDto[]>> {
   try {
-    const response = await fetch(CLONES_PATH, signal === undefined ? {} : { signal })
+    const response = await fetch(ketosRoute(CLONES_PATH.slice(1)), signal === undefined ? {} : { signal })
     const payload: unknown = await response.json().catch(() => undefined)
     if (!response.ok) return { ok: false, code: failureCode(response, payload) }
     if (!isRecord(payload) || payload.ok !== true || !isCloneList(payload['clones'])) {

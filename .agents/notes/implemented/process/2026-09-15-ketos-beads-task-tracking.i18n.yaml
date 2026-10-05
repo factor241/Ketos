@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-ketos-beads-task-tracking.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-15-ketos-beads-task-tracking.md
-2026-09-15-ketos-beads-task-tracking.md: 392110ebfbc111cba8e81d71bce56bd71bc51697
-2026-09-15-ketos-beads-task-tracking.zh.md: ffa99e27e57afdeb1fb21851a9a7c14ec752c973
+/agent-note-beads-bd-as-the-ketos-development-task-tracker:
+  en: add491589dd23745
+  zh: 13be716b9277e001
+/agent-note-beads-bd-as-the-ketos-development-task-tracker/problem:
+  en: c0ac708e3a3f839b
+  zh: 9b404aa81b8e3ada
+/agent-note-beads-bd-as-the-ketos-development-task-tracker/decision:
+  en: ad29191fc06ae990
+  zh: 9b26709b6d023385
+/agent-note-beads-bd-as-the-ketos-development-task-tracker/alternatives-considered:
+  en: 818a674b09d9c177
+  zh: 6620c7d88fe6d644
+/agent-note-beads-bd-as-the-ketos-development-task-tracker/consequences:
+  en: c2a00784e47edb7f
+  zh: 84d36801f4edb8fe
+/agent-note-beads-bd-as-the-ketos-development-task-tracker/related:
+  en: eac3ac8adb77bed7
+  zh: 17c239324842e3eb

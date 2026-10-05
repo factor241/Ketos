@@ -16,7 +16,7 @@ import clsx from 'clsx'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { FileTypeIcon, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions, MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconChevronUpOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronUpOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { pathPartsOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
@@ -265,7 +265,7 @@ function pendingTitle(t: BoardTranslate, kind: string): string {
 }
 
 export function ConversationBody({
-  window: cardWindow, t, useStore, actions, useWindowSession, useSessionPendingInteraction, ...injected
+  window: cardWindow, t, useStore, actions, useWindowSession, useSessionStatus, ...injected
 }: ConversationBodyProps) {
   // `injected` stays whole for the composer; the window creation and file
   // openers ride it.
@@ -273,11 +273,11 @@ export function ConversationBody({
   const openFileInPanel = injected.openFileInPanel
   const session = useWindowSession(cardWindow.id)
   const sessionId = session?.sessionId
-  // The pending approval or question of the window's session, owned by the root
-  // pending-interaction source; the window only reads it and navigates to the
+  // The pending approval or question of the window's session, owned by the
+  // root Session status source; the window only reads it and navigates to the
   // main panel, where the answering composer lives.
-  const pending = useSessionPendingInteraction(
-    snapshot => sessionId === undefined ? undefined : snapshot.get(sessionId),
+  const pending = useSessionStatus(
+    snapshot => sessionId === undefined ? undefined : snapshot.get(sessionId)?.pendingInteraction,
   )
   const laneRef = useRef<HTMLDivElement>(null)
   const [atTail, setAtTail] = useState(true)
@@ -550,7 +550,7 @@ export function ConversationBody({
               aria-label={t('conversation.scrollBottom')}
               title={t('conversation.scrollBottom')}
             >
-              <IconChevronUpOutline14 />
+              <IconChevronUpOutlineRegular />
             </button>
           )}
         </div>

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-24-ketos-stage-22-mvp-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-24-ketos-stage-22-mvp-integration.md
-2026-09-24-ketos-stage-22-mvp-integration.md: 3d7faca430e4163f4c34092d5cf29e563dbe9a4a
-2026-09-24-ketos-stage-22-mvp-integration.zh.md: db2cc7cf068d971b48428a34c75bf6077bf4b7bf
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions:
+  en: ad458d4ee4a23c42
+  zh: ecf309d3d5d853bc
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions/problem:
+  en: 838c69bfed34ad4f
+  zh: b1b75346e101c668
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions/decision:
+  en: c3a0634cd2e5149a
+  zh: 5deb9befb83e29d7
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions/alternatives-considered:
+  en: 731d1eda49feec37
+  zh: 354313f0e869a5cc
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions/consequences:
+  en: 8fdac27618d91595
+  zh: d76ac996ad1f6911
+/agent-note-ketos-stage-22-a-live-clone-session-follows-stored-edits-and-the-mvp-s-closing-decisions/related:
+  en: e2048a05eb0a0835
+  zh: 607f631c119151bb

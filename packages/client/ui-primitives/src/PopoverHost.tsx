@@ -91,3 +91,11 @@ export function PopoverHostProvider({ container, scale, boundary, subscribe, chi
 export function usePopoverHost(): PopoverHost {
   return useContext(PopoverHostContext) ?? DEFAULT_HOST
 }
+
+/**
+ * Read the nearest popover host only when a provider is mounted.
+ * @returns the nearest provider's host, or null under the browser defaults.
+ */
+export function useOptionalPopoverHost(): PopoverHost | null {
+  return useContext(PopoverHostContext)
+}

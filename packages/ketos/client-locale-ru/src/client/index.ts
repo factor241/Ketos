@@ -55,15 +55,15 @@ function browserAsksRu(): boolean {
 }
 
 /** Required services: the locale registry and the settings transport. */
-export const inject = ['locale', 'settingsScope']
+export const inject = ['locale', 'configForms']
 
 /**
  * Client plugin body: add `ru` to the language catalog, register its
  * dictionaries, and default the active locale to `ru` once, when the settings
  * document exposes no `locale.preference`. The defaults decision fires on the
- * first resolved settings snapshot; before that first acceptance the scope
+ * first resolved settings snapshot; before that first acceptance the form
  * reports `loading`, and the plugin defers so it can never overwrite an
- * explicit selection that simply has not arrived yet. A scope resolving as
+ * explicit selection that simply has not arrived yet. A form resolving as
  * `unavailable` (non-loopback page, process-local preferences) keeps the
  * browser-derived locale instead of guessing.
  * @param ctx - client cordis context.
@@ -89,15 +89,15 @@ export function apply(ctx: ClientContext): void {
     )
   }
 
-  // The runtime's own scope adoption resolves stored preferences; this watcher
+  // The runtime's own form adoption resolves stored preferences; this watcher
   // only decides the no-preference default, once, and then stands down.
-  const scope = ctx.settingsScope.bind<LocaleSettings>({ namespace: LOCALE_SETTINGS_NAMESPACE })
+  const form = ctx.configForms.get<LocaleSettings>(LOCALE_SETTINGS_NAMESPACE)
   let defaulted = false
   const applyDefaultOnce = (): void => {
-    const snapshot = scope.getSnapshot()
+    const snapshot = form.getSnapshot()
     if (defaulted || snapshot.status === 'loading') return
     defaulted = true
-    // An unavailable scope stays on the browser-derived locale; the pack
+    // An unavailable form stays on the browser-derived locale; the pack
     // defaults to `ru` only when the browser itself asks for Russian and no
     // stored preference exists, leaving the shipped zh/en fallback contract
     // untouched otherwise.
@@ -106,7 +106,7 @@ export function apply(ctx: ClientContext): void {
     }
   }
   ctx.effect(() => {
-    const unsubscribe = scope.subscribe(applyDefaultOnce)
+    const unsubscribe = form.subscribe(applyDefaultOnce)
     applyDefaultOnce()
     return unsubscribe
   }, 'ketos-locale-ru: default locale without a stored preference')

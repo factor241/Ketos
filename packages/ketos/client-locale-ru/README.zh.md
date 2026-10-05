@@ -1,5 +1,5 @@
 ---
-description: "Ketos 语言包：完整的俄语 UI 词典（44 个命名空间）、浏览器请求俄语时生效的 ru 默认值，以及社区包的署名与同步流程。"
+description: "Ketos 语言包：完整的俄语 UI 词典（58 个命名空间）、浏览器请求俄语时生效的 ru 默认值，以及社区包的署名与同步流程。"
 kind: "package-reference"
 ---
 

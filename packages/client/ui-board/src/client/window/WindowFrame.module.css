@@ -10,7 +10,7 @@
   flex-direction: column;
   /* Handles and the panel ride the frame's edge, so the frame never clips. */
   overflow: visible;
-  border-radius: 20px;
+  border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-bg-layer-2);
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
@@ -180,7 +180,7 @@
   overflow: hidden;
   padding: 2px 6px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   text-align: left;
   cursor: text;
@@ -206,7 +206,7 @@
   min-width: 0;
   padding: 2px 6px;
   border: 0.5px solid var(--dsw-alias-state-business-primary);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-primary);
   font-family: inherit;

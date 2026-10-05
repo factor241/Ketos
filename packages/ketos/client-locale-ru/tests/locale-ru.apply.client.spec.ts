@@ -16,7 +16,6 @@ import {
   apply as localeApply, inject as localeInject, type LocaleRuntime,
 } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, BOARD_NS, COMMON_NS } from '../src/client/index.ts'
-import { apply as hostApply } from '../src/index.ts'
 import { boardRu, packRu, ru as commonRu } from '../src/locales/index.ts'
 
 /** Adds a hook that keeps the first settings describe pending until released. */
@@ -73,7 +72,7 @@ async function bench(storedPreference: string | undefined, options: BenchOptions
   new TestRemote(ctx, { settings: { describe, mutate } })
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   await ctx.plugin({ inject: [...localeInject], apply: localeApply }).await()
-  const pack = ctx.plugin({ inject: ['locale', 'settingsScope'], apply })
+  const pack = ctx.plugin({ inject: ['locale', 'configForms'], apply })
   await pack.await()
   return {
     ctx,
@@ -130,13 +129,6 @@ describe('ketos ru language pack', () => {
         expect(value).not.toBe('')
       }
     }
-  })
-
-  it('mounts and disposes the host half as an ordinary no-op plugin', async () => {
-    const ctx = new Context()
-    const host = ctx.plugin({ apply: hostApply })
-    await host.await()
-    await host.dispose()
   })
 
   it('defaults to ru when the browser names the exact ru tag', async () => {
@@ -200,7 +192,7 @@ describe('ketos ru language pack', () => {
       expect(b.locale().bind('chat')('stats.dialog.title')).toBe('Статистика сессии')
       expect(b.locale().bind('settings.locale')('language.title')).toBe('Язык')
       expect(b.locale().bind('settings.models')('customBaseUrlInvalid')).toBe('Введите корректный URL с HTTP или HTTPS.')
-      expect(b.locale().bind('schedule.catalog')('status.overdue')).toBe('Просрочено')
+      expect(b.locale().bind('schedule.catalog')('frequency.once')).toBe('Один раз')
       expect(b.locale().bind('open-in-app')('app.explorer')).toBe('Проводник')
       expect(b.locale().bind('sidebarRight')('dock.splitPane')).toBe('Разделить')
       // Rebranding: the community pack's product-name strings are Ketos, while
@@ -230,7 +222,7 @@ describe('ketos ru language pack', () => {
     expect(b.locale().getLocale().active).toBe('en')
     expect(b.mutate).not.toHaveBeenCalled()
     await b.disposePack()
-    const reapply = b.ctx.plugin({ inject: ['locale', 'settingsScope'], apply })
+    const reapply = b.ctx.plugin({ inject: ['locale', 'configForms'], apply })
     await reapply.await()
     expect(b.locale().getLocale().active).toBe('en')
     await reapply.dispose()

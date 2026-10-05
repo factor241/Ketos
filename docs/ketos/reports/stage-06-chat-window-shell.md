@@ -1,6 +1,6 @@
 # Отчёт этапа 6. Окно чата: оболочка, лента и состояния
 
-> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-06-chat-window`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-06` (от принятой ветки этапа 5 `stage-05-canvas-window-manager`, `5226f07`). План этапа — `ketos_v7_master_plan/stage-06-chat-window-shell.md` (ревизия 17); задачи — Beads `ketos-5v2.7.1`–`ketos-5v2.7.5`.
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-06-chat-window`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-06` (от принятой ветки этапа 5 `stage-05-canvas-window-manager`, `этап 06`). План этапа — `ketos_v7_master_plan/stage-06-chat-window-shell.md` (ревизия 17); задачи — Beads `ketos-5v2.7.1`–`ketos-5v2.7.5`.
 
 ## 1. Итог этапа
 

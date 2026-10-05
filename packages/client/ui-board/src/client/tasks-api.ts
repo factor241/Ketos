@@ -11,6 +11,8 @@ import type { CloneId, CloneTaskDto, TaskId, TaskStatus } from '@ketos/clone-cor
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { TaskFailureCode } from './contract/slots.ts'
 
+import { ketosRoute } from './ketos-route.ts'
+
 /** Exact route the clone host package registers below `/api`. */
 const TASKS_PATH = '/api/ketos.tasks'
 
@@ -76,7 +78,7 @@ function isFailureCode(value: unknown): value is TaskFailureCode {
 
 /** One JSON request against the tasks route. */
 async function request(body: unknown): Promise<Response> {
-  return await fetch(TASKS_PATH, {
+  return await fetch(ketosRoute(TASKS_PATH.slice(1)), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),

@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-03-ketos-stage-25-upstream-upgrade.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-03-ketos-stage-25-upstream-upgrade.md
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2:
+  en: 6dfc89e6ef06691b
+  zh: b93f312b1970a5b9
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2/problem:
+  en: 15cc24789a9a1d84
+  zh: 571f4b9a0adfb010
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2/decision:
+  en: d7a019222b847f56
+  zh: 55fc3c5d77d8cf5d
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2/alternatives-considered:
+  en: f6b4c79d36196aaf
+  zh: 9115e20c90f21022
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2/consequences:
+  en: 84f0fa11a8ce4e5b
+  zh: ab8aae017506a895
+/agent-note-ketos-stage-25-the-core-upgrade-to-dsh-v0-2-0-rc-2/related:
+  en: 94595c4648c1e0c5
+  zh: 10449b6c3501b2d8

@@ -13,10 +13,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import clsx from 'clsx'
 import {
-  IconAgentPresetOutline16,
-  IconFullscreenOutline16,
-  IconInspectOutline12,
-  IconPlusOutline16,
+  IconAgentPresetOutlineRegular,
+  IconFullscreenOutlineRegular,
+  IconInspectOutlineRegular,
+  IconPlusOutlineRegular,
   Menu,
   StateDot,
   Tooltip,
@@ -229,6 +229,9 @@ export function SessionRail({
     [sessionList, workspaceList],
   )
   const [dockElement, setDockElement] = useState<HTMLElement | null>(null)
+  // The clone strip reads the roster, so the first board render loads it; a
+  // startup that never opens the board stays free of clone requests.
+  useEffect(() => { refreshClones() }, [refreshClones])
   // The stored clone order covers the roster: a clone added since the last
   // adoption is appended through the same action the drag uses, so a reorder
   // never writes an order that forgets the clones it did not move.
@@ -401,22 +404,22 @@ export function SessionRail({
 
   const addMenuItems: readonly MenuEntry[] = [
     { type: 'label', id: 'group.newWindow', text: t('menu.newWindow') },
-    { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutline16 /> },
+    { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutlineRegular /> },
     ...(presetRoster.pickerEnabled && presetRoster.presets.length > 0
       ? [{
         id: 'preset',
         label: t('menu.preset'),
-        icon: <IconAgentPresetOutline16 />,
+        icon: <IconAgentPresetOutlineRegular />,
         submenu: presetRoster.presets.map(preset => ({
           id: `preset:${preset.id}`,
           label: preset.name,
-          ...(preset.isDefault === true ? { icon: <IconAgentPresetOutline16 /> } : {}),
+          ...(preset.isDefault === true ? { icon: <IconAgentPresetOutlineRegular /> } : {}),
         })),
       }] satisfies readonly MenuEntry[]
       : []),
     { id: 'open:connectors', label: t('menu.open.connectors'), icon: windowKindGlyph('connectors') },
     { id: 'open:settings', label: t('menu.open.settings'), icon: windowKindGlyph('settings') },
-    { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutline16 /> },
+    { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutlineRegular /> },
     { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: windowKindGlyph('dashboard') },
     { id: 'open:tasks', label: t('menu.open.tasks'), icon: windowKindGlyph('tasks') },
     ...(recent.length === 0 ? [] : [
@@ -470,7 +473,7 @@ export function SessionRail({
           className={clsx(css.addButton, addMenu !== null && css.open)}
           aria-label={t('menu.openActionMenu')}
         >
-          <IconPlusOutline16 />
+          <IconPlusOutlineRegular />
         </button>
       </Tooltip>
 
@@ -497,7 +500,7 @@ export function SessionRail({
           className={css.control}
           aria-label={t('menu.selectElement')}
         >
-          <IconInspectOutline12 />
+          <IconInspectOutlineRegular size={12} />
         </button>
       </Tooltip>
 
@@ -509,7 +512,7 @@ export function SessionRail({
           className={css.control}
           aria-label={t('rail.resetView')}
         >
-          <IconFullscreenOutline16 />
+          <IconFullscreenOutlineRegular />
         </button>
       </Tooltip>
 

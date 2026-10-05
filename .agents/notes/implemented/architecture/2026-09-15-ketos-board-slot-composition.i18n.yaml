@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-ketos-board-slot-composition.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-ketos-board-slot-composition.md
-2026-09-15-ketos-board-slot-composition.md: a563301e93617410443d52d25153b5f533a77fee
-2026-09-15-ketos-board-slot-composition.zh.md: d0fa3f7ac4a7713f7278c076b365c185a3009c78
+/agent-note-the-ketos-board-composes-through-its-slot-cascade:
+  en: 1ffb5791c6e0026b
+  zh: 104c41faf583ad99
+/agent-note-the-ketos-board-composes-through-its-slot-cascade/problem:
+  en: 5f105557b82595dd
+  zh: 11c52218395c2026
+/agent-note-the-ketos-board-composes-through-its-slot-cascade/decision:
+  en: 4f61df69eb4e65bf
+  zh: 13120f589f571fad
+/agent-note-the-ketos-board-composes-through-its-slot-cascade/alternatives-considered:
+  en: 9df1e598bdc13f5c
+  zh: 187e949ab5f2ea59
+/agent-note-the-ketos-board-composes-through-its-slot-cascade/consequences:
+  en: 7026930bdc05b267
+  zh: daebfc23ae08b8f0
+/agent-note-the-ketos-board-composes-through-its-slot-cascade/related:
+  en: 4a94e9720bb590d0
+  zh: 4e6593c27fdaa724

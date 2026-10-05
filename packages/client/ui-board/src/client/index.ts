@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-// Type-only: the ctx.settingsScope merge and the shared describe mirror the
+// Type-only: the ctx.configForms merge and the shared describe mirror the
 // layout persistence reads through.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
@@ -18,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import z from '@deepseek-ai/schemastery'
 import { resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
+import { presetDisplayText } from '@deepseek-ai/dsh-agent-preset-registry/display'
 import type {
   CloneDto, CloneId, CloneSessionBinding, CloneUpdatePatch, MemoryId, MemoryStatus, MemoryUpdatePatch, TaskId,
 } from '@ketos/clone-core/types'
@@ -74,7 +74,7 @@ export type { BoardState, BoardStoreHandle, BoardStoreInstance, OpenWindowSpec }
 /** Services required by the board plugin: slots, copy, uploads, settings, and the session domain. */
 export const inject = [
   'slots', 'locale', 'sessions', 'workspaces', 'uiWorkspace', 'uiConversation', 'conversation', 'modelDirectories', 'layout',
-  'fileUpload', 'settingsScope', 'documentPreviews',
+  'fileUpload', 'configForms', 'documentPreviews',
   'remote', 'remote.settings', 'remote.commands', 'remote.agentPresets', 'remote.goals',
   'remote.fileReferences', 'remote.sessionReferenceResolver', 'remote.workspaceFiles',
   // The per-session model directory resolves the host catalog through the
@@ -123,7 +123,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const boardStore: BoardStoreHandle = { ...handle, create: () => instance }
   // The shared describe mirror is the one settings reader in the browser; the
   // board derives from it so startup costs no extra settings/describe call.
-  const persistence = new BoardLayoutPersistence(ctx, ctx.settingsScope.describe(), instance)
+  const persistence = new BoardLayoutPersistence(ctx, ctx.configForms.describe(), instance)
 
   // Window sessions: one bridge per plugin fiber, one channel per window. The
   // bridge's bindings map is the second half of the stored settings section.
@@ -131,15 +131,18 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     persistBindings: (bindings) => { persistence.writeBindings(bindings) },
     defaultPreset: () => instance.getSnapshot().defaultPreset,
     rememberPreset: (presetId) => { instance.actions.setDefaultPreset(presetId) },
-    presetPickerEnabled: () => presetPickerPolicy,
   })
 
   // Deployment preset roster for the board chrome's window-creation entries.
   // Read once at apply through the same display fold the window chip uses; a
   // failed read leaves the roster empty (the plain creation entries remain).
   const presetRoster = createSnapshotStore<BoardPresetRoster>({ presets: [], pickerEnabled: false })
-  /** Latest deployment policy, undefined until a roster read answers. */
-  let presetPickerPolicy: boolean | undefined
+  // Preset selection follows developer mode, the upstream policy for new-task
+  // mode selection; the roster read no longer carries its own policy.
+  const presetPickerEnabled = (): boolean => ctx.configForms.developerTools.enabled.getSnapshot()
+  ctx.effect(() => ctx.configForms.developerTools.enabled.subscribe(() => {
+    presetRoster.set({ ...presetRoster.getSnapshot(), pickerEnabled: presetPickerEnabled() })
+  }), 'ui-board: preset picker policy')
   // The creation roster is read once at apply and again whenever the chrome's
   // menu opens: roots can change between menu visits, and a stale row would
   // store a default the host no longer composes.
@@ -147,7 +150,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     try {
       const result = await ctx.remote.agentPresets.list()
       if (!result.ok) return
-      presetPickerPolicy = result.value.modeSelectionEnabled
       const presetT = ctx.locale.bind('settings.agentPreset')
       presetRoster.set({
         presets: result.value.presets
@@ -161,7 +163,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
               ...(row.isDefault ? { isDefault: true } : {}),
             }
           }),
-        pickerEnabled: result.value.modeSelectionEnabled,
+        pickerEnabled: presetPickerEnabled(),
       })
     } catch {
       // A deployment without the preset remote keeps the plain creation entries.
@@ -180,14 +182,20 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // window already shows the Session (the return control then leads there) or
   // the Session is still blank (a brand-new Session leaves the window alone).
   // The rules run only for an expanded window: switching interfaces with the
-  // sidebar control never rebinds anything (Т2.16).
-  let currentSession = ctx.sessions.list.getSnapshot().current
-  ctx.effect(() => ctx.sessions.list.subscribe(() => {
+  // sidebar control never rebinds anything (Т2.16). The standard interface's
+  // current Session is the one retained for `mainView` (ui-workspace owns the
+  // selection; the Session list no longer carries it).
+  const mainViewedSession = (): SessionId | undefined => {
     const list = ctx.sessions.list.getSnapshot()
-    const next = list.current
+    return list.ids.find(id => (list.byId[id]?.retainedBy.mainView ?? 0) > 0)
+  }
+  let currentSession = mainViewedSession()
+  ctx.effect(() => ctx.sessions.list.subscribe(() => {
+    const next = mainViewedSession()
     if (next === currentSession) return
     currentSession = next
     if (next === undefined) return
+    const list = ctx.sessions.list.getSnapshot()
     const expanded = instance.getSnapshot().expandedWindowId
     if (expanded === null) return
     if (list.byId[next]?.blank === true) return
@@ -218,7 +226,10 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
   // clone editor read. A failed read keeps the last published list and leaves
   // the roster unloaded, so a transient failure reads as "still loading" with a
-  // retry rather than as a deleted clone; every mutation re-reads it.
+  // retry rather than as a deleted clone; every mutation re-reads it. The read
+  // is lazy — the dock's clone strip and a clone window load it on first mount,
+  // and the creation menu refreshes it on open — so a startup that never opens
+  // the board costs no clone request.
   const cloneRoster = createSnapshotStore<BoardCloneRoster>({ clones: [], loaded: false })
   /** Newest roster read; an older answer never overwrites a newer one. */
   let cloneReadSeq = 0
@@ -229,15 +240,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       cloneRoster.set({ clones: result.value, loaded: true })
     })
   }
-  refreshClones()
 
   // Task roster: the /api/ketos.tasks list the tasks windows read. The read
   // covers every clone and the windows filter it client-side, so two windows
   // scoped to different clones cannot overwrite each other's list. Like the
   // clone roster, a failed read keeps the last published list and leaves the
   // roster unloaded, so a transient failure reads as "still loading" with a
-  // retry rather than as a deployment without tasks; every task mutation and
-  // the windows' poll re-read it.
+  // retry rather than as a deployment without tasks; a tasks window loads it
+  // on mount, and every task mutation and the windows' poll re-read it.
   const taskRoster = createSnapshotStore<BoardTaskRoster>({ tasks: [], loaded: false })
   /** Newest task read; an older answer never overwrites a newer one. */
   let taskReadSeq = 0
@@ -248,7 +258,6 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       taskRoster.set({ tasks: result.value, loaded: true })
     })
   }
-  refreshTasks()
 
   /**
    * Start one stored task on a fresh session and report the outcome. The
@@ -823,7 +832,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       instance.actions.setWindowPanel(windowId, 'right', true)
     },
     documentPreviewFor: (path) => {
-      const first = ctx.documentPreviews.candidates(path)[0]
+      // The board's own viewer reads text pages or complete bytes; a preview
+      // that renders through a registered component (office documents) is
+      // outside its viewer, so it is skipped and the text fallback reports
+      // whether the file can be read as text.
+      const first = ctx.documentPreviews.candidates(path).find(
+        (candidate): candidate is typeof candidate & { loading: 'text-pages' | 'bytes-complete' } =>
+          candidate.loading !== 'renderer',
+      )
       return first === undefined ? undefined : { loading: first.loading }
     },
     listWorkspaceDirectory: async (sessionId, path, signal) => {
@@ -834,7 +850,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     },
     readWorkspaceFile: async (sessionId, path, mode, signal) => {
       if (mode === 'bytes-complete') {
-        const result = await ctx.remote.workspaceFiles.readAll(sessionId, path, signal)
+        const result = await ctx.remote.workspaceFiles.readBytes(sessionId, path, {}, signal)
         return result.ok
           ? { ok: true, kind: 'bytes', data: result.value.data }
           : { ok: false, code: result.error.code, message: result.error.message }

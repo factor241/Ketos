@@ -15,18 +15,15 @@ import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-fil
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { WindowBodyKind, WindowKind } from '../../board-settings.ts'
+
+export type { WindowBodyKind, WindowKind } from '../../board-settings.ts'
 
 /** Main-panel key the board registers; the sidebar's panel list selects it by this id. */
 export const BOARD_PANEL_ID = 'board' as MainPanelId
 
 /** Session-wide identity of one board window. */
 export type WindowId = Branded<'BoardWindowId'>
-
-/** Window category, selecting the `board.window` frame that renders it. */
-export type WindowKind = 'agent' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'tasks'
-
-/** Window content category, selecting the `board.window.body` occupant inside the frame. */
-export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'clone-memory' | 'tasks'
 
 /** One prompt mode the window composer dispatches. */
 export type BoardPromptMode = 'queue' | 'steer'
@@ -453,7 +450,7 @@ export type BoardDirectoryLevelOutcome =
 /** One file read the right panel's viewer performs. */
 export type BoardFileReadOutcome =
   | { readonly ok: true; readonly kind: 'text'; readonly text: string }
-  | { readonly ok: true; readonly kind: 'bytes'; readonly data: string }
+  | { readonly ok: true; readonly kind: 'bytes'; readonly data: Uint8Array }
   | { readonly ok: false; readonly code: string; readonly message: string }
 
 /**

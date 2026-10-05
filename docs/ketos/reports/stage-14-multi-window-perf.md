@@ -1,6 +1,6 @@
 # Отчёт этапа 14. Мультиоконность, статусы и производительность
 
-> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-14-multi-window-perf`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-14` (от принятой ветки этапа 13 `stage-13-workdir-artifacts`; базовый коммит `fc6b144`). План этапа — `ketos_v7_master_plan/stage-14-multi-window-perf.md` (ревизия 17); задачи — Beads `ketos-5v2.15.1`–`ketos-5v2.15.4`, эпик `ketos-5v2.15`.
+> Заполнен по шаблону [stage-report-template.md](../stage-report-template.md). Ветка `stage-14-multi-window-perf`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-14` (от принятой ветки этапа 13 `stage-13-workdir-artifacts`; базовый коммит `этап 14`). План этапа — `ketos_v7_master_plan/stage-14-multi-window-perf.md` (ревизия 17); задачи — Beads `ketos-5v2.15.1`–`ketos-5v2.15.4`, эпик `ketos-5v2.15`.
 
 ## 1. Итог этапа
 

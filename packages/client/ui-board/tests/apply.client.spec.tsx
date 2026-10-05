@@ -182,11 +182,7 @@ describe('board plugin registration', () => {
         namespaces: [{
           ns: 'ui-board',
           schema: {},
-          value: {},
-          applies: 'live',
-          secrets: [],
-          revision: 3,
-          user: {
+          value: {
             version: 1,
             panX: 0,
             panY: 0,
@@ -204,6 +200,13 @@ describe('board plugin registration', () => {
             panelGroupBy: 'workspace',
             panelOrderBy: 'updated',
           },
+          autoGenerate: false,
+          applies: 'live',
+          secrets: [],
+          revision: 3,
+          // The raw layer only marks the entry as written; the board adopts
+          // the resolved value above.
+          user: { version: 1 },
         }],
       },
     })
@@ -214,7 +217,7 @@ describe('board plugin registration', () => {
 
     // Both restored windows reached their sessions before any window mounted.
     expect(prepared.runtime.sessions.calls
-      .filter(call => call.method === 'openStream')
+      .filter(call => call.method === 'retain')
       .map(call => call.args[0])).toEqual(['session-1', 'session-2'])
   })
 

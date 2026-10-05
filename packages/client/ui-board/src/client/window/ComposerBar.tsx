@@ -22,23 +22,23 @@ import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import {
   FileTypeIcon,
   fileSizeText,
-  IconBranchOutline16,
-  IconChecklistOutline14,
-  IconCheckOutline16,
-  IconChevronDownOutline14,
-  IconCloseOutline16,
-  IconDataOutline16,
-  IconEditOutline16,
-  IconGoalOutline16,
-  IconPaperclipOutline16,
-  IconQueueOutline14,
-  IconSendOutline14,
-  IconSendOutline16,
-  IconShieldOutline16,
-  IconSparkle16,
-  IconStopFill16,
-  IconTrashOutline16,
+  IconBranchOutlineRegular,
+  IconChecklistOutlineRegular,
+  IconCheckOutlineRegular,
+  IconChevronDownOutlineRegular,
+  IconCloseOutlineRegular,
+  IconDataOutlineRegular,
+  IconEditOutlineRegular,
+  IconGoalOutlineRegular,
+  IconPaperclipOutlineRegular,
+  IconQueueOutlineRegular,
+  IconSendOutlineRegular,
+  IconShieldOutlineRegular,
+  IconSparkleRegular,
+  IconStopFillRegular,
+  IconTrashOutlineRegular,
   Menu,
+  MenuSurface,
   RiskConfirmation,
   Tooltip,
   type MenuEntry,
@@ -650,14 +650,14 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
     const build = (name: string): MenuEntry => ({
       id: name,
       label: commandLabel(t, name),
-      icon: name === 'file' ? <IconPaperclipOutline16 /> : name === 'goal' ? <IconGoalOutline16 /> : <IconSparkle16 />,
+      icon: name === 'file' ? <IconPaperclipOutlineRegular /> : name === 'goal' ? <IconGoalOutlineRegular /> : <IconSparkleRegular />,
     })
     const add = ['goal', 'plan', 'feedback'].filter(name => rows.some(row => row.name === name))
     const commands = ['compact', 'permission', 'model', 'export'].filter(name => rows.some(row => row.name === name))
     const entries: MenuEntry[] = []
     // Attachment, dictation, and model entries are board-owned, not host commands.
     entries.push({ type: 'label', id: 'add', text: t('command.section.add') })
-    entries.push({ id: 'file', label: commandLabel(t, 'file'), icon: <IconPaperclipOutline16 /> })
+    entries.push({ id: 'file', label: commandLabel(t, 'file'), icon: <IconPaperclipOutlineRegular /> })
     entries.push({ id: 'voice', label: commandLabel(t, 'voice'), icon: <MicGlyph /> })
     for (const name of add) entries.push(build(name))
     if (commands.length > 0) {
@@ -689,14 +689,14 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
         modelRows.push({
           id: `model:${group.id}:${model.id}`,
           label: model.name,
-          ...(state.model === model.id && state.provider === group.id ? { icon: <IconChecklistOutline14 /> } : {}),
+          ...(state.model === model.id && state.provider === group.id ? { icon: <IconChecklistOutlineRegular /> } : {}),
         })
       }
     }
     const effortRows: MenuItem[] = state.efforts.map(effort => ({
       id: `effort:${effort.id}`,
       label: effort.name,
-      ...(state.effort === effort.id ? { icon: <IconChecklistOutline14 /> } : {}),
+      ...(state.effort === effort.id ? { icon: <IconChecklistOutlineRegular /> } : {}),
     }))
     return [
       ...(state.error === undefined
@@ -759,7 +759,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
         <div className={css.strips}>
           {session?.goal !== undefined && (
             <div className={css.strip}>
-              <IconGoalOutline16 />
+              <IconGoalOutlineRegular />
               <span className={css.stripTitle}>{t(`goal.phase.${session.goal.phase}`)}</span>
               <span className={css.stripText}>{session.goal.objective}</span>
               {/* Only the phase the host accepts offers its verb: a terminal
@@ -768,27 +768,27 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               {session.goal.phase === 'active' && (
                 <Tooltip label={t('goal.action.pause')} side="top">
                   <button type="button" className={css.stripAction} aria-label={t('goal.action.pause')} onClick={() => { injected.goalAction(windowId, 'pause') }}>
-                    <IconChevronDownOutline14 />
+                    <IconChevronDownOutlineRegular />
                   </button>
                 </Tooltip>
               )}
               {session.goal.phase === 'paused' && (
                 <Tooltip label={t('goal.action.resume')} side="top">
                   <button type="button" className={css.stripAction} aria-label={t('goal.action.resume')} onClick={() => { injected.goalAction(windowId, 'resume') }}>
-                    <IconChecklistOutline14 />
+                    <IconChecklistOutlineRegular />
                   </button>
                 </Tooltip>
               )}
               <Tooltip label={t('goal.action.clear')} side="top">
                 <button type="button" className={css.stripAction} aria-label={t('goal.action.clear')} onClick={() => { injected.goalAction(windowId, 'clear') }}>
-                  <IconCloseOutline16 />
+                  <IconCloseOutlineRegular />
                 </button>
               </Tooltip>
             </div>
           )}
           {(session?.todos.length ?? 0) > 0 && (
             <div className={css.strip}>
-              <IconChecklistOutline14 />
+              <IconChecklistOutlineRegular />
               <span className={css.stripTitle}>{t('todo.title')}</span>
               <span className={css.stripText}>
                 {t('todo.counts', { done: String(todoDone), active: String(todoActive), pending: String(todoPending) })}
@@ -797,7 +797,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
           )}
           {queueCount > 0 && (
             <div className={css.strip}>
-              <IconQueueOutline14 />
+              <IconQueueOutlineRegular />
               <span className={css.stripTitle}>{t('queue.count', { n: String(queueCount) })}</span>
             </div>
           )}
@@ -834,7 +834,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                         disabled={queueEdit.text.trim() === ''}
                         onClick={saveQueueEdit}
                       >
-                        <IconCheckOutline16 size={14} />
+                        <IconCheckOutlineRegular size={14} />
                       </button>
                     </Tooltip>
                     <Tooltip label={t('queue.cancelEdit')} side="top">
@@ -845,7 +845,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                         data-board-action="queue-edit-cancel"
                         onClick={() => { setQueueEdit(null) }}
                       >
-                        <IconCloseOutline16 />
+                        <IconCloseOutlineRegular />
                       </button>
                     </Tooltip>
                   </>
@@ -884,7 +884,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                         disabled={row.text === null}
                         onClick={() => { if (row.text !== null) setQueueEdit({ id: row.id, text: row.text }) }}
                       >
-                        <IconEditOutline16 size={14} />
+                        <IconEditOutlineRegular size={14} />
                       </button>
                     </Tooltip>
                     <Tooltip label={t('queue.remove')} side="top">
@@ -895,7 +895,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                         data-board-action="queue-remove"
                         onClick={() => { injected.updateQueueItem(windowId, row.id, { kind: 'remove' }) }}
                       >
-                        <IconTrashOutline16 size={14} />
+                        <IconTrashOutlineRegular size={14} />
                       </button>
                     </Tooltip>
                     <Tooltip label={running ? t('queue.steer') : t('queue.steer.unavailable')} side="top" disabled={running}>
@@ -907,7 +907,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                         disabled={!running}
                         onClick={() => { injected.updateQueueItem(windowId, row.id, { kind: 'steer' }) }}
                       >
-                        <IconSendOutline14 />
+                        <IconSendOutlineRegular />
                       </button>
                     </Tooltip>
                   </>
@@ -916,7 +916,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
           ))}
           {queuedEchoes.map(row => (
             <div key={row.id} className={clsx(css.strip, css.stripEcho)} data-board-queue-row="" data-board-queue-state="sending">
-              <IconQueueOutline14 />
+              <IconQueueOutlineRegular />
               {row.images.length > 0 && (
                 <span className={css.stripAttachments}>
                   {row.images.map(image => (
@@ -961,13 +961,13 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   data-board-action="composer-preset"
                   aria-label={t('preset.aria')}
                 >
-                  <span className={css.chipIcon}><IconBranchOutline16 /></span>
+                  <span className={css.chipIcon}><IconBranchOutlineRegular /></span>
                   <span className={css.chipLabel}>
                     {(session?.presets ?? []).find(preset => preset.id === session?.presetId)?.name
                       ?? session?.presetId
                       ?? t('preset.none')}
                   </span>
-                  <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+                  <span className={css.chipIcon}><IconChevronDownOutlineRegular /></span>
                 </button>
               </span>
             </Tooltip>
@@ -988,7 +988,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
       </div>
 
       {mentionQuery !== null && (
-        <div
+        <MenuSurface
           className={css.popup}
           role="listbox"
           aria-label={t('mention.aria')}
@@ -1001,11 +1001,11 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               <span className={css.popupHint}>{mentionKindLabel(t, row.kind)}</span>
             </button>
           ))}
-        </div>
+        </MenuSurface>
       )}
 
       {slashRows.length > 0 && mentionQuery === null && (
-        <div
+        <MenuSurface
           className={css.popup}
           role="listbox"
           aria-label={t('command.menuAria')}
@@ -1018,7 +1018,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
               <span className={css.popupDescription}>{commandDescription(t, row.name, row.description)}</span>
             </button>
           ))}
-        </div>
+        </MenuSurface>
       )}
 
       <form ref={cardRef} className={css.card} onSubmit={handleSubmit} data-composer-card="">
@@ -1033,7 +1033,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   aria-label={t('attachment.remove', { name: image.name })}
                   onClick={() => { actions.removeDraftItem(windowId, 'image', image.id) }}
                 >
-                  <IconCloseOutline16 />
+                  <IconCloseOutlineRegular />
                 </button>
               </div>
             ))}
@@ -1044,7 +1044,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 data-board-file={entry.record.status}
                 title={entry.record.error}
               >
-                <IconPaperclipOutline16 />
+                <IconPaperclipOutlineRegular />
                 <span className={css.fileName}>{entry.record.name}</span>
                 <span className={css.fileStatus}>{t(FILE_STATUS_KEYS[entry.record.status])}</span>
                 {/* A receipt-only entry has no bytes to re-stage: its failure
@@ -1065,7 +1065,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   aria-label={t('attachment.remove', { name: entry.record.name })}
                   onClick={() => { removeFile(entry.record.id) }}
                 >
-                  <IconCloseOutline16 />
+                  <IconCloseOutlineRegular />
                 </button>
               </div>
             ))}
@@ -1197,12 +1197,12 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                     data-board-action="composer-permission"
                     aria-label={t('permission.aria')}
                   >
-                    <span className={css.chipIcon}><IconShieldOutline16 /></span>
+                    <span className={css.chipIcon}><IconShieldOutlineRegular /></span>
                     <span className={css.chipLabel}>
                       <span className={css.chipLead}>{permissionParts.lead}</span>
                       {permissionParts.rest !== '' && <span className={css.chipRest}>{permissionParts.rest}</span>}
                     </span>
-                    <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+                    <span className={css.chipIcon}><IconChevronDownOutlineRegular /></span>
                   </button>
                 </Tooltip>
                 <Menu
@@ -1237,7 +1237,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                   onClick={() => { injected.exitPlanMode(windowId) }}
                   aria-label={t('plan.exit')}
                 >
-                  <span className={css.chipIcon}><IconChecklistOutline14 /></span>
+                  <span className={css.chipIcon}><IconChecklistOutlineRegular /></span>
                   <span className={css.chipLabel}>{t('plan.active')}</span>
                 </button>
               </Tooltip>
@@ -1280,7 +1280,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 data-board-action="composer-model"
                 aria-label={t('model.aria')}
               >
-                <span className={clsx(css.chipIcon, css.modelIcon)}><IconDataOutline16 /></span>
+                <span className={clsx(css.chipIcon, css.modelIcon)}><IconDataOutlineRegular /></span>
                 <span className={css.chipLabel}>
                   <span className={css.chipLead}>{modelParts.lead}</span>
                   {modelParts.rest !== '' && <span className={css.chipRest}>{modelParts.rest}</span>}
@@ -1288,7 +1288,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                 {session?.model.effortName !== undefined && (
                   <span className={clsx(css.chipLabel, css.effortLabel)}>{session.model.effortName}</span>
                 )}
-                <span className={css.chipIcon}><IconChevronDownOutline14 /></span>
+                <span className={css.chipIcon}><IconChevronDownOutlineRegular /></span>
               </button>
             </Tooltip>
             <Menu
@@ -1329,7 +1329,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                     data-board-action="composer-stop"
                     aria-label={t('agent.stop')}
                   >
-                    <IconStopFill16 />
+                    <IconStopFillRegular />
                   </button>
                 </Tooltip>
               )
@@ -1342,7 +1342,7 @@ export function ComposerBar({ windowId, session, t, injected, onSent, useStore, 
                     data-board-action="composer-send"
                     aria-label={t('menu.send')}
                   >
-                    <IconSendOutline16 />
+                    <IconSendOutlineRegular size={16} />
                   </button>
                 </Tooltip>
               )}

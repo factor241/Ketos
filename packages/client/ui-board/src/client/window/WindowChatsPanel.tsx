@@ -9,11 +9,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconArchiveOutline20, IconBranchOutline16,
-  IconChevronRightOutline14, IconCloseOutline16, IconCopyOutline16, IconEditOutline16,
-  IconEllipsisOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16,
-  IconPersonalizationOutline16, IconProjectAddOutline16, IconSearchOutline16,
-  IconTrashOutline16, Menu, Tooltip, relativeTime, writeClipboard,
+  IconArchiveOutlineRegular, IconBranchOutlineRegular,
+  IconChevronRightOutlineRegular, IconCloseOutlineRegular, IconCopyOutlineRegular, IconEditOutlineRegular,
+  IconEllipsisOutlineRegular, IconFolderOpenRegular, IconNewChatOutlineRegular, IconPanelLeftOutlineRegular,
+  IconPersonalizationOutlineRegular, IconProjectAddOutlineRegular, IconSearchOutlineRegular,
+  IconTrashOutlineRegular, Menu, Tooltip, relativeTime, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -268,7 +268,7 @@ function WindowChatsPanelView({
 
   const menuItems = (target: RowMenuTarget): readonly MenuEntry[] => {
     const common: MenuEntry[] = [
-      { id: 'rename', label: t('panel.rename'), icon: <IconEditOutline16 /> },
+      { id: 'rename', label: t('panel.rename'), icon: <IconEditOutlineRegular /> },
     ]
     if (target.kind === 'project') {
       const group = groups.find(candidate => candidate.workspaceId === target.id)
@@ -278,9 +278,9 @@ function WindowChatsPanelView({
       const folder: MenuEntry[] = path === null
         ? []
         : [
-          { id: 'copy-path', label: t('panel.copyPath'), icon: <IconCopyOutline16 /> },
+          { id: 'copy-path', label: t('panel.copyPath'), icon: <IconCopyOutlineRegular /> },
           ...(canOpenPath
-            ? [{ id: 'open-folder', label: t('panel.openFolder'), icon: <IconFolderOpen16 /> } satisfies MenuEntry]
+            ? [{ id: 'open-folder', label: t('panel.openFolder'), icon: <IconFolderOpenRegular /> } satisfies MenuEntry]
             : []),
         ]
       return [
@@ -288,7 +288,7 @@ function WindowChatsPanelView({
         ...folder,
         { id: 'up', label: t('panel.moveUp') },
         { id: 'down', label: t('panel.moveDown') },
-        { id: 'delete', label: t('panel.deleteFolder'), icon: <IconTrashOutline16 />, danger: true },
+        { id: 'delete', label: t('panel.deleteFolder'), icon: <IconTrashOutlineRegular />, danger: true },
       ]
     }
     // A row move writes the manual order, so it is offered only while that
@@ -301,10 +301,10 @@ function WindowChatsPanelView({
       : []
     return [
       ...common,
-      { id: 'branch', label: t('panel.branch'), icon: <IconBranchOutline16 /> },
-      { id: 'archive', label: t('panel.archive'), icon: <IconArchiveOutline20 size={16} /> },
+      { id: 'branch', label: t('panel.branch'), icon: <IconBranchOutlineRegular /> },
+      { id: 'archive', label: t('panel.archive'), icon: <IconArchiveOutlineRegular size={16} /> },
       ...moves,
-      { id: 'delete', label: t('panel.deleteChat'), icon: <IconTrashOutline16 />, danger: true },
+      { id: 'delete', label: t('panel.deleteChat'), icon: <IconTrashOutlineRegular />, danger: true },
     ]
   }
 
@@ -438,7 +438,7 @@ function WindowChatsPanelView({
                   setSearchOpen(wasOpen => !wasOpen)
                 }}
               >
-                <IconSearchOutline16 />
+                <IconSearchOutlineRegular />
               </button>
               <button
                 ref={viewAnchor}
@@ -449,7 +449,7 @@ function WindowChatsPanelView({
                 aria-expanded={viewOpen}
                 onClick={() => { setViewOpen(wasOpen => !wasOpen) }}
               >
-                <IconPersonalizationOutline16 />
+                <IconPersonalizationOutlineRegular />
               </button>
               <button
                 type="button"
@@ -459,13 +459,13 @@ function WindowChatsPanelView({
                 aria-label={t('panel.addFolder')}
                 onClick={() => { setBrowsing(true) }}
               >
-                <IconProjectAddOutline16 />
+                <IconProjectAddOutlineRegular />
               </button>
             </>
           )}
           {browsing && (
             <button type="button" data-row-action="" className={css.back} onClick={() => { setBrowsing(false) }}>
-              <IconChevronRightOutline14 className={css.backGlyph} />
+              <IconChevronRightOutlineRegular className={css.backGlyph} />
               <span className={css.title}>{t('panel.chooseFolder')}</span>
             </button>
           )}
@@ -478,7 +478,7 @@ function WindowChatsPanelView({
               aria-label={t('panel.collapse')}
               onClick={() => { actions.setWindowPanel(cardWindow.id, 'left', false) }}
             >
-              <IconPanelLeftOutline16 />
+              <IconPanelLeftOutlineRegular />
             </button>
           </Tooltip>
         </div>
@@ -543,7 +543,7 @@ function WindowChatsPanelView({
           <div className={css.errorRow}>
             <span className={css.rowText}>{error}</span>
             <button type="button" data-row-action="" className={css.rowAction} aria-label={t('panel.dismiss')} onClick={() => { setError(null) }}>
-              <IconCloseOutline16 />
+              <IconCloseOutlineRegular />
             </button>
           </div>
         )}
@@ -578,9 +578,9 @@ function WindowChatsPanelView({
                     }}
                   >
                     <span className={clsx(css.chevron, expanded && css.chevronOpen)}>
-                      <IconChevronRightOutline14 />
+                      <IconChevronRightOutlineRegular />
                     </span>
-                    <span className={css.rowIcon}><IconFolderOpen16 /></span>
+                    <span className={css.rowIcon}><IconFolderOpenRegular /></span>
                     <span className={css.rowText}>{group.label === '' ? t('panel.ungrouped') : group.label}</span>
                   </button>
                   <button
@@ -591,7 +591,7 @@ function WindowChatsPanelView({
                     aria-label={t('panel.newChat')}
                     onClick={() => { setError(null); newChat(group) }}
                   >
-                    <IconNewChatOutline16 />
+                    <IconNewChatOutlineRegular />
                   </button>
                   {group.workspaceId !== undefined && (
                     <button
@@ -602,7 +602,7 @@ function WindowChatsPanelView({
                       aria-label={t('panel.rowMenu')}
                       onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'project', id: group.workspaceId as string }) }}
                     >
-                      <IconEllipsisOutline16 />
+                      <IconEllipsisOutlineRegular />
                     </button>
                   )}
                 </div>
@@ -634,7 +634,7 @@ function WindowChatsPanelView({
                       aria-label={t('panel.rowMenu')}
                       onClick={(e) => { menuAnchor.current = e.currentTarget; setRowMenu({ kind: 'chat', id: chat.id }) }}
                     >
-                      <IconEllipsisOutline16 />
+                      <IconEllipsisOutlineRegular />
                     </button>
                   </div>
                 ))}
@@ -882,7 +882,7 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
       {browseFailed && <div className={css.rowMeta}>{t('panel.browseUnavailable')}</div>}
       <div className={css.groupRow}>
         <button type="button" data-row-action="" className={css.row} onClick={() => { setFolderName('') }}>
-          <span className={css.rowIcon}><IconProjectAddOutline16 /></span>
+          <span className={css.rowIcon}><IconProjectAddOutlineRegular /></span>
           <span className={css.rowText}>{t('panel.newFolder')}</span>
         </button>
       </div>
@@ -904,7 +904,7 @@ function FolderBrowser({ t, listDirectory, createDirectory, pickDirectory, useFo
       {listing.entries.map(entry => (
         <div key={entry.path} className={css.groupRow}>
           <button type="button" data-row-action="" className={css.row} onClick={() => { load(entry.path) }}>
-            <span className={css.rowIcon}><IconFolderOpen16 /></span>
+            <span className={css.rowIcon}><IconFolderOpenRegular /></span>
             <span className={css.rowText}>{entry.name}</span>
           </button>
         </div>

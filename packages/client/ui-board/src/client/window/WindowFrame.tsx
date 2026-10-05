@@ -17,7 +17,7 @@
 import React, { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseOutline16, IconFullscreenOutline16, IconPanelLeftOutline16, StateDot, Tooltip,
+  IconCloseOutlineRegular, IconFullscreenOutlineRegular, IconPanelLeftOutlineRegular, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
@@ -350,7 +350,7 @@ function WindowFrameView({
               className={css.headerButton}
               aria-label={t('window.close')}
             >
-              <IconCloseOutline16 />
+              <IconCloseOutlineRegular />
             </button>
           </Tooltip>
           {/* The window's two panels replace the old rail: the left one holds
@@ -365,7 +365,7 @@ function WindowFrameView({
                 aria-pressed={leftPanelOpen}
                 aria-label={t('window.leftPanel')}
               >
-                <IconPanelLeftOutline16 />
+                <IconPanelLeftOutlineRegular />
               </button>
             </Tooltip>
           )}
@@ -389,7 +389,7 @@ function WindowFrameView({
                   aria-pressed={rightPanelOpen}
                   aria-label={t('window.rightPanel')}
                 >
-                  <IconPanelLeftOutline16 className={css.panelRightIcon} />
+                  <IconPanelLeftOutlineRegular className={css.panelRightIcon} />
                 </button>
               </Tooltip>
             )}
@@ -402,7 +402,7 @@ function WindowFrameView({
                   className={css.headerButton}
                   aria-label={t('window.fullscreen')}
                 >
-                  <IconFullscreenOutline16 />
+                  <IconFullscreenOutlineRegular />
                 </button>
               </Tooltip>
             )}

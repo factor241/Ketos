@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-25-ketos-board-input-and-popover-layer.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-25-ketos-board-input-and-popover-layer.md
-2026-09-25-ketos-board-input-and-popover-layer.md: 09a5b7e14c5375ee621d41a348aaac2a54a6476a
-2026-09-25-ketos-board-input-and-popover-layer.zh.md: 21c882c2becda63cb87b5fb29496db69b3cd9a02
+/agent-note-board-input-and-the-popover-layer:
+  en: 69714db45757b951
+  zh: 527f2217199cdc59
+/agent-note-board-input-and-the-popover-layer/problem:
+  en: adf73b86a9a34f5f
+  zh: 8d0eb6d718fd03e2
+/agent-note-board-input-and-the-popover-layer/decision:
+  en: c951d4bef8c9b246
+  zh: c368dfb99b3cd7da
+/agent-note-board-input-and-the-popover-layer/alternatives-considered:
+  en: 252860ff36a0a610
+  zh: 0302185fb849dafa
+/agent-note-board-input-and-the-popover-layer/consequences:
+  en: 141bc9271e5a2b37
+  zh: 541944100a1b3ff4
+/agent-note-board-input-and-the-popover-layer/testing:
+  en: 33dfe61ecee5dffe
+  zh: 5a5957a7b6d1337a
+/agent-note-board-input-and-the-popover-layer/related:
+  en: 35fbea0de1abf7d6
+  zh: 847b754e2f667cf1

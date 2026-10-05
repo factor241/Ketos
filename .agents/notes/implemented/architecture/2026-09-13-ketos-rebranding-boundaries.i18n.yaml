@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-ketos-rebranding-boundaries.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-ketos-rebranding-boundaries.md
-2026-09-13-ketos-rebranding-boundaries.md: 8863d6d68baf91d826e45899ad55a3b083e9602c
-2026-09-13-ketos-rebranding-boundaries.zh.md: 56826a0220e5ecb91b8efe815e3bd7ecf9927ea1
+/agent-note-ketos-rebranding-boundaries:
+  en: 3a996c006ff768a8
+  zh: 1d358ec4981c23d8
+/agent-note-ketos-rebranding-boundaries/problem:
+  en: b02dd2bf56c0026c
+  zh: d5d5699752547036
+/agent-note-ketos-rebranding-boundaries/decision:
+  en: 5174717da39eeb1a
+  zh: 5c79d6974afcabcf
+/agent-note-ketos-rebranding-boundaries/alternatives-considered:
+  en: 8b88a0b38c091166
+  zh: 64a22f9b88ea5455
+/agent-note-ketos-rebranding-boundaries/consequences:
+  en: cdb6055ab524b1fd
+  zh: d5ca67c0e1402c33
+/agent-note-ketos-rebranding-boundaries/related:
+  en: 7f622c04af9144c2
+  zh: a6d716b9881daf95

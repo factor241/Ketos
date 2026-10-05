@@ -15,8 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  FileTypeIcon, IconCloseOutline16, IconFolderClose16, IconFolderOpen16, IconPanelLeftOutline16,
-  IconPlusOutline16, IconRefreshOutline16, MarkdownText, Tooltip, classifyFileType,
+  FileTypeIcon, IconCloseOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular, IconPanelLeftOutlineRegular,
+  IconPlusOutlineRegular, IconRefreshOutlineRegular, MarkdownText, Tooltip, classifyFileType,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -123,27 +123,24 @@ function viewerKindOf(path: string): 'image' | 'pdf' | 'markdown' | 'text' {
 type ViewerState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'text'; readonly text: string }
-  | { readonly kind: 'bytes'; readonly data: string }
+  | { readonly kind: 'bytes'; readonly data: Uint8Array }
   | { readonly kind: 'failed'; readonly code: string; readonly message: string }
 
-/** Object URL of one base64 payload, revoked when the payload or viewer goes away. */
-function useObjectUrl(data: string): string {
-  const url = useMemo(() => {
-    const bytes = Uint8Array.from(atob(data), character => character.charCodeAt(0))
-    return URL.createObjectURL(new Blob([bytes]))
-  }, [data])
+/** Object URL of one byte payload, revoked when the payload or viewer goes away. */
+function useObjectUrl(data: Uint8Array): string {
+  const url = useMemo(() => URL.createObjectURL(new Blob([Uint8Array.from(data)])), [data])
   useEffect(() => () => { URL.revokeObjectURL(url) }, [url])
   return url
 }
 
 /** One image viewer over complete bytes. */
-function ImageViewer({ data, name }: { readonly data: string; readonly name: string }): ReactNode {
+function ImageViewer({ data, name }: { readonly data: Uint8Array; readonly name: string }): ReactNode {
   const url = useObjectUrl(data)
   return <img className={css.image} src={url} alt={name} data-board-right-viewer="image" />
 }
 
 /** One PDF viewer over complete bytes. */
-function PdfViewer({ data, name }: { readonly data: string; readonly name: string }): ReactNode {
+function PdfViewer({ data, name }: { readonly data: Uint8Array; readonly name: string }): ReactNode {
   const url = useObjectUrl(data)
   return <iframe className={css.frame} title={name} src={url} data-board-right-viewer="pdf" />
 }
@@ -227,8 +224,8 @@ function TreeEntry({ parent, entry, tree }: {
           onClick={() => { tree.onToggle(path) }}
         >
           {expanded
-            ? <IconFolderOpen16 className={css.entryIcon} />
-            : <IconFolderClose16 className={css.entryIcon} />}
+            ? <IconFolderOpenRegular className={css.entryIcon} />
+            : <IconFolderCloseRegular className={css.entryIcon} />}
           <span className={css.entryName}>{entry.name}</span>
         </button>
         {expanded && <div className={css.level}><TreeLevel path={path} tree={tree} /></div>}
@@ -354,7 +351,7 @@ function FilesPane({ sessionId, tabId, state, t, actions, windowId, openFileInPa
           title={t('right.reload')}
           onClick={() => { actions.filesReset(sessionId, tabId) }}
         >
-          <IconRefreshOutline16 />
+          <IconRefreshOutlineRegular />
         </button>
       </div>
       <div className={css.tree}>
@@ -396,7 +393,7 @@ function TabChip({ tab, active, t, onActivate, onClose }: {
         aria-label={t('right.closeTab')}
         onClick={onClose}
       >
-        <IconCloseOutline16 />
+        <IconCloseOutlineRegular />
       </button>
     </div>
   )
@@ -431,7 +428,7 @@ export function RightPanel({
           data-board-action="right-open-files"
           onClick={() => { actions.openRightTab(sessionId, { id: 'files', kind: 'files' }) }}
         >
-          <IconFolderOpen16 className={css.homeIcon} />
+          <IconFolderOpenRegular className={css.homeIcon} />
           <span className={css.homeText}>{t('right.workspaceFiles')}</span>
         </button>
       </div>
@@ -486,7 +483,7 @@ export function RightPanel({
               title={t('right.newTab')}
               onClick={() => { actions.openRightTab(sessionId, { id: 'home', kind: 'home' }) }}
             >
-              <IconPlusOutline16 />
+              <IconPlusOutlineRegular />
             </button>
           </div>
         )}
@@ -499,7 +496,7 @@ export function RightPanel({
             aria-label={t('panel.collapse')}
             onClick={() => { actions.setWindowPanel(windowId, 'right', false) }}
           >
-            <IconPanelLeftOutline16 className={css.collapseIcon} />
+            <IconPanelLeftOutlineRegular className={css.collapseIcon} />
           </button>
         </Tooltip>
       </div>

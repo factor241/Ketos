@@ -135,7 +135,7 @@ function textPage(text: string): unknown {
 }
 
 /** One complete-bytes reply over base64 data. */
-function bytePage(data: string): unknown {
+function bytePage(data: Uint8Array): unknown {
   return { ok: true, value: { absolutePath: '', version: 'v1', offset: 0, data, eof: true } }
 }
 
@@ -529,9 +529,9 @@ describe('WindowChatsPanel right panel', () => {
           if (path === '/work/notes.md') return textPage('# Title')
           return textPage(`text:${path}`)
         },
-        readAll: async (_sessionId, path) => {
+        readBytes: async (_sessionId, path) => {
           readAllCalls.push(path)
-          return bytePage(btoa(path === '/work/manual.pdf' ? '%PDF' : 'PNG'))
+          return bytePage(new TextEncoder().encode(path === '/work/manual.pdf' ? '%PDF' : 'PNG'))
         },
       },
     })
@@ -590,7 +590,7 @@ describe('WindowChatsPanel right panel', () => {
       workspaceFiles: {
         list: async () => level([{ name: 'a.weird' }]),
         read: async () => textPage('fallback'),
-        readAll: async (_sessionId, path) => { readAllCalls.push(path); return bytePage('') },
+        readBytes: async (_sessionId, path) => { readAllCalls.push(path); return bytePage(new Uint8Array()) },
       },
     })
     const { runtime } = prepared
@@ -613,7 +613,7 @@ describe('WindowChatsPanel right panel', () => {
       },
       workspaceFiles: {
         list: async () => level([{ name: 'a.txt' }]),
-        readAll: async () => bytePage(btoa('x')),
+        readBytes: async () => bytePage(new TextEncoder().encode('x')),
       },
     })
     const { runtime } = prepared

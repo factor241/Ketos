@@ -8,7 +8,7 @@
  * the plugin's apply; components only write the store.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-// Type-only: the ctx.settingsScope Context merge and the mirror face the board
+// Type-only: the ctx.configForms Context merge and the mirror face the board
 // derives from (the shared describe reader; cross-plugin collaboration goes
 // through the service, never a value import).
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -140,7 +140,10 @@ export class BoardLayoutPersistence {
     const { bindings, ...layout } = cached.settings
     this.instance.actions.hydrate(layout)
     this.cacheRevision = cached.revision
-    this.lastLayout = serialize(layout)
+    // The baseline is the normalized capture, not the stored document: a
+    // version-1 section still carrying the removed panel fields must not make
+    // the first frame look like a layout change and write the section back.
+    this.lastLayout = serialize(captureBoardLayout(this.instance.getSnapshot()))
     this.bindings = bindings
     this.lastBindings = serialize(bindings)
     this.adoptListener?.(cached.settings)
@@ -197,13 +200,18 @@ export class BoardLayoutPersistence {
     const view = snapshot.view?.namespaces.find(entry => entry.ns === BOARD_SETTINGS_NAMESPACE)
     if (view === undefined) return
     this.serverChecked = true
+    // `user` marks that the entry was written; `value` is the schema-resolved
+    // section, which is what the board adopts (the raw layer omits defaults,
+    // including the document `version`).
     if (view.user === undefined) return
-    const settings = sanitizeBoardLayout(view.user)
+    const settings = sanitizeBoardLayout(view.value)
     if (settings === undefined) return
     if (this.cacheRevision === undefined || view.revision > this.cacheRevision) {
       const { bindings, ...layout } = settings
       this.instance.actions.hydrate(layout)
-      this.lastLayout = serialize(layout)
+      // Same normalized baseline as the cache path: an adopted legacy document
+      // is written back only by a later real layout gesture, never at startup.
+      this.lastLayout = serialize(captureBoardLayout(this.instance.getSnapshot()))
       this.bindings = bindings
       this.lastBindings = serialize(bindings)
       // The adopted section is what the next first frame should paint.

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-ketos-board-in-web-profile.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-ketos-board-in-web-profile.md
-2026-09-15-ketos-board-in-web-profile.md: 64d9c557ecca5db352756c1e6b1d5f282dd9c23d
-2026-09-15-ketos-board-in-web-profile.zh.md: b2c27bba9801c2fde024ec6dbe71bbeb8d5a3f3d
+/agent-note-the-ketos-board-joins-the-web-profile:
+  en: 8ee1537e34f5a4cd
+  zh: d63920ade7f72ad4
+/agent-note-the-ketos-board-joins-the-web-profile/problem:
+  en: 5fc7448c49bced28
+  zh: a900191e2304c473
+/agent-note-the-ketos-board-joins-the-web-profile/decision:
+  en: 7a1f669d85698ff7
+  zh: a9b0e42ceb14d31f
+/agent-note-the-ketos-board-joins-the-web-profile/alternatives-considered:
+  en: b415c30ac6655a4e
+  zh: af37b9c532fbc187
+/agent-note-the-ketos-board-joins-the-web-profile/consequences:
+  en: c99605a0c2b13e9c
+  zh: a6219235dbe419e8
+/agent-note-the-ketos-board-joins-the-web-profile/related:
+  en: 03a5c2aecd4fb768
+  zh: 9013c43cbf32e68b

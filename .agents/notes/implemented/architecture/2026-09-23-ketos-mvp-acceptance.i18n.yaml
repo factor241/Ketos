@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-ketos-mvp-acceptance.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-23-ketos-mvp-acceptance.md
-2026-09-23-ketos-mvp-acceptance.md: f485535df5e1a314b3032716b03ff5a6c56a48ae
-2026-09-23-ketos-mvp-acceptance.zh.md: a90f38bf29ce9b4b590e04ae4feade91af6ee8ff
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred:
+  en: d522a422fbc71ca2
+  zh: 3489719dbc0685f6
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/problem:
+  en: 28485724cb325c41
+  zh: c88f43898a0b9669
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/decision:
+  en: 5458f610f1eabd70
+  zh: 562ab369ab360c86
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/accepted-limitations-at-mvp:
+  en: f5525d161e32ec5b
+  zh: 2916a7969a0731ea
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/alternatives-considered:
+  en: 4efbf8d03a060fa7
+  zh: 97d109256e73ff0b
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/consequences:
+  en: 3bfe01127a49b949
+  zh: 4a2dbc6a0aea36b6
+/agent-note-ketos-mvp-acceptance-what-the-fork-ships-which-upstream-gates-it-deviates-from-and-what-is-deferred/related:
+  en: 6826071216d01954
+  zh: f976eec3e21dee33

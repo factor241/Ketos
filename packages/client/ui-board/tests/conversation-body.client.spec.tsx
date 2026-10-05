@@ -14,7 +14,7 @@ import { createBoardStore, type BoardState } from '../src/client/store.ts'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, t } from './fixtures.client.ts'
 import type { ChatSnapshot, ConversationNode, RunningToolCall } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
+import type { SessionPendingInteraction, SessionPendingInteractionBase, SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 
 afterEach(() => { cleanup() })
 
@@ -60,6 +60,7 @@ const TOOL_NODE: ConversationNode = {
 }
 
 const RUNNING_CALL: RunningToolCall = {
+  phase: 'start',
   callId: 'call-9',
   name: 'bash',
   argsRaw: '{"command":"sleep 5"}',
@@ -84,20 +85,26 @@ const ORPHAN_TOOL_NODE: ConversationNode = {
 
 /**
  * Props stub: the keyed session hook answers with the supplied state and the
- * root pending-interaction source answers with the supplied map.
+ * root Session status source answers with the supplied pending map.
  */
 function bodyProps(
   session: BoardWindowSessionState | undefined,
   overrides: Partial<Record<string, unknown>> = {},
-  pending: SessionPendingInteractionSnapshot = new Map(),
+  pending: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map(),
 ): ConversationBodyProps {
   // The body and its composer read the window modes, the intent queue, and
   // the drafts from a real store instance, so a write re-renders the seat.
   const instance = createBoardStore().create()
+  const statuses: SessionStatusSnapshot = new Map(
+    [...pending].map(([id, pendingInteraction]) => [
+      id,
+      { running: undefined, pendingInteraction: pendingInteraction as SessionPendingInteraction, completionUnread: false },
+    ]),
+  )
   return {
     window: CARD,
     t,
-    useSessionPendingInteraction: (selector: (snapshot: SessionPendingInteractionSnapshot) => unknown) => selector(pending),
+    useSessionStatus: (selector: (snapshot: SessionStatusSnapshot) => unknown) => selector(statuses),
     useStore: <S,>(selector: (state: BoardState) => S): S =>
       useSyncExternalStore(
         onChange => instance.subscribe(onChange),
@@ -304,7 +311,7 @@ describe('ConversationBody', () => {
     const sessionId = 'session-1' as SessionId
     const pending = new Map([
       [sessionId, { key: 'approval:1', kind: 'approval', sessionId }],
-    ]) as unknown as SessionPendingInteractionSnapshot
+    ])
     const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
     const { getByText, container } = render(
       <ConversationBody {...bodyProps(state, { openInMainPanel }, pending)} />,
@@ -326,7 +333,7 @@ describe('ConversationBody', () => {
     for (const [kind, title] of titles) {
       const pending = new Map([
         [sessionId, { key: `${kind}:1`, kind, sessionId }],
-      ]) as unknown as SessionPendingInteractionSnapshot
+      ])
       const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
       const rendered = render(<ConversationBody {...bodyProps(state, {}, pending)} />)
       expect(rendered.getByText(title)).not.toBeNull()
@@ -336,7 +343,7 @@ describe('ConversationBody', () => {
     // A pending interaction of another session never banners this window.
     const other = new Map([
       ['someone-else' as SessionId, { key: 'approval:2', kind: 'approval', sessionId: 'someone-else' as SessionId }],
-    ]) as unknown as SessionPendingInteractionSnapshot
+    ])
     const state: BoardWindowSessionState = { ...ready(chatSnapshot()), sessionId }
     const rendered = render(<ConversationBody {...bodyProps(state, {}, other)} />)
     expect(rendered.queryByText('Confirmation required')).toBeNull()

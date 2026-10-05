@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-brand-official/README.md
-README.md: 1a3f243f6b209ceb6390b86b306265faca49e161
-README.zh.md: 92b408988f599059d07bc437c06f0e6af506b0e1
+/:
+  en: 37cb9fc7f2adfc2e
+  zh: f7afad1893cc60b4
+/deepseek-ai-dsh-client-ui-brand-official:
+  en: 7cee1be833cea807
+  zh: 9953e1b38cb23d34
+/deepseek-ai-dsh-client-ui-brand-official/summary:
+  en: 0537ad1b8b9f3b7e
+  zh: f4714f23e50c0136
+/deepseek-ai-dsh-client-ui-brand-official/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-client-ui-brand-official/use-this-package:
+  en: 19253478639663ce
+  zh: 76135a92ea4b0603
+/deepseek-ai-dsh-client-ui-brand-official/use-this-package/choosing-the-profile:
+  en: 63db665a15cb1fd1
+  zh: f07486c06e28e15c
+/deepseek-ai-dsh-client-ui-brand-official/use-this-package/replacing-the-brand:
+  en: bffd35d14ee455b0
+  zh: d0a353463970d579
+/deepseek-ai-dsh-client-ui-brand-official/understand-the-implementation:
+  en: 4e4aa617edd7f4ad
+  zh: ea4e2d6d4a39535e
+/deepseek-ai-dsh-client-ui-brand-official/further-exploration:
+  en: be80cff9a5507319
+  zh: bbf10393d289e692
+/deepseek-ai-dsh-client-ui-brand-official/model-experience:
+  en: 618008c7641070e7
+  zh: 7233febb4d92ccfb
+/deepseek-ai-dsh-client-ui-brand-official/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: f57cc48a1b5cbfa9
+/deepseek-ai-dsh-client-ui-brand-official/known-limitations-and-deferred-work:
+  en: fae674ed1f4792df
+  zh: 56f5927b8e730ec3
+/deepseek-ai-dsh-client-ui-brand-official/known-limitations-and-deferred-work/dev-note:
+  en: e368635c2e69b577
+  zh: 6b0fcfc1e089e5d6

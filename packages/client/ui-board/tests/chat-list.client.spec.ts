@@ -18,6 +18,7 @@ function row(id: string, fields: Partial<SessionSummary> = {}): SessionSummary {
     id: id as SessionId,
     displayTitle: id,
     running: false,
+    retainedBy: {},
     blank: false,
     updatedAt: 1,
     ...fields,
@@ -31,17 +32,14 @@ function list(rows: readonly SessionSummary[]): SessionListState {
   return {
     ids: rows.map(summary => summary.id),
     byId,
-    current: undefined,
     phase: 'ready',
-    subagentsByParent: {},
-    jobsBySession: {},
-    currentAddress: undefined,
+    projectionsBySession: {},
   }
 }
 
 /** A workspace snapshot over the given views. */
 function workspaces(items: readonly WorkspaceView[], archived: readonly SessionId[] = []): WorkspaceSnapshot {
-  return { items, archivedSessionIds: archived, state: 'idle', phase: 'ready', error: null }
+  return { items, archivedSessionIds: archived, pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
 }
 
 /** One workspace view with the fields the panel reads. */

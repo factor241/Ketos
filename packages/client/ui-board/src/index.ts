@@ -1,20 +1,26 @@
 /**
  * Spatial multi-window board canvas plugin, host half.
- * Registers the durable layout namespace in the user-settings document; the
- * browser half ships via exports["./client"].
+ * Declares the durable layout as this profile entry's live configuration; the
+ * browser half reads and writes it as the `ui-board` namespace.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import { BOARD_SETTINGS_NAMESPACE, BoardSettingsSchema } from './board-settings.ts'
+import { BoardSettingsSchema } from './board-settings.ts'
 
 /**
- * Register the durable layout section when the optional settings service is
- * composed. The registration is an effect of this plugin's fiber: unloading
- * the board withdraws the namespace.
+ * Live board layout configuration: the whole document is client-writable, so
+ * the schema is root-volatile and the settings service projects every field.
+ */
+export const Config = BoardSettingsSchema.volatile()
+
+/**
+ * Withdraw the auto-generated settings page: the board ships its own layout
+ * UI. The entry stays addressable through the settings transport for the
+ * browser half's `ui-board` namespace reads and writes.
  * @param ctx - Host context that may acquire the settings service.
  */
 export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(BOARD_SETTINGS_NAMESPACE, BoardSettingsSchema)
+  ctx.inject(['settings'], (child) => {
+    child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
   })
 }

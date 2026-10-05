@@ -12,6 +12,8 @@ import type {
 } from '@ketos/clone-core/types'
 import type { MemoryFailureCode } from './contract/slots.ts'
 
+import { ketosRoute } from './ketos-route.ts'
+
 /** Exact route the clone host package registers below `/api`. */
 const MEMORY_PATH = '/api/ketos.memory'
 
@@ -55,7 +57,7 @@ function isId(value: unknown): value is MemoryId {
 
 /** One JSON request against the memory route. */
 async function request(body: unknown): Promise<Response> {
-  return await fetch(MEMORY_PATH, {
+  return await fetch(ketosRoute(MEMORY_PATH.slice(1)), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),

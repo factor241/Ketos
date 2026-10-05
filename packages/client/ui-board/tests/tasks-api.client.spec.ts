@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Tasks route client: the request bodies each operation sends, the decoding of
  * every answer, and the stable failure code each refusal maps to.
@@ -40,7 +41,7 @@ interface Recorded {
 function stubRoute(answer: (body: Record<string, unknown>) => Response): Recorded[] {
   const recorded: Recorded[] = []
   vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
-    expect(String(input)).toBe('/api/ketos.tasks')
+    expect(new URL(String(input)).pathname).toBe('/api/ketos.tasks')
     const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as Record<string, unknown>
     recorded.push({ body })
     return answer(body)

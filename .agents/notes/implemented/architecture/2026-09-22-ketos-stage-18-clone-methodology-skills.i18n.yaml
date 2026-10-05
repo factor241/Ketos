@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-ketos-stage-18-clone-methodology-skills.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-22-ketos-stage-18-clone-methodology-skills.md
-2026-09-22-ketos-stage-18-clone-methodology-skills.md: d88069d653025a9e0a294d5f40ef93c89a30898b
-2026-09-22-ketos-stage-18-clone-methodology-skills.zh.md: b8e53741715186261715ae47c6d2d23ec3c6eed2
+/agent-note-clone-methodology-is-four-canonical-sections-and-clone-skills-are-record-objects-registered-into-the-agent-s-own-skill-registry-layer:
+  en: d52b42338d5d8134
+  zh: 611f14da955f0baa
+/agent-note-clone-methodology-is-four-canonical-sections-and-clone-skills-are-record-objects-registered-into-the-agent-s-own-skill-registry-layer/problem:
+  en: b6f5bbc408b68f12
+  zh: a926af5649d60958
+/agent-note-clone-methodology-is-four-canonical-sections-and-clone-skills-are-record-objects-registered-into-the-agent-s-own-skill-registry-layer/decision:
+  en: f5851668c3179066
+  zh: e3f3f7e72c61abc4
+/agent-note-clone-methodology-is-four-canonical-sections-and-clone-skills-are-record-objects-registered-into-the-agent-s-own-skill-registry-layer/alternatives-considered:
+  en: 158ea4cce3a8a032
+  zh: f6710a37d66cb70f
+/agent-note-clone-methodology-is-four-canonical-sections-and-clone-skills-are-record-objects-registered-into-the-agent-s-own-skill-registry-layer/consequences:
+  en: 64061182637e6926
+  zh: e373d929f133020c

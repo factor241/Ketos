@@ -304,7 +304,7 @@ describe('board dock', () => {
     const state = store.store.getSnapshot()
     expect(state.windowOrder).toHaveLength(1)
     expect(Object.values(state.windows)[0]).toMatchObject({ kind: 'agent', bodyKind: 'conversation' })
-    expect(runtime.sessions.calls.filter(call => call.method === 'openStream').map(call => call.args[0]))
+    expect(runtime.sessions.calls.filter(call => call.method === 'retain').map(call => call.args[0]))
       .toEqual(['session-1'])
 
     // The same chat selected again comes forward instead of opening twice.
@@ -316,7 +316,7 @@ describe('board dock', () => {
 
     expect(store.store.getSnapshot().windowOrder).toEqual([opened])
     expect(store.store.getSnapshot().panX).not.toBe(100)
-    expect(runtime.sessions.calls.filter(call => call.method === 'openStream')).toHaveLength(1)
+    expect(runtime.sessions.calls.filter(call => call.method === 'retain')).toHaveLength(1)
   })
 
   it('renders the open menu through the portal into the board popover layer', async () => {
@@ -340,7 +340,6 @@ describe('board dock', () => {
               { id: 'ptc', trust: 'user', isDefault: false, name: 'PTC mode' },
             ],
             authorable: true,
-            modeSelectionEnabled: true,
           },
         }),
       },
@@ -357,13 +356,13 @@ describe('board dock', () => {
 
   it('keeps the plain agent entry when the deployment disables preset selection', async () => {
     const { panel } = await bench({
+      developerTools: false,
       agentPresets: {
         list: async () => ({
           ok: true as const,
           value: {
             presets: [{ id: 'standard', trust: 'user', isDefault: true, name: 'Standard' }],
             authorable: true,
-            modeSelectionEnabled: false,
           },
         }),
       },

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-ketos-board-tool-cards-approvals.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-ketos-board-tool-cards-approvals.md
-2026-09-20-ketos-board-tool-cards-approvals.md: 4d49a12e661e6d8ac97bf4084f9b6685038c6473
-2026-09-20-ketos-board-tool-cards-approvals.zh.md: d0cfdeaf5c25baf72ad48e041ac198ab6e5ec6e8
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel:
+  en: a225036a0b68f53a
+  zh: 5dd5e5338e4cfeb2
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel/problem:
+  en: 15e23b0eaf33afd6
+  zh: f47471c0d11530e5
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel/decision:
+  en: 3b91c5c4659223f3
+  zh: 5ccfd78ce5739e7a
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel/alternatives-considered:
+  en: f7ed446b82300482
+  zh: b4cb1dd1a445e210
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel/consequences:
+  en: d5f46daa1bf1f7a5
+  zh: ce8b1fe90f04b35d
+/agent-note-board-windows-render-tool-calls-as-cards-and-navigate-pending-approvals-to-the-main-panel/related:
+  en: 3bce999b1f9f9114
+  zh: fd97438da61e5768

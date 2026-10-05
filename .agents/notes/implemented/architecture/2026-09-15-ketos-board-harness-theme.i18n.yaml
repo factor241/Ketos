@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-ketos-board-harness-theme.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-15-ketos-board-harness-theme.md
-2026-09-15-ketos-board-harness-theme.md: d2034bec4d22e10a318f13cd918d64cdff7f5ec9
-2026-09-15-ketos-board-harness-theme.zh.md: 87983f18fde45aac1bc36024ecbac1e69b57ee74
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls:
+  en: b33a36442b571097
+  zh: f3889f0f1b512359
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls/problem:
+  en: bb13d5091bed3b5f
+  zh: 8ca98067d683ff02
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls/decision:
+  en: 54afcd1baec6cafb
+  zh: 43a0fd6191b143ff
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls/alternatives-considered:
+  en: f66d65ee7d74615d
+  zh: a974f41eb4158c08
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls/consequences:
+  en: 8c8dcc1b50e5c9d8
+  zh: c13102ca059d7a18
+/agent-note-the-board-draws-with-the-shared-harness-theme-and-controls/related:
+  en: 4e89ac8be26c7ecd
+  zh: 879b545fd397d465

@@ -72,7 +72,10 @@ export function toolNodeName(node: ToolCallBlock): string {
  * @returns the logged argument text, or `''` when the call head is outside the window.
  */
 export function toolNodeArgsRaw(node: ToolCallBlock): string {
-  return (isSettledNode(node) ? node.call?.argsRaw : node.argsRaw) ?? ''
+  if (isSettledNode(node)) return node.call?.argsRaw ?? ''
+  // A preparing call has a name but no argument text yet; only a started call
+  // carries the logged arguments.
+  return node.phase === 'start' ? node.argsRaw : ''
 }
 
 /**

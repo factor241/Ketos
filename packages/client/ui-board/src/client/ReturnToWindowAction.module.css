@@ -13,7 +13,7 @@
   color: var(--dsw-alias-label-secondary);
   background: transparent;
   border: none;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-panel);
   cursor: pointer;
 }
 

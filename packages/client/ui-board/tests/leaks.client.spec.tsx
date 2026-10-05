@@ -144,9 +144,9 @@ describe('board resource discipline', () => {
       expect(runtime.slots.entries('board.window.panel')).toHaveLength(2)
 
       // Closing a window never deletes its session: the same chat is rebuilt
-      // each cycle and stays listed.
+      // each cycle and stays listed, and the bridge retains no reference.
       expect(runtime.sessions.list.getSnapshot().ids).toContain('session-1' as SessionId)
-      expect(runtime.sessions.calls.filter(call => call.method === 'clear')).toHaveLength(0)
+      expect(runtime.sessions.retainInfo('session-1' as SessionId).getSnapshot().referenceCount).toBe(0)
       expect(listListeners()).toBe(baselineListeners)
 
       // No board timer survives its window: the debounced layout write and the
@@ -172,6 +172,11 @@ describe('board resource discipline', () => {
     await prepared.runtime.flush()
     const sessionId = channel.getSnapshot().sessionId
     if (sessionId === undefined) throw new Error('missing session id')
+
+    // The attached window holds exactly one boardWindow reference.
+    const retained = prepared.runtime.sessions.retainInfo(sessionId).getSnapshot()
+    expect(retained.referenceCount).toBe(1)
+    expect(retained.retainedBy.boardWindow).toBe(1)
 
     // Count listeners on every source the bridge attaches to; the fixture faces
     // are identity-stable, so the counts see every attach and release. The two
@@ -211,6 +216,12 @@ describe('board resource discipline', () => {
     expect(bridge.windowIds()).toEqual([])
     expect(bridge.bindings()).toEqual({})
     await prepared.runtime.flush()
+
+    // The final release returns the reference count to zero: no window leaked
+    // an independent hold across the cycles.
+    const released = prepared.runtime.sessions.retainInfo(sessionId).getSnapshot()
+    expect(released.referenceCount).toBe(0)
+    expect(released.retainedBy.boardWindow).toBeUndefined()
 
     // Every released record's subscriptions are gone: the dead channels stay
     // at their frozen snapshots while the session changes underneath them.

@@ -2,7 +2,7 @@
 
 > Источник: три задачи, согласованные с пользователем 2026-09-29 (Dock; полноэкранный режим и переключатель интерфейсов; левая и правая панели окна).
 >
-> База: ветка `stage-23-board-audit` @ `ac5d6c79` (выполнены Д0–Д2 плана `board-audit-plan.md`), worktree `/Volumes/Projects/Ketos bot.worktrees/stage-23`.
+> База: ветка `stage-23-board-audit` @ `коммит` (выполнены Д0–Д2 плана `board-audit-plan.md`), worktree `/Volumes/Projects/Ketos bot.worktrees/stage-23`.
 >
 > Предлагаемое оформление: этап 24 цепочки, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-24`, ветка `stage-24-board-redesign` от принятой `stage-23-board-audit`. Номер — решение пользователя.
 

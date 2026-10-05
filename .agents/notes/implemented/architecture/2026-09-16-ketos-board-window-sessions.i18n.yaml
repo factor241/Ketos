@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-ketos-board-window-sessions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-16-ketos-board-window-sessions.md
-2026-09-16-ketos-board-window-sessions.md: d264138335aee40941d5a265b53c735baeaab432
-2026-09-16-ketos-board-window-sessions.zh.md: 738ac04ac7f44f8bf20a28978e87658de015326e
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer:
+  en: 4a7a6863eac518a3
+  zh: 1cd976e4b0a37e57
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer/problem:
+  en: e97d457a9e07f1db
+  zh: f39aa45b20112996
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer/decision:
+  en: 73c40b7d015c8809
+  zh: eb4256735534886b
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer/alternatives-considered:
+  en: 80020e8805404ce9
+  zh: e56dba5c8efac174
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer/consequences:
+  en: f8ffc79b6e7dfc7c
+  zh: d46c205d361409b7
+/agent-note-board-windows-own-harness-sessions-and-rebuild-the-chat-composer/related:
+  en: 532d357d6132f96d
+  zh: 63c4463745bb56b3

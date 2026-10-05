@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-ketos-mvp-engineering-policy.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-15-ketos-mvp-engineering-policy.md
-2026-09-15-ketos-mvp-engineering-policy.md: c7611aa42f6cbcc3ab949ca32cf5ccf9a2470894
-2026-09-15-ketos-mvp-engineering-policy.zh.md: 3be6b6d215ae6fcf6c1b1e9d042c18bfff1b3482
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process:
+  en: d3216f9b5b18ebc0
+  zh: 5ad8f913920900c5
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process/problem:
+  en: 1c2448a1bf47bb37
+  zh: 6bb5d0b05205fb4c
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process/decision:
+  en: 1aac87cf6a3a83ed
+  zh: d48d194f4ded5bbf
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process/alternatives-considered:
+  en: 91678a489c8976ec
+  zh: 4bcb560f11909e6d
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process/consequences:
+  en: 0c5f062f97ab06d1
+  zh: 1fef5f3cf715c545
+/agent-note-ketos-mvp-engineering-policy-fork-scope-coverage-exceptions-process/related:
+  en: 15cefeaa5d0cfadb
+  zh: 26f4e25a1be2826b

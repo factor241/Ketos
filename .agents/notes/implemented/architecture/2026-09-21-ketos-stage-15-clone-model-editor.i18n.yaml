@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-ketos-stage-15-clone-model-editor.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-ketos-stage-15-clone-model-editor.md
-2026-09-21-ketos-stage-15-clone-model-editor.md: ac6e26e082857bc5c5c17e3b96f496e039837438
-2026-09-21-ketos-stage-15-clone-model-editor.zh.md: 284d8f9093270cd0646794d3742ef9e7da6eb430
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows:
+  en: 592441db79a6ac67
+  zh: 514b0e062db84e65
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows/problem:
+  en: 674cc79080b3232c
+  zh: f110fa3f482c7d78
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows/decision:
+  en: a878b8b06f38bfee
+  zh: 15bdc977a8df8332
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows/alternatives-considered:
+  en: cb64b78da521e811
+  zh: baea5e8c5c4e2b2c
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows/consequences:
+  en: 516d43737d52bf1b
+  zh: 69f98de75a59e7a6
+/agent-note-the-clone-domain-owns-its-own-sqlite-file-behind-one-fetch-route-and-the-board-edits-clones-in-clone-windows/related:
+  en: 50a209ef2de2b64e
+  zh: 0bcf7a1dad08d221

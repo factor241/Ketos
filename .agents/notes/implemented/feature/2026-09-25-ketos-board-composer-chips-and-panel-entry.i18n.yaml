@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-25-ketos-board-composer-chips-and-panel-entry.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-ketos-board-composer-chips-and-panel-entry.md
-2026-09-25-ketos-board-composer-chips-and-panel-entry.md: 2fadfcf1f5b315263a72efbfbd718d91d6753e78
-2026-09-25-ketos-board-composer-chips-and-panel-entry.zh.md: b83875876afe7a4b93f67d29c68b2a7ed11893ce
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry:
+  en: ac86b0c7615dd61a
+  zh: f2452b594f6b85ae
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry/problem:
+  en: 4130bcfa2ab612bd
+  zh: 6afd3242654e210e
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry/decision:
+  en: 09cd3f07fcfdc024
+  zh: 459d06c1f37719dc
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry/alternatives-considered:
+  en: 74848d349b99494d
+  zh: 1f28340ad52fe26f
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry/consequences:
+  en: 641e6d77aa811e59
+  zh: a0120f1e96070d34
+/agent-note-the-board-composer-chips-stay-on-one-line-and-the-chats-panel-has-one-entry/related:
+  en: 6b15fb8db070b806
+  zh: 6d7c57e27ad81d6e

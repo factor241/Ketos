@@ -4,13 +4,13 @@
 
 ## 1. Итог этапа
 
-Standalone-репозиторий Кетоса (`/Volumes/Projects/Ketos bot`, GitHub `factor241/Ketos`) зафиксирован на базе upstream `d5675c2` (тег `ketos-base-d5675c2`), продукт на всех пользовательских поверхностях называется Кетос, ядро остаётся merge-совместимым с upstream. Эпик Beads `ketos-5v2.1` и все семь задач закрыты. Появились: CLI-алиас `ketos` с данными в `~/.ketos`, группа пакетов `packages/ketos/` и русский языковой пакет, веб-бренд и записанная модель-видимая политика.
+Standalone-репозиторий Кетоса (`/Volumes/Projects/Ketos bot`, GitHub `factor241/Ketos`) зафиксирован на базе upstream `этап 00` (тег `ketos-base-этап 00`), продукт на всех пользовательских поверхностях называется Кетос, ядро остаётся merge-совместимым с upstream. Эпик Beads `ketos-5v2.1` и все семь задач закрыты. Появились: CLI-алиас `ketos` с данными в `~/.ketos`, группа пакетов `packages/ketos/` и русский языковой пакет, веб-бренд и записанная модель-видимая политика.
 
 ## 2. Подэтапы
 
 | Подэтап | Задача Beads | Статус | Подтверждение |
 |---|---|---|---|
-| 0.1 Форк-репозиторий и фиксация базы | `ketos-5v2.1.1` | выполнен | реимпорт `f5d8f1e` (upstream `c291e79`), `bbe514e` (доска), `a4b5114` (= `d5675c2`); `docs/ketos/upstream-sync.md` |
+| 0.1 Форк-репозиторий и фиксация базы | `ketos-5v2.1.1` | выполнен | реимпорт `этап 00` (upstream `этап 00`), `этап 00` (доска), `этап 00` (= `этап 00`); `docs/ketos/upstream-sync.md` |
 | 0.2 Карта брендинга и запретный список | `ketos-5v2.1.2` | выполнен | `docs/ketos/brand-inventory.md` |
 | 0.3 CLI и лаунчер `ketos` | `ketos-5v2.1.3` | выполнен | bin `ketos` в `apps/cli/package.json`, строки `ketos web:`; `verify-application-entrypoints` зелёный на этапе 1 |
 | 0.4 Пакеты `@ketos/*`, группа, констрейнты | `ketos-5v2.1.4` | выполнен | `packages/ketos/` обязана быть `private: true`; `pnpm run constraints` зелёный |
@@ -32,8 +32,8 @@ Standalone-репозиторий Кетоса (`/Volumes/Projects/Ketos bot`, G
 
 - Desktop/Electron-ребрендинг отложен до post-MVP вместе с desktop-приложением (`docs/ketos/brand-inventory.md`).
 - Модель-видимая идентичность (identity-строка, web-surface промпт, `HARNESS_SOURCE`, персона `cordis`) в shipped-композиции не менялась: MVP использует пользовательский patch-слой (`docs/ketos/model-identity.md`); полный ребренд требует перезаписи prompt-сайдкаров и спек.
-- Браузерные e2e-полосы на этапе 0 не прогонялись (сообщение коммита `e818e62`: Playwright install blocked). На этапе 1 `DSH_SNAPSHOT=replay pnpm run test:web` выявил одно устаревшее ожидание (`built-boot.expected.e2e.ts` ждал fish-логотип вместо марки Кетоса) — исправлено на этапе 1.
-- Планирование в Beads и worktree-политика появились после этапа 0 (коммиты `1ad2016`, `9a5e59f`); этап 0 остался в `main` без отдельного worktree.
+- Браузерные e2e-полосы на этапе 0 не прогонялись (сообщение коммита `этап 00`: Playwright install blocked). На этапе 1 `DSH_SNAPSHOT=replay pnpm run test:web` выявил одно устаревшее ожидание (`built-boot.expected.e2e.ts` ждал fish-логотип вместо марки Кетоса) — исправлено на этапе 1.
+- Планирование в Beads и worktree-политика появились после этапа 0 (коммиты `этап 00`, `этап 00`); этап 0 остался в `main` без отдельного worktree.
 
 ## 5. Проверки
 

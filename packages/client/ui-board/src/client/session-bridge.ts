@@ -3,7 +3,7 @@
  * owns everything the window's chat needs that no root-scope component can
  * subscribe to itself:
  *
- * - session lifecycle: `create()` → `open()` → `binding()`, one per window,
+ * - session lifecycle: `create()` → `retain()` → `binding()`, one per window,
  *   with the window id → session id map kept here (never in the board store);
  * - lane sources: the assembled `target('chat')` snapshot and the session
  *   face's running flag;
@@ -31,13 +31,14 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { FileAttachmentRef, ImageAttachmentRef, ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
-import type { PendingSubmissionAttachment, QueuedMessage } from '@deepseek-ai/dsh-api-session-controller/client'
-import { presetDisplayText } from '@deepseek-ai/dsh-agent-presets/display'
+import type { PendingSubmissionAttachment, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
+import { presetDisplayText } from '@deepseek-ai/dsh-agent-preset-registry/display'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId, UserMessage } from '@deepseek-ai/dsh-session'
 import type { PromptContentPart } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { BoardSettingsBindings } from '../board-settings.ts'
 import { NS } from './locale.ts'
@@ -50,25 +51,39 @@ import type {
   BoardUploadResult, BoardWindowSessionState, WindowId,
 } from './contract/slots.ts'
 
+declare module '@deepseek-ai/dsh-api-session-controller/client' {
+  interface SessionReferenceSourceMap {
+    /** A board window's independent hold on the chat it shows. */
+    boardWindow: unknown
+  }
+}
+
 /** The three permission presets the window chip offers, in switch order. */
 const PERMISSION_PRESETS = ['read-only', 'workspace-write', 'danger-full-access'] as const
 
 /** Editor-visible preset that requires the risk confirmation. */
 const FULL_ACCESS_PRESET = 'danger-full-access'
 
-/** The two queue placements the window renders; a context occurrence never reaches the strip. */
-function queuePlacement(item: QueuedMessage): 'queued' | 'steering' | null {
-  return item.placement === 'queued' || item.placement === 'steering' ? item.placement : null
+/** Longest queue-row preview before elision, mirroring the conversation queue strip. */
+const QUEUE_PREVIEW_CHARS = 200
+
+/**
+ * The inbox projection lists the queue strip reads: `next-turn` waits its
+ * turn, `next-step` steers the running one.
+ */
+interface InboxQueue {
+  readonly 'next-turn': readonly UserMessage[]
+  readonly 'next-step': readonly UserMessage[]
 }
 
 /**
- * Durable attachments one queue occurrence carries. Queue frames are wire data
- * despite their typed face, so a block without a reference is skipped rather
+ * Durable attachments one inbox occurrence carries. Projection values are
+ * typed same-process data, and a block without a reference is skipped rather
  * than trusted.
- * @param content - the occurrence's wire content blocks.
+ * @param content - the occurrence's message content blocks.
  * @returns the attachments in block order.
  */
-function queueAttachments(content: QueuedMessage['content']): readonly BoardQueueAttachment[] {
+function queueAttachments(content: UserMessage['content']): readonly BoardQueueAttachment[] {
   const attachments: BoardQueueAttachment[] = []
   for (const block of content) {
     if (block.type === 'image') {
@@ -81,6 +96,37 @@ function queueAttachments(content: QueuedMessage['content']): readonly BoardQueu
     }
   }
   return attachments
+}
+
+/**
+ * One inbox occurrence as a board queue row: the flat text preview, the
+ * editable plain text when every block is text, and the durable attachments.
+ * @param item - the pending user message.
+ * @param placement - which queue the occurrence waits in.
+ * @returns the row the window's queue strip renders.
+ */
+function queueRow(item: UserMessage, placement: BoardQueueRow['placement']): BoardQueueRow {
+  const flat = item.content
+    .filter(block => block.type !== 'image' && block.type !== 'file')
+    .map(block => (block.type === 'text' ? block.text : `[${block.type}]`))
+    .join(' ').replace(/\s+/g, ' ').trim()
+  const chars = Array.from(flat)
+  const text = item.content.every(block => block.type === 'text')
+    ? item.content.map(block => block.text).join('')
+    : null
+  return {
+    id: String(item.id),
+    preview: chars.length > QUEUE_PREVIEW_CHARS ? `${chars.slice(0, QUEUE_PREVIEW_CHARS).join('')}…` : flat,
+    text,
+    placement,
+    attachments: queueAttachments(item.content),
+  }
+}
+
+/** The prompt RPC identity an inbox occurrence echoes, when its source carries one. */
+function queueRpcId(item: UserMessage): string | undefined {
+  const { source } = item
+  return source.kind === 'user' && 'rpcId' in source ? String(source.rpcId) : undefined
 }
 
 /** The built-in command rows the composer menu adds in its own order. */
@@ -190,9 +236,11 @@ interface WindowRecord {
   sessionId?: SessionId
   /** Whether the session subscriptions of {@link releaseSession} are live. */
   attached: boolean
+  /** The retained reference keeping the window's session alive while attached. */
+  reference?: SessionReference | undefined
   /** Whether an attach pass is mid-flight, so a list notification cannot re-enter it. */
   attaching: boolean
-  /** Release the subscriptions that belong to the current session. */
+  /** Release the subscriptions and the session reference that belong to the current session. */
   releaseSession: () => void
 }
 
@@ -210,12 +258,6 @@ export interface BoardSessionBridgeHooks {
   defaultPreset?: () => string
   /** Remember one preset the user chose on a blank session as the new default. */
   rememberPreset?: (presetId: string) => void
-  /**
-   * Deployment preset-selection policy known before a window is created, or
-   * undefined while no roster has answered. Only an explicit false suppresses
-   * the automatic default; absence keeps the last per-window read in charge.
-   */
-  presetPickerEnabled?: () => boolean | undefined
 }
 
 /**
@@ -442,7 +484,6 @@ export class BoardSessionBridge {
   async uploadFile(windowId: WindowId, name: string, bytes: Uint8Array<ArrayBuffer>): Promise<BoardUploadResult> {
     const sessionId = this.windows.get(windowId)?.sessionId
     if (sessionId === undefined) return { error: this.t('attachment.noSession') }
-    if (!this.ctx.fileUpload.available) return { error: this.t('attachment.unsupported') }
     try {
       // The blob body takes the host's background upload carrier, like the main
       // composer's file intake.
@@ -532,10 +573,10 @@ export class BoardSessionBridge {
     if (presetId === '') return
     // The deployment's policy wins over a remembered pick: with visible
     // selection disabled the host composes the deployment default, and a stale
-    // user choice must not silently compose a different session. The apply-side
-    // policy is authoritative when known (it predates this window); a per-window
-    // roster read covers deployments without that hook.
-    if (this.hooks.presetPickerEnabled?.() === false || !this.presetPickerEnabled) return
+    // user choice must not silently compose a different session. The developer
+    // preference is the live policy; the per-window flag also covers a roster
+    // read this deployment refused.
+    if (!this.ctx.configForms.developerTools.enabled.getSnapshot() || !this.presetPickerEnabled) return
     const row = this.ctx.sessions.list.getSnapshot().byId[sessionId]
     if (row?.blank !== true) return
     if (row.projectionValues?.agentPreset === presetId) return
@@ -726,9 +767,12 @@ export class BoardSessionBridge {
   release(windowId: WindowId): void {
     const record = this.windows.get(windowId)
     if (record === undefined) return
-    record.releaseSession()
+    // Drop the record before releasing: the release publishes the session's
+    // teardown to the list, and a reentrant reconcile must not re-attach a
+    // window this call is closing.
     this.windows.delete(windowId)
     this.pending.delete(windowId)
+    record.releaseSession()
     // Closing a window drops its pair: the session stays alive and listed, the
     // stored map stops naming a window the layout no longer holds.
     this.persistBindings()
@@ -814,9 +858,14 @@ export class BoardSessionBridge {
       wanted[windowId as string] = target
       const record = this.record(windowId)
       if (record.sessionId === sessionId) continue
-      record.releaseSession()
-      record.releaseSession = () => {}
+      // State first, listeners second, as in {@link switchTo}: the release may
+      // publish the old session's teardown and re-enter reconcile.
+      const release = record.releaseSession
       record.sessionId = sessionId
+      record.releaseSession = () => {}
+      record.attaching = true
+      release()
+      record.attaching = false
       this.resetState(windowId, 'restoring')
       changed = true
     }
@@ -964,9 +1013,15 @@ export class BoardSessionBridge {
   /** Release the current binding and attach the window to the given session. */
   private switchTo(windowId: WindowId, sessionId: SessionId): void {
     const record = this.record(windowId)
-    record.releaseSession()
-    record.releaseSession = () => {}
+    // State first, listeners second: releasing the last reference of the old
+    // session publishes its teardown to the list, and a reentrant reconcile
+    // must see the new target and the attaching guard instead of re-attaching
+    // the session this switch is replacing.
+    const release = record.releaseSession
     record.sessionId = sessionId
+    record.releaseSession = () => {}
+    record.attaching = true
+    release()
     // The failure lines describe the chat the window leaves; the rebind must
     // not carry them onto the next session.
     this.patch(windowId, { commandError: undefined, presetError: undefined, queueError: undefined })
@@ -1041,12 +1096,16 @@ export class BoardSessionBridge {
     const record = this.record(windowId)
     const channel = record.channel
     record.attaching = true
+    let reference: SessionReference | undefined
     try {
-      // The window owns its live stream without moving the shell's current
-      // selection (A5): `openStream` opens the session's stream in place,
-      // where `open` would select it as the application's current session and
-      // make the standard interface follow the last board window restored.
-      this.ctx.sessions.openStream(sessionId)
+      // The window retains its own reference without moving the shell's current
+      // selection (A5): `retain` opens the session's shared generation in
+      // place, where navigation (`uiWorkspace`) would select it as the
+      // application's current session and make the standard interface follow
+      // the last board window restored.
+      reference = this.ctx.sessions.retain(sessionId, { source: 'boardWindow' })
+      record.reference = reference
+      const held = reference
       const owner = this.ctx.sessions.binding(sessionId)
       if (owner === undefined) throw new Error(this.t('failure.session'))
       const chat = this.ctx.uiConversation.binding(sessionId).target('chat')
@@ -1065,20 +1124,20 @@ export class BoardSessionBridge {
         const pressure = projections.faceOf('contextPressure').getSnapshot() as
           | ContextPressureFigures | undefined
         const limits = projections.faceOf('imageLimits').getSnapshot() as ImageAttachmentLimits | null | undefined
-        const queue: BoardQueueRow[] = snapshot.queue.flatMap((item) => {
-          const placement = queuePlacement(item)
-          return placement === null ? [] : [{
-            id: String(item.id),
-            preview: item.preview,
-            text: item.text,
-            placement,
-            attachments: queueAttachments(item.content),
-          }]
-        })
+        const inbox = projections.faceOf('inbox').getSnapshot() as InboxQueue | null | undefined
+        const queue: BoardQueueRow[] = [
+          ...(inbox?.['next-turn'] ?? []).map(item => queueRow(item, 'queued')),
+          ...(inbox?.['next-step'] ?? []).map(item => queueRow(item, 'steering')),
+        ]
         // An echo whose occurrence already arrived stays with the durable row or
         // the lane's steering bubble; the advertised identity (rpcId) closes the
         // overlap for every placement.
-        const admitted = new Set(snapshot.queue.flatMap(item => item.rpcId === undefined ? [] : [item.rpcId]))
+        const admitted = new Set(
+          [...(inbox?.['next-turn'] ?? []), ...(inbox?.['next-step'] ?? [])].flatMap((item) => {
+            const rpcId = queueRpcId(item)
+            return rpcId === undefined ? [] : [rpcId]
+          }),
+        )
         const pending: BoardPendingRow[] = snapshot.pendingSubmissions
           .filter(submission => !admitted.has(submission.requestId))
           .map(submission => ({
@@ -1143,11 +1202,17 @@ export class BoardSessionBridge {
       listen(projections.faceOf('goal'))
       listen(projections.faceOf('contextPressure'))
       listen(projections.faceOf('imageLimits'))
+      listen(projections.faceOf('inbox'))
       listen(this.ctx.sessions.list)
       record.releaseSession = () => {
         record.attached = false
+        record.reference = undefined
+        // Drop the subscriptions before the reference: releasing the last
+        // reference disposes the session generation and publishes its teardown,
+        // which a live channel must not fold.
         for (const dispose of disposers) dispose()
         disposers.length = 0
+        held.release()
       }
       record.attached = true
 
@@ -1175,6 +1240,8 @@ export class BoardSessionBridge {
       }
       republish()
     } catch (error) {
+      reference?.release()
+      record.reference = undefined
       record.attached = false
       this.fail(windowId, error)
     } finally {
@@ -1419,12 +1486,13 @@ export class BoardSessionBridge {
           ...(row.isDefault ? { isDefault: true } : {}),
         }
       })
-      this.presetPickerEnabled = result.value.modeSelectionEnabled
+      const enabled = this.ctx.configForms.developerTools.enabled.getSnapshot()
+      this.presetPickerEnabled = enabled
       // A concurrent automatic apply may have just published a refusal; the
       // roster landing is not an acknowledgement of it.
       this.patch(windowId, {
         presets,
-        presetPickerEnabled: result.value.modeSelectionEnabled,
+        presetPickerEnabled: enabled,
       })
     } catch {
       // A deployment without the preset remote hides the chip instead of

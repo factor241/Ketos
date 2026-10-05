@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-ketos-stage-13-workdir-artifacts.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-ketos-stage-13-workdir-artifacts.md
-2026-09-21-ketos-stage-13-workdir-artifacts.md: 2acdbeb6e166acceb1f6db6be76c69cd86900932
-2026-09-21-ketos-stage-13-workdir-artifacts.zh.md: 3ba57bd366a3e9e682db116e86c6c8b5d7577d10
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths:
+  en: e04ba86644492cc4
+  zh: df6c3e2afa223ce9
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths/problem:
+  en: 579477cb478fc0db
+  zh: 3502c3185dc5b50b
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths/decision:
+  en: bb56088a48c9fce0
+  zh: 57f1d45d518ad657
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths/alternatives-considered:
+  en: 1a8e373345b27a27
+  zh: ab7bb505013259ef
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths/consequences:
+  en: 68a598454c963f3f
+  zh: e22c563e59b4b984
+/agent-note-board-windows-derive-session-artifacts-from-tool-results-and-isolate-runtime-state-from-workspace-paths/related:
+  en: ada5985decd69244
+  zh: 9563323b4cfc0632

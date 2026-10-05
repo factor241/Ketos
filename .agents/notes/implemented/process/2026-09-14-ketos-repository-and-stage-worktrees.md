@@ -9,7 +9,7 @@ Stage 0 shipped from a checkout inside the upstream base (`/Volumes/Projects/dee
 
 ## Decision
 
-The Ketos repository is a standalone checkout at `/Volumes/Projects/Ketos bot` with GitHub `factor241/Ketos` as `origin`, `deepseek-harness` as `upstream`, and the parent checkout as the `base` remote. Its single trunk is `main`; the inherited `feat/ketos-spatial-board` branch is retired (its content, the upstream base `коммит`, is fixed by the `ketos-base-коммит` tag; the shallow clone was reimported, so the base's tree is contained in `main`'s history rather than reachable through an ancestor walk).
+The Ketos repository is a standalone checkout at `/Volumes/Projects/Ketos bot` with GitHub `factor241/Ketos` as `origin`, `deepseek-harness` as `upstream`, and the parent checkout as the `base` remote. Its single trunk is `main`; the inherited `feat/ketos-spatial-board` branch is retired, and its content, the upstream 0.1.5-rc.2 base, is fixed by the base tag. Since [stage 25](../architecture/2026-10-03-ketos-stage-25-upstream-upgrade.md) merged `dsh-v0.2.0-rc.2` with `--no-ff`, upstream history is attached as the merge commit's second parent, so an ancestor walk from `main` reaches it and later releases merge with an ordinary `git merge`.
 
 Every stage from stage 1 onward runs in its own git worktree created from `main`:
 

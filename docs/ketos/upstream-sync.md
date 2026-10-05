@@ -1,6 +1,6 @@
 # Ketos ↔ DeepSeek Harness: политика синхронизации с upstream
 
-Файл принадлежит репозиторию Ketos и находится вне upstream-дерева документации (решение 30 Части I). Рабочее дерево — `/Volumes/Projects/Ketos bot` (GitHub `factor241/Ketos`); единственная основная ветка — `main`, унаследованная `feat/ketos-spatial-board` выведена из обращения (её содержимое — база `коммит`, зафиксированная тегом). Текущая база — тег `dsh-v0.2.0-rc.2` (коммит `коммит`): слияние `коммит` влило историю апстрима вторым родителем, поэтому у `main` есть настоящий общий предок с `upstream`, и дальнейшие приёмки идут обычным `git merge` без пересадки корня. Историческая база форка — коммит `коммит` (поверх релизной линии `коммит` 0.1.5-rc.2 и коммита доски `коммит`), зафиксированный тегом `ketos-base-коммит`; синтетический корень `коммит` и переигранные коммиты `коммит`/`коммит` с теми же деревьями остаются в истории ниже слияния.
+Файл принадлежит репозиторию Ketos и находится вне upstream-дерева документации (решение 30 Части I). Рабочее дерево — `/Volumes/Projects/Ketos bot` (GitHub `factor241/Ketos`); единственная основная ветка — `main`, унаследованная `feat/ketos-spatial-board` выведена из обращения (её содержимое — историческая база форка, зафиксированная тегом базы). Текущая база — тег `dsh-v0.2.0-rc.2`: слияние тега в ветке `stage-25-upstream-0.2.0-rc.2` (PR [#54](https://github.com/factor241/Ketos/pull/54)) влило историю апстрима вторым родителем, поэтому у `main` настоящий общий предок с `upstream` — коммит тега, и дальнейшие приёмки идут обычным `git merge` без пересадки корня. Историческая база — коммит поверх релизной линии 0.1.5-rc.2 и коммита доски; синтетический корень импорта и переигранные коммиты с теми же деревьями остаются в истории ниже слияния.
 
 ## Ремоуты
 
@@ -42,7 +42,7 @@ git switch main
 git merge --no-ff <тег> -m "Merge upstream <тег> into Ketos"
 ```
 
-С 0.2.0-rc.2 пересадка корня (`git replace --graft`) не нужна: общий предок есть через второй родитель слияния `коммит`.
+С `dsh-v0.2.0-rc.2` пересадка корня (`git replace --graft`) не нужна: общий предок — коммит тега через второго родителя слияния.
 
 1. Перед merge: `git switch -c sync/<тег> main` — приёмка всегда в ветке, main получает merge только после зелёных гейтов.
 2. Конфликты советуются с `docs/ketos/brand-inventory.md`: ожидаемые места — файлы из серии ребрендинга (CLI-строки, веб-бренд, констрейнты скриптов). Стилистика сверки — «Часть II уточняет Часть I»: сохраняется брендовая и созданная логика Кетоса, upstream-остаток уделяется в пользу пришедшего кода, если брендовая строка вокруг него изменилась.
@@ -57,7 +57,25 @@ git merge --no-ff <тег> -m "Merge upstream <тег> into Ketos"
    git tag ketos-merged-<тег>
    ```
 
-## Локальные форк-изменения поведения (не брендинг)
+## Переход на новую версию на реальных данных
+
+Первый запуск новой версии переносит настройки: `SettingsForms.importLegacyDocument` (`packages/settings/settings/src/index.ts`) переименовывает `~/.ketos/settings.yaml` в `~/.ketos/settings.yaml.imported` (чистое переименование — исходные байты сохраняются) и записывает каждую секцию в запись активного профиля, для web — в `~/.ketos/profiles/web/cordis.patch.yml`. Переименование выполняется до первой записи, поэтому частичный импорт не повторяется; после первого запуска источник истины — профильный патч, а `settings.yaml.imported` остаётся прежним снимком. Сессии не переписываются: поколение v3 остаётся на месте, у открытых сессий рядом появляется v4-преемник.
+
+Порядок перехода (Кетос закрыт):
+
+1. Свежий архив до первого запуска:
+   ```sh
+   tar -czf "$HOME/Downloads/ketos-home-backup-$(date +%Y%m%d-%H%M).tar.gz" -C "$HOME" .ketos
+   ```
+2. Запуск новой версии (`pnpm ketos web`) и проверка: язык — русский (`locale.preference: ru`), раскладка доски (окна, Dock, панели) восстановлена, модель OpenCode Go выбрана по умолчанию.
+3. Откат — закрыть Кетос и распаковать архив поверх дома:
+   ```sh
+   tar -xzf "$HOME/Downloads/ketos-home-backup-<дата>.tar.gz" -C "$HOME"
+   ```
+
+Частичный откат «`settings.yaml.imported` → `settings.yaml`» требует вычистить импортированные строки из `cordis.patch.yml`, поэтому архив надёжнее. Стенды и тесты запускаются только с временным `DSH_HOME` и предохранителем `test -n "$DSH_HOME" && [ "$DSH_HOME" != "$HOME/.ketos" ] || exit 1`: запуск без переменной перезаписывает `~/.ketos/profiles/web/{cordis.yml,cordis.patch.yml}`.
+
+## Локальные форк-изменения в upstream-файлах
 
 Эти правки живут в upstream-файлах и при приёмке релиза проверяются как ожидаемые конфликты: если апстрим-версия файла не содержит эквивалента, правку нужно перенести поверх (и обновить запись).
 
@@ -80,10 +98,9 @@ git merge --no-ff <тег> -m "Merge upstream <тег> into Ketos"
 | `packages/client/ui-sidebar-right/src/client/shell/SidebarRight.tsx` | Локальные `FullscreenGlyph`/`ExitFullscreenGlyph` заменены иконками `ui-primitives` | Точное artwork кнопок окна (этапы 23–24) | **Снята:** апстрим дал этим глифам новое artwork; замена на иконки `ui-primitives` откатила бы визуальное изменение апстрима. Иконки `IconFullscreenCornersOutline16`/`IconExitFullscreenCornersOutline16` остались без продакшн-потребителей (кандидаты на удаление в У2) | — |
 | `scripts/prepare-ci-bubblewrap.sh` | Загрузка `.deb` сначала с Launchpad, `archive.ubuntu.com` — запасной | Ubuntu заменил точечную версию в пуле, старый URL отдавал 404 (задача ketos-cbn.1) | **Снята:** апстрим обновил пин до `bubblewrap 0.12.0-1` и качает его с постоянного Launchpad build-URL; проверено — HTTP 200 и SHA256 совпадает с пином | `bash -n`; прогон в `ketos-ci` на `ubuntu-24.04` |
 | .github/workflows/e2e.yml | Preflight при пустом ключе печатает `::warning::` вместо `exit 1` | Ключ в форк не добавляется; E2E остаётся проверкой собранного приложения | **Сохранена** авто-слиянием | E2E-запуск на PR/push форка доходит до тестов |
-
-## Профильные решения Кетоса
-
-- **Аккаунт DeepSeek (Р-5).** Пакеты `credentials/deepseek-account*`, `llm/llm-deepseek-account`, `api/account-controller`, `client/ui-settings-account` остаются в профиле `web-app` как в апстриме. Аккаунт активен только в настольной версии: `deepseek-account-platform` получает `desktopPlatform: null` вне профиля `desktop`, а клиентская половина выходит из `apply` без `globalThis.dshDesktop`. В веб-профиле Кетоса интерфейс и RPC аккаунта неактивны по устройству апстрима; вход — через провайдеров, включая OpenCode Go.
+| `packages/bundle/web-app/cordis.patch.yml`, `packages/bundle/web-app/tests/product-analytics.spec.ts` | `product-analytics` переведён в `enabled: false`, `desktop-product-telemetry` — в `disabled: true`; тест проверяет обе строки и отсутствие сервисов `productAnalytics`/`productTelemetry` в профилях `desktop` и `web` | Решение Р-3: продуктовая аналитика и телеметрия не собираются в Кетосе без отдельного решения | **Сохранена** поверх апстримных строк профиля; собственный тест переписан под политику (апстримный проверял сбор) | `pnpm exec vitest run packages/bundle/web-app/tests/product-analytics.spec.ts` (входит в полный `pnpm test` и `check:ci:coverage`) |
+| `packages/bundle/web-app/cordis.patch.yml` | Строки аккаунта DeepSeek (`deepseek-account`, `llm-deepseek-account`, `account-controller`, `ui-settings-account`) не отличаются от апстрима | Решение Р-5: вход — через провайдеров, включая OpenCode Go; аккаунт неактивен в веб-профиле по устройству апстрима (`deepseek-account-platform` получает `desktopPlatform: null` вне профиля `desktop`, клиентская половина выходит из `apply` без `globalThis.dshDesktop`) | **Применена**; попытка выключить строки ломала собственные тесты пакетов, изоляция — устройство апстрима | `pnpm exec vitest run packages/client/ui-settings-account/tests packages/client/ui-settings-general/tests`; 9 web-сценариев аккаунта в `DSH_SNAPSHOT=replay pnpm run test:web`; в веб-интерфейсе нет страниц и запросов аккаунта |
+| `apps/cli/tests/plugin.spec.ts`, `apps/cli/tests/startup-diagnostics.spec.ts`, `packages/bundle/headless/tests/headless.spec.ts`, `apps/cli/tests/expected/launcher-help.txt` | Ожидания вывода и файловый эталон переведены на бренд Кетоса: `ketos:` вместо `dsh:`, `ketos plugin`/`ketos web` вместо `dsh …`, справка запуска под именем `ketos` | Тесты апстрима зашивают имя `dsh`, а CLI ребрендирован в `ketos` (этап 0) | **Перенесена** поверх апстримных тестов: та же логика, ожидания Кетоса | `pnpm exec vitest run apps/cli/tests/plugin.spec.ts apps/cli/tests/startup-diagnostics.spec.ts packages/bundle/headless/tests/headless.spec.ts`; `pnpm run build && pnpm exec vitest run --config vitest.e2e.config.ts apps/cli/tests/built-bin.e2e.ts` для `launcher-help.txt` |
 
 ## Правило
 

@@ -1,0 +1,41 @@
+# Stand overlay (docker/stand): extends the shipped Web defaults for two
+# containers on one host. The CLI rejects `--host 0.0.0.0` on a developer
+# machine by design, so the container claims the all-interfaces bind here,
+# where the published host port is the only way in. `KETOS_PORT` distinguishes
+# the two instances; `KETOS_TRUSTED_HOSTS` adds non-loopback authorities when
+# the board is opened through a LAN address instead of localhost.
+#
+# A patch replaces the targeted row's whole `config`, so each row restates
+# every key it owns.
+
+- id: webserver
+  name: '@deepseek-ai/dsh-host-webserver'
+  config:
+    host: '0.0.0.0'
+    port: !!js Number(process.env.KETOS_PORT ?? 3080)
+    compression: gzip
+    compressionLevel: 1
+    compressionThresholdBytes: 1024
+
+- id: web-runtime
+  name: '@deepseek-ai/dsh-web-app'
+  config:
+    openBrowser: false
+    printUrl: true
+    surfaceContext: true
+    trustedHosts: !!js (process.env.KETOS_TRUSTED_HOSTS ?? '').split(',').filter(Boolean)
+
+# Model route and default model for the stand: the key arrives as an
+# environment variable from the root .env (compose env_file), never baked in.
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      opencode-go:
+        apiKeyEnv: OPENCODE_GO_API_KEY
+
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: opencode-go
+    model: deepseek-v4.1-flash

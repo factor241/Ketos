@@ -1,0 +1,19 @@
+# Build context for docker/stand/Dockerfile (Dockerfile-scoped ignore file).
+# Keep secrets, VCS data, local graph outputs and the untracked reference
+# checkouts out of the image entirely.
+.git
+.env
+.beads
+.beads*
+.dsh-build
+.artifacts
+.playwright-mcp
+coverage
+graphify-out
+graphify-out.bak-*
+references
+*.tsbuildinfo
+website/.dist
+website/.generated
+node_modules
+**/node_modules

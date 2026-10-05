@@ -34,7 +34,7 @@ The Ketos fork stood on the upstream 0.1.5-rc.2 release line plus stages 1–24 
 
 ## Alternatives considered
 
-**Import the upgrade as a snapshot.** Applying `git diff <base> <tag>` as one commit is simpler than resolving 109 conflicts, but it leaves `main` without upstream history and every later release needs another hand-built base. Lost: provenance and one-command future syncs.
+**Import the upgrade as a snapshot.** Applying `git diff <base> <tag>` as one commit is simpler than resolving 109 conflicts, but it leaves `main` without upstream history and every later release needs another hand-built base. Lost: the reachable upstream ancestry and one-command future syncs.
 
 **Target `dsh-v0.2.1-alpha.1`.** Fresher by four days with three more conflicts, but an alpha branch that keeps moving; the release candidate is the stable-adjacent slice.
 

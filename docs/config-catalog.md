@@ -4322,6 +4322,43 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@ketos/board-doc -->
+<a id="ketosboard-doc"></a>
+
+## `@ketos/board-doc`
+
+- `inject`: `connection`
+- `source`: [`packages/ketos/board-doc/src/index.ts:28`](../packages/ketos/board-doc/src/index.ts)
+
+```ts config-catalog
+/** Deployment configuration of the board document. */
+export interface Config {
+  /**
+   * Path of the board document database file. The shipped web profile passes
+   * `dshHomePath('board.db')`; the parent directory is created owner-only
+   * before the file is opened.
+   */
+  path: string
+  /** Largest serialized size, in bytes, of one stored element (1 KiB–16 MiB). */
+  maxElementBytes?: number
+  /** Largest number of elements the document holds (1–100000). */
+  maxElements?: number
+  /** Largest number of operations one request may batch (1–1024). */
+  maxOpsPerRequest?: number
+  /** Largest accepted operation-request body, in bytes (1 KiB–64 MiB). */
+  maxRequestBytes?: number
+  /** Journal rows after which the store compacts to one update row (1–100000). */
+  journalCompactRows?: number
+  /** Event-stream heartbeat interval, in milliseconds (1000–300000). */
+  heartbeatMs?: number
+  /** Largest buffered event-stream backlog, in bytes (16 KiB–256 MiB). */
+  maxStreamQueueBytes?: number
+  /** Largest number of concurrent event streams (1–1024). */
+  maxStreams?: number
+}
+```
+<!-- END GENERATED config-catalog:@ketos/board-doc -->
+
 <!-- BEGIN GENERATED config-catalog:@ketos/clone-core -->
 <a id="ketosclone-core"></a>
 

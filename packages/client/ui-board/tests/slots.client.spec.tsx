@@ -56,16 +56,28 @@ describe('board slot composition', () => {
   it('declares the full board cascade and occupies every declared slot', async () => {
     const { runtime } = await bench()
 
-    // The panel entry declares the three floating layers it renders.
+    // The panel entry declares the three floating layers it renders plus the
+    // selected element's toolbar seat.
     const panel = runtime.slots.entries('main')[0]
     expect(Object.keys(panel?.children ?? {})).toEqual([
-      'board.canvas', 'board.dock', 'board.minimap',
+      'board.canvas', 'board.dock', 'board.minimap', 'board.element.toolbar',
     ])
     for (const key of ['board.canvas', 'board.dock', 'board.minimap'] as const) {
       expect(runtime.slots.entriesOfSlot(key)).toHaveLength(1)
     }
+    // The toolbar seat is declared for the element stages; at stage 28 no kind
+    // occupies it yet.
+    expect(runtime.slots.spec('board.element.toolbar')).toEqual({ kind: 'keyed', scope: 'root' })
+    expect(runtime.slots.entriesOfSlot('board.element.toolbar')).toHaveLength(0)
 
-    // Cascade: canvas declares the window layer, the layer declares both keyed window seats.
+    // Cascade: canvas declares the element layer and the window layer, the
+    // element layer declares the keyed element-body seat, and the window layer
+    // declares both keyed window seats.
+    expect(runtime.slots.entriesOfSlot('board.elements')).toHaveLength(1)
+    expect(runtime.slots.entries('board.elements')[0]?.children).toEqual({
+      'board.element.body': { kind: 'keyed', scope: 'root' },
+    })
+    expect(runtime.slots.spec('board.element.body')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(runtime.slots.entriesOfSlot('board.windows')).toHaveLength(1)
     expect(runtime.slots.entries('board.windows')[0]?.children).toEqual({
       'board.window': { kind: 'keyed', scope: 'root' },
@@ -100,7 +112,7 @@ describe('board slot composition', () => {
     const board = runtime.storeOf('board.dock') as BoardInstance
 
     // Every declared layer has its render site: a dropped renderSlot call leaves the layer missing.
-    for (const layer of ['canvas', 'dock', 'minimap'] as const) {
+    for (const layer of ['canvas', 'elements', 'dock', 'minimap'] as const) {
       expect(panel.container.querySelectorAll(`[data-board-layer="${layer}"]`)).toHaveLength(1)
     }
 

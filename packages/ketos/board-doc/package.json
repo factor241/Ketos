@@ -1,0 +1,50 @@
+{
+  "name": "@ketos/board-doc",
+  "description": "Ketos board document: the board.db node:sqlite journal over a Yjs document, the local selfId and docId, the element envelope and atomic operations, the ctx.ketosBoardDoc service, and the /api/ketos.board, /api/ketos.board.ops, and /api/ketos.board.events Fetch routes",
+  "version": "0.2.0-rc.2",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./kinds": {
+      "types": "./lib/types/kinds.d.ts",
+      "default": "./lib/types/kinds.js"
+    },
+    "./data": {
+      "types": "./lib/types/data.d.ts",
+      "default": "./lib/types/data.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-util-values": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:~",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/cordis-plugin-include": "workspace:~",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
+    "@deepseek-ai/dsh-client-connection": "workspace:*"
+  }
+}

@@ -3,19 +3,22 @@
  *
  * Everything the board shows about owners derives from here: the acting owner,
  * the participant roster, a participant resolved by id, and the color
- * attribute a surface renders. Stages 28 and 32 replace the demo source behind
- * the selectors, so consumers read {@link currentOwnerId},
- * {@link boardParticipants}, {@link participantOf}, and {@link ownerColorAttr}
- * and never import {@link DEMO_TEAM} or {@link DEMO_SELF_ID} themselves.
+ * attribute a surface renders. The acting owner is the board document's
+ * `selfId` once the first snapshot arrives and the demo participant until
+ * then; stage 32 replaces the demo roster behind {@link boardParticipants}, so
+ * consumers read {@link currentOwnerId}, {@link boardParticipants},
+ * {@link participantOf}, and {@link ownerColorAttr} and never import
+ * {@link DEMO_TEAM} or {@link DEMO_SELF_ID} themselves.
  */
-import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { OwnerId } from '@ketos/board-doc/types'
 import { BOARD_ACCESS_MAX_PEOPLE, BOARD_ACCESS_MODES, type BoardWindowAccessMode } from '../board-settings.ts'
 import type { BoardState } from './store.ts'
 import type { BoardWindowState, WindowAccess } from './contract/slots.ts'
 import type { BoardKey, BoardTranslate } from './locale.ts'
 
-/** Compile-time identity of one board owner. */
-export type OwnerId = Branded<'OwnerId'>
+/** Compile-time identity of one board owner; the document's brand owns it. */
+export type { OwnerId }
 
 /**
  * Palette slot an owner's color resolves to. The ten values are the complete
@@ -66,13 +69,17 @@ export const DEMO_TEAM: readonly BoardParticipant[] = [
 /** The color attribute value an owner's surface carries. */
 export type OwnerColorAttr = `${OwnerColorIndex}` | 'unknown'
 
+/** The only board state owner identity reads: the local participant. */
+export type OwnerIdentityState = Pick<BoardState, 'selfId'>
+
 /**
- * Id of the owner acting on the board.
- * @param _state - current board state; the demo source ignores it, and stage 28 derives the owner from it.
+ * Id of the owner acting on the board: the document's `selfId` once the first
+ * snapshot arrived, the demo participant until then.
+ * @param state - state carrying the local participant.
  * @returns the acting owner's id.
  */
-export function currentOwnerId(_state: BoardState): OwnerId {
-  return DEMO_SELF_ID
+export function currentOwnerId(state: OwnerIdentityState): OwnerId {
+  return state.selfId ?? DEMO_SELF_ID
 }
 
 /**
@@ -88,31 +95,58 @@ export function canManageWindow(state: BoardState, window: BoardWindowState): bo
 }
 
 /**
- * Every participant of the board, in display order.
- * @param _state - current board state; the demo source ignores it, and stage 32 derives the roster from it.
+ * Every participant of the board, in display order. The self entry carries the
+ * document's `selfId` once it is known, so the demo participant "Кирилл" and
+ * the acting owner are one identity.
+ * @param state - state carrying the local participant.
  * @returns the participant roster.
  */
-export function boardParticipants(_state: BoardState): readonly BoardParticipant[] {
-  return DEMO_TEAM
+export function boardParticipants(state: OwnerIdentityState): readonly BoardParticipant[] {
+  const selfId = state.selfId
+  if (selfId === null) return DEMO_TEAM
+  return DEMO_TEAM.map(participant => participant.id === DEMO_SELF_ID
+    ? { ...participant, id: selfId }
+    : participant)
+}
+
+/**
+ * Adopt the document's local identity: remember it and rewrite every stored
+ * owner that still names the demo self. Restored layouts and the demo team keep
+ * rendering one participant, and the acting owner manages every window it
+ * already owned.
+ * @param state - board draft to rewrite.
+ * @param selfId - identity of this Ketos from the document snapshot.
+ */
+export function adoptSelfId(state: BoardState, selfId: OwnerId): void {
+  state.selfId = selfId
+  for (const window of Object.values(state.windows)) {
+    if (window.ownerId === DEMO_SELF_ID) window.ownerId = selfId
+    if (window.access.people.includes(DEMO_SELF_ID)) {
+      window.access = {
+        mode: window.access.mode,
+        people: window.access.people.map(person => person === DEMO_SELF_ID ? selfId : person),
+      }
+    }
+  }
 }
 
 /**
  * Look one participant up by owner id.
- * @param state - current board state.
+ * @param state - state carrying the local participant.
  * @param id - owner identity to resolve.
  * @returns the participant, or undefined when the board does not know the id.
  */
-export function participantOf(state: BoardState, id: OwnerId): BoardParticipant | undefined {
+export function participantOf(state: OwnerIdentityState, id: OwnerId): BoardParticipant | undefined {
   return boardParticipants(state).find(participant => participant.id === id)
 }
 
 /**
  * Resolve the color attribute one owner's surface renders.
- * @param state - current board state.
+ * @param state - state carrying the local participant.
  * @param id - owner identity to resolve.
  * @returns the palette slot as its attribute string, or `'unknown'` for an id no participant owns.
  */
-export function ownerColorAttr(state: BoardState, id: OwnerId): OwnerColorAttr {
+export function ownerColorAttr(state: OwnerIdentityState, id: OwnerId): OwnerColorAttr {
   const participant = participantOf(state, id)
   return participant === undefined ? 'unknown' : String(participant.color) as OwnerColorAttr
 }

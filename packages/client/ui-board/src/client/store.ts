@@ -6,6 +6,11 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
+import type { BoardKey } from './locale.ts'
+import { brandNumber } from '@deepseek-ai/dsh-brand'
+import type {
+  BoardDocId, BoardElement, BoardElementKind, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId,
+} from '@ketos/board-doc/types'
 import type { CloneEdit } from './clone-draft.ts'
 import {
   BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH,
@@ -17,10 +22,11 @@ import type {
   BoardDraftFile, BoardDraftImage, BoardWindowState, WindowAccess, WindowBodyKind, WindowId, WindowKind,
 } from './contract/slots.ts'
 import {
-  canManageWindow, currentOwnerId, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
+  adoptSelfId, canManageWindow, currentOwnerId, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
 } from './owners.ts'
 import { isWindowOnScreen } from './window-screen.ts'
-import { safeArea, type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
+import { type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
+import { placeInSafeArea, safeArea } from './board-coordinates.ts'
 import { windowPanelWidth } from './panel-geometry.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
@@ -40,6 +46,21 @@ export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex' | 'owne
   readonly ownerId?: OwnerId
   /** Access to reopen the window with; absent opens it owner-only. */
   readonly access?: WindowAccess
+}
+
+/**
+ * One element a component asks the store to create. The store owns the fields
+ * the host also resolves — owner, paint priority, and both timestamps — so the
+ * optimistic element and the committed one agree.
+ */
+export interface BoardElementSpec {
+  readonly id: ElementId
+  readonly kind: BoardElementKind
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+  readonly data: BoardElement['data']
 }
 
 /**
@@ -207,6 +228,34 @@ type BoardActions = {
   setDefaultPreset: (draft: BoardState, presetId: string) => void
   closeWindow: (draft: BoardState, id: WindowId) => void
   hydrate: (draft: BoardState, layout: BoardLayoutDocument) => void
+  /**
+   * Replace the element slice with a document snapshot: every element, the
+   * revision, the document identity, the limits, and — on the first snapshot —
+   * the local `selfId`, which rewrites every stored demo-self owner.
+   */
+  applyBoardSnapshot: (draft: BoardState, snapshot: BoardSnapshot) => void
+  /**
+   * Apply one stream patch: a revision at or below the current one is stale
+   * and dropped, and an upsert or removal of an element with an operation in
+   * flight is skipped so the optimistic value is not rolled back by its echo.
+   */
+  applyBoardPatch: (draft: BoardState, patch: BoardPatch) => void
+  /** Select one element, or clear the selection with `null`. */
+  selectBoardElement: (draft: BoardState, id: ElementId | null) => void
+  /** Insert one optimistic element; the host stamps owner, z, and timestamps on commit. */
+  createBoardElement: (draft: BoardState, spec: BoardElementSpec) => void
+  /** Move one element locally; the gesture sends the operation. */
+  moveBoardElement: (draft: BoardState, id: ElementId, x: number, y: number) => void
+  /** Resize one element locally; the gesture sends the operation. */
+  resizeBoardElement: (draft: BoardState, id: ElementId, width: number, height: number) => void
+  /** Remove one element locally; the gesture sends the operation. */
+  removeBoardElement: (draft: BoardState, id: ElementId) => void
+  /** Mark one element's operation in flight, so stream echoes do not roll it back. */
+  beginBoardElementOp: (draft: BoardState, id: ElementId) => void
+  /** Mark one element's operation settled; later patches apply again. */
+  endBoardElementOp: (draft: BoardState, id: ElementId) => void
+  /** Show one board notice, or clear it with `null`; the same key shows afresh. */
+  setElementNotice: (draft: BoardState, key: BoardKey | null) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
   /**
    * Remember (or clear) the window whose session was expanded into the
@@ -281,6 +330,28 @@ export interface BoardState {
   /** Agent preset new windows start with, or '' when the deployment default composes them. */
   defaultPreset: string
   isSelectingElement: boolean
+  /**
+   * Elements of the board document, keyed by element id. The slice is a
+   * projection of the host document; the event stream keeps it current.
+   */
+  boardElements: Record<string, BoardElement>
+  /** Revision of the last snapshot or patch applied to the element slice. */
+  boardElementsRevision: BoardRevision
+  /** Identity of the document the slice belongs to; null before the first snapshot. */
+  boardDocId: BoardDocId | null
+  /** Limits the snapshot published; null before the first snapshot. */
+  boardLimits: BoardLimits | null
+  /** Local participant identity from the document; null before the first snapshot. */
+  selfId: OwnerId | null
+  /** The one selected element, or null. */
+  selectedBoardElementId: ElementId | null
+  /** Elements with an operation in flight; their stream echoes are skipped. */
+  pendingBoardElementOps: ElementId[]
+  /**
+   * Board-level notice the root shows as a transient toast, or null. `seq`
+   * makes the same message show again as a fresh banner.
+   */
+  elementNotice: { readonly key: BoardKey; readonly seq: number } | null
   /**
    * Window expanded into the standard interface by its header control, or
    * null. Transient view state: the layout never carries it, and the explicit
@@ -435,15 +506,6 @@ export function mintWindowId(kind: WindowKind): WindowId {
   return `${kind}-${Date.now().toString(36)}-${entropy}` as WindowId
 }
 
-/** Center a new window in the board's safe area (world coordinates, Т1.15). */
-function placeWindow(draft: BoardState, width: number, height: number): { x: number; y: number } {
-  const area = safeArea(draft).world
-  return {
-    x: area.left + (area.right - area.left - width) / 2,
-    y: area.top + (area.bottom - area.top - height) / 2,
-  }
-}
-
 /** One world-space rectangle; the fields name the box's edges, not its size. */
 interface WorldBox {
   readonly left: number
@@ -466,17 +528,40 @@ function windowBox(window: BoardWindowState): WorldBox {
 function windowsBox(draft: BoardState): WorldBox | null {
   let box: WorldBox | null = null
   for (const window of Object.values(draft.windows)) {
-    const own = windowBox(window)
-    box = box === null
-      ? own
-      : {
-        left: Math.min(box.left, own.left),
-        top: Math.min(box.top, own.top),
-        right: Math.max(box.right, own.right),
-        bottom: Math.max(box.bottom, own.bottom),
-      }
+    box = unionBox(box, windowBox(window))
   }
   return box
+}
+
+/** The world box of every element, or null when the document holds none. */
+function elementsBox(draft: BoardState): WorldBox | null {
+  let box: WorldBox | null = null
+  for (const element of Object.values(draft.boardElements)) {
+    box = unionBox(box, {
+      left: element.x,
+      top: element.y,
+      right: element.x + element.w,
+      bottom: element.y + element.h,
+    })
+  }
+  return box
+}
+
+/**
+ * The smallest box covering both inputs; null when both are absent.
+ * @param left - one box, or null.
+ * @param right - the other box, or null.
+ * @returns the union box.
+ */
+function unionBox(left: WorldBox | null, right: WorldBox | null): WorldBox | null {
+  if (left === null) return right
+  if (right === null) return left
+  return {
+    left: Math.min(left.left, right.left),
+    top: Math.min(left.top, right.top),
+    right: Math.max(left.right, right.right),
+    bottom: Math.max(left.bottom, right.bottom),
+  }
 }
 
 /**
@@ -659,6 +744,14 @@ export function createBoardStore(): BoardStoreHandle {
       panelExpandedGroups: [],
       defaultPreset: '',
       isSelectingElement: false,
+      boardElements: {},
+      boardElementsRevision: brandNumber<BoardRevision>(0),
+      boardDocId: null,
+      boardLimits: null,
+      selfId: null,
+      selectedBoardElementId: null,
+      pendingBoardElementOps: [],
+      elementNotice: null,
       expandedWindowId: null,
       composerIntents: [],
       composerIntentSeq: 0,
@@ -690,7 +783,9 @@ export function createBoardStore(): BoardStoreHandle {
         draft.zoom = newZoom
       },
       resetView: (draft) => {
-        const box = windowsBox(draft)
+        // «Show all» covers the elements as well: a board whose windows sit in
+        // one corner still fits a note the user drew far away.
+        const box = unionBox(windowsBox(draft), elementsBox(draft))
         if (box === null) {
           draft.panX = 0
           draft.panY = 0
@@ -739,7 +834,7 @@ export function createBoardStore(): BoardStoreHandle {
         insertWindow(draft, {
           ...spec,
           ...size,
-          ...placeWindow(draft, size.width, size.height),
+          ...placeInSafeArea(draft, size.width, size.height),
           // Seeded at the band top and then placed above the current stack;
           // renaming the whole band keeps a crowded board exact.
           zIndex: WINDOW_Z_MAX,
@@ -798,6 +893,9 @@ export function createBoardStore(): BoardStoreHandle {
       },
       focusWindow: (draft, id) => {
         raiseWindow(draft, id)
+        // One selection at a time across windows and elements: focusing a
+        // window withdraws the element selection.
+        draft.selectedBoardElementId = null
       },
       clearActiveWindow: (draft) => {
         draft.activeWindowId = null
@@ -980,6 +1078,88 @@ export function createBoardStore(): BoardStoreHandle {
         draft.panelOrderBy = layout.panelOrderBy
         draft.defaultPreset = layout.defaultPreset
         draft.expandedWindowId = null
+        // A restored layout stores the demo self for the acting participant
+        // until the first snapshot renamed it; adopting the known selfId here
+        // keeps the acting owner managing the windows it just restored.
+        if (draft.selfId !== null) adoptSelfId(draft, draft.selfId)
+      },
+      applyBoardSnapshot: (draft, snapshot) => {
+        draft.boardElements = Object.fromEntries(snapshot.elements.map(element => [element.id as string, element]))
+        draft.boardElementsRevision = snapshot.revision
+        draft.boardDocId = snapshot.docId
+        draft.boardLimits = snapshot.limits
+        // A full snapshot is authoritative: operations in flight are settled by
+        // it, and an element it no longer holds cannot stay selected.
+        draft.pendingBoardElementOps = []
+        if (draft.selfId !== snapshot.selfId) adoptSelfId(draft, snapshot.selfId)
+        if (draft.selectedBoardElementId !== null
+          && draft.boardElements[draft.selectedBoardElementId as string] === undefined) {
+          draft.selectedBoardElementId = null
+        }
+      },
+      applyBoardPatch: (draft, patch) => {
+        if (patch.revision <= draft.boardElementsRevision) return
+        draft.boardElementsRevision = patch.revision
+        for (const element of patch.upserts) {
+          if (draft.pendingBoardElementOps.includes(element.id)) continue
+          draft.boardElements[element.id as string] = element
+        }
+        for (const id of patch.removes) {
+          if (draft.pendingBoardElementOps.includes(id)) continue
+          // Immer draft: the opaque element id is the record key.
+          Reflect.deleteProperty(draft.boardElements, id)
+          if (draft.selectedBoardElementId === id) draft.selectedBoardElementId = null
+        }
+      },
+      selectBoardElement: (draft, id) => {
+        draft.selectedBoardElementId = id === null || draft.boardElements[id as string] !== undefined ? id : null
+      },
+      createBoardElement: (draft, spec) => {
+        let maxZ = 0
+        for (const element of Object.values(draft.boardElements)) {
+          if (element.z > maxZ) maxZ = element.z
+        }
+        const now = Date.now()
+        draft.boardElements[spec.id as string] = {
+          id: spec.id,
+          kind: spec.kind,
+          ownerId: currentOwnerId(draft),
+          x: spec.x,
+          y: spec.y,
+          w: spec.w,
+          h: spec.h,
+          z: maxZ + 1,
+          data: spec.data,
+          createdAt: now,
+          updatedAt: now,
+        }
+      },
+      moveBoardElement: (draft, id, x, y) => {
+        const element = draft.boardElements[id as string]
+        if (element === undefined) return
+        draft.boardElements[id as string] = { ...element, x, y, updatedAt: Date.now() }
+      },
+      resizeBoardElement: (draft, id, width, height) => {
+        const element = draft.boardElements[id as string]
+        if (element === undefined) return
+        draft.boardElements[id as string] = { ...element, w: width, h: height, updatedAt: Date.now() }
+      },
+      removeBoardElement: (draft, id) => {
+        Reflect.deleteProperty(draft.boardElements, id)
+        if (draft.selectedBoardElementId === id) draft.selectedBoardElementId = null
+      },
+      beginBoardElementOp: (draft, id) => {
+        if (!draft.pendingBoardElementOps.includes(id)) draft.pendingBoardElementOps.push(id)
+      },
+      endBoardElementOp: (draft, id) => {
+        draft.pendingBoardElementOps = draft.pendingBoardElementOps.filter(pending => pending !== id)
+      },
+      setElementNotice: (draft, key) => {
+        if (key === null) {
+          draft.elementNotice = null
+          return
+        }
+        draft.elementNotice = { key, seq: (draft.elementNotice?.seq ?? 0) + 1 }
       },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting

@@ -5,8 +5,9 @@
  * into world units.
  */
 import { describe, expect, it } from 'vitest'
+import { safeArea } from '../src/client/board-coordinates.ts'
 import {
-  chromeInsetDepth, chromeInsetsOf, safeArea, type BoardRect, type ChromeInsetContribution,
+  chromeInsetDepth, chromeInsetsOf, type BoardRect, type ChromeInsetContribution,
 } from '../src/client/chrome-insets.ts'
 import { createBoardStore } from '../src/client/store.ts'
 

@@ -3,9 +3,14 @@
  * injects (locale, sessions, the conversation binding). The board
  * itself is mounted by the caller so deferred-declaration paths stay testable.
  */
+import { vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { Context } from '@deepseek-ai/cordis'
+import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
+import type {
+  BoardDocId, BoardOp, BoardPatch, BoardRevision, BoardSnapshot, OwnerId,
+} from '@ketos/board-doc/types'
 import type {
   RemoteResult, SettingsDescribeValue, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -17,7 +22,106 @@ import type { BoardWindowSessionState } from '../src/client/contract/slots.ts'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
+import { BOARD_DOC_EVENTS_PATH, BOARD_DOC_OPS_PATH, BOARD_DOC_PATH } from '../src/client/board-doc-api.ts'
 import { en, type BoardTranslate } from '../src/client/locale.ts'
+
+/** Identity the bench's document double serves before a test replaces it. */
+const BENCH_DOC_ID = brandString<BoardDocId>('00000000-0000-4000-8000-0000000000d1')
+const BENCH_SELF_ID = brandString<OwnerId>('00000000-0000-4000-8000-0000000000e1')
+
+/**
+ * The board document double the bench installs: it answers the snapshot route,
+ * records every operation batch, serves an event stream that starts with the
+ * current snapshot, and lets a test publish a new snapshot or emit a patch.
+ */
+export interface BoardDocDouble {
+  /** The snapshot the routes serve right now. */
+  readonly snapshot: BoardSnapshot
+  /** Every operation batch posted through the route, in order. */
+  readonly ops: readonly (readonly BoardOp[])[]
+  /** Replace the served snapshot and stream a `snapshot` event. */
+  publish(snapshot: BoardSnapshot): void
+  /** Stream a `patch` event to every open stream. */
+  emit(patch: BoardPatch): void
+  /** The fetch handler the bench installs for the board's three routes. */
+  readonly fetch: typeof fetch
+}
+
+/**
+ * Build the board document double.
+ * @param initial - snapshot to serve first; omitted starts an empty document.
+ * @param fallback - handler for every other path; defaults to the fetch
+ * installed when the double is built, so a spec's own stub keeps serving its
+ * routes while the board routes answer from the double.
+ * @returns the double.
+ */
+export function createBoardDocDouble(
+  initial?: BoardSnapshot,
+  fallback: typeof fetch = globalThis.fetch,
+): BoardDocDouble {
+  let snapshot: BoardSnapshot = initial ?? {
+    docId: BENCH_DOC_ID,
+    selfId: BENCH_SELF_ID,
+    revision: brandNumber<BoardRevision>(0),
+    elements: [],
+    limits: { elementBytesMax: 262_144 },
+  }
+  const ops: BoardOp[][] = []
+  const streams = new Set<ReadableStreamDefaultController<Uint8Array>>()
+  const encoder = new TextEncoder()
+  let revision = Number(snapshot.revision)
+
+  /** Write one server-sent event to every open stream. */
+  const broadcast = (event: string, payload: unknown): void => {
+    const frame = encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+    for (const controller of [...streams]) controller.enqueue(frame)
+  }
+
+  const fetchDouble: typeof fetch = async (input, init) => {
+    const request = new Request(input, init)
+    const pathname = new URL(request.url).pathname
+    if (pathname === BOARD_DOC_PATH) return Response.json(snapshot)
+    if (pathname === BOARD_DOC_OPS_PATH) {
+      const body = await request.json() as { ops?: BoardOp[] }
+      const batch = Array.isArray(body.ops) ? body.ops : []
+      ops.push(batch)
+      revision += 1
+      snapshot = { ...snapshot, revision: brandNumber<BoardRevision>(revision) }
+      return Response.json({ ok: true, revision })
+    }
+    if (pathname === BOARD_DOC_EVENTS_PATH) {
+      let own: ReadableStreamDefaultController<Uint8Array> | undefined
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          own = controller
+          streams.add(controller)
+          controller.enqueue(encoder.encode(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`))
+          request.signal.addEventListener('abort', () => { streams.delete(controller) }, { once: true })
+        },
+        cancel() {
+          // The reader cancelled without aborting; drop its controller so no
+          // later event is written into a closed stream.
+          if (own !== undefined) streams.delete(own)
+        },
+      }), { headers: { 'content-type': 'text/event-stream; charset=utf-8' } })
+    }
+    return await fallback(input, init)
+  }
+
+  return {
+    get snapshot() { return snapshot },
+    ops,
+    publish(next) {
+      snapshot = next
+      revision = Number(next.revision)
+      broadcast('snapshot', next)
+    },
+    emit(patch) {
+      broadcast('patch', patch)
+    },
+    fetch: fetchDouble,
+  }
+}
 
 /** English-bound locale seat for direct component renders; interpolates `{name}` params. */
 export const t: BoardTranslate = (key, params) => {
@@ -106,6 +210,8 @@ export interface BoardBenchOptions {
   readonly documentPreviews?: {
     readonly candidates?: (path: string) => readonly unknown[]
   }
+  /** Board document double; omitted installs an empty one so the board never reaches the network. */
+  readonly boardDoc?: BoardDocDouble
 }
 
 /** One document-preview definition as the board's projected face reads it. */
@@ -148,6 +254,8 @@ export interface BoardBench {
   chat: SnapshotStore<ChatSnapshot | undefined>
   /** The describe mirror double backing `ctx.configForms`. */
   settings: ConfigFormsDouble
+  /** The board document double installed as the board routes' fetch handler. */
+  boardDoc: BoardDocDouble
   /** Mount the board plugin on the prepared runtime. */
   mountBoard: () => Promise<{ dispose: () => Promise<void> }>
 }
@@ -509,11 +617,18 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       'conversation.session.header.blank': { kind: 'list', scope: 'session' },
     })
   }
+  // The board's document routes answer from the double, so a mounted board
+  // never reaches the network in a component spec. A spec that needs other
+  // routes stubs fetch itself and composes the double's handler if it mounts
+  // the board.
+  const boardDoc = options.boardDoc ?? createBoardDocDouble(undefined, globalThis.fetch)
+  vi.stubGlobal('fetch', boardDoc.fetch)
   return {
     runtime,
     locale,
     chat,
     settings: configForms,
+    boardDoc,
     mountBoard: () => runtime.mount({ inject: [...inject], apply }),
   }
 }

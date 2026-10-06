@@ -279,6 +279,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@ketos/board-doc` | yes | Ketos board document: the board.db node:sqlite journal over a Yjs document, the local selfId and docId, the element envelope and atomic operations, the ctx.ketosBoardDoc service, and the /api/ketos.board, /api/ketos.board.ops, and /api/ketos.board.events Fetch routes |
 | `@ketos/client-locale-ru` | no | Ketos language pack: the Russian locale, its common, settings, and board dictionaries, and the ru default for Russian browsers without a stored preference |
 | `@ketos/clone-core` | yes | Ketos clone domain: the clones.db node:sqlite database, its forward-only schema, the clone repository, the /api/ketos.clones Fetch route, and the interview mode that drafts a clone profile |
 

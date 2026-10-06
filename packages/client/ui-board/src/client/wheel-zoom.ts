@@ -30,7 +30,7 @@ export type BoardWheelMode = 'pan' | 'zoom'
 export type BoardWheelClassification = 'zoom' | 'pan' | 'native'
 
 /** Surfaces whose own scrolling keeps an unmodified wheel event. */
-const NATIVE_WHEEL_TARGETS = '[data-board-window], [data-board-panel], [role="menu"], [data-board-layer="dock"]'
+const NATIVE_WHEEL_TARGETS = '[data-board-window], [data-board-panel], [role="menu"], [data-board-layer="dock"], [data-board-wheel="native"]'
 
 /** Board root marker: events outside it never reach the board's listener. */
 const BOARD_SURFACE = '[data-surface="board"]'

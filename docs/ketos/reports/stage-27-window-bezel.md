@@ -1,6 +1,6 @@
 # Этап 27. Подложка окна и цвета владельцев — отчёт
 
-> План: [stage-27-window-bezel.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/stage-27-window-bezel.md) (ревизия 2), дизайн: `stage-27-window-bezel-design.md`. Эпик Beads: `ketos-qzb.2` в умбрелле `ketos-qzb` «Новый Кетос: показ 16 октября». Ветка: `stage-27-window-bezel`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-27` (создан от принятой `stage-26-setup`, коммит `a591d77`). `~/.ketos` не трогали; живые проверки и GIF — на свежих `DSH_HOME` во временных папках.
+> План: [stage-27-window-bezel.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/stage-27-window-bezel.md) (ревизия 2), дизайн: `stage-27-window-bezel-design.md`. Эпик Beads: `ketos-qzb.2` в умбрелле `ketos-qzb` «Новый Кетос: показ 16 октября». Ветка: `stage-27-window-bezel`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-27` (создан от принятой `stage-26-setup`). `~/.ketos` не трогали; живые проверки и GIF — на свежих `DSH_HOME` во временных папках.
 
 ## 1. Итог этапа
 

@@ -15,6 +15,7 @@ import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-fil
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { BoardElement, BoardElementKind, ElementId } from '@ketos/board-doc/types'
 import type { BoardWindowAccessMode, WindowBodyKind, WindowKind } from '../../board-settings.ts'
 import type { OwnerId } from '../owners.ts'
 
@@ -908,6 +909,53 @@ export interface BoardWindowBodyOwnerProps {
   window: BoardWindowState
 }
 
+/**
+ * Owner props of one keyed `board.element.body` or `board.element.toolbar`
+ * slot instance.
+ */
+export interface BoardElementOwnerProps {
+  /** The element the occupant renders. */
+  readonly element: BoardElement
+  /** Whether this element is the one selected element. */
+  readonly selected: boolean
+  /** Whether the acting participant owns the element and may change it. */
+  readonly editable: boolean
+}
+
+/** Owner props of one keyed `board.element.toolbar` slot instance. */
+export interface BoardElementToolbarOwnerProps {
+  /** The selected element whose toolbar renders. */
+  readonly element: BoardElement
+  /** Whether the acting participant owns the element and may change it. */
+  readonly editable: boolean
+}
+
+/**
+ * Element verbs the board injects into the element layer and the board root:
+ * each applies the change optimistically and posts one operation batch.
+ */
+export interface BoardElementInjected {
+  /**
+   * Move one element; the gesture sends one patch operation.
+   * @param id - element identity.
+   * @param x - world x after the gesture.
+   * @param y - world y after the gesture.
+   */
+  moveElement: (id: ElementId, x: number, y: number) => void
+  /**
+   * Resize one element; the gesture sends one patch operation.
+   * @param id - element identity.
+   * @param width - world width after the gesture.
+   * @param height - world height after the gesture.
+   */
+  resizeElement: (id: ElementId, width: number, height: number) => void
+  /**
+   * Remove one element; the gesture sends one remove operation.
+   * @param id - element identity.
+   */
+  removeElement: (id: ElementId) => void
+}
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Root container of the spatial board canvas; renders the floating layers. */
@@ -916,6 +964,30 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'board.dock': { kind: 'single'; scope: 'root' }
     /** Multi-window layer inside the canvas transform; renders the keyed window slots. */
     'board.windows': { kind: 'single'; scope: 'root' }
+    /** Element layer inside the canvas transform, below the windows. */
+    'board.elements': { kind: 'single'; scope: 'root' }
+    /**
+     * Element body inside one element box, declared by the element layer. The
+     * owner share is the same for every kind; the keyed table closes the
+     * dispatch domain to `BoardElementKind`.
+     */
+    'board.element.body': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardElementOwnerProps
+      keyProps: { [Key in BoardElementKind]: BoardElementOwnerProps }
+    }
+    /**
+     * Kind-owned toolbar of the selected element, rendered by the screen-space
+     * selection bar. The keyed table closes the dispatch domain to
+     * `BoardElementKind`.
+     */
+    'board.element.toolbar': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardElementToolbarOwnerProps
+      keyProps: { [Key in BoardElementKind]: BoardElementToolbarOwnerProps }
+    }
     /**
      * Window container for a single board card. The owner share is the same for
      * every kind; the keyed table is what closes the dispatch domain to

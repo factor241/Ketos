@@ -2,6 +2,8 @@
 /** Canvas layer and minimap: store-driven reads, the window-layer seat, and minimap projection. */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
+import { brandNumber } from '@deepseek-ai/dsh-brand'
+import type { BoardRevision } from '@ketos/board-doc/types'
 import { Minimap, type MinimapProps } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas, type DashboardCanvasProps } from '../src/client/canvas/DashboardCanvas.tsx'
 import minimapCss from '../src/client/canvas/Minimap.module.css'
@@ -77,6 +79,14 @@ const baseState: BoardState = {
   highlightWindowId: null,
   cloneEdits: {},
   rightPanels: {},
+  boardElements: {},
+  boardElementsRevision: brandNumber<BoardRevision>(0),
+  boardDocId: null,
+  boardLimits: null,
+  selfId: null,
+  selectedBoardElementId: null,
+  pendingBoardElementOps: [],
+  elementNotice: null,
   drafts: {},
 }
 

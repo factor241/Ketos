@@ -70,7 +70,7 @@ export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|
  * the browser, so every other @ketos/* specifier is rejected until its subpath
  * is reviewed and listed here.
  */
-const KETOS_INLINE_SAFE = /^@ketos\/clone-core\/methodology$/
+const KETOS_INLINE_SAFE = /^@ketos\/(?:clone-core\/methodology|board-doc\/(?:kinds|data))$/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below

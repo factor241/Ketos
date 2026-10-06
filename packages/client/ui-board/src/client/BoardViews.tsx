@@ -16,19 +16,21 @@ import type {
   InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  FishLogo, IconPanelLeftOutlineRegular, Tooltip,
+  FishLogo, IconPanelLeftOutlineRegular, Toast, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import clsx from 'clsx'
 import { BOARD_POPOVER_Z, type BoardStoreHandle } from './store.ts'
 import { BoardPopoverSurfaceContext, type BoardPopoverSurface } from './board-popover.tsx'
-import { BOARD_PANEL_ID } from './contract/slots.ts'
+import { BOARD_PANEL_ID, type BoardElementInjected } from './contract/slots.ts'
 import { isBoardEditingTarget } from './editing-target.ts'
 import { useBoardPointerGesture } from './pointer-gesture.ts'
 import { startBoardPanGesture } from './pan-gesture.ts'
 import { describeElement } from './element-capture.ts'
 import { resolveChatWindow } from './open-window.ts'
+import { ElementSelectionBar } from './ElementSelectionBar.tsx'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './HandleRing.tsx'
+import { DEMO_SELF_ID } from './owners.ts'
 import { useBoardChromeInset } from './use-board-chrome-inset.ts'
 import { classifyBoardZoomKey } from './keyboard-zoom.ts'
 import { createBoardPinchGesture, type BoardPinchEvent } from './pinch.ts'
@@ -52,9 +54,10 @@ export interface BoardRootInjected {
 /** Props of the board main-panel body: the child render share, the store share, the injected runtime config, and the locale seat. */
 export type BoardRootProps =
   PropsRuntime<'main'>
-  & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.minimap'>
+  & PropsRenderSlots<'board.canvas' | 'board.dock' | 'board.minimap' | 'board.element.toolbar'>
   & PropsStore<BoardStoreHandle>
   & InjectFace<BoardRootInjected>
+  & InjectFace<BoardElementInjected>
   & PropsLocale<'board'>
 
 /** How long the window the user returns to stays highlighted. */
@@ -80,7 +83,7 @@ function boardPoint(box: DOMRect, event: { readonly clientX: number; readonly cl
 
 export function BoardRoot({
   renderSlot, useStore, actions, t, usePanelInfo, wheelMode, zoomSensitivity, detailZoomThreshold,
-  openStandardInterface,
+  openStandardInterface, removeElement,
 }: BoardRootProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const pointerInsideRef = useRef(false)
@@ -104,6 +107,12 @@ export function BoardRoot({
   const selecting = useStore(s => s.isSelectingElement)
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
+  const selectedElementId = useStore(s => s.selectedBoardElementId)
+  const selectedElement = useStore(s => s.selectedBoardElementId === null
+    ? undefined
+    : s.boardElements[s.selectedBoardElementId as string])
+  const selfId = useStore(s => s.selfId)
+  const elementNotice = useStore(s => s.elementNotice)
   // An open chats panel is a management surface: the floating chrome would
   // otherwise cover its outer edge, its resize handle, or (in the overlay
   // presentation) the window's own bottom edge.
@@ -250,6 +259,18 @@ export function BoardRoot({
         actions.zoomBy(command.factor, box.width / 2, box.height / 2)
         return
       }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        const target = event.target
+        const insideBoard = pointerInsideRef.current || root.contains(document.activeElement)
+        if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
+        if (selectedElement.ownerId !== (selfId ?? DEMO_SELF_ID)) return
+        if (selecting || isBoardEditingTarget(target)) return
+        if (target instanceof Element
+          && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return
+        event.preventDefault()
+        removeElement(selectedElementId)
+        return
+      }
       if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return
       if (isBoardEditingTarget(event.target)) return
       spaceRef.current = true
@@ -267,7 +288,7 @@ export function BoardRoot({
       globalThis.removeEventListener('keydown', onKeyDown)
       globalThis.removeEventListener('keyup', onKeyUp)
     }
-  }, [actions])
+  }, [actions, selectedElementId, selectedElement, selfId, selecting, removeElement])
 
   // Space or the middle button pans from anywhere on the board, the floating
   // chrome included: the capture phase takes the pointer before a window's own
@@ -319,12 +340,29 @@ export function BoardRoot({
             handle stays grabbable when its window edge sits under a floating
             layer; the selection overlay still paints above both. */}
         {!simplified && <HandleRing useStore={useStore} actions={actions} />}
+        <ElementSelectionBar
+          useStore={useStore}
+          actions={actions}
+          t={t}
+          renderToolbar={(element, editable) => renderSlot(
+            'board.element.toolbar',
+            { element, editable },
+            { entryKey: element.kind, fallback: null },
+          )}
+        />
         <ElementSelectionOverlay
           t={t}
           active={selecting}
           onCancel={() => { actions.setSelectingElement(false) }}
           onPick={handlePick}
         />
+        {elementNotice !== null && (
+          <Toast
+            key={elementNotice.seq}
+            text={t(elementNotice.key)}
+            onDone={() => { actions.setElementNotice(null) }}
+          />
+        )}
         {/* Screen-space portal target for the board's tooltips and menus: it
             sits outside the canvas transform, takes no pointer events itself,
             and paints above the chrome but below the selection overlay. */}

@@ -1,0 +1,15 @@
+/* Screen-space toolbar above the selected element; the same layer as the
+   window handle ring, so it stays above the chrome and below the popovers. */
+.bar {
+  position: absolute;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-shadow-l2);
+}

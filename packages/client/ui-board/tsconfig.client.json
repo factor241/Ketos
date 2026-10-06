@@ -80,6 +80,9 @@
     },
     {
       "path": "../../ketos/clone-core/tsconfig.client.json"
+    },
+    {
+      "path": "../../ketos/board-doc/tsconfig.client.json"
     }
   ]
 }

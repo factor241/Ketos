@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/ketos/board-doc/README.md
+/:
+  en: 2e45b2129cc676ff
+  zh: 5086d7fbf0ebc7f0
+/ketos-board-doc:
+  en: bf1676fb9cddb6a1
+  zh: 4947796630751df0
+/ketos-board-doc/summary:
+  en: c3a5fbc1f8e79473
+  zh: 9d332edf54ae61d1
+/ketos-board-doc/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: ef6805c80e17a904
+/ketos-board-doc/use-this-package:
+  en: f7b2bde92fea105c
+  zh: d95bcdf25aef7d5a
+/ketos-board-doc/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 719821b4cc9187ce
+/ketos-board-doc/understand-the-implementation/document-structure:
+  en: 1d1e31c27307bfc7
+  zh: cbc54e02a11be3ce
+/ketos-board-doc/understand-the-implementation/journal-and-revisions:
+  en: aa3e02e7d3fba8b3
+  zh: 5cf2f8675b9bd54b
+/ketos-board-doc/understand-the-implementation/identities:
+  en: d729e8b775dbd4b2
+  zh: 189e8dc7a3418191
+/ketos-board-doc/understand-the-implementation/routes-and-error-codes:
+  en: 0072b2c72a759a72
+  zh: 129bd3d4114ca8b9
+/ketos-board-doc/understand-the-implementation/laziness:
+  en: 1c1d88929fe59afc
+  zh: 5e2d5bf0ed2a2d9c
+/ketos-board-doc/understand-the-implementation/source-map:
+  en: 543f94445fbc894d
+  zh: 53106bff487b3f20
+/ketos-board-doc/further-exploration:
+  en: 16dac1e3fa3927a5
+  zh: 51ea9cb8dbbae7c2
+/ketos-board-doc/model-experience:
+  en: baa39bef57a62a0e
+  zh: a9167d94c9226188
+/ketos-board-doc/model-experience/kv-cache-effect:
+  en: 42d44b69d834b2a6
+  zh: d04474bc44302f5d
+/ketos-board-doc/known-limitations-and-deferred-work:
+  en: 24ec68c4a0927167
+  zh: e8a57881306c6549
+/ketos-board-doc/known-limitations-and-deferred-work/dev-note:
+  en: 2c5bf90d9fa85616
+  zh: 50dc0b782ea7d876

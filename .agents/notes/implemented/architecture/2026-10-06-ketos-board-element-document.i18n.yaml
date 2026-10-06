@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-board-element-document.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-board-element-document.md
+/agent-note-the-board-document-and-its-element-model:
+  en: 77d8790652f2fd4f
+  zh: 518106148dde83c7
+/agent-note-the-board-document-and-its-element-model/problem:
+  en: 39deb23356387ac7
+  zh: 952f30c848ec5c8a
+/agent-note-the-board-document-and-its-element-model/decision:
+  en: 6c1fc19d7f61c80e
+  zh: bca8a6321fa2d926
+/agent-note-the-board-document-and-its-element-model/alternatives-considered:
+  en: bb1b28693cecb9e6
+  zh: 0dc8db3a9f0c9e9a
+/agent-note-the-board-document-and-its-element-model/consequences:
+  en: 7e53d674c2a368b3
+  zh: 11ac4795c9c8047f
+/agent-note-the-board-document-and-its-element-model/testing:
+  en: 57a634c31533e5b3
+  zh: 52c82a9565356327
+/agent-note-the-board-document-and-its-element-model/related:
+  en: fa4c4c9d9b7589c5
+  zh: cd5cfd3f69221375

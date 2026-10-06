@@ -231,6 +231,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/web/web-fetch-http': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/web/web-search-exa': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/ketos/client-locale-ru': { kind: 'none', reason: 'Client-only locale pack; the UI copy it maps never enters model context or changes model input.' },
+  'packages/ketos/board-doc': { kind: 'none', reason: 'Host-owned board document; its snapshot, operations, and event stream never enter a model request or Session event.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
 }
 

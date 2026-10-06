@@ -444,6 +444,12 @@ export const zh = {
   'bezel.transfer.action': '移交',
   'bezel.transfer.empty': '没有其他参与者',
   'bezel.access.aria': '访问权限：{mode}',
+  'element.aria': '元素：{kind}',
+  'element.foreign': '{name} 的元素',
+  'element.neutral.title': '看板元素',
+  'element.resize.aria': '调整大小',
+  'element.saveFailed': '无法保存更改',
+  'element.deleteFailed': '无法删除元素',
 } satisfies Record<string, string>
 
 /** Board dictionary key union. */
@@ -898,4 +904,10 @@ export const en = {
   'bezel.transfer.action': 'Transfer',
   'bezel.transfer.empty': 'No other participants',
   'bezel.access.aria': 'Access: {mode}',
+  'element.aria': 'Element: {kind}',
+  'element.foreign': 'Element of {name}',
+  'element.neutral.title': 'Board element',
+  'element.resize.aria': 'Resize',
+  'element.saveFailed': 'Could not save the change',
+  'element.deleteFailed': 'Could not delete the element',
 } satisfies Record<BoardKey, string>

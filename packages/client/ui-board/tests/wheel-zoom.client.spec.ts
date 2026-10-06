@@ -18,6 +18,7 @@ function boardFixture(): void {
             <div data-board-panel-rail=""><button class="rail-button">rail</button></div>
           </div>
           <div data-board-panel="beside"><div class="panel-rows">rows</div></div>
+          <div data-board-element=""><div data-board-wheel="native" class="element-scroll">text</div></div>
         </div>
       </div>
       <div data-board-layer="dock"><button class="dock-button">add</button></div>
@@ -68,8 +69,8 @@ describe('classifyBoardWheel', () => {
     }
   })
 
-  it('stays native for a plain wheel over a lane, the chats panel, a menu, or the dock', () => {
-    for (const selector of ['.lane-input', '[data-board-panel-rail]', '.panel-rows', '.menu-row', '.dock-button']) {
+  it('stays native for a plain wheel over a lane, the chats panel, a menu, the dock, or an element surface', () => {
+    for (const selector of ['.lane-input', '[data-board-panel-rail]', '.panel-rows', '.menu-row', '.dock-button', '.element-scroll']) {
       for (const mode of ['pan', 'zoom'] as const) {
         expect(classifyBoardWheel(wheelEvent(), targetAt(selector), mode), `${selector} · ${mode}`).toBe('native')
       }

@@ -1,0 +1,38 @@
+/* Common frame of one board element: the owner-colored edge, the selected
+   outline, and the bottom-right resize corner. The frame sits in world units
+   inside the canvas transform; the edge stays 2px in world units, matching the
+   window bezel. */
+.frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--board-owner-edge);
+  border-radius: var(--dsw-radius-xs);
+  background: var(--board-owner-fill, var(--dsw-alias-bg-layer-2));
+  pointer-events: auto;
+  overflow: visible;
+}
+
+.selected {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--dsw-radius-xs);
+}
+
+.handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--dsw-alias-state-business-primary);
+  border: 1px solid var(--dsw-alias-bg-layer-1);
+  cursor: nwse-resize;
+  pointer-events: auto;
+}

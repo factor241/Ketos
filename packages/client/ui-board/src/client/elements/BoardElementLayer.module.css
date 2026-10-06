@@ -1,0 +1,8 @@
+/* Element layer of the board canvas: one absolute container below the window
+   band, with element boxes that receive pointer events themselves. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}

@@ -1,12 +1,10 @@
 /**
- * Safe area of the board: the rectangle the floating chrome (dock, mode badge,
- * minimap, and the omnibar until the redesign removes it) leaves free. Every
- * chrome element declares the board edge it is anchored to and publishes its
- * own depth from that edge, so a wide element never takes a strip from the
- * edges it merely spans (Т1.15, Т1.6). Window placement, centring, and «show
- * all windows» read the folded insets and never put a window under the chrome.
+ * Chrome insets of the board: the depth every floating chrome element (dock,
+ * mode badge, minimap, and the omnibar until the redesign removes it) takes
+ * from the board edge it is anchored to. A wide element never takes a strip
+ * from the edges it merely spans (Т1.15, Т1.6). The safe area derived from the
+ * folded insets lives in `board-coordinates.ts` with the rest of the view math.
  */
-import type { BoardState } from './store.ts'
 
 /** The board edge one chrome element is anchored to. */
 export type ChromeEdge = 'top' | 'bottom' | 'left' | 'right'
@@ -74,31 +72,4 @@ export interface SafeArea {
   readonly screen: BoardRect
   /** The same rectangle in world units. */
   readonly world: BoardRect
-}
-
-/**
- * Project the board's safe area from the store: the viewport box less the
- * folded chrome insets, in screen pixels and in world units.
- * @param state - the board store snapshot (viewport, pan, zoom, chrome contributions).
- * @returns the safe area in both coordinate spaces.
- */
-export function safeArea(state: BoardState): SafeArea {
-  const chromeInsets = chromeInsetsOf(state.chromeInsetSources)
-  const { viewportWidth, viewportHeight, panX, panY, zoom } = state
-  const screen: BoardRect = {
-    left: chromeInsets.left,
-    top: chromeInsets.top,
-    right: Math.max(chromeInsets.left, viewportWidth - chromeInsets.right),
-    bottom: Math.max(chromeInsets.top, viewportHeight - chromeInsets.bottom),
-  }
-  const toWorld = (value: number, pan: number): number => (value - pan) / zoom
-  return {
-    screen,
-    world: {
-      left: toWorld(screen.left, panX),
-      top: toWorld(screen.top, panY),
-      right: toWorld(screen.right, panX),
-      bottom: toWorld(screen.bottom, panY),
-    },
-  }
 }

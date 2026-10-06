@@ -3,6 +3,7 @@
  * view is hidden with CSS, never unmounted — its lane, draft, attachments, and
  * chats panel keep their state and return unchanged.
  */
+import { visibleWorldRect } from './board-coordinates.ts'
 import type { BoardState } from './store.ts'
 import type { BoardWindowState } from './contract/slots.ts'
 import { windowPanelOpen, windowPanelWidth } from './panel-geometry.ts'
@@ -21,20 +22,17 @@ export const CULL_MARGIN = 480
  * @returns true when the window should stay rendered.
  */
 export function isWindowVisible(state: BoardState, window: BoardWindowState): boolean {
-  const left = -state.panX / state.zoom - CULL_MARGIN
-  const top = -state.panY / state.zoom - CULL_MARGIN
-  const right = (-state.panX + state.viewportWidth) / state.zoom + CULL_MARGIN
-  const bottom = (-state.panY + state.viewportHeight) / state.zoom + CULL_MARGIN
+  const visible = visibleWorldRect(state, CULL_MARGIN)
   // An open panel is part of the window's footprint: a frame whose panel is
   // visible must not be culled away with it (Т3.12).
   const footprintLeft = windowPanelOpen(window, 'left') ? window.x - windowPanelWidth(window, 'left') : window.x
   const footprintRight = windowPanelOpen(window, 'right')
     ? window.x + window.width + windowPanelWidth(window, 'right')
     : window.x + window.width
-  return footprintRight >= left
-    && footprintLeft <= right
-    && window.y + window.height >= top
-    && window.y <= bottom
+  return footprintRight >= visible.left
+    && footprintLeft <= visible.right
+    && window.y + window.height >= visible.top
+    && window.y <= visible.bottom
 }
 
 /**

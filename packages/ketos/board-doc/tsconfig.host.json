@@ -1,0 +1,40 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "files": [
+    "src/data.ts",
+    "src/db.ts",
+    "src/doc.ts",
+    "src/events.ts",
+    "src/index.ts",
+    "src/journal.ts",
+    "src/kinds.ts",
+    "src/ops.ts",
+    "src/routes.ts",
+    "src/schema.ts",
+    "src/service.ts",
+    "src/types.ts",
+    "src/wire.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../client/connection/tsconfig.host.json"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/values"
+    }
+  ]
+}

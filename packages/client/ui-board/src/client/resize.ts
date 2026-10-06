@@ -4,7 +4,7 @@
  * scales them by one factor so the window keeps its shape. Every path snaps to
  * the board grid unless Alt is held and clamps to the store's minimum size.
  */
-import { clampWindowSize, MIN_WINDOW_SIZE } from './store.ts'
+import { MIN_WINDOW_SIZE, snapPosition } from './store.ts'
 
 /** The 8 resize directions the frame exposes: edges first, then corners. */
 export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
@@ -52,6 +52,7 @@ export interface ResizeModifiers {
  * @param dx - pointer delta along x, already divided by the canvas zoom.
  * @param dy - pointer delta along y, already divided by the canvas zoom.
  * @param modifiers - proportional scaling and grid snapping for this gesture.
+ * @param min - smallest size the drag may leave; defaults to the window floor.
  * @returns the requested rectangle (snapped and clamped to the minimum).
  */
 export function resizeStep(
@@ -60,17 +61,22 @@ export function resizeStep(
   dx: number,
   dy: number,
   modifiers: ResizeModifiers,
+  min: { readonly width: number; readonly height: number } = MIN_WINDOW_SIZE,
 ): WindowRect {
   const wantsWest = direction === 'w' || direction === 'nw' || direction === 'sw'
   const wantsEast = direction === 'e' || direction === 'ne' || direction === 'se'
   const wantsNorth = direction === 'n' || direction === 'nw' || direction === 'ne'
   const wantsSouth = direction === 's' || direction === 'sw' || direction === 'se'
   const { snap } = modifiers
+  const clamp = (width: number, height: number): { width: number; height: number } => ({
+    width: Math.max(min.width, snapPosition(width, snap)),
+    height: Math.max(min.height, snapPosition(height, snap)),
+  })
 
   if (!isCorner(direction) || !modifiers.proportional) {
     const width = wantsWest ? start.width - dx : wantsEast ? start.width + dx : start.width
     const height = wantsNorth ? start.height - dy : wantsSouth ? start.height + dy : start.height
-    const size = clampWindowSize(width, height, snap)
+    const size = clamp(width, height)
     return {
       x: wantsWest ? start.x + start.width - size.width : start.x,
       y: wantsNorth ? start.y + start.height - size.height : start.y,
@@ -85,8 +91,8 @@ export function resizeStep(
   const factorX = wantsWest ? (start.width - dx) / start.width : (start.width + dx) / start.width
   const factorY = wantsNorth ? (start.height - dy) / start.height : (start.height + dy) / start.height
   const factor = Math.abs(factorX - 1) >= Math.abs(factorY - 1) ? factorX : factorY
-  const floor = Math.max(MIN_WINDOW_SIZE.width / start.width, MIN_WINDOW_SIZE.height / start.height)
-  const size = clampWindowSize(start.width * Math.max(floor, factor), start.height * Math.max(floor, factor), snap)
+  const floor = Math.max(min.width / start.width, min.height / start.height)
+  const size = clamp(start.width * Math.max(floor, factor), start.height * Math.max(floor, factor))
   return {
     x: wantsWest ? start.x + start.width - size.width : start.x,
     y: wantsNorth ? start.y + start.height - size.height : start.y,

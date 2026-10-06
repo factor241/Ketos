@@ -349,6 +349,12 @@
       "@ketos/clone-core/types": ["./packages/ketos/clone-core/src/types.ts"],
       // The browser-safe methodology vocabulary the editor inlines.
       "@ketos/clone-core/methodology": ["./packages/ketos/clone-core/src/methodology.ts"],
+      // The board document package's browser face is its type-only `./types`
+      // module; the bare alias resolves the Host plugin for tests and scripts.
+      "@ketos/board-doc": ["./packages/ketos/board-doc/src"],
+      "@ketos/board-doc/types": ["./packages/ketos/board-doc/src/types.ts"],
+      "@ketos/board-doc/kinds": ["./packages/ketos/board-doc/src/kinds.ts"],
+      "@ketos/board-doc/data": ["./packages/ketos/board-doc/src/data.ts"],
       "@deepseek-ai/dsh-compaction-image-offload/projection": ["./packages/compaction/compaction-image-offload/src/projection.ts"],
       "@deepseek-ai/dsh-session-format-catalog/message-projections": ["./packages/session/session-format-catalog/src/message-projections.ts"],
       "@deepseek-ai/dsh-native-command/types": ["./packages/util/native-command/src/types.ts"],

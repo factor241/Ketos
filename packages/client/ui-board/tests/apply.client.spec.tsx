@@ -75,7 +75,7 @@ describe('board plugin registration', () => {
     expect(panelEntry?.locale).toBe('board')
     expect(panelEntry?.store).toBeDefined()
     expect(Object.keys(panelEntry?.children ?? {})).toEqual([
-      'board.canvas', 'board.dock', 'board.minimap',
+      'board.canvas', 'board.dock', 'board.minimap', 'board.element.toolbar',
     ])
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const row = runtime.renderSlot('sidebar.brand.actions', { wide: true }, { only: 'board' })
@@ -243,6 +243,13 @@ describe('board apply services', () => {
   })
 
   it('validates the input defaults: pan on a plain wheel, twofold pinch sensitivity, 0.4 detail threshold', () => {
-    expect(Config({})).toEqual({ wheelMode: 'pan', zoomSensitivity: 0.0023, detailZoomThreshold: 0.4 })
+    expect(Config({})).toEqual({
+      wheelMode: 'pan',
+      zoomSensitivity: 0.0023,
+      detailZoomThreshold: 0.4,
+      elementStreamRetryMinMs: 1_000,
+      elementStreamRetryMaxMs: 15_000,
+      elementStreamHiddenCloseMs: 60_000,
+    })
   })
 })

@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
+import { ownerColorAttr } from '../owners.ts'
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import css from './Minimap.module.css'
 
@@ -27,6 +28,8 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
   const windows = useStore(s => s.windows)
+  const elements = useStore(s => s.boardElements)
+  const selfId = useStore(s => s.selfId)
   const activeWindowId = useStore(s => s.activeWindowId)
   const viewportWidth = useStore(s => s.viewportWidth)
   const viewportHeight = useStore(s => s.viewportHeight)
@@ -46,6 +49,14 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
     minY = Math.min(minY, win.y)
     maxX = Math.max(maxX, win.x + win.width)
     maxY = Math.max(maxY, win.y + win.height)
+  }
+  // The world frame covers the elements too: a board whose windows sit in one
+  // corner still shows a note the user placed far away.
+  for (const element of Object.values(elements)) {
+    minX = Math.min(minX, element.x)
+    minY = Math.min(minY, element.y)
+    maxX = Math.max(maxX, element.x + element.w)
+    maxY = Math.max(maxY, element.y + element.h)
   }
 
   const worldW = Math.max(100, maxX - minX + PADDING * 2)
@@ -115,6 +126,20 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        {Object.values(elements).map(element => (
+          <rect
+            key={element.id}
+            data-board-element-rect={element.kind}
+            data-board-owner-color={ownerColorAttr({ selfId }, element.ownerId)}
+            x={toMiniX(element.x)}
+            y={toMiniY(element.y)}
+            width={Math.max(3, element.w * scale)}
+            height={Math.max(3, element.h * scale)}
+            rx={2}
+            className={css.element}
+          />
+        ))}
+
         {Object.values(windows).map((win) => {
           const wx = toMiniX(win.x)
           const wy = toMiniY(win.y)

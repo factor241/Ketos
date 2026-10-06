@@ -4,6 +4,7 @@
  * the panel's top-left; the handle ring uses the same transform, so a resize
  * affordance stays over the window's border at any zoom.
  */
+import { worldToScreen } from './board-coordinates.ts'
 import type { BoardState } from './store.ts'
 import type { BoardWindowState } from './contract/slots.ts'
 
@@ -23,13 +24,12 @@ export interface ScreenBox {
  */
 export function windowScreenRect(state: BoardState, window: BoardWindowState): ScreenBox {
   const own = state.windows[window.id as string] ?? window
-  const left = state.panX + own.x * state.zoom
-  const top = state.panY + own.y * state.zoom
+  const topLeft = worldToScreen(state, { x: own.x, y: own.y })
   return {
-    left,
-    top,
-    right: left + own.width * state.zoom,
-    bottom: top + own.height * state.zoom,
+    left: topLeft.x,
+    top: topLeft.y,
+    right: topLeft.x + own.width * state.zoom,
+    bottom: topLeft.y + own.height * state.zoom,
   }
 }
 

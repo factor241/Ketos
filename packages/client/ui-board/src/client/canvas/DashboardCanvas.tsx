@@ -14,7 +14,7 @@ import { startBoardPanGesture } from '../pan-gesture.ts'
 import css from './DashboardCanvas.module.css'
 
 export type DashboardCanvasProps =
-  PropsRenderSlots<'board.windows'>
+  PropsRenderSlots<'board.windows' | 'board.elements'>
   & PropsStore<BoardStoreHandle>
 
 export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanvasProps) {
@@ -86,6 +86,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     >
       {/* Transformed Canvas Content Surface */}
       <div data-surface="canvas-layer" className={css.surface}>
+        {renderSlot('board.elements', {})}
         {renderSlot('board.windows', {})}
       </div>
     </div>

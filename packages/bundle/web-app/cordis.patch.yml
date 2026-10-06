@@ -52,6 +52,16 @@
       config:
         path: !!js dshHomePath('clones.db')
 
+    # Ketos board document: the board.db Yjs journal, the local selfId and
+    # docId, the element operations, and the /api/ketos.board* Fetch routes the
+    # board reads elements from and writes them through. Host row like the
+    # clone domain; the database opens on the first request, so startup stays
+    # free of the node:sqlite and yjs experimental warnings.
+    - id: ketos-board-doc
+      name: '@ketos/board-doc'
+      config:
+        path: !!js dshHomePath('board.db')
+
     # Р-3: product analytics and telemetry stay off in Ketos profiles.
     - id: desktop-product-telemetry
       name: '@deepseek-ai/dsh-host-product-telemetry-otel'

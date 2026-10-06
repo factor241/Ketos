@@ -43,6 +43,13 @@
   opacity: 0.45;
 }
 
+/* Elements paint in their owner's edge color; the attribute on each rect binds
+   the palette alias. */
+.element {
+  fill: var(--board-owner-edge, var(--dsw-alias-label-caption));
+  opacity: 0.8;
+}
+
 .frustum {
   fill: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
   stroke: var(--dsw-alias-state-business-primary);

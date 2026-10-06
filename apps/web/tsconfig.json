@@ -176,6 +176,7 @@
     "tests/chat-scroll-fixture.ts",
     "tests/board-geometry.e2e.ts",
     "tests/board-bezel.e2e.ts",
+    "tests/board-elements.e2e.ts",
     "tests/chat-scroll-contract.e2e.ts",
     "tests/chat-long-interactions.e2e.ts",
     "tests/chat-continuous-conversation.e2e.ts",

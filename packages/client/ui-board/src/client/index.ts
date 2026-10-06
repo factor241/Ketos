@@ -24,7 +24,9 @@ import type {
 } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { BOARD_ZOOM_MIN } from '../board-settings.ts'
+import type { BoardOp, ElementId } from '@ketos/board-doc/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardWindowDraftFile } from './store.ts'
+import { fetchBoardSnapshot, openBoardEvents, postBoardOps } from './board-doc-api.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import { openBoardWindow, resolveChatWindow } from './open-window.ts'
@@ -43,14 +45,16 @@ import {
 } from './tasks-api.ts'
 import { sessionArtifacts } from './window/artifacts-model.ts'
 import type {
-  BoardCloneRoster, BoardDraftImage, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress, BoardTaskRoster,
-  BoardWindowInjected, CloneModelOption, WindowId,
+  BoardCloneRoster, BoardDraftImage, BoardElementInjected, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress,
+  BoardTaskRoster, BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
+import type { BoardKey } from './locale.ts'
 import { BoardRoot, BoardToggle, type BoardRootInjected, type BoardToggleInjected } from './BoardViews.tsx'
 import { ReturnToWindowAction, type ReturnToWindowActionInjected } from './ReturnToWindowAction.tsx'
 import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
+import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
 import { WindowFrame } from './window/WindowFrame.tsx'
@@ -91,6 +95,12 @@ export interface Config {
   zoomSensitivity?: number
   /** Zoom below which windows render their simplified card (R-6). */
   detailZoomThreshold?: number
+  /** Shortest pause before the board's event stream reconnects, in milliseconds. */
+  elementStreamRetryMinMs?: number
+  /** Longest pause before the board's event stream reconnects, in milliseconds. */
+  elementStreamRetryMaxMs?: number
+  /** How long a hidden tab keeps its board event stream before closing it, in milliseconds. */
+  elementStreamHiddenCloseMs?: number
 }
 
 /**
@@ -105,6 +115,9 @@ export const Config: z<Config> = z.object({
   // Number.MIN_VALUE expresses "any positive double": zero would freeze the zoom.
   zoomSensitivity: z.number().min(Number.MIN_VALUE).default(0.0023),
   detailZoomThreshold: z.number().min(BOARD_ZOOM_MIN).max(1).default(0.4),
+  elementStreamRetryMinMs: z.number().step(1).min(100).max(60_000).default(1_000),
+  elementStreamRetryMaxMs: z.number().step(1).min(1_000).max(300_000).default(15_000),
+  elementStreamHiddenCloseMs: z.number().step(1).min(1_000).max(3_600_000).default(60_000),
 })
 
 /**
@@ -222,6 +235,23 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     persistence.start()
     return () => { persistence.dispose() }
   }, 'ui-board: settings persistence')
+
+  // Board document: follow the host's element stream for the plugin's
+  // lifetime. A snapshot replaces the element slice, each patch advances it,
+  // and a dropped connection reconnects with a growing pause; a tab hidden
+  // past its budget closes the stream and reopens it on return.
+  ctx.effect(() => {
+    const controller = new AbortController()
+    openBoardEvents(controller.signal, (event) => {
+      if (event.type === 'snapshot') instance.actions.applyBoardSnapshot(event.snapshot)
+      else instance.actions.applyBoardPatch(event.patch)
+    }, {
+      retryMinMs: config.elementStreamRetryMinMs as number,
+      retryMaxMs: config.elementStreamRetryMaxMs as number,
+      hiddenCloseMs: config.elementStreamHiddenCloseMs as number,
+    })
+    return () => { controller.abort() }
+  }, 'ui-board: board element stream')
 
   // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
   // clone editor read. A failed read keeps the last published list and leaves
@@ -868,6 +898,38 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // column while it is selected (Т2.7). The declaration is one effect with the
   // registration — a collapsed declaration clears the flag, and a redeclared
   // slot (an HMR reload of ui-layout) re-applies it.
+  //
+  // Element operations: the local change lands first, then one batch posts;
+  // the element stays pending until the answer, and a refusal clears the
+  // optimistic value with a fresh snapshot and a board notice.
+  const postElementOps = (ids: readonly ElementId[], ops: readonly BoardOp[], failureKey: BoardKey): void => {
+    for (const id of ids) instance.actions.beginBoardElementOp(id)
+    void postBoardOps(ops).then((outcome) => {
+      for (const id of ids) instance.actions.endBoardElementOp(id)
+      if (outcome.ok) return
+      instance.actions.setElementNotice(failureKey)
+      void fetchBoardSnapshot().then((snapshot) => {
+        if (snapshot !== undefined) instance.actions.applyBoardSnapshot(snapshot)
+      })
+    })
+  }
+
+  /** Element verbs the element layer and the board root call. */
+  const elementInjected = (): BoardElementInjected => ({
+    moveElement: (id, x, y) => {
+      instance.actions.moveBoardElement(id, x, y)
+      postElementOps([id], [{ op: 'patch', id, x, y }], 'element.saveFailed')
+    },
+    resizeElement: (id, width, height) => {
+      instance.actions.resizeBoardElement(id, width, height)
+      postElementOps([id], [{ op: 'patch', id, w: width, h: height }], 'element.saveFailed')
+    },
+    removeElement: (id) => {
+      instance.actions.removeBoardElement(id)
+      postElementOps([id], [{ op: 'remove', id }], 'element.deleteFailed')
+    },
+  })
+
   ctx.slots.inject('main', function* () {
     const disposeSidebar = ctx.layout.declarePanelSidebar(BOARD_PANEL_ID, false)
     yield ctx.slots.register({
@@ -875,17 +937,19 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       key: 'board',
       store: boardStore,
       locale: NS,
-      inject: (): BoardRootInjected => ({
+      inject: (): BoardRootInjected & BoardElementInjected => ({
         // Schemastery materializes the field defaults before Cordis calls apply.
         wheelMode: config.wheelMode as BoardWheelMode,
         zoomSensitivity: config.zoomSensitivity as number,
         detailZoomThreshold: config.detailZoomThreshold as number,
         openStandardInterface: () => { ctx.layout.selectPanel(null) },
+        ...elementInjected(),
       }),
       children: {
         'board.canvas': { kind: 'single', scope: 'root' },
         'board.dock': { kind: 'single', scope: 'root' },
         'board.minimap': { kind: 'single', scope: 'root' },
+        'board.element.toolbar': { kind: 'keyed', scope: 'root' },
       },
     }, BoardRoot)
     yield disposeSidebar
@@ -894,8 +958,23 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   ctx.slots.inject('board.canvas', () => ctx.slots.register({
     name: 'board.canvas',
     store: boardStore,
-    children: { 'board.windows': { kind: 'single', scope: 'root' } },
+    children: {
+      'board.windows': { kind: 'single', scope: 'root' },
+      'board.elements': { kind: 'single', scope: 'root' },
+    },
   }, DashboardCanvas))
+
+  // 3b. Element layer: declares the keyed element-body seat; its fallback
+  //     neutral body covers kinds without a registered occupant.
+  ctx.slots.inject('board.elements', () => ctx.slots.register({
+    name: 'board.elements',
+    store: boardStore,
+    locale: NS,
+    inject: elementInjected,
+    children: {
+      'board.element.body': { kind: 'keyed', scope: 'root' },
+    },
+  }, BoardElementLayer))
 
   // 3. Window layer: declares the keyed window and window-body seats; its
   //    `renderBody` dispatcher reaches every frame through owner props.

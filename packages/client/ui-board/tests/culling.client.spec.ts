@@ -4,6 +4,8 @@
  * unmounted, so its lane, draft, attachments, and panel keep their state.
  */
 import { describe, expect, it } from 'vitest'
+import { brandNumber } from '@deepseek-ai/dsh-brand'
+import type { BoardRevision } from '@ketos/board-doc/types'
 import { CULL_MARGIN, isWindowHidden, isWindowVisible } from '../src/client/culling.ts'
 import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardState } from '../src/client/store.ts'
@@ -48,6 +50,14 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     highlightWindowId: null,
     cloneEdits: {},
     rightPanels: {},
+    boardElements: {},
+    boardElementsRevision: brandNumber<BoardRevision>(0),
+    boardDocId: null,
+    boardLimits: null,
+    selfId: null,
+    selectedBoardElementId: null,
+    pendingBoardElementOps: [],
+    elementNotice: null,
     drafts: {},
     ...overrides,
   }

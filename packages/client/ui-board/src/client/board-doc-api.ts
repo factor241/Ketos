@@ -95,6 +95,7 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && isFiniteNumber(value['revision']) && value['revision'] >= 0
     && Array.isArray(value['elements']) && value['elements'].every(isBoardElement)
     && isRecord(limits) && isFiniteNumber(limits['elementBytesMax']) && limits['elementBytesMax'] > 0
+    && isFiniteNumber(limits['noteTextMax']) && limits['noteTextMax'] > 0
 }
 
 /**
@@ -133,17 +134,29 @@ export async function fetchBoardSnapshot(): Promise<BoardSnapshot | undefined> {
   }
 }
 
+/** Options of one operation post. */
+export interface BoardOpsPostOptions {
+  /**
+   * Post the batch as a page-lifetime request, so a flush during `pagehide` or
+   * a hidden tab still leaves the browser. The board's own batches stay under
+   * the 64 KiB keepalive body bound.
+   */
+  readonly keepalive?: boolean
+}
+
 /**
  * Post one atomic operation batch.
  * @param ops - the operations to apply.
+ * @param options - keepalive posting for a page-lifetime flush.
  * @returns the committed revision or the stable failure code.
  */
-export async function postBoardOps(ops: readonly BoardOp[]): Promise<BoardOpsOutcome> {
+export async function postBoardOps(ops: readonly BoardOp[], options: BoardOpsPostOptions = {}): Promise<BoardOpsOutcome> {
   try {
     const response = await fetch(ketosRoute(BOARD_DOC_OPS_PATH.slice(1)), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ops }),
+      keepalive: options.keepalive ?? false,
     })
     const payload: unknown = await response.json().catch(() => undefined)
     if (!response.ok) {

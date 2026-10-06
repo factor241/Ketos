@@ -74,9 +74,11 @@ function layerProps(board: BoardState): BoardElementLayerProps {
     actions: instance.actions,
     renderSlot: (_name, _owner, opts) => opts?.fallback ?? null,
     t,
+    createElement: vi.fn(),
     moveElement: vi.fn(),
     resizeElement: vi.fn(),
     removeElement: vi.fn(),
+    patchElement: vi.fn(),
   }
 }
 

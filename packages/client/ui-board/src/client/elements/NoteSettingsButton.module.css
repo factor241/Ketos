@@ -1,0 +1,18 @@
+/* Note settings trigger inside the screen-space element toolbar. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-xs);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--dsw-alias-bg-base);
+}

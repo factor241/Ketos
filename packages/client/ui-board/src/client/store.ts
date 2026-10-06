@@ -9,7 +9,7 @@ import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardKey } from './locale.ts'
 import { brandNumber } from '@deepseek-ai/dsh-brand'
 import type {
-  BoardDocId, BoardElement, BoardElementKind, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId,
+  BoardDocId, BoardElement, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId,
 } from '@ketos/board-doc/types'
 import type { CloneEdit } from './clone-draft.ts'
 import {
@@ -19,7 +19,8 @@ import {
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
 import type {
-  BoardDraftFile, BoardDraftImage, BoardWindowState, WindowAccess, WindowBodyKind, WindowId, WindowKind,
+  BoardDraftFile, BoardDraftImage, BoardElementPatch, BoardElementSpec, BoardWindowState, WindowAccess,
+  WindowBodyKind, WindowId, WindowKind,
 } from './contract/slots.ts'
 import {
   adoptSelfId, canManageWindow, currentOwnerId, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
@@ -46,21 +47,6 @@ export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex' | 'owne
   readonly ownerId?: OwnerId
   /** Access to reopen the window with; absent opens it owner-only. */
   readonly access?: WindowAccess
-}
-
-/**
- * One element a component asks the store to create. The store owns the fields
- * the host also resolves — owner, paint priority, and both timestamps — so the
- * optimistic element and the committed one agree.
- */
-export interface BoardElementSpec {
-  readonly id: ElementId
-  readonly kind: BoardElementKind
-  readonly x: number
-  readonly y: number
-  readonly w: number
-  readonly h: number
-  readonly data: BoardElement['data']
 }
 
 /**
@@ -248,6 +234,14 @@ type BoardActions = {
   moveBoardElement: (draft: BoardState, id: ElementId, x: number, y: number) => void
   /** Resize one element locally; the gesture sends the operation. */
   resizeBoardElement: (draft: BoardState, id: ElementId, width: number, height: number) => void
+  /** Patch one element's geometry or data locally; the caller posts the operation. */
+  patchBoardElement: (draft: BoardState, id: ElementId, patch: BoardElementPatch) => void
+  /**
+   * Open one element for in-place editing, or close it with `null`. Only an
+   * element the acting participant owns opens; a foreign or absent id leaves
+   * the current editing element untouched.
+   */
+  setEditingBoardElement: (draft: BoardState, id: ElementId | null) => void
   /** Remove one element locally; the gesture sends the operation. */
   removeBoardElement: (draft: BoardState, id: ElementId) => void
   /** Mark one element's operation in flight, so stream echoes do not roll it back. */
@@ -345,6 +339,8 @@ export interface BoardState {
   selfId: OwnerId | null
   /** The one selected element, or null. */
   selectedBoardElementId: ElementId | null
+  /** The one element open for in-place editing, or null. */
+  editingBoardElementId: ElementId | null
   /** Elements with an operation in flight; their stream echoes are skipped. */
   pendingBoardElementOps: ElementId[]
   /**
@@ -750,6 +746,7 @@ export function createBoardStore(): BoardStoreHandle {
       boardLimits: null,
       selfId: null,
       selectedBoardElementId: null,
+      editingBoardElementId: null,
       pendingBoardElementOps: [],
       elementNotice: null,
       expandedWindowId: null,
@@ -1096,6 +1093,10 @@ export function createBoardStore(): BoardStoreHandle {
           && draft.boardElements[draft.selectedBoardElementId as string] === undefined) {
           draft.selectedBoardElementId = null
         }
+        if (draft.editingBoardElementId !== null
+          && draft.boardElements[draft.editingBoardElementId as string] === undefined) {
+          draft.editingBoardElementId = null
+        }
       },
       applyBoardPatch: (draft, patch) => {
         if (patch.revision <= draft.boardElementsRevision) return
@@ -1109,6 +1110,7 @@ export function createBoardStore(): BoardStoreHandle {
           // Immer draft: the opaque element id is the record key.
           Reflect.deleteProperty(draft.boardElements, id)
           if (draft.selectedBoardElementId === id) draft.selectedBoardElementId = null
+          if (draft.editingBoardElementId === id) draft.editingBoardElementId = null
         }
       },
       selectBoardElement: (draft, id) => {
@@ -1144,9 +1146,32 @@ export function createBoardStore(): BoardStoreHandle {
         if (element === undefined) return
         draft.boardElements[id as string] = { ...element, w: width, h: height, updatedAt: Date.now() }
       },
+      patchBoardElement: (draft, id, patch) => {
+        const element = draft.boardElements[id as string]
+        if (element === undefined) return
+        draft.boardElements[id as string] = {
+          ...element,
+          x: patch.x ?? element.x,
+          y: patch.y ?? element.y,
+          w: patch.w ?? element.w,
+          h: patch.h ?? element.h,
+          data: patch.data === undefined ? element.data : { ...element.data, ...patch.data },
+          updatedAt: Date.now(),
+        }
+      },
+      setEditingBoardElement: (draft, id) => {
+        if (id === null) {
+          draft.editingBoardElementId = null
+          return
+        }
+        const element = draft.boardElements[id as string]
+        if (element === undefined || element.ownerId !== currentOwnerId(draft)) return
+        draft.editingBoardElementId = id
+      },
       removeBoardElement: (draft, id) => {
         Reflect.deleteProperty(draft.boardElements, id)
         if (draft.selectedBoardElementId === id) draft.selectedBoardElementId = null
+        if (draft.editingBoardElementId === id) draft.editingBoardElementId = null
       },
       beginBoardElementOp: (draft, id) => {
         if (!draft.pendingBoardElementOps.includes(id)) draft.pendingBoardElementOps.push(id)

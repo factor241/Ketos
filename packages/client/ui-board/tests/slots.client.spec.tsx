@@ -65,10 +65,9 @@ describe('board slot composition', () => {
     for (const key of ['board.canvas', 'board.dock', 'board.minimap'] as const) {
       expect(runtime.slots.entriesOfSlot(key)).toHaveLength(1)
     }
-    // The toolbar seat is declared for the element stages; at stage 28 no kind
-    // occupies it yet.
+    // The toolbar seat carries the note kind's owner settings.
     expect(runtime.slots.spec('board.element.toolbar')).toEqual({ kind: 'keyed', scope: 'root' })
-    expect(runtime.slots.entriesOfSlot('board.element.toolbar')).toHaveLength(0)
+    expect(runtime.slots.entries('board.element.toolbar').map(entry => entry.options.key)).toEqual(['note'])
 
     // Cascade: canvas declares the element layer and the window layer, the
     // element layer declares the keyed element-body seat, and the window layer

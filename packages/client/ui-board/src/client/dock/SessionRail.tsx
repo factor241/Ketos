@@ -25,9 +25,14 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
-import type { BoardWindowInjected, BoardWindowState, WindowId } from '../contract/slots.ts'
+import { mintElementId } from '@ketos/board-doc/data'
+import type {
+  BoardElementInjected, BoardWindowInjected, BoardWindowState, WindowId,
+} from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
+import { BOARD_ELEMENT_KIND_DESCRIPTORS } from '../board-element-kinds.ts'
+import { placeInSafeArea } from '../board-coordinates.ts'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
@@ -44,6 +49,7 @@ export type SessionRailProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
+  & BoardElementInjected
 
 /** Most recent chats the dock's `+` menu offers. */
 const RECENT_CHAT_LIMIT = 6
@@ -197,9 +203,32 @@ function DockRow({
   )
 }
 
+/** Glyph of the `create:note` entry: a note sheet with its text lines. */
+function NoteIcon() {
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4" y="3" width="16" height="18" rx="2" ry="2" />
+      <line x1="8" y1="8" x2="16" y2="8" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+      <line x1="8" y1="16" x2="12" y2="16" />
+    </svg>
+  )
+}
+
 export function SessionRail({
   useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, useSessionList,
   useAgentPresetRoster, openChat, openClone, createClone, refreshAgentPresets, refreshClones,
+  createElement,
 }: SessionRailProps) {
   // The dock reads its own order (A6): raising a window reorders the paint
   // stack, never the icons.
@@ -207,6 +236,14 @@ export function SessionRail({
   const windows = useStore(s => s.windows)
   const activeWindowId = useStore(s => s.activeWindowId)
   const cloneOrder = useStore(s => s.cloneOrder)
+  // The safe-area state the `create:note` entry places a new note with: the
+  // same projection the store's window placement runs.
+  const panX = useStore(s => s.panX)
+  const panY = useStore(s => s.panY)
+  const zoom = useStore(s => s.zoom)
+  const viewportWidth = useStore(s => s.viewportWidth)
+  const viewportHeight = useStore(s => s.viewportHeight)
+  const chromeInsetSources = useStore(s => s.chromeInsetSources)
   const clones = useCloneList(roster => roster.clones)
   // The clone strip renders in the stored dock order (A6): ids the order does
   // not know yet (a roster addition since the last adoption) follow in roster
@@ -384,6 +421,29 @@ export function SessionRail({
       case 'open:tasks':
         openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows))
         return
+      case 'create:note': {
+        // A new note opens at the center of the visible safe area, selected
+        // and in editing, whatever the board's pan and zoom.
+        const size = BOARD_ELEMENT_KIND_DESCRIPTORS.note.defaultSize
+        const at = placeInSafeArea(
+          { panX, panY, zoom, viewportWidth, viewportHeight, chromeInsetSources },
+          size.width,
+          size.height,
+        )
+        const id = mintElementId()
+        createElement({
+          id,
+          kind: 'note',
+          x: at.x,
+          y: at.y,
+          w: size.width,
+          h: size.height,
+          data: { text: '', font: 'sans', size: 'm', scale: 1 },
+        })
+        actions.selectBoardElement(id)
+        actions.setEditingBoardElement(id)
+        return
+      }
       default:
         if (id.startsWith('preset:')) {
           // The quick choice at creation: remember the pick, then open the
@@ -422,6 +482,9 @@ export function SessionRail({
     { id: 'open:clone', label: t('menu.open.clone'), icon: <IconAgentPresetOutlineRegular /> },
     { id: 'open:dashboard', label: t('menu.open.dashboard'), icon: windowKindGlyph('dashboard') },
     { id: 'open:tasks', label: t('menu.open.tasks'), icon: windowKindGlyph('tasks') },
+    { type: 'separator', id: 'separator.boardItems' },
+    { type: 'label', id: 'group.boardItems', text: t('menu.group.boardItems') },
+    { id: 'create:note', label: t('menu.create.note'), icon: <NoteIcon /> },
     ...(recent.length === 0 ? [] : [
       { type: 'separator', id: 'separator.recent' },
       { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },

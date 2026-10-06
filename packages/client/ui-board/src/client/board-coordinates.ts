@@ -22,6 +22,12 @@ export interface BoardViewport extends BoardView {
   readonly viewportHeight: number
 }
 
+/** The board state fields the safe-area projection reads. */
+export type BoardSafeAreaState = Pick<
+  BoardState,
+  'panX' | 'panY' | 'zoom' | 'viewportWidth' | 'viewportHeight' | 'chromeInsetSources'
+>
+
 /** One point in either coordinate space. */
 export interface BoardPoint {
   readonly x: number
@@ -83,10 +89,10 @@ export function visibleWorldRect(state: BoardViewport, margin = 0): BoardRect {
 /**
  * Project the board's safe area from the store: the viewport box less the
  * folded chrome insets, in screen pixels and in world units.
- * @param state - the board store snapshot (viewport, pan, zoom, chrome contributions).
+ * @param state - viewport, pan, zoom, and chrome contributions.
  * @returns the safe area in both coordinate spaces.
  */
-export function safeArea(state: BoardState): SafeArea {
+export function safeArea(state: BoardSafeAreaState): SafeArea {
   const chromeInsets = chromeInsetsOf(state.chromeInsetSources)
   const { viewportWidth, viewportHeight } = state
   const screen: BoardRect = {
@@ -108,12 +114,12 @@ export function safeArea(state: BoardState): SafeArea {
 
 /**
  * Center a box of the requested size inside the world safe area.
- * @param state - the board store snapshot.
+ * @param state - viewport, pan, zoom, and chrome contributions.
  * @param width - box width in world units.
  * @param height - box height in world units.
  * @returns the top-left world point of the centered box.
  */
-export function placeInSafeArea(state: BoardState, width: number, height: number): BoardPoint {
+export function placeInSafeArea(state: BoardSafeAreaState, width: number, height: number): BoardPoint {
   const area = safeArea(state).world
   return {
     x: area.left + (area.right - area.left - width) / 2,

@@ -56,7 +56,16 @@ async function createElement(page: Page, id: string, x: number, y: number): Prom
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        ops: [{ op: 'create', id: elementId, kind: 'note', x: left, y: top, w: 240, h: 160, data: {} }],
+        ops: [{
+          op: 'create',
+          id: elementId,
+          kind: 'note',
+          x: left,
+          y: top,
+          w: 240,
+          h: 160,
+          data: { text: '', font: 'sans', size: 'm', scale: 1 },
+        }],
       }),
     })
     if (!response.ok) throw new Error(`board ops refused: ${String(response.status)}`)
@@ -174,4 +183,51 @@ describe('web e2e: board elements', () => {
     expect(tripwireB.warnings).toEqual([])
     expect(tripwireB.pageErrors).toEqual([])
   }, 30_000)
+
+  it('creates a note from the + menu at two zooms, edits it, and restores it after reload', async () => {
+    const board = pageA.locator('[data-surface="board"]')
+    const boardBox = await board.boundingBox()
+    if (boardBox === null) throw new Error('board is missing')
+    const centerX = boardBox.x + boardBox.width / 2
+    const centerY = boardBox.y + boardBox.height / 2
+
+    /** Zoom the board with ctrl+wheel, then create one note and return its frame. */
+    const createNote = async (wheelDelta: number): Promise<void> => {
+      await pageA.mouse.move(centerX, centerY)
+      await pageA.keyboard.down('Control')
+      for (let step = 0; step < 3; step++) await pageA.mouse.wheel(0, wheelDelta)
+      await pageA.keyboard.up('Control')
+      await settle(pageA)
+      await pageA.locator('[data-board-action="dock-add"]').click()
+      await pageA.getByRole('menuitem', { name: 'Note' }).click()
+      await pageA.locator('[data-board-note-editor]').waitFor({ timeout: 10_000 })
+      await settle(pageA)
+      const frame = pageA.locator('[data-board-element-kind="note"]').last()
+      const box = await frame.boundingBox()
+      if (box === null) throw new Error('created note is missing')
+      // The note is centered in the visible safe area: its center sits at the
+      // board center within the chrome and the resize step.
+      expect(Math.abs(box.x + box.width / 2 - centerX)).toBeLessThan(60)
+      expect(Math.abs(box.y + box.height / 2 - centerY)).toBeLessThan(80)
+      await expect.poll(
+        async () => await pageA.evaluate(() => document.activeElement?.hasAttribute('data-board-note-editor') === true),
+        { timeout: 5_000 },
+      ).toBe(true)
+    }
+
+    // Zoomed out and zoomed in: the placement follows the visible area, not a
+    // fixed world point.
+    await createNote(600)
+    await createNote(-600)
+
+    await pageA.locator('[data-board-note-editor]').last().pressSequentially('Hello e2e note')
+    await pageA.locator('[data-board-note-editor]').last().press('Escape')
+    await pageA.locator('[data-board-note-content]', { hasText: 'Hello e2e note' }).waitFor({ timeout: 10_000 })
+
+    await pageA.reload({ waitUntil: 'load' })
+    await openBoard(pageA)
+    await pageA.locator('[data-board-note-content]', { hasText: 'Hello e2e note' }).waitFor({ timeout: 30_000 })
+    expect(tripwireA.warnings).toEqual([])
+    expect(tripwireA.pageErrors).toEqual([])
+  }, 120_000)
 })

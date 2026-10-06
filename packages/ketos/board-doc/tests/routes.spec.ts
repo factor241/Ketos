@@ -25,7 +25,7 @@ const ID_A = brandString<ElementId>('00000000-0000-4000-8000-000000000001')
 const ID_B = brandString<ElementId>('00000000-0000-4000-8000-000000000002')
 
 /** The deployment limits the fixture mounts. */
-const LIMITS = { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144 } } as const
+const LIMITS = { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000 } } as const
 
 /**
  * One create operation.
@@ -33,7 +33,10 @@ const LIMITS = { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementByt
  * @returns the create operation.
  */
 function createOp(id: ElementId): BoardCreateOp {
-  return { op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10 }
+  return {
+    op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10,
+    data: { text: '', font: 'sans', size: 'm', scale: 1 },
+  }
 }
 
 /** Fresh temporary directory that the running test owns. */

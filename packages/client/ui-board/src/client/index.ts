@@ -55,6 +55,8 @@ import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
+import { NoteElement } from './elements/NoteElement.tsx'
+import { NoteSettingsButton } from './elements/NoteSettingsButton.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
 import { WindowFrame } from './window/WindowFrame.tsx'
@@ -902,9 +904,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   // Element operations: the local change lands first, then one batch posts;
   // the element stays pending until the answer, and a refusal clears the
   // optimistic value with a fresh snapshot and a board notice.
-  const postElementOps = (ids: readonly ElementId[], ops: readonly BoardOp[], failureKey: BoardKey): void => {
+  const postElementOps = (
+    ids: readonly ElementId[],
+    ops: readonly BoardOp[],
+    failureKey: BoardKey,
+    keepalive = false,
+  ): void => {
     for (const id of ids) instance.actions.beginBoardElementOp(id)
-    void postBoardOps(ops).then((outcome) => {
+    void postBoardOps(ops, { keepalive }).then((outcome) => {
       for (const id of ids) instance.actions.endBoardElementOp(id)
       if (outcome.ok) return
       instance.actions.setElementNotice(failureKey)
@@ -916,6 +923,19 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
 
   /** Element verbs the element layer and the board root call. */
   const elementInjected = (): BoardElementInjected => ({
+    createElement: (spec) => {
+      instance.actions.createBoardElement(spec)
+      postElementOps([spec.id], [{
+        op: 'create',
+        id: spec.id,
+        kind: spec.kind,
+        x: spec.x,
+        y: spec.y,
+        w: spec.w,
+        h: spec.h,
+        data: spec.data,
+      }], 'element.saveFailed')
+    },
     moveElement: (id, x, y) => {
       instance.actions.moveBoardElement(id, x, y)
       postElementOps([id], [{ op: 'patch', id, x, y }], 'element.saveFailed')
@@ -927,6 +947,10 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     removeElement: (id) => {
       instance.actions.removeBoardElement(id)
       postElementOps([id], [{ op: 'remove', id }], 'element.deleteFailed')
+    },
+    patchElement: (id, patch, options) => {
+      instance.actions.patchBoardElement(id, patch)
+      postElementOps([id], [{ op: 'patch', id, ...patch }], 'element.saveFailed', options?.keepalive === true)
     },
   })
 
@@ -975,6 +999,25 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       'board.element.body': { kind: 'keyed', scope: 'root' },
     },
   }, BoardElementLayer))
+
+  // Note kind: the body draws the owner's text and hosts its in-place editor;
+  // a body whose data fails the decoder falls back to the neutral element body.
+  ctx.slots.inject('board.element.body', () => ctx.slots.register({
+    name: 'board.element.body',
+    key: 'note',
+    store: boardStore,
+    locale: NS,
+    inject: elementInjected,
+  }, NoteElement))
+
+  // Note toolbar: the owner's font, text-size, and scale settings.
+  ctx.slots.inject('board.element.toolbar', () => ctx.slots.register({
+    name: 'board.element.toolbar',
+    key: 'note',
+    store: boardStore,
+    locale: NS,
+    inject: elementInjected,
+  }, NoteSettingsButton))
 
   // 3. Window layer: declares the keyed window and window-body seats; its
   //    `renderBody` dispatcher reaches every frame through owner props.
@@ -1067,7 +1110,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     name: 'board.dock',
     store: boardStore,
     locale: NS,
-    inject: injected,
+    inject: (): BoardWindowInjected & BoardElementInjected => ({ ...injected(), ...elementInjected() }),
   }, SessionRail))
 
   ctx.slots.inject('board.minimap', () => ctx.slots.register({

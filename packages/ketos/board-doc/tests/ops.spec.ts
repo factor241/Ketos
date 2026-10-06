@@ -32,7 +32,7 @@ const ID_C = elementId(3)
  * @returns the limits.
  */
 function limits(overrides: Partial<BoardOpLimits> = {}): BoardOpLimits {
-  return { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144 }, ...overrides }
+  return { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000 }, ...overrides }
 }
 
 /**
@@ -42,7 +42,7 @@ function limits(overrides: Partial<BoardOpLimits> = {}): BoardOpLimits {
  * @returns the create operation.
  */
 function createOp(id: ElementId, overrides: Partial<Omit<BoardCreateOp, 'op' | 'id'>> = {}): BoardCreateOp {
-  return { op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10, ...overrides }
+  return { op: 'create', id, kind: 'todo', x: 0, y: 0, w: 10, h: 10, ...overrides }
 }
 
 /** A fresh document that records its skipped elements and update count. */
@@ -119,7 +119,7 @@ describe('operation body parsing', () => {
 
   it('parses creates and patches with absent optional fields', () => {
     expect(parseBoardOps({ ops: [createOp(ID_A)] }, limits()))
-      .toEqual([{ op: 'create', id: ID_A, kind: 'note', x: 0, y: 0, w: 10, h: 10 }])
+      .toEqual([{ op: 'create', id: ID_A, kind: 'todo', x: 0, y: 0, w: 10, h: 10 }])
     expect(parseBoardOps({ ops: [{ op: 'patch', id: ID_A }] }, limits()))
       .toEqual([{ op: 'patch', id: ID_A }])
     expect(parseBoardOps({
@@ -132,7 +132,7 @@ describe('operation body parsing', () => {
       ops: [createOp(ID_A, { data: { text: 'x' } }), { op: 'patch', id: ID_A, x: 4 }, { op: 'remove', id: ID_A }],
     }, limits())
     expect(ops).toEqual([
-      { op: 'create', id: ID_A, kind: 'note', x: 0, y: 0, w: 10, h: 10, data: { text: 'x' } },
+      { op: 'create', id: ID_A, kind: 'todo', x: 0, y: 0, w: 10, h: 10, data: { text: 'x' } },
       { op: 'patch', id: ID_A, x: 4 },
       { op: 'remove', id: ID_A },
     ])
@@ -148,7 +148,7 @@ describe('operation application', () => {
     expect(result).toEqual({
       upserts: [{
         id: ID_B,
-        kind: 'note',
+        kind: 'todo',
         ownerId: SELF,
         x: 0,
         y: 0,
@@ -289,7 +289,7 @@ describe('operation application', () => {
   it('accepts an element exactly at the byte bound and refuses one byte more', () => {
     const base: BoardElement = {
       id: ID_A,
-      kind: 'note',
+      kind: 'todo',
       ownerId: SELF,
       x: 0,
       y: 0,
@@ -301,10 +301,10 @@ describe('operation application', () => {
       updatedAt: NOW,
     }
     const bytes = new TextEncoder().encode(JSON.stringify(base)).length
-    const exact = limits({ elements: { elementBytesMax: bytes } })
+    const exact = limits({ elements: { elementBytesMax: bytes, noteTextMax: 20_000 } })
     expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, exact, NOW)))
       .toBeUndefined()
-    const tight = limits({ elements: { elementBytesMax: bytes - 1 } })
+    const tight = limits({ elements: { elementBytesMax: bytes - 1, noteTextMax: 20_000 } })
     expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, tight, NOW)))
       .toBe('ketos/limit')
   })
@@ -312,7 +312,7 @@ describe('operation application', () => {
   it('refuses a patch whose merged keys exceed the byte budget', () => {
     const { doc } = openDoc()
     seed(doc, ID_A, SELF, { a: 'x'.repeat(100) })
-    const tight = limits({ elements: { elementBytesMax: 150 } })
+    const tight = limits({ elements: { elementBytesMax: 150, noteTextMax: 20_000 } })
     expect(codeOf(() => applyBoardOps(
       doc,
       [{ op: 'patch', id: ID_A, data: { b: 'y'.repeat(100) } }],
@@ -336,7 +336,7 @@ describe('create resolution', () => {
   it('resolves the host-owned fields against the batch state', () => {
     expect(resolveCreate(createOp(ID_C, { data: { a: 1 } }), { ids: new Set(), maxZ: 7 }, SELF, NOW)).toEqual({
       id: ID_C,
-      kind: 'note',
+      kind: 'todo',
       ownerId: SELF,
       x: 0,
       y: 0,

@@ -57,6 +57,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     boardLimits: null,
     selfId: null,
     selectedBoardElementId: null,
+    editingBoardElementId: null,
     pendingBoardElementOps: [],
     elementNotice: null,
     drafts: {},

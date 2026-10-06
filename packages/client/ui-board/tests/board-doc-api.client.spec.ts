@@ -42,7 +42,7 @@ const SNAPSHOT: BoardSnapshot = {
   selfId: SELF,
   revision: brandNumber<BoardRevision>(1),
   elements: [ELEMENT],
-  limits: { elementBytesMax: 1024 },
+  limits: { elementBytesMax: 1024, noteTextMax: 1024 },
 }
 
 const PATCH: BoardPatch = {
@@ -112,6 +112,18 @@ describe('board document requests', () => {
     expect(await fetchBoardSnapshot()).toEqual(SNAPSHOT)
     expect(await postBoardOps([{ op: 'remove', id: ELEMENT_ID }])).toEqual({ ok: true, revision: 2 })
     expect(calls).toEqual(['GET /api/ketos.board', 'POST /api/ketos.board.ops'])
+  })
+
+  it('posts a page-lifetime flush with keepalive and a normal batch without it', async () => {
+    const inits: RequestInit[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_input: unknown, init?: RequestInit): Promise<Response> => {
+      inits.push(init ?? {})
+      return Response.json({ ok: true, revision: 1 })
+    }))
+    expect(await postBoardOps([{ op: 'remove', id: ELEMENT_ID }], { keepalive: true })).toEqual({ ok: true, revision: 1 })
+    expect(inits[0]?.keepalive).toBe(true)
+    expect(await postBoardOps([])).toEqual({ ok: true, revision: 1 })
+    expect(inits[1]?.keepalive).toBe(false)
   })
 
   it('reports refused, unreachable, and malformed answers', async () => {

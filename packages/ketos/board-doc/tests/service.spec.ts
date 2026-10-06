@@ -25,7 +25,10 @@ const ID_B = brandString<ElementId>('00000000-0000-4000-8000-000000000002')
  * @returns the create operation.
  */
 function createOp(id: ElementId): BoardCreateOp {
-  return { op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10 }
+  return {
+    op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10,
+    data: { text: '', font: 'sans', size: 'm', scale: 1 },
+  }
 }
 
 /** Fresh temporary directory that the running test owns. */
@@ -52,7 +55,7 @@ function mount(path: string, overrides: Partial<KetosBoardDocOptions> = {}): {
   const invalid: string[] = []
   const service = new KetosBoardDocService(ctx, {
     path,
-    limits: { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144 } },
+    limits: { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000 } },
     journalCompactRows: 500,
     logger: (message) => { invalid.push(message) },
     ...overrides,
@@ -66,10 +69,12 @@ describe('board document service', () => {
   it('opens lazily and answers a snapshot with the published limits', async () => {
     const root = await temporaryDirectory()
     const path = join(root, 'board.db')
-    const { service } = mount(path, { limits: { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 1024 } } })
+    const { service } = mount(path, {
+      limits: { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 1024, noteTextMax: 20_000 } },
+    })
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
     const snapshot = await service.snapshot()
-    expect(snapshot).toMatchObject({ revision: 0, elements: [], limits: { elementBytesMax: 1024 } })
+    expect(snapshot).toMatchObject({ revision: 0, elements: [], limits: { elementBytesMax: 1024, noteTextMax: 20_000 } })
     expect(snapshot.selfId).toBe(await service.selfId())
     expect(snapshot.docId).toBe(await service.docId())
     expect((await stat(path)).isFile()).toBe(true)

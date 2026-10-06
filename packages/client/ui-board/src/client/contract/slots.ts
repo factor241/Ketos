@@ -931,10 +931,45 @@ export interface BoardElementToolbarOwnerProps {
 }
 
 /**
- * Element verbs the board injects into the element layer and the board root:
- * each applies the change optimistically and posts one operation batch.
+ * One element a component asks the board to create. The store owns the fields
+ * the host also resolves — owner, paint priority, and both timestamps — so the
+ * optimistic element and the committed one agree.
+ */
+export interface BoardElementSpec {
+  readonly id: ElementId
+  readonly kind: BoardElementKind
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+  readonly data: BoardElement['data']
+}
+
+/**
+ * Fields one local element patch may replace; absent fields keep their stored
+ * value. Geometry fields and `data` merge into the stored element.
+ */
+export interface BoardElementPatch {
+  readonly x?: number
+  readonly y?: number
+  readonly w?: number
+  readonly h?: number
+  readonly data?: BoardElement['data']
+}
+
+/**
+ * Element verbs the board injects into the element layer, the board root, and
+ * kind bodies: each applies the change optimistically and posts one operation
+ * batch.
  */
 export interface BoardElementInjected {
+  /**
+   * Create one element at the supplied world rectangle; the change applies
+   * locally and one create operation is posted, with the host stamping the
+   * owner, paint priority, and timestamps.
+   * @param spec - the complete element to create.
+   */
+  createElement: (spec: BoardElementSpec) => void
   /**
    * Move one element; the gesture sends one patch operation.
    * @param id - element identity.
@@ -954,6 +989,19 @@ export interface BoardElementInjected {
    * @param id - element identity.
    */
   removeElement: (id: ElementId) => void
+  /**
+   * Patch one element's geometry or data; the change applies locally and one
+   * patch operation is posted.
+   * @param id - element identity.
+   * @param patch - fields to replace; absent fields keep their stored value.
+   * @param options - `keepalive` posts the batch as a page-lifetime request,
+   * for a flush during `pagehide` or a hidden tab.
+   */
+  patchElement: (
+    id: ElementId,
+    patch: BoardElementPatch,
+    options?: { readonly keepalive?: boolean },
+  ) => void
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

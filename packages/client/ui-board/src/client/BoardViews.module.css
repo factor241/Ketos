@@ -40,6 +40,14 @@
   --board-control-send: 36px;
   --board-chip-pad: 4px 10px;
 
+  /* Note kind: the serif family the theme lacks plus the three text sizes in
+     world units. The content block scales by the element's own scale, so the
+     sizes resolve inside the scaled coordinate system. */
+  --board-note-font-serif: ui-serif, 'New York', Georgia, 'Times New Roman', 'Songti SC', SimSun, serif;
+  --board-note-text-s: 14px;
+  --board-note-text-m: 18px;
+  --board-note-text-l: 24px;
+
   /* Board owner palette: ten owner colors plus the neutral unknown slot. The
      edge carries identity; the fill is its muted background. Every edge keeps
      a WCAG contrast ratio of at least 3:1 against both board surfaces of its

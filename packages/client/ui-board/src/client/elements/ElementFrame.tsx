@@ -66,6 +66,12 @@ export interface ElementFrameProps {
   readonly resizeLabel: string
   /** Select this element. */
   readonly onSelect: (id: ElementId) => void
+  /**
+   * Open this element for in-place editing, when the kind has an editor. The
+   * frame owns the gesture because its pointer capture retargets the derived
+   * click and double-click events away from the body.
+   */
+  readonly onEdit?: ((id: ElementId) => void) | undefined
   /** Commit one move. */
   readonly onMove: (id: ElementId, x: number, y: number) => void
   /** Commit one resize. */
@@ -75,7 +81,7 @@ export interface ElementFrameProps {
 }
 
 export function ElementFrame({
-  element, selected, editable, ownerColor, zoom, label, resizeLabel, onSelect, onMove, onResize, children,
+  element, selected, editable, ownerColor, zoom, label, resizeLabel, onSelect, onEdit, onMove, onResize, children,
 }: ElementFrameProps) {
   const frameRef = useRef<HTMLDivElement | null>(null)
   const gesture = useRef<ElementGesture | null>(null)
@@ -173,6 +179,10 @@ export function ElementFrame({
       onPointerMove={handlePointerMove}
       onPointerUp={endGesture}
       onPointerCancel={endGesture}
+      onDoubleClick={(event) => {
+        event.stopPropagation()
+        if (editable) onEdit?.(element.id)
+      }}
     >
       <div className={css.body}>{children}</div>
       {editable && descriptor.resizable && (

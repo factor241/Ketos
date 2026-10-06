@@ -9,10 +9,24 @@
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
-import type { BoardElementData, BoardElementKind, BoardLimits, ElementId } from './types.ts'
+import type {
+  BoardElementData, BoardElementKind, BoardLimits, ElementId, NoteData, NoteFont, NoteSize,
+} from './types.ts'
 
 /** UUID shape every opaque identifier carries. */
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
+/** Font families a note accepts, in menu order. */
+export const NOTE_FONTS: readonly NoteFont[] = ['sans', 'serif', 'mono']
+
+/** Base text sizes a note accepts, in menu order. */
+export const NOTE_SIZES: readonly NoteSize[] = ['s', 'm', 'l']
+
+/** Scales a note accepts; the menu offers exactly these steps. */
+export const NOTE_SCALE_STEPS: readonly number[] = [0.5, 0.75, 1, 1.5, 2, 3]
+
+/** Fields one note's data carries; any other field is a refusal. */
+const NOTE_FIELDS: readonly string[] = ['text', 'font', 'size', 'scale']
 
 /**
  * Mint one UUIDv4 string from the Web Crypto generator, which exists on every
@@ -56,10 +70,27 @@ export function isElementData(value: unknown): value is BoardElementData {
 }
 
 /**
- * Validate one kind's data. Every kind currently shares the common check — a
- * JSON object whose serialized size stays inside the element budget — and the
- * note, stroke, and todo stages replace their own branch with the kind's exact
- * rules.
+ * Parse one note's data: exactly the four fields, a text inside the published
+ * bound, a known font and size, and a scale from {@link NOTE_SCALE_STEPS}.
+ * @param value - decoded data value.
+ * @param limits - element limits the text must stay inside.
+ * @returns the typed note data, or null when the value is not a valid note.
+ */
+export function parseNoteData(value: unknown, limits: BoardLimits): NoteData | null {
+  if (!isElementData(value)) return null
+  const keys = Object.keys(value)
+  if (keys.length !== NOTE_FIELDS.length || keys.some(key => !NOTE_FIELDS.includes(key))) return null
+  const { text, font, size, scale } = value
+  if (typeof text !== 'string' || text.length > limits.noteTextMax) return null
+  if (typeof font !== 'string' || !(NOTE_FONTS as readonly string[]).includes(font)) return null
+  if (typeof size !== 'string' || !(NOTE_SIZES as readonly string[]).includes(size)) return null
+  if (typeof scale !== 'number' || !NOTE_SCALE_STEPS.includes(scale)) return null
+  return { text, font: font as NoteFont, size: size as NoteSize, scale }
+}
+
+/**
+ * Validate one kind's data. A note must parse as exact {@link NoteData}; the
+ * stroke and todo stages replace their own branches with the kind's exact rules.
  * @param kind - element kind the data belongs to.
  * @param data - decoded data object.
  * @param limits - element limits the data must stay inside.
@@ -68,8 +99,11 @@ export function isElementData(value: unknown): value is BoardElementData {
 export function validateElementData(kind: BoardElementKind, data: BoardElementData, limits: BoardLimits): string | null {
   if (!isElementData(data)) return 'data must be a JSON object'
   switch (kind) {
-    case 'note':
-      return commonDataReason(data, limits)
+    case 'note': {
+      const common = commonDataReason(data, limits)
+      if (common !== null) return common
+      return parseNoteData(data, limits) === null ? 'invalid note data' : null
+    }
     case 'stroke':
       return commonDataReason(data, limits)
     case 'todo':

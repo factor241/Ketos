@@ -27,6 +27,24 @@ export type BoardRevision = BrandedNumber<'BoardRevision'>
 /** Kind of a board element; each kind owns its body renderer and data rules. */
 export type BoardElementKind = 'note' | 'stroke' | 'todo'
 
+/** Font family one note draws its text with. */
+export type NoteFont = 'sans' | 'serif' | 'mono'
+
+/** Base text size of one note; the element scale is separate. */
+export type NoteSize = 's' | 'm' | 'l'
+
+/**
+ * Kind-owned payload of one note: the plain text and the owner's display
+ * choices. `scale` zooms the whole element: the world rectangle is `w × h` and
+ * the content draws at `w/scale × h/scale` under `transform: scale(scale)`.
+ */
+export interface NoteData {
+  readonly text: string
+  readonly font: NoteFont
+  readonly size: NoteSize
+  readonly scale: number
+}
+
 /** Kind-owned payload of one element, carried as plain JSON values. */
 export type BoardElementData = Readonly<Record<string, JsonValue>>
 
@@ -54,6 +72,8 @@ export interface BoardElement {
 export interface BoardLimits {
   /** Largest serialized size, in bytes, of one stored element. */
   readonly elementBytesMax: number
+  /** Largest note text the host accepts, in UTF-16 code units. */
+  readonly noteTextMax: number
 }
 
 /** Full state of the document at one revision, the first event of the stream. */

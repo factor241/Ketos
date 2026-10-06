@@ -1,0 +1,61 @@
+/* Note body: the scroll area fills the element rectangle, the content block
+   inside is the scale-transformed text surface. */
+
+.scroll {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  /* The note surface is elevated (layer-2 fill); rebind the scrollbar thumb
+     indirection in a complete pair, as the scrollbar contract requires. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+}
+
+.content {
+  transform-origin: 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--dsw-font-family);
+}
+
+.content[data-board-note-font='serif'] {
+  font-family: var(--board-note-font-serif);
+}
+
+.content[data-board-note-font='mono'] {
+  font-family: var(--ds-font-family-code);
+}
+
+.content[data-board-note-size='s'] {
+  font-size: var(--board-note-text-s);
+}
+
+.content[data-board-note-size='m'] {
+  font-size: var(--board-note-text-m);
+}
+
+.content[data-board-note-size='l'] {
+  font-size: var(--board-note-text-l);
+}
+
+.editing {
+  position: relative;
+}
+
+.editor {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: auto;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -55,7 +55,7 @@ function snapshot(overrides: Partial<BoardSnapshot> = {}): BoardSnapshot {
     selfId: SELF,
     revision: brandNumber<BoardRevision>(1),
     elements: [element()],
-    limits: { elementBytesMax: 1024 },
+    limits: { elementBytesMax: 1024, noteTextMax: 1024 },
     ...overrides,
   }
 }
@@ -107,7 +107,7 @@ describe('element snapshot and patch', () => {
     expect(state.boardElements[ID_A]).toEqual(element())
     expect(state.boardElementsRevision).toBe(3)
     expect(state.boardDocId).toBe(DOC_A)
-    expect(state.boardLimits).toEqual({ elementBytesMax: 1024 })
+    expect(state.boardLimits).toEqual({ elementBytesMax: 1024, noteTextMax: 1024 })
     expect(state.selfId).toBe(SELF)
     expect(currentOwnerId(state)).toBe(SELF)
     expect(boardParticipants(state)[0]?.id).toBe(SELF)

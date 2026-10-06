@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
+import { safeArea } from '../src/client/board-coordinates.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench, t } from './fixtures.client.ts'
 
@@ -36,7 +37,7 @@ async function bench(options: Parameters<typeof createBoardBench>[0] = {}) {
   await prepared.mountBoard()
   const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
   const store = prepared.runtime.storeOf('board.dock') as BoardInstance
-  return { runtime: prepared.runtime, panel, store }
+  return { runtime: prepared.runtime, panel, store, boardDoc: prepared.boardDoc }
 }
 
 /** Open the dock's `+` catalog through its trigger. */
@@ -278,6 +279,36 @@ describe('board dock', () => {
     expect(store.store.getSnapshot().windows[order[0] as string])
       .toMatchObject({ kind: 'tasks', bodyKind: 'tasks' })
     expect(panel.container.querySelector('[data-board-dock-notice]')).toBeNull()
+  })
+
+  it('creates a note in the center of the visible safe area at any zoom and pan', async () => {
+    for (const zoom of [0.5, 2]) {
+      const { runtime, panel, store, boardDoc } = await bench()
+      act(() => {
+        store.actions.setViewport(1200, 900)
+        store.actions.setPan(140, -80)
+        store.actions.setZoom(zoom)
+      })
+      openDockMenu(panel)
+      expect(screen.getByText(t('menu.group.boardItems'))).not.toBeNull()
+      fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.note') }))
+      await runtime.flush()
+
+      const state = store.store.getSnapshot()
+      const notes = Object.values(state.boardElements)
+      expect(notes, `zoom ${String(zoom)}`).toHaveLength(1)
+      const note = notes[0]!
+      expect(note).toMatchObject({ kind: 'note', w: 240, h: 160 })
+      const area = safeArea(state).world
+      expect(note.x + note.w / 2).toBeCloseTo((area.left + area.right) / 2, 6)
+      expect(note.y + note.h / 2).toBeCloseTo((area.top + area.bottom) / 2, 6)
+      expect(state.selectedBoardElementId).toBe(note.id)
+      expect(state.editingBoardElementId).toBe(note.id)
+      const editor = panel.container.querySelector('[data-board-note-editor]')
+      expect(editor, `zoom ${String(zoom)}`).not.toBeNull()
+      expect(document.activeElement).toBe(editor)
+      expect(boardDoc.ops.flat().filter(op => op.op === 'create')).toHaveLength(1)
+    }
   })
 
   it('states the dashboard is unavailable without opening a window', async () => {

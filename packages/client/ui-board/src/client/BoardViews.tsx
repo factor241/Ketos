@@ -271,6 +271,20 @@ export function BoardRoot({
         removeElement(selectedElementId)
         return
       }
+      if (event.key === 'Enter') {
+        // Enter opens the selected note of the acting owner for editing; a
+        // focused editor keeps the key (it inserts the newline).
+        const target = event.target
+        const insideBoard = pointerInsideRef.current || root.contains(document.activeElement)
+        if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
+        if (selectedElement.kind !== 'note' || selectedElement.ownerId !== (selfId ?? DEMO_SELF_ID)) return
+        if (selecting || isBoardEditingTarget(target)) return
+        if (target instanceof Element
+          && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return
+        event.preventDefault()
+        actions.setEditingBoardElement(selectedElementId)
+        return
+      }
       if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return
       if (isBoardEditingTarget(event.target)) return
       spaceRef.current = true

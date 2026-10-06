@@ -85,6 +85,7 @@ const baseState: BoardState = {
   boardLimits: null,
   selfId: null,
   selectedBoardElementId: null,
+  editingBoardElementId: null,
   pendingBoardElementOps: [],
   elementNotice: null,
   drafts: {},

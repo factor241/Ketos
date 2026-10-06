@@ -94,6 +94,7 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
               actions.selectBoardElement(id)
               actions.clearActiveWindow()
             }}
+            onEdit={element.kind === 'note' ? (id) => { actions.setEditingBoardElement(id) } : undefined}
             onMove={moveElement}
             onResize={resizeElement}
           >

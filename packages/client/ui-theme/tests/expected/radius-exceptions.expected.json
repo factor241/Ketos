@@ -1,4 +1,7 @@
 {
+  "ui-board/src/client/window/WindowBezel.module.css": [
+    ".bezel: border-radius: calc(var(--dsw-radius-xl) + 8px)"
+  ],
   "ui-deliverables/src/client/ChangedFiles.module.css": [
     ".tile: border-radius: 10px"
   ],

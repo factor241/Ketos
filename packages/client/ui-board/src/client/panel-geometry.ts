@@ -3,10 +3,10 @@
  * frame's edges. All values are world units, so a panel follows the window
  * while it is dragged, resized, or the canvas pans and zooms.
  */
-import type { BoardWindowState } from '../contract/slots.ts'
+import type { BoardWindowState } from './contract/slots.ts'
 // The panel width bounds are part of the durable layout contract (the settings
 // schema validates them), so they live with the layout schema.
-import { PANEL_LEFT_DEFAULT_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH } from '../../board-settings.ts'
+import { PANEL_LEFT_DEFAULT_WIDTH, PANEL_RIGHT_DEFAULT_WIDTH } from '../board-settings.ts'
 
 /** One rectangle in world units. */
 export interface PanelRect {

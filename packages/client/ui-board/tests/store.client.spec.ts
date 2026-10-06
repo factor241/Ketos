@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition } from '../src/client/store.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition, type BoardStoreInstance } from '../src/client/store.ts'
+import { DEMO_SELF_ID, canManageWindow, type OwnerId } from '../src/client/owners.ts'
 import type { BoardLayoutDocument } from '../src/board-settings.ts'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -13,6 +15,8 @@ function makeWindow(overrides: Partial<BoardWindowState> & Pick<BoardWindowState
     kind: 'agent',
     bodyKind: 'conversation',
     ordinal: 1,
+    ownerId: DEMO_SELF_ID,
+    access: { mode: 'owner', people: [] },
     x: 0,
     y: 0,
     width: 400,
@@ -648,6 +652,115 @@ describe('createBoardStore', () => {
     actions.setExpandedWindow('w1' as WindowId)
     actions.closeWindow('w1' as WindowId)
     expect(store.getSnapshot().expandedWindowId).toBeNull()
+  })
+})
+
+describe('window owner and access', () => {
+  /** Open one agent window owned by the acting participant. */
+  function openAgent(actions: BoardStoreInstance['actions'], id: string): void {
+    actions.openWindow({
+      id: id as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      width: 400,
+      height: 480,
+    })
+  }
+
+  it('opens a new window as the current participant with owner-only access', () => {
+    const { store, actions } = createBoardStore().create()
+    openAgent(actions, 'w1')
+
+    const win = store.getSnapshot().windows['w1'] as BoardWindowState
+    expect(win.ownerId).toBe(DEMO_SELF_ID)
+    expect(win.access).toEqual({ mode: 'owner', people: [] })
+    expect(canManageWindow(store.getSnapshot(), win)).toBe(true)
+  })
+
+  it('reopens a window under the owner and access a spec carries', () => {
+    const { store, actions } = createBoardStore().create()
+    const people = [brandString<OwnerId>('real-2')]
+    actions.openWindow({
+      id: 'w1' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      width: 400,
+      height: 480,
+      ownerId: brandString<OwnerId>('real-1'),
+      access: { mode: 'selected', people },
+    })
+    // The insert copies the caller's list, so a later mutation cannot leak in.
+    people.push(brandString<OwnerId>('real-3'))
+
+    const win = store.getSnapshot().windows['w1'] as BoardWindowState
+    expect(win.ownerId).toBe('real-1')
+    expect(win.access).toEqual({ mode: 'selected', people: ['real-2'] })
+  })
+
+  it('transfers a window to another participant and locks the previous owner out', () => {
+    const { store, actions } = createBoardStore().create()
+    openAgent(actions, 'w1')
+    const finance = brandString<OwnerId>('demo-finance')
+    const legal = brandString<OwnerId>('demo-legal')
+    actions.setWindowAccess('w1' as WindowId, { mode: 'selected', people: [finance, legal] })
+
+    // The current owner cannot transfer to itself, and a malformed id is refused.
+    actions.transferWindow('w1' as WindowId, DEMO_SELF_ID)
+    actions.transferWindow('w1' as WindowId, 'bad\nid' as OwnerId)
+    expect((store.getSnapshot().windows['w1'] as BoardWindowState).ownerId).toBe(DEMO_SELF_ID)
+
+    actions.transferWindow('w1' as WindowId, finance)
+    const transferred = store.getSnapshot().windows['w1'] as BoardWindowState
+    expect(transferred.ownerId).toBe(finance)
+    // The new owner leaves the selected list; the mode and the other person stay.
+    expect(transferred.access).toEqual({ mode: 'selected', people: [legal] })
+    expect(canManageWindow(store.getSnapshot(), transferred)).toBe(false)
+
+    // The previous owner can neither transfer again nor change the access.
+    actions.transferWindow('w1' as WindowId, legal)
+    actions.setWindowAccess('w1' as WindowId, { mode: 'all', people: [] })
+    expect(store.getSnapshot().windows['w1']).toEqual(transferred)
+  })
+
+  it('switches the three access modes and keeps the selected people across them', () => {
+    const { store, actions } = createBoardStore().create()
+    openAgent(actions, 'w1')
+    const people = [brandString<OwnerId>('demo-finance'), brandString<OwnerId>('demo-legal')]
+    const access = (): BoardWindowState['access'] =>
+      (store.getSnapshot().windows['w1'] as BoardWindowState).access
+
+    actions.setWindowAccess('w1' as WindowId, { mode: 'selected', people })
+    expect(access()).toEqual({ mode: 'selected', people })
+    actions.setWindowAccess('w1' as WindowId, { mode: 'all', people })
+    expect(access()).toEqual({ mode: 'all', people })
+    actions.setWindowAccess('w1' as WindowId, { mode: 'owner', people })
+    expect(access()).toEqual({ mode: 'owner', people })
+    actions.setWindowAccess('w1' as WindowId, { mode: 'selected', people })
+    expect(access()).toEqual({ mode: 'selected', people })
+
+    // The repair drops duplicates, the owner, and malformed ids like a stored list.
+    actions.setWindowAccess('w1' as WindowId, {
+      mode: 'selected',
+      people: [DEMO_SELF_ID, people[0] as OwnerId, people[0] as OwnerId, 'bad\nid' as OwnerId],
+    })
+    expect(access()).toEqual({ mode: 'selected', people: [people[0]] })
+  })
+
+  it('ignores transfer and access changes for missing windows and windows owned by others', () => {
+    const { store, actions } = createBoardStore().create()
+    const before = store.getSnapshot()
+    actions.transferWindow('missing' as WindowId, brandString<OwnerId>('demo-finance'))
+    actions.setWindowAccess('missing' as WindowId, { mode: 'all', people: [] })
+    expect(store.getSnapshot()).toStrictEqual(before)
+
+    openAgent(actions, 'w1')
+    actions.transferWindow('w1' as WindowId, brandString<OwnerId>('demo-finance'))
+    const foreign = store.getSnapshot()
+    actions.transferWindow('w1' as WindowId, brandString<OwnerId>('demo-legal'))
+    actions.setWindowAccess('w1' as WindowId, { mode: 'all', people: [] })
+    expect(store.getSnapshot()).toStrictEqual(foreign)
   })
 })
 

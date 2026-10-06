@@ -42,6 +42,12 @@ export const PANEL_DEFAULT_WIDTH = 300
 /** Window category, selecting the `board.window` frame that renders it. */
 export type WindowKind = 'agent' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'tasks'
 
+/** Access modes a stored window may restore. */
+export const BOARD_ACCESS_MODES = ['owner', 'selected', 'all'] as const
+
+/** Who a window is open to beside its owner. */
+export type BoardWindowAccessMode = (typeof BOARD_ACCESS_MODES)[number]
+
 /** Window content category, selecting the `board.window.body` occupant inside the frame. */
 export type WindowBodyKind = 'conversation' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'clone-memory' | 'tasks'
 
@@ -70,6 +76,9 @@ export const BOARD_PANEL_ORDER_BYS = ['manual', 'updated'] as const satisfies re
 /** Largest number of windows one stored layout may restore; the rest are dropped. */
 export const BOARD_LAYOUT_MAX_WINDOWS = 50
 
+/** Largest number of selected people one window's access may carry; the rest are dropped. */
+export const BOARD_ACCESS_MAX_PEOPLE = 50
+
 /** Absolute world-coordinate bound for pan and window placement. */
 export const BOARD_LAYOUT_COORD_LIMIT = 100_000
 
@@ -78,6 +87,14 @@ export const BOARD_ZOOM_MIN = 0.2
 
 /** Largest board zoom a stored layout may restore. */
 export const BOARD_ZOOM_MAX = 2
+
+/** One window's access as the layout document stores it. */
+export type BoardLayoutWindowAccess = {
+  /** Who the window is open to. */
+  mode: BoardWindowAccessMode
+  /** Owner ids the window is open to under `'selected'`; kept through mode switches. */
+  people: string[]
+}
 
 /** One window as the layout document stores it. Session identity lives in the bridge, not here. */
 export type BoardLayoutWindow = {
@@ -93,6 +110,13 @@ export type BoardLayoutWindow = {
   customTitle?: string
   /** Clone a clone window edits, absent for every other window. */
   cloneId?: string
+  /**
+   * Owner id of the window. The empty string means the acting participant; the
+   * repair resolves it before the layout reaches the store.
+   */
+  ownerId: string
+  /** Who besides the owner may work with the window. */
+  access: BoardLayoutWindowAccess
   x: number
   y: number
   width: number
@@ -181,6 +205,13 @@ const BoardLayoutWindowSchema = z.object({
   ordinal: z.natural().default(1),
   customTitle: z.string(),
   cloneId: z.string(),
+  /** Owner id, or the empty string for the acting participant. */
+  ownerId: z.string().default(''),
+  /** Who besides the owner may work with the window. */
+  access: z.object({
+    mode: z.union([...BOARD_ACCESS_MODES]).default('owner'),
+    people: z.array(z.string()).max(BOARD_ACCESS_MAX_PEOPLE).default([]),
+  }).default({ mode: 'owner', people: [] }),
   x: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   y: z.number().min(-BOARD_LAYOUT_COORD_LIMIT).max(BOARD_LAYOUT_COORD_LIMIT).required(),
   width: z.number().min(1).max(BOARD_LAYOUT_COORD_LIMIT).required(),

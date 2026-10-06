@@ -11,6 +11,7 @@ import type { CloneDto, CloneId } from '@ketos/clone-core/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { CloneWindowBar, type CloneWindowBarProps } from '../src/client/window/CloneWindowBar.tsx'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, sessionState, t } from './fixtures.client.ts'
 
@@ -22,6 +23,8 @@ const CARD: BoardWindowState = {
   bodyKind: 'clone',
   cloneId: 'clone-1' as CloneId,
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 648,

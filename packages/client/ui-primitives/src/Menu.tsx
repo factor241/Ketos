@@ -153,7 +153,7 @@ type SubmenuPlacement = 'right-bottom' | 'right-top' | 'left-bottom' | 'left-top
  * @param props.anchor - the trigger element (rendered in place).
  * @param props.items - selectable data rows and optional separators (default none; with no `children` either, the list is empty).
  * @param props.selectedId - row shown as selected.
- * @param props.selectedIds - rows shown as selected when a menu contains independent option groups.
+ * @param props.selectedIds - rows shown as selected when a menu contains independent option groups; submenu rows obey the same list.
  * @param props.onSelect - data-row activation callback (not called for disabled rows or submenu parents that only open children).
  * @param props.onClose - invoked on outside click, Escape, a window blur that
  * moved focus into an iframe (the only signal a pointerdown inside a
@@ -579,21 +579,28 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
             data-placement={submenuPlacement}
           >
             <div className={css.viewport} role="presentation">
-              {openItems.map(sub => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  role="menuitem"
-                  className={css.item}
-                  disabled={sub.disabled}
-                  aria-keyshortcuts={sub.shortcut?.aria}
-                  onClick={() => { onSelect?.(sub.id); refocusAfterSelection() }}
-                >
-                  {sub.icon !== undefined && <span className={css.itemIcon}>{sub.icon}</span>}
-                  <span className={css.itemLabel}>{sub.label}</span>
-                  {sub.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={sub.shortcut.keys} className={css.shortcutKeys} /></span>}
-                </button>
-              ))}
+              {openItems.map((sub) => {
+                // Submenu rows follow the same selection contract as top-level
+                // rows: an independent option group (an access checklist) marks
+                // every chosen row, not only the parent.
+                const subSelected = sub.id === selectedId || selectedIds?.includes(sub.id) === true
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    role="menuitem"
+                    className={clsx(css.item, subSelected && (selection === 'fill' ? css.selectedFill : css.selected))}
+                    disabled={sub.disabled}
+                    aria-keyshortcuts={sub.shortcut?.aria}
+                    onClick={() => { onSelect?.(sub.id); refocusAfterSelection() }}
+                  >
+                    {sub.icon !== undefined && <span className={css.itemIcon}>{sub.icon}</span>}
+                    <span className={css.itemLabel}>{sub.label}</span>
+                    {sub.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={sub.shortcut.keys} className={css.shortcutKeys} /></span>}
+                    {subSelected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
+                  </button>
+                )
+              })}
             </div>
           </MenuSurface>,
           host.container,

@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { CULL_MARGIN, isWindowHidden, isWindowVisible } from '../src/client/culling.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
@@ -13,6 +14,8 @@ const WINDOW: BoardWindowState = {
   kind: 'agent',
   bodyKind: 'conversation',
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 552,

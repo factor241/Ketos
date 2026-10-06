@@ -1,7 +1,8 @@
 /** Durable layout schema: a complete document passes, broken ones are rejected. */
 import { describe, expect, it } from 'vitest'
 import {
-  BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_NAMESPACE, BOARD_SETTINGS_VERSION, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
+  BOARD_ACCESS_MAX_PEOPLE, BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_NAMESPACE, BOARD_SETTINGS_VERSION,
+  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
   BoardSettingsSchema, type BoardLayoutDocument, type BoardSettings,
 } from '../src/board-settings.ts'
 
@@ -85,6 +86,28 @@ describe('board settings schema', () => {
     expect(parsed.windows).toHaveLength(1)
     expect(parsed.windows[0]).toMatchObject({ id: 'agent-1', kind: 'agent', ordinal: 1 })
     expect(parsed.activeWindowId).toBe('agent-1')
+  })
+
+  it('defaults a stored window without owner and access to the current participant and owner-only', () => {
+    const parsed = parse(document({ windows: [window()] }))
+    expect(parsed.windows[0]).toMatchObject({
+      ownerId: '',
+      access: { mode: 'owner', people: [] },
+    })
+  })
+
+  it('validates and bounds stored window access', () => {
+    const people = Array.from({ length: BOARD_ACCESS_MAX_PEOPLE }, (_value, index) => `owner-${index}`)
+    const parsed = parse(document({
+      windows: [window({ ownerId: 'owner-self', access: { mode: 'selected', people } })],
+    }))
+    expect(parsed.windows[0]?.access).toEqual({ mode: 'selected', people })
+    expect(() => parse(document({
+      windows: [window({ access: { mode: 'nobody', people: [] } })],
+    }))).toThrow()
+    expect(() => parse(document({
+      windows: [window({ access: { mode: 'selected', people: [...people, 'owner-extra'] } })],
+    }))).toThrow()
   })
 
   it('rejects an unknown version, an unknown kind, and a structurally broken window', () => {

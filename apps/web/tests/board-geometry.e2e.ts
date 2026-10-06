@@ -959,7 +959,11 @@ describe('web e2e: spatial board geometry', () => {
         const frame = document.querySelector(`[data-board-window-id="${id}"]`)
         if (frame === null) throw new Error('the frame is missing')
         const frameRect = frame.getBoundingClientRect()
+        // The owner bezel is an overlay strip that deliberately extends past
+        // the frame box; this check covers the frame's own chrome (header and
+        // composer controls).
         const outsideButtons = [...frame.querySelectorAll('button')].filter((button) => {
+          if (button.closest('[data-board-bezel]') !== null) return false
           const rect = button.getBoundingClientRect()
           return rect.width > 0 && (rect.right > frameRect.right + 1 || rect.left < frameRect.left - 1)
         }).length

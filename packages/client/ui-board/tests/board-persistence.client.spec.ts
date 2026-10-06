@@ -2,6 +2,7 @@
 /** Layout persistence: first-frame cache, mirror hydration, debounce, and revision CAS. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import type {
   RemoteResult, SettingsDescribeValue, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -14,6 +15,7 @@ import {
   BoardLayoutPersistence, BOARD_LAYOUT_CACHE_KEY, readBoardLayoutCache, writeBoardLayoutCache,
 } from '../src/client/board-persistence.ts'
 import { createBoardStore, WINDOW_Z_BASE, type BoardStoreHandle, type BoardStoreInstance } from '../src/client/store.ts'
+import type { OwnerId } from '../src/client/owners.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench, createConfigFormsDouble, type ConfigFormsDouble } from './fixtures.client.ts'
 
@@ -457,6 +459,34 @@ describe('board layout writes', () => {
 
     const patch = replace.mock.calls[0]?.[1]
     expect(patch?.['windows']).toHaveLength(BOARD_LAYOUT_MAX_WINDOWS)
+  })
+
+  it('writes the layout after an access change and a transfer', async () => {
+    const { instance, persistence, replace } = bench()
+    instance.actions.openWindow({
+      id: 'agent-1' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      width: 552,
+      height: 648,
+    })
+    vi.useFakeTimers()
+    persistence.start()
+
+    instance.actions.setWindowAccess('agent-1' as WindowId, { mode: 'all', people: [] })
+    await vi.advanceTimersByTimeAsync(600)
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0]?.[1]).toMatchObject({
+      windows: [expect.objectContaining({ ownerId: 'demo-self', access: { mode: 'all', people: [] } })],
+    })
+
+    instance.actions.transferWindow('agent-1' as WindowId, brandString<OwnerId>('demo-finance'))
+    await vi.advanceTimersByTimeAsync(1_100)
+    expect(replace).toHaveBeenCalledTimes(2)
+    expect(replace.mock.calls[1]?.[1]).toMatchObject({
+      windows: [expect.objectContaining({ ownerId: 'demo-finance' })],
+    })
   })
 
   it('retries a conflict once at the revision the conflict reported', async () => {

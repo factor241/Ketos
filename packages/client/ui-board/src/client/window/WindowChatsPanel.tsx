@@ -27,7 +27,7 @@ import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { chatGroups, filterGroups, moveAnchor, type BoardChatGroup } from '../chat-list-model.ts'
 import { validateWorkspacePath } from './path-validation.ts'
 import { RightPanel } from './RightPanel.tsx'
-import { windowPanelRect } from './panel-geometry.ts'
+import { windowPanelRect } from '../panel-geometry.ts'
 import css from './WindowChatsPanel.module.css'
 
 export type WindowChatsPanelProps =

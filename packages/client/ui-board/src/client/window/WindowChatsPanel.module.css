@@ -15,7 +15,8 @@
   color: var(--dsw-alias-label-primary);
   font-size: var(--board-font-label);
   user-select: none;
-  /* Closed: hidden behind the frame's own edge (or past the board panel edge). */
+  /* Closed: hidden under the frame. The left panel slides out to the right,
+     the right panel to the left, so each rests beneath the frame's own side. */
   transform: translateX(var(--board-panel-hidden-x, 100%));
   visibility: hidden;
   transition:
@@ -25,19 +26,10 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-.panel[data-board-panel='beside'][data-board-panel-side='left'],
-.panel[data-board-panel='overlay'] {
-  --board-panel-hidden-x: 100%;
-}
-
-.panel[data-board-panel='beside'][data-board-panel-side='right'] {
+/* The right panel's closed seat is its own width to the left, under the
+   frame; the left panel keeps the `100%` default and rests to the right. */
+.panel[data-board-panel-side='right'] {
   --board-panel-hidden-x: -100%;
-}
-
-.panel[data-board-panel='docked'] {
-  border-radius: 0;
-  --board-panel-hidden-x: -100%;
-  border-right: 0.5px solid var(--dsw-alias-border-l1);
 }
 
 .panel[data-board-panel-open] {

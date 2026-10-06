@@ -7,6 +7,7 @@ import { DashboardCanvas, type DashboardCanvasProps } from '../src/client/canvas
 import minimapCss from '../src/client/canvas/Minimap.module.css'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
 import type { BoardState } from '../src/client/store.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { en, type BoardKey, type BoardTranslate } from '../src/client/locale.ts'
 
@@ -99,6 +100,8 @@ describe('Minimap Component', () => {
       kind: 'agent',
       bodyKind: 'conversation',
       ordinal: 1,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
       x: 100,
       y: 100,
       width: 400,
@@ -110,6 +113,8 @@ describe('Minimap Component', () => {
       kind: 'connectors',
       bodyKind: 'connectors',
       ordinal: 2,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
       x: 600,
       y: 100,
       width: 500,
@@ -176,6 +181,8 @@ describe('Minimap Component', () => {
         kind: index % 2 === 0 ? 'agent' : 'connectors',
         bodyKind: index % 2 === 0 ? 'conversation' : 'connectors',
         ordinal: index + 1,
+        ownerId: DEMO_SELF_ID,
+        access: { mode: 'owner', people: [] },
         x: (index % 5) * 240,
         y: Math.floor(index / 5) * 200,
         // The first window projects below 4px at this scale, so its rect comes
@@ -230,6 +237,8 @@ describe('Minimap Component', () => {
       kind: 'agent',
       bodyKind: 'conversation',
       ordinal: 1,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
       x: 1_000_000,
       y: 1_000_000,
       width: 552,

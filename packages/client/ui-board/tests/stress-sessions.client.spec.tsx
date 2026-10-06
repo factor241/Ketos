@@ -21,6 +21,7 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 import type { ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
 import { BoardSessionBridge } from '../src/client/session-bridge.ts'
@@ -175,6 +176,8 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
           kind: 'agent',
           bodyKind: 'conversation',
           ordinal: i,
+          ownerId: DEMO_SELF_ID,
+          access: { mode: 'owner', people: [] },
           x: ((i - 1) % 5) * 580,
           y: Math.floor((i - 1) / 5) * 680,
           width: 552,
@@ -225,6 +228,8 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
           kind: 'agent',
           bodyKind: 'conversation',
           ordinal: i,
+          ownerId: DEMO_SELF_ID,
+          access: { mode: 'owner', people: [] },
           x: ((i - 1) % 5) * 580,
           y: Math.floor((i - 1) / 5) * 680,
           width: 552,
@@ -371,6 +376,8 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
           kind: 'agent',
           bodyKind: 'conversation',
           ordinal: i,
+          ownerId: DEMO_SELF_ID,
+          access: { mode: 'owner', people: [] },
           x: ((i - 1) % 5) * 580,
           y: Math.floor((i - 1) / 5) * 680,
           width: 552,
@@ -419,6 +426,8 @@ describe('Stage 14.1: 10 Sessions Stress Scenario', () => {
         kind: 'agent',
         bodyKind: 'conversation',
         ordinal: 11,
+        ownerId: DEMO_SELF_ID,
+        access: { mode: 'owner', people: [] },
         x: 300,
         y: 300,
         width: 552,

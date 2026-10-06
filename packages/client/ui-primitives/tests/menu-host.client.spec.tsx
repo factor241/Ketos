@@ -146,6 +146,31 @@ describe('Menu with a popover host', () => {
     }
   })
 
+  it('marks a selected submenu row like a top-level selection', () => {
+    const { container, dispose } = hostContainer()
+    try {
+      render(
+        <PopoverHostProvider container={container} boundary={boundary(400, 400)}>
+          <Menu
+            portal
+            open
+            anchor={<span>trigger</span>}
+            items={submenuItems}
+            selectedIds={['nested']}
+            onSelect={() => {}}
+            onClose={() => {}}
+          />
+        </PopoverHostProvider>,
+      )
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Parent' }))
+      const nested = screen.getByRole('menuitem', { name: 'Nested' })
+      // The selection check is the only glyph a plain text row carries.
+      expect(nested.querySelector('svg')).not.toBeNull()
+    } finally {
+      dispose()
+    }
+  })
+
   it('caps a long submenu by the host boundary and scrolls it in a viewport', () => {
     const restore = stubCardSize(150, 900)
     const rects = rowsAt(rect(230, 390, 100, 140))

@@ -5,7 +5,7 @@
  */
 import type { BoardState } from './store.ts'
 import type { BoardWindowState } from './contract/slots.ts'
-import { windowPanelOpen, windowPanelWidth } from './window/panel-geometry.ts'
+import { windowPanelOpen, windowPanelWidth } from './panel-geometry.ts'
 
 /**
  * How far beyond the visible canvas a window keeps rendering, in world units.

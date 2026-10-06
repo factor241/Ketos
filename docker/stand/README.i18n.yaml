@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docker/stand/README.md
+/two-ketos-stand-stage-26-4:
+  en: d5edf80babd6d5e1
+  zh: c82e22f48b3ca301
+/two-ketos-stand-stage-26-4/preparation:
+  en: c6d927e1cd8ddc4a
+  zh: af60ec47fe25883c
+/two-ketos-stand-stage-26-4/launch:
+  en: 99c2a21121ba8de9
+  zh: f05947498b860390
+/two-ketos-stand-stage-26-4/addresses:
+  en: c164a309d022e18b
+  zh: 3a9f3702af4359fd
+/two-ketos-stand-stage-26-4/checks:
+  en: 585499ff78a4002d
+  zh: 47aac3f95cefb1db
+/two-ketos-stand-stage-26-4/contents:
+  en: 5d4010091d47ffaf
+  zh: 14cea86e014e68f1

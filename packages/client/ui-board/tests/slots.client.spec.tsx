@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { BOARD_PANEL_ID } from '../src/client/contract/slots.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -634,7 +635,14 @@ describe('board slot composition', () => {
     act(() => {
       board.actions.setViewport(1200, 900)
       // A window at the world origin: its left panel has no room on screen.
-      board.actions.addWindow({ ...windowState({ id: 'a1' as WindowId }), x: 0, y: 100, zIndex: 10 })
+      board.actions.addWindow({
+        ...windowState({ id: 'a1' as WindowId }),
+        ownerId: DEMO_SELF_ID,
+        access: { mode: 'owner', people: [] },
+        x: 0,
+        y: 100,
+        zIndex: 10,
+      })
     })
     await runtime.flush()
     const before = board.store.getSnapshot()
@@ -1138,7 +1146,7 @@ describe('board slot composition', () => {
     }
   })
 
-  it('keeps the active window when the bare canvas is clicked', async () => {
+  it('clears the active window when the bare canvas is clicked', async () => {
     const { runtime } = await bench()
     const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
     const board = runtime.storeOf('board.dock') as BoardInstance
@@ -1158,8 +1166,11 @@ describe('board slot composition', () => {
     fireEvent.pointerUp(window, { pointerId: 5 })
     await runtime.flush()
 
-    // A panel or fullscreen mode keeps its owner: the empty-canvas click pans only.
-    expect(board.store.getSnapshot().activeWindowId).toBe('a1')
+    // A plain click on the empty canvas drops the selection; both windows stay
+    // open and the dock still lists them.
+    expect(board.store.getSnapshot().activeWindowId).toBeNull()
+    expect(panel.container.querySelectorAll('[data-board-dock-row]')).toHaveLength(2)
+    expect(panel.container.querySelectorAll('[data-board-window]')).toHaveLength(2)
     Reflect.deleteProperty(HTMLElement.prototype, 'setPointerCapture')
   })
 
@@ -1896,6 +1907,8 @@ describe('board slot composition', () => {
     act(() => {
       board.actions.addWindow({
         ...windowState({ id: 'a1' as WindowId }),
+        ownerId: DEMO_SELF_ID,
+        access: { mode: 'owner', people: [] },
         x: 3000,
         y: 2000,
         zIndex: 10,

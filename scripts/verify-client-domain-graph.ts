@@ -85,12 +85,24 @@ export interface DomainGateVerdict {
  */
 const UPSTREAM_LAYOUT_EXCEPTIONS: ReadonlyMap<string, UpstreamLayoutException> = new Map([
   ['ui-conversation', {
-    expected: 4,
+    expected: 3,
     reason: 'upstream skeleton/ imports the sibling input/ domain; predates the gate (ketos-bmz)',
   }],
+  ['ui-settings-account', {
+    expected: 15,
+    reason: 'upstream top-level files import the assets/ and locales/ domains; predates the gate (ketos-bmz)',
+  }],
+  ['ui-sidebar-browser', {
+    expected: 19,
+    reason: 'upstream browser/, view/, and electron/ domains import each other; predates the gate (ketos-bmz)',
+  }],
   ['ui-sidebar-documentpreview', {
-    expected: 21,
+    expected: 41,
     reason: 'upstream document/, text/, and body domains import each other; predates the gate (ketos-bmz)',
+  }],
+  ['ui-workspace', {
+    expected: 4,
+    reason: 'upstream session-actions/ imports sibling rows/ module styles; predates the gate (ketos-bmz)',
   }],
 ])
 

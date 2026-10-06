@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-board-window-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-board-window-ownership.md
+/agent-note-board-window-ownership-and-access:
+  en: 902888c31fcc8ba5
+  zh: 7a5a8b080fe98caa
+/agent-note-board-window-ownership-and-access/problem:
+  en: 67615fe46bea5ae6
+  zh: e21fdfbfe1a88e5d
+/agent-note-board-window-ownership-and-access/decision:
+  en: 805902b0ad1b00be
+  zh: 1328df843c949b32
+/agent-note-board-window-ownership-and-access/alternatives-considered:
+  en: b1ff44b6705c8b15
+  zh: 2b0ec81c36d023c3
+/agent-note-board-window-ownership-and-access/consequences:
+  en: 3a824c0a5bf2ac9e
+  zh: a3d10e455a8ba7db
+/agent-note-board-window-ownership-and-access/testing:
+  en: ebe46fd189f70ccc
+  zh: f2ab7e74209104f1
+/agent-note-board-window-ownership-and-access/related:
+  en: a15d620554afca8d
+  zh: 7f69168d2efbfc70

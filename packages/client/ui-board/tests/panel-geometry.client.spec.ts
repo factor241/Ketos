@@ -9,7 +9,8 @@ import {
 } from '../src/board-settings.ts'
 import {
   windowPanelOpen, windowPanelRect, windowPanelWidth,
-} from '../src/client/window/panel-geometry.ts'
+} from '../src/client/panel-geometry.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 
 const WINDOW: BoardWindowState = {
@@ -17,6 +18,8 @@ const WINDOW: BoardWindowState = {
   kind: 'agent',
   bodyKind: 'conversation',
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 500,
   y: 200,
   width: 800,

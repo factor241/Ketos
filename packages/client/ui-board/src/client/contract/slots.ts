@@ -15,7 +15,8 @@ import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-fil
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { WindowBodyKind, WindowKind } from '../../board-settings.ts'
+import type { BoardWindowAccessMode, WindowBodyKind, WindowKind } from '../../board-settings.ts'
+import type { OwnerId } from '../owners.ts'
 
 export type { WindowBodyKind, WindowKind } from '../../board-settings.ts'
 
@@ -812,6 +813,19 @@ export interface BoardWindowInjected {
 export type BoardWindowInjectProps = InjectFace<BoardWindowInjected>
 
 /**
+ * Who may work with one board window. `owner` is only the owner, `selected` is
+ * the owner plus {@link people}, and `all` is every board participant.
+ * {@link people} is stored whichever the mode, so switching back to `selected`
+ * keeps the list the owner chose.
+ */
+export interface WindowAccess {
+  /** Who the window is open to. */
+  readonly mode: BoardWindowAccessMode
+  /** Owner ids the window is open to while `mode` is `'selected'`; kept through mode switches. */
+  readonly people: readonly OwnerId[]
+}
+
+/**
  * Layout fields for one window on the board canvas.
  * Position, size, and stack order are board-local view state, not session data;
  * the window's Harness session identity lives in the plugin's session bridge,
@@ -822,6 +836,14 @@ export interface BoardWindowState {
   kind: WindowKind
   /** Body presented inside the frame; switching it swaps the rendered content. */
   bodyKind: WindowBodyKind
+  /**
+   * Participant who owns and manages the window: the owner transfers it and
+   * changes its access. Stage 33 adds the "window lives on this machine"
+   * condition to management.
+   */
+  ownerId: OwnerId
+  /** Who besides the owner may work with the window. */
+  access: WindowAccess
   /**
    * Clone the window edits, for a window opened on a clone record. Persisted
    * with the layout, so a restored clone window reopens on its clone.

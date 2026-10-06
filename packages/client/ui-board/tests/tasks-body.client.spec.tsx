@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { CloneId, CloneTaskDto, TaskId } from '@ketos/clone-core/types'
 import { TasksBody, type TasksBodyProps } from '../src/client/window/TasksBody.tsx'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type {
   BoardTaskRoster, BoardWindowState, WindowId,
 } from '../src/client/contract/slots.ts'
@@ -27,6 +28,8 @@ const CARD: BoardWindowState = {
   bodyKind: 'tasks',
   cloneId: 'clone-1' as CloneId,
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 648,

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { CloneId, MemoryDto, MemoryId } from '@ketos/clone-core/types'
 import { CloneMemoryBody, type CloneMemoryBodyProps } from '../src/client/window/CloneMemoryBody.tsx'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, MemoryReadOutcome, WindowId } from '../src/client/contract/slots.ts'
 import { t } from './fixtures.client.ts'
 
@@ -19,6 +20,8 @@ const CARD: BoardWindowState = {
   bodyKind: 'clone-memory',
   cloneId: 'clone-1' as CloneId,
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 648,

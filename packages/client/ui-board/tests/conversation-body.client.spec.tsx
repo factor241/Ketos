@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ConversationBody, type ConversationBodyProps } from '../src/client/window/ConversationBody.tsx'
 import { createBoardStore, type BoardState } from '../src/client/store.ts'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowSessionState, BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { chatSnapshot, t } from './fixtures.client.ts'
 import type { ChatSnapshot, ConversationNode, RunningToolCall } from '@deepseek-ai/dsh-client-ui-chat/client'
@@ -23,6 +24,8 @@ const CARD: BoardWindowState = {
   kind: 'agent',
   bodyKind: 'conversation',
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 552,

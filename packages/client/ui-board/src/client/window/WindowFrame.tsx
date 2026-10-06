@@ -25,12 +25,15 @@ import type { BoardWindowInjected, BoardWindowState } from '../contract/slots.ts
 import type { BoardTranslate } from '../locale.ts'
 import { isWindowHidden } from '../culling.ts'
 import { isBoardEditingTarget } from '../editing-target.ts'
+import { canManageWindow, ownerColorAttr } from '../owners.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { startWindowResizeGesture } from '../resize-gesture.ts'
 import { RESIZE_DIRECTIONS, type ResizeDirection } from '../resize.ts'
 import { windowTitle } from '../window-title.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY, windowStatus } from '../window-status.ts'
 import { CloneWindowBar } from './CloneWindowBar.tsx'
+import { WindowBezel } from './WindowBezel.tsx'
+import { useWindowDragStart } from './window-drag.ts'
 import css from './WindowFrame.module.css'
 
 /** Handle class per direction: the frame's border strips and corners. */
@@ -76,32 +79,11 @@ interface FrameGestureProps {
   readonly actions: PropsStore<BoardStoreHandle>['actions']
 }
 
-/** Header strip: drag-to-move, with the zoom read where the gesture starts. */
+/** Header strip: drag-to-move through the shared window-drag hook. */
 function WindowHeaderDrag({
   window: cardWindow, useStore, actions, children,
 }: FrameGestureProps & { readonly children: ReactNode }) {
-  const zoom = useStore(s => s.zoom)
-  const startGesture = useBoardPointerGesture()
-
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, input, textarea') !== null) return
-    const target = e.currentTarget
-    target.setPointerCapture(e.pointerId)
-    actions.focusWindow(cardWindow.id)
-
-    const startClientX = e.clientX
-    const startClientY = e.clientY
-    const startX = cardWindow.x
-    const startY = cardWindow.y
-
-    startGesture(target, e.pointerId, {
-      move: (moveEvt) => {
-        const dx = (moveEvt.clientX - startClientX) / zoom
-        const dy = (moveEvt.clientY - startClientY) / zoom
-        actions.moveWindow(cardWindow.id, startX + dx, startY + dy, !moveEvt.shiftKey)
-      },
-    })
-  }, [cardWindow.id, cardWindow.x, cardWindow.y, zoom, actions, startGesture])
+  const handlePointerDown = useWindowDragStart(cardWindow, useStore, actions)
 
   return <div onPointerDown={handlePointerDown} className={css.header}>{children}</div>
 }
@@ -273,6 +255,11 @@ function WindowFrameView({
 }: WindowFrameProps) {
   const isActive = useStore(s => s.activeWindowId === cardWindow.id)
   const returned = useStore(s => s.highlightWindowId === cardWindow.id)
+  // The owner color and the management predicate select the bezel palette and
+  // the attribute later stages read; both come from the store so the owner
+  // source can move without touching the frame.
+  const ownerColor = useStore(s => ownerColorAttr(s, cardWindow.ownerId))
+  const manageable = useStore(s => canManageWindow(s, cardWindow))
   const leftPanelOpen = cardWindow.leftPanelOpen === true
   const rightPanelOpen = cardWindow.rightPanelOpen === true
   // Culled windows stay mounted: their lane, draft,
@@ -308,6 +295,10 @@ function WindowFrameView({
     <div
       data-board-window={cardWindow.kind}
       data-board-window-id={cardWindow.id}
+      data-board-owner-color={ownerColor}
+      data-board-manageable={manageable ? '' : undefined}
+      data-board-panel-left-open={leftPanelOpen ? '' : undefined}
+      data-board-panel-right-open={rightPanelOpen ? '' : undefined}
       data-board-culled={hidden ? '' : undefined}
       className={clsx(
         css.window,
@@ -325,6 +316,17 @@ function WindowFrameView({
         zIndex: cardWindow.zIndex,
       }}
     >
+      {/* The owner bezel paints under the surface; below the detail threshold
+          the window keeps only the owner edge (Д6.1). */}
+      {!simplified && (
+        <WindowBezel
+          window={cardWindow}
+          t={t}
+          useStore={useStore}
+          actions={actions}
+        />
+      )}
+
       {!simplified && RESIZE_HANDLES.map(([direction, handleClass]) => (
         <WindowResizeHandle
           key={direction}

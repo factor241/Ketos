@@ -1,0 +1,162 @@
+/* Owner bezel of one board window: the layer behind the window surface.
+ *
+ * This file owns the bezel's geometry, fill, and content styles. The
+ * show/hide rules, the open-panel side overrides, and the reduced-motion
+ * override live in `WindowFrame.module.css`: CSS-module class names are
+ * hashed per file, so a cross-module child selector cannot be written here.
+ *
+ * Layering (see `WindowFrame.module.css`): the window root paints its theme
+ * fill on `::after` (z-index -1) and its owner edge on `::before`, while the
+ * bezel sits at z-index -2, so the interior keeps the normal theme fill and
+ * the owner fill shows around the window. */
+
+.bezel {
+  position: absolute;
+  top: -34px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  z-index: -2;
+  border-radius: calc(var(--dsw-radius-xl) + 8px);
+  background: var(--board-owner-fill);
+  /* The window owner's fill, captured before a person circle rebinds the
+     owner variables on itself, so the circles' rings separate against the
+     bezel rather than against their own color. */
+  --bezel-fill: var(--board-owner-fill);
+  transition:
+    opacity var(--ds-transition-duration) var(--ds-ease-in-out),
+    transform var(--ds-transition-duration) var(--ds-ease-in-out);
+  cursor: grab;
+}
+
+/* The 32px strip above the window's top edge carries both content blocks. */
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--board-gap-window);
+  height: 32px;
+  padding: 0 10px;
+}
+
+/* Bezel items own their pointerdowns: only the strip's own background starts a
+   drag. The informational captions take the default cursor. */
+.bezel [data-board-bezel-item] {
+  cursor: default;
+}
+
+/* The managing participant's mark and indicator are menu triggers. The
+   negative margins offset the hover fill's padding, so the caption keeps the
+   informational form's position while the fill extends past it. */
+.bezel button[data-board-bezel-item] {
+  margin: -2px -6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.bezel button[data-board-bezel-item]:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.ownerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ownerAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--board-owner-edge);
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ownerName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-hint);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.access {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.accessIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.accessText {
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-hint);
+}
+
+.people {
+  display: inline-flex;
+  align-items: center;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--board-owner-edge);
+  color: var(--dsw-alias-label-primary-inverted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bezel-fill);
+}
+
+.person + .person {
+  margin-left: -6px;
+}
+
+.more {
+  margin-left: 4px;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-hint);
+}
+
+/* One participant option inside a bezel menu: the palette circle and the name. */
+.personOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.personDot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--board-owner-edge);
+}

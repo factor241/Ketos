@@ -2,6 +2,7 @@
  * Spatial multi-window board store.
  */
 import { defineStore, type EngineStoreHandle, type EngineStoreInstance } from '@deepseek-ai/dsh-client-store'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-files/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
@@ -12,10 +13,15 @@ import {
   PANEL_RIGHT_MIN_WIDTH,
   type BoardLayoutDocument, type BoardPanelGroupBy, type BoardPanelOrderBy,
 } from '../board-settings.ts'
-import type { BoardDraftFile, BoardDraftImage, BoardWindowState, WindowBodyKind, WindowId, WindowKind } from './contract/slots.ts'
+import type {
+  BoardDraftFile, BoardDraftImage, BoardWindowState, WindowAccess, WindowBodyKind, WindowId, WindowKind,
+} from './contract/slots.ts'
+import {
+  canManageWindow, currentOwnerId, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
+} from './owners.ts'
 import { isWindowOnScreen } from './window-screen.ts'
 import { safeArea, type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
-import { windowPanelWidth } from './window/panel-geometry.ts'
+import { windowPanelWidth } from './panel-geometry.ts'
 
 /** Store handle handed to every board registration; one live root-scope instance backs them all. */
 export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
@@ -23,8 +29,18 @@ export type BoardStoreHandle = EngineStoreHandle<BoardState, BoardActions>
 /** The board's live engine instance: the shared state and baked action face. */
 export type BoardStoreInstance = EngineStoreInstance<BoardState, BoardActions>
 
-/** A window the board opens from its own chrome: everything except the placement it computes. */
-export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex'>
+/**
+ * A window the board opens from its own chrome: everything except the placement
+ * the store computes and the ownership the insert fills. A spec that carries
+ * owner and access is the restore path: the window reopens as the stored
+ * document described it.
+ */
+export type OpenWindowSpec = Omit<BoardWindowState, 'x' | 'y' | 'zIndex' | 'ownerId' | 'access'> & {
+  /** Owner to reopen the window under; absent opens it as the acting owner's. */
+  readonly ownerId?: OwnerId
+  /** Access to reopen the window with; absent opens it owner-only. */
+  readonly access?: WindowAccess
+}
 
 /**
  * One staged file of a window draft: the visible record plus the local source
@@ -128,7 +144,25 @@ type BoardActions = {
   setWindowBodyKind: (draft: BoardState, id: WindowId, bodyKind: WindowBodyKind) => void
   setCloneEdit: (draft: BoardState, windowId: WindowId, cloneId: CloneId, edit: CloneEdit | undefined) => void
   setWindowCustomTitle: (draft: BoardState, id: WindowId, title: string | undefined) => void
+  /**
+   * Transfer one window to another participant. Only the current owner may
+   * transfer; a target that is malformed or already the owner changes nothing,
+   * and the new owner leaves the window's selected-people list. The window's
+   * agent and placement do not change.
+   */
+  transferWindow: (draft: BoardState, id: WindowId, ownerId: OwnerId) => void
+  /**
+   * Replace one window's access. Only the current owner may change it; the
+   * people list is repaired like a stored one and kept across mode switches.
+   */
+  setWindowAccess: (draft: BoardState, id: WindowId, access: WindowAccess) => void
   focusWindow: (draft: BoardState, id: WindowId) => void
+  /**
+   * Drop the focused window. A plain click on the empty canvas clears the
+   * selection, which withdraws the active window's bezel; the window itself
+   * stays open.
+   */
+  clearActiveWindow: (draft: BoardState) => void
   centerOnWindow: (draft: BoardState, id: WindowId) => void
   revealWindow: (draft: BoardState, id: WindowId) => void
   /** Open or close one of the window's two panels (Т3.12). */
@@ -547,10 +581,20 @@ function renormalizeWindowZ(draft: BoardState): void {
  * Insert one window on top of the stack and make it active. The stored z-index
  * is clamped into the band whatever the caller passed, so no insertion path —
  * including a restored layout — can place a window over the floating chrome.
+ * An insert without an owner or access opens the window as the acting owner's,
+ * owner-only; a supplied access is copied so the store never shares the
+ * caller's array.
  */
-function insertWindow(draft: BoardState, window: BoardWindowState): void {
+function insertWindow(
+  draft: BoardState,
+  window: Omit<BoardWindowState, 'ownerId' | 'access'> & { readonly ownerId?: OwnerId; readonly access?: WindowAccess },
+): void {
   const placed: BoardWindowState = {
     ...window,
+    ownerId: window.ownerId ?? currentOwnerId(draft),
+    access: window.access === undefined
+      ? { mode: 'owner', people: [] }
+      : { mode: window.access.mode, people: [...window.access.people] },
     leftPanelOpen: window.leftPanelOpen ?? false,
     leftPanelWidth: window.leftPanelWidth ?? PANEL_LEFT_DEFAULT_WIDTH,
     rightPanelOpen: window.rightPanelOpen ?? false,
@@ -739,8 +783,24 @@ export function createBoardStore(): BoardStoreHandle {
         if (trimmed === '') delete win.customTitle
         else win.customTitle = trimmed
       },
+      transferWindow: (draft, id, ownerId) => {
+        const win = draft.windows[id as string]
+        if (win === undefined || !canManageWindow(draft, win)) return
+        if (win.ownerId === ownerId || !isOwnerIdFormat(ownerId)) return
+        win.ownerId = ownerId
+        win.access = { mode: win.access.mode, people: win.access.people.filter(person => person !== ownerId) }
+      },
+      setWindowAccess: (draft, id, access) => {
+        const win = draft.windows[id as string]
+        if (win === undefined || !canManageWindow(draft, win)) return
+        const repaired = sanitizeWindowAccess(access, win.ownerId)
+        win.access = { mode: repaired.mode, people: [...repaired.people] }
+      },
       focusWindow: (draft, id) => {
         raiseWindow(draft, id)
+      },
+      clearActiveWindow: (draft) => {
+        draft.activeWindowId = null
       },
       centerOnWindow: (draft, id) => {
         const win = draft.windows[id as string]
@@ -897,11 +957,17 @@ export function createBoardStore(): BoardStoreHandle {
         draft.zoom = layout.zoom
         draft.windows = Object.fromEntries(layout.windows.map((window) => {
           // The stored layout carries plain strings; the window state carries
-          // the branded clone identity the editor resolves its record by.
+          // the branded clone identity the editor resolves its record by and
+          // the branded owner identities the management predicate compares.
           const { cloneId, ...rest } = window
           const state: BoardWindowState = {
             ...rest,
             id: window.id as WindowId,
+            ownerId: brandString<OwnerId>(window.ownerId),
+            access: {
+              mode: window.access.mode,
+              people: window.access.people.map(person => brandString<OwnerId>(person)),
+            },
             ...(cloneId === undefined ? {} : { cloneId: cloneId as CloneId }),
           }
           return [window.id, state]

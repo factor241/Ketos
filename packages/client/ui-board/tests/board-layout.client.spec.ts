@@ -1,11 +1,14 @@
 /** Layout document capture and repair: broken documents never reach the store. */
 import { describe, expect, it } from 'vitest'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import {
-  BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_VERSION, BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
+  BOARD_ACCESS_MAX_PEOPLE, BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_MAX_WINDOWS, BOARD_SETTINGS_VERSION,
+  BOARD_ZOOM_MAX, BOARD_ZOOM_MIN,
 } from '../src/board-settings.ts'
 import { captureBoardLayout, sanitizeBoardLayout } from '../src/client/board-layout.ts'
 import { createBoardStore, MIN_WINDOW_SIZE, WINDOW_Z_BASE } from '../src/client/store.ts'
 import type { BoardLayoutWindow } from '../src/board-settings.ts'
+import { DEMO_SELF_ID, type OwnerId } from '../src/client/owners.ts'
 import type { CloneId } from '@ketos/clone-core/types'
 import type { WindowId } from '../src/client/contract/slots.ts'
 
@@ -59,6 +62,8 @@ describe('captureBoardLayout', () => {
       kind: 'agent',
       bodyKind: 'conversation',
       ordinal: 1,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
       x: 10,
       y: 20,
       width: 552,
@@ -114,6 +119,8 @@ describe('captureBoardLayout', () => {
       kind: 'agent',
       bodyKind: 'conversation',
       ordinal: 1,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
       x: 0,
       y: 0,
       width: 552,
@@ -186,14 +193,17 @@ describe('sanitizeBoardLayout', () => {
     const instance = createBoardStore().create()
     instance.actions.addWindow({
       id: 'agent-1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1,
+      ownerId: DEMO_SELF_ID, access: { mode: 'owner', people: [] },
       x: 0, y: 0, width: 552, height: 648, zIndex: WINDOW_Z_BASE,
     })
     instance.actions.addWindow({
       id: 'clone-2' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-b' as CloneId, ordinal: 2,
+      ownerId: DEMO_SELF_ID, access: { mode: 'owner', people: [] },
       x: 0, y: 0, width: 648, height: 768, zIndex: WINDOW_Z_BASE,
     })
     instance.actions.addWindow({
       id: 'clone-1' as WindowId, kind: 'clone', bodyKind: 'clone', cloneId: 'clone-a' as CloneId, ordinal: 3,
+      ownerId: DEMO_SELF_ID, access: { mode: 'owner', people: [] },
       x: 0, y: 0, width: 648, height: 768, zIndex: WINDOW_Z_BASE,
     })
     // The user put clone-a first; clone-b was never dragged, so it keeps the
@@ -373,5 +383,70 @@ describe('defaultPreset round trip', () => {
     if (layout === undefined) throw new Error('document did not sanitize')
     instance.actions.hydrate(layout)
     expect(instance.getSnapshot().defaultPreset).toBe('ptc')
+  })
+})
+
+describe('window owner and access repair', () => {
+  it('reads a window without owner and access as the current participant with owner-only access', () => {
+    expect(firstWindow(sanitizeBoardLayout(document()))).toMatchObject({
+      ownerId: 'demo-self',
+      access: { mode: 'owner', people: [] },
+    })
+    // The schema default is the empty string, which the repair also resolves.
+    expect(firstWindow(sanitizeBoardLayout(document({ windows: [window({ ownerId: '' })] }))).ownerId)
+      .toBe('demo-self')
+  })
+
+  it('keeps a well-formed owner id the demo roster does not know', () => {
+    const repaired = firstWindow(sanitizeBoardLayout(document({ windows: [window({ ownerId: 'real-42' })] })))
+    expect(repaired.ownerId).toBe('real-42')
+  })
+
+  it('repairs access by format: unknown mode falls back, duplicates and the owner are dropped', () => {
+    const repaired = firstWindow(sanitizeBoardLayout(document({
+      windows: [window({
+        ownerId: 'real-1',
+        access: { mode: 'bogus', people: ['real-2', 'real-2', 'real-1', '', 7, 'real-3'] },
+      })],
+    })))
+    expect(repaired.access).toEqual({ mode: 'owner', people: ['real-2', 'real-3'] })
+  })
+
+  it('caps the selected people at the access limit', () => {
+    const people = Array.from(
+      { length: BOARD_ACCESS_MAX_PEOPLE + 1 },
+      (_value, index) => `person-${index}`,
+    )
+    const repaired = firstWindow(sanitizeBoardLayout(document({
+      windows: [window({ ownerId: 'real-owner', access: { mode: 'selected', people } })],
+    })))
+    expect(repaired.access.mode).toBe('selected')
+    expect(repaired.access.people).toHaveLength(BOARD_ACCESS_MAX_PEOPLE)
+    expect(repaired.access.people.at(-1)).toBe(`person-${BOARD_ACCESS_MAX_PEOPLE - 1}`)
+  })
+
+  it('captures and restores the owner and access of a window', () => {
+    const instance = createBoardStore().create()
+    instance.actions.openWindow({
+      id: 'agent-1' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      width: 552,
+      height: 648,
+      ownerId: brandString<OwnerId>('real-1'),
+      access: { mode: 'selected', people: [brandString<OwnerId>('real-2')] },
+    })
+    const captured = captureBoardLayout(instance.getSnapshot()).windows[0]
+    expect(captured).toMatchObject({
+      ownerId: 'real-1',
+      access: { mode: 'selected', people: ['real-2'] },
+    })
+
+    const restored = sanitizeBoardLayout(document({ windows: [captured], windowOrder: ['agent-1'] }))
+    expect(firstWindow(restored)).toMatchObject({
+      ownerId: 'real-1',
+      access: { mode: 'selected', people: ['real-2'] },
+    })
   })
 })

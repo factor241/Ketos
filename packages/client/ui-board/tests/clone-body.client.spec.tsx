@@ -14,6 +14,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createBoardStore } from '../src/client/store.ts'
 import { CLONE_LIMITS } from '../src/client/clone-draft.ts'
 import { CloneBody, type CloneBodyProps } from '../src/client/window/CloneBody.tsx'
+import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardState } from '../src/client/store.ts'
 import type { BoardWindowState, CloneModelOption, CloneSaveOutcome, WindowId } from '../src/client/contract/slots.ts'
 import { zh, type BoardTranslate } from '../src/client/locale.ts'
@@ -32,6 +33,8 @@ const CARD: BoardWindowState = {
   bodyKind: 'clone',
   cloneId: 'clone-1' as CloneId,
   ordinal: 1,
+  ownerId: DEMO_SELF_ID,
+  access: { mode: 'owner', people: [] },
   x: 0,
   y: 0,
   width: 648,

@@ -39,6 +39,121 @@
   --board-control-small: 26px;
   --board-control-send: 36px;
   --board-chip-pad: 4px 10px;
+
+  /* Board owner palette: ten owner colors plus the neutral unknown slot. The
+     edge carries identity; the fill is its muted background. Every edge keeps
+     a WCAG contrast ratio of at least 3:1 against both board surfaces of its
+     theme (--dsw-alias-bg-layer-2 and --dsw-alias-bg-base: white in the light
+     theme, bluish-850 and bluish-950 in the dark one), and the ten hues stay
+     clear of the blue --dsw-alias-state-business-primary accent. Components
+     must not use literal colors; the data-board-owner-color attribute selects
+     --board-owner-edge / --board-owner-fill below. */
+  --board-owner-1-edge: #e5533d;
+  --board-owner-1-fill: #fde8e4;
+  --board-owner-2-edge: #e1740c;
+  --board-owner-2-fill: #fdeedc;
+  --board-owner-3-edge: #ba8909;
+  --board-owner-3-fill: #fbf2d5;
+  --board-owner-4-edge: #3e9e4f;
+  --board-owner-4-fill: #e2f3e4;
+  --board-owner-5-edge: #0f9e8c;
+  --board-owner-5-fill: #ddf4f0;
+  --board-owner-6-edge: #0a93b8;
+  --board-owner-6-fill: #dcf1f7;
+  --board-owner-7-edge: #7a55d3;
+  --board-owner-7-fill: #eee8fb;
+  --board-owner-8-edge: #b04ac0;
+  --board-owner-8-fill: #f6e6f8;
+  --board-owner-9-edge: #d6408f;
+  --board-owner-9-fill: #fbe5f0;
+  --board-owner-10-edge: #9c6b43;
+  --board-owner-10-fill: #f3eae1;
+  --board-owner-unknown-edge: #8b8d98;
+  --board-owner-unknown-fill: #edeef0;
+}
+
+/* Dark theme: the same hues brightened for the dark board surfaces, with the
+   fills flipped to their muted dark counterparts. */
+:global([data-ds-dark-theme]) .root {
+  --board-owner-1-edge: #f2735f;
+  --board-owner-1-fill: #3b1d18;
+  --board-owner-2-edge: #f59a3f;
+  --board-owner-2-fill: #3a2412;
+  --board-owner-3-edge: #e5b53a;
+  --board-owner-3-fill: #352a0e;
+  --board-owner-4-edge: #5fc06f;
+  --board-owner-4-fill: #18301c;
+  --board-owner-5-edge: #2cc2ae;
+  --board-owner-5-fill: #0f2f2b;
+  --board-owner-6-edge: #36b4d6;
+  --board-owner-6-fill: #0f2a33;
+  --board-owner-7-edge: #9b7fe6;
+  --board-owner-7-fill: #251c3d;
+  --board-owner-8-edge: #cb72d9;
+  --board-owner-8-fill: #331a38;
+  --board-owner-9-edge: #e86aaa;
+  --board-owner-9-fill: #3a1729;
+  --board-owner-10-edge: #c08e64;
+  --board-owner-10-fill: #2e2219;
+  --board-owner-unknown-edge: #9ea0aa;
+  --board-owner-unknown-fill: #26272b;
+}
+
+/* Owner color selection: an owner element carries data-board-owner-color, and
+   the rule binds the two aliases every owner-styled surface consumes. */
+.root [data-board-owner-color='1'] {
+  --board-owner-edge: var(--board-owner-1-edge);
+  --board-owner-fill: var(--board-owner-1-fill);
+}
+
+.root [data-board-owner-color='2'] {
+  --board-owner-edge: var(--board-owner-2-edge);
+  --board-owner-fill: var(--board-owner-2-fill);
+}
+
+.root [data-board-owner-color='3'] {
+  --board-owner-edge: var(--board-owner-3-edge);
+  --board-owner-fill: var(--board-owner-3-fill);
+}
+
+.root [data-board-owner-color='4'] {
+  --board-owner-edge: var(--board-owner-4-edge);
+  --board-owner-fill: var(--board-owner-4-fill);
+}
+
+.root [data-board-owner-color='5'] {
+  --board-owner-edge: var(--board-owner-5-edge);
+  --board-owner-fill: var(--board-owner-5-fill);
+}
+
+.root [data-board-owner-color='6'] {
+  --board-owner-edge: var(--board-owner-6-edge);
+  --board-owner-fill: var(--board-owner-6-fill);
+}
+
+.root [data-board-owner-color='7'] {
+  --board-owner-edge: var(--board-owner-7-edge);
+  --board-owner-fill: var(--board-owner-7-fill);
+}
+
+.root [data-board-owner-color='8'] {
+  --board-owner-edge: var(--board-owner-8-edge);
+  --board-owner-fill: var(--board-owner-8-fill);
+}
+
+.root [data-board-owner-color='9'] {
+  --board-owner-edge: var(--board-owner-9-edge);
+  --board-owner-fill: var(--board-owner-9-fill);
+}
+
+.root [data-board-owner-color='10'] {
+  --board-owner-edge: var(--board-owner-10-edge);
+  --board-owner-fill: var(--board-owner-10-fill);
+}
+
+.root [data-board-owner-color='unknown'] {
+  --board-owner-edge: var(--board-owner-unknown-edge);
+  --board-owner-fill: var(--board-owner-unknown-fill);
 }
 
 /* Crisp text at rest (Д6.2): the canvas holds GPU rasterization only while a

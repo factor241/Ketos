@@ -40,10 +40,18 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     return () => { observer.disconnect() }
   }, [actions])
 
-  // A plain drag pans only from the bare canvas.
+  // A plain drag pans only from the bare canvas; a plain click without a drag
+  // drops the window selection (the canvas is the board's empty space).
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.target !== containerRef.current && (e.target as HTMLElement).dataset.surface !== 'canvas-layer') return
-    startBoardPanGesture({ event: e, panX, panY, actions, start: startGesture })
+    startBoardPanGesture({
+      event: e,
+      panX,
+      panY,
+      actions,
+      start: startGesture,
+      click: () => { actions.clearActiveWindow() },
+    })
   }, [panX, panY, actions, startGesture])
 
   // Grid geometry follows the live zoom; the dot grid paints from these

@@ -1,8 +1,14 @@
 /* Shared board window frame: the theme's floating-panel recipe — layer-2 fill,
- * no border, the elevation hairline carrying the stroke, and the focused state
- * rebinding that stroke to the business accent. Placement (left/top/width/
- * height/z-index) stays inline because it comes from the board store;
- * everything painted lives here. */
+ * no border, the elevation hairline carrying the stroke — plus the owner edge
+ * and the bezel layering. Placement (left/top/width/height/z-index) stays
+ * inline because it comes from the board store; everything painted lives here.
+ *
+ * The window root is a stacking context (absolute + inline z-index), so the
+ * negative-z children never escape under the canvas. The root paints the
+ * owner edge on `::before` and the theme fill on `::after` (z-index -1), while
+ * the owner bezel child sits at z-index -2: the interior keeps the normal
+ * theme fill and the owner fill shows around the window. The `.active` class
+ * no longer changes the elevation stroke — selection is the bezel show rule. */
 
 .window {
   position: absolute;
@@ -11,15 +17,69 @@
   /* Handles and the panel ride the frame's edge, so the frame never clips. */
   overflow: visible;
   border-radius: var(--dsw-radius-xl);
-  background: var(--dsw-alias-bg-layer-2);
+  /* A background here would cover the bezel; the fill moves to `::after`. */
+  background: transparent;
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
   box-shadow: var(--dsw-elevation-prominent);
   user-select: none;
 }
 
-.window.active {
-  --dsw-elevation-stroke-color: var(--dsw-alias-state-business-primary);
+/* The theme's floating-panel fill, on the window's own layer above the bezel
+   and below every content child. */
+.window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dsw-alias-bg-layer-2);
+  pointer-events: none;
+}
+
+/* Owner edge: a 2px ring of the owner's color around every window, visible in
+   every detail mode including `simplified`. */
+.window::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--board-owner-edge);
+  border-radius: calc(var(--dsw-radius-xl) + 2px);
+  pointer-events: none;
+}
+
+/* The bezel waits under the window and slides out on hover, on focus inside
+   the window, or while the window is selected. The rules live here because a
+   CSS-module class name is hashed per file: the bezel's own stylesheet
+   cannot name `.window`. */
+.window > [data-board-bezel] {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+}
+
+.window:hover > [data-board-bezel],
+.window:focus-within > [data-board-bezel],
+.window.active > [data-board-bezel] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* An open panel replaces the bezel's strip on its side, so the bezel hugs the
+   window edge the panel occupies. */
+.window[data-board-panel-left-open] > [data-board-bezel] {
+  left: 0;
+}
+
+.window[data-board-panel-right-open] > [data-board-bezel] {
+  right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window > [data-board-bezel] {
+    transition: none;
+  }
 }
 
 /* A window the board was asked to bring forward after a main-panel detour

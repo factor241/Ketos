@@ -13,7 +13,8 @@ import {
 } from '../board-settings.ts'
 import type { WindowId } from './contract/slots.ts'
 import { MIN_WINDOW_SIZE, WINDOW_Z_BASE, WINDOW_Z_MAX, type BoardState } from './store.ts'
-import { windowPanelOpen, windowPanelWidth } from './window/panel-geometry.ts'
+import { windowPanelOpen, windowPanelWidth } from './panel-geometry.ts'
+import { DEMO_SELF_ID, isOwnerIdFormat, sanitizeWindowAccess } from './owners.ts'
 
 /** Whether a wire value is a plain JSON object. */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -72,6 +73,9 @@ function sanitizeWindow(raw: unknown): BoardLayoutWindow | undefined {
   if (id === undefined || kind === undefined || bodyKind === undefined) return undefined
   const title = typeof raw.customTitle === 'string' ? raw.customTitle.trim() : ''
   const cloneId = identity(raw.cloneId)
+  // Stage 28 replaces the demo fallback with the host's self id.
+  const ownerId = isOwnerIdFormat(raw.ownerId) ? raw.ownerId : DEMO_SELF_ID
+  const access = sanitizeWindowAccess(raw.access, ownerId)
   return {
     id,
     kind,
@@ -79,6 +83,8 @@ function sanitizeWindow(raw: unknown): BoardLayoutWindow | undefined {
     ordinal: Math.max(1, Math.trunc(finite(raw.ordinal, 1))),
     ...(title === '' ? {} : { customTitle: title }),
     ...(cloneId === undefined ? {} : { cloneId }),
+    ownerId,
+    access: { mode: access.mode, people: [...access.people] },
     x: bounded(raw.x, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     y: bounded(raw.y, 0, -BOARD_LAYOUT_COORD_LIMIT, BOARD_LAYOUT_COORD_LIMIT),
     // A negative size is a corrupted value, not an orientation: repair it to
@@ -115,6 +121,8 @@ export function captureBoardLayout(state: BoardState): BoardLayoutDocument {
       ordinal: window.ordinal,
       ...(window.customTitle === undefined ? {} : { customTitle: window.customTitle }),
       ...(window.cloneId === undefined ? {} : { cloneId: window.cloneId }),
+      ownerId: window.ownerId,
+      access: { mode: window.access.mode, people: [...window.access.people] },
       x: window.x,
       y: window.y,
       width: window.width,

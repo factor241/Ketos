@@ -135,7 +135,8 @@ No effect; the document changes view state rather than model context.
 ## Known Limitations and Deferred Work
 
 - The document currently stores no participants: `selfId` is local to one Ketos, and stage 32 adds the participant registry and stage 33 the document synchronization.
-- Window records are not elements yet; stage 33 registers the shared window kinds on this envelope.
+- Window records arrive in stage 33 as a separate `windows` map of the same document, not as elements of the `elements` map.
+- On Node ≥ 25 the first board access prints one `lib0` warning, `localStorage is not available because --localstorage-file was not provided`; `yjs` is imported lazily, so the warning appears at that first use rather than at startup, and Node 24 (the Docker stand) prints none.
 - The board keeps elements on one layer below every window and selects one element at a time; multi-selection, an interleaved window/element order, and undo history are out of scope.
 - The event stream is the package's first SSE route; it relies on the browser closing its connection in a hidden tab to stay inside the HTTP/1.1 per-origin connection budget.
 

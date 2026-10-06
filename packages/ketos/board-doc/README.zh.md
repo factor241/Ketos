@@ -137,7 +137,8 @@ None, as the board document is user interface state: the snapshot, operations, a
 <a id="known-limitations-and-deferred-work"></a>
 
 - 文档目前不存储参与者：`selfId` 属于单个 Ketos；阶段 32 增加参与者注册表，阶段 33 实现文档同步。
-- 窗口记录还不是元素；阶段 33 在此信封上注册共享窗口种类。
+- 窗口记录将在阶段 33 作为同一文档中的一个独立 `windows` 映射出现，而不是 `elements` 映射中的元素。
+- 在 Node ≥ 25 上，首次访问看板会打印一条 `lib0` 警告「localStorage is not available because --localstorage-file was not provided」；由于 `yjs` 是惰性导入的，该警告出现在首次使用时而非启动时，而 Node 24（Docker 环境）不打印任何警告。
 - 看板将元素放在所有窗口之下的单一图层中，并且一次只选中一个元素；多选、窗口与元素的交错顺序以及撤销历史不在范围内。
 - 事件流是该包的第一条 SSE 路由；它依赖浏览器在隐藏标签页中关闭连接，以保持在 HTTP/1.1 每源连接预算之内。
 

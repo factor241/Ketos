@@ -4343,6 +4343,8 @@ export interface Config {
   maxElementBytes?: number
   /** Largest note text, in UTF-16 code units (1–1000000). */
   noteTextMax?: number
+  /** Largest number of points one stroke may carry (2–100000). */
+  strokePointsMax?: number
   /** Largest number of elements the document holds (1–100000). */
   maxElements?: number
   /** Largest number of operations one request may batch (1–1024). */

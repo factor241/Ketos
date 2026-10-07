@@ -172,6 +172,7 @@
     "apps/web/tests/composer-shortcuts.e2e.ts",
     "apps/web/tests/window-drag-coverage.e2e.ts",
     "apps/web/tests/complex-history.perf.ts",
+    "apps/web/tests/board-strokes.perf.ts",
     "apps/web/tests/pwsh-terminal.e2e.ts",
     "apps/web/tests/workflow-run.e2e.ts",
     "apps/web/stress-tests/reasoning-chunks.stress.ts",

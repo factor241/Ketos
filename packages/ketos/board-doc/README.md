@@ -39,6 +39,7 @@ The shipped `web` profile mounts the package through the `dsh-web-app` bundle pa
 | `path` | required | SQLite database file path, or `:memory:`. The web profile passes `$DSH_HOME/board.db` (`~/.ketos/board.db` for the Ketos CLI). |
 | `maxElementBytes` | `262144` | Largest serialized size, in bytes, of one stored element (1 KiB–16 MiB). |
 | `noteTextMax` | `20000` | Largest note text, in UTF-16 code units (1–1000000). |
+| `strokePointsMax` | `2000` | Largest number of points one stroke may carry (2–100000). |
 | `maxElements` | `2000` | Largest number of elements the document holds (1–100000). |
 | `maxOpsPerRequest` | `64` | Largest number of operations one request may batch (1–1024). |
 | `maxRequestBytes` | `1048576` | Largest accepted operation-request body, in bytes (1 KiB–64 MiB). |
@@ -62,6 +63,8 @@ The service is the host-side seam for other Ketos packages:
 A `browser` batch may only create elements under `selfId` and patch or remove elements it owns; a `host` batch bypasses that check.
 
 The `note` kind's data is exactly `{ text, font, size, scale }`: `text` holds up to `noteTextMax` UTF-16 code units (the `maxLength` semantics), `font` is one of `sans`, `serif`, `mono`, `size` is one of `s`, `m`, `l`, and `scale` is one of `0.5`, `0.75`, `1`, `1.5`, `2`, `3`; any extra field, missing field, or value outside those lists refuses the batch with `ketos/invalid`. The element's `w`/`h` are the note's world rectangle and the content draws at `w/scale × h/scale` under `transform: scale(scale)`, so changing the scale patches `w`, `h`, and `data.scale` together.
+
+The `stroke` kind's data is exactly `{ points, width, pen }`: `points` holds two to `strokePointsMax` `[x, y, pressure]` triples whose coordinates are relative to the element's `(x, y)` and stay inside `w`/`h`, `pressure` is in `[0, 1]`, `width` is one of `s`, `m`, `l` (4, 8, or 16 world units), and `pen` records whether a pen drew it; any extra field, missing field, or value outside those bounds refuses the batch. `pen` and `width` are the complete input of the paint options, so every Ketos renders the same points into the same path.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

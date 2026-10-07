@@ -32,7 +32,12 @@ const ID_C = elementId(3)
  * @returns the limits.
  */
 function limits(overrides: Partial<BoardOpLimits> = {}): BoardOpLimits {
-  return { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000 }, ...overrides }
+  return {
+    maxOpsPerRequest: 64,
+    maxElements: 2000,
+    elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+    ...overrides,
+  }
 }
 
 /**
@@ -301,10 +306,10 @@ describe('operation application', () => {
       updatedAt: NOW,
     }
     const bytes = new TextEncoder().encode(JSON.stringify(base)).length
-    const exact = limits({ elements: { elementBytesMax: bytes, noteTextMax: 20_000 } })
+    const exact = limits({ elements: { elementBytesMax: bytes, noteTextMax: 20_000, strokePointsMax: 2000 } })
     expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, exact, NOW)))
       .toBeUndefined()
-    const tight = limits({ elements: { elementBytesMax: bytes - 1, noteTextMax: 20_000 } })
+    const tight = limits({ elements: { elementBytesMax: bytes - 1, noteTextMax: 20_000, strokePointsMax: 2000 } })
     expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, tight, NOW)))
       .toBe('ketos/limit')
   })
@@ -312,7 +317,7 @@ describe('operation application', () => {
   it('refuses a patch whose merged keys exceed the byte budget', () => {
     const { doc } = openDoc()
     seed(doc, ID_A, SELF, { a: 'x'.repeat(100) })
-    const tight = limits({ elements: { elementBytesMax: 150, noteTextMax: 20_000 } })
+    const tight = limits({ elements: { elementBytesMax: 150, noteTextMax: 20_000, strokePointsMax: 2000 } })
     expect(codeOf(() => applyBoardOps(
       doc,
       [{ op: 'patch', id: ID_A, data: { b: 'y'.repeat(100) } }],

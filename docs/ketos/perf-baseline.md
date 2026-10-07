@@ -107,6 +107,17 @@
 - Документ раскладки несёт не более 50 окон (потолок схемы и срез `captureBoardLayout`), поэтому доска с сотней окон восстанавливает после перезагрузки 50 верхних — это ограничение продукта, зафиксированное в [mvp-known-limitations.md](mvp-known-limitations.md).
 - Числа сняты на машине разработки (macOS, безголовый Chromium), как и требует §II.4.
 
+## Кисть (этап 30)
+
+Замер подэтапа 30.7 по бюджету линии «FPS холста при пане и зуме ≥ 55 при 20 окнах, 20 заметках и 50 штрихах». Стенд — `apps/web/tests/board-strokes.perf.ts` (полоса `pnpm run test:web:perf`, вне CI), безголовый Chromium 1440×900 против живого хоста из `launchWebScaffold`; модельных вызовов нет. 20 окон `agent` засеяны раскладкой первого кадра (`dsh.board.layout`), 20 заметок и 50 штрихов по 500–2000 точек — через `POST /api/ketos.board.ops` (пачки по 5 штрихов; 2000 точек ≈ 36 КиБ, потолок запроса 1 МиБ). Перед жестами структурная проверка: смонтированы ровно 20 окон, 20 заметок и 50 штрихов, вид сведён к зуму 1.
+
+| Сценарий | Бюджет | Замер (этап 30) |
+|---|---|---|
+| Панорамирование (Space-drag), 20 окон + 20 заметок + 50 штрихов | ≥ 55 FPS | 60.2 FPS, худший кадр 18.6 мс, 0 длинных задач |
+| Зум 12 шагами `Ctrl`+колеса 1 → 2 | ≥ 55 FPS | 60.7 FPS, худший кадр 18.2 мс, 0 длинных задач; конечный зум 1.99 |
+
+Метод — счётчик `requestAnimationFrame` и `PerformanceObserver` с `entryTypes: ['longtask']` внутри живой страницы (как в этапах 5/20): `fps = кадры / секунды`, `worstFrameMs` — максимальный интервал между кадрами за жест. Машинная строка — `WEB_PERF_RESULT` в выводе полосы; числа записаны в [отчёт этапа 30](reports/stage-30-brush.md). Порог 55 выполнен в обоих жестах; различающий сигнал — хвост кадров 18.2–18.6 мс и ноль длинных задач.
+
 ## Источники
 
 - Бюджеты и политика замеров: `docs/ketos/` мастер-план, §II.4; команды проверки — §6.1.
@@ -115,4 +126,5 @@
 - Поведенческий стресс-тест 10 сессий: `packages/client/ui-board/tests/stress-sessions.client.spec.tsx`.
 - Отчёт этапа 5: [reports/stage-05-canvas-window-manager.md](reports/stage-05-canvas-window-manager.md).
 - Машинные результаты этапа 20 (приёмка MVP): `.playwright-mcp/stage-20-mvp-acceptance/audit/perf-windows.json`, `perf-stress.json`, `perf-sla.json`, протоколы фаз — `audit/audit-one.json`, `audit/audit-two.json`, `audit/audit-native.json`, скрипт замеров — `perf.mjs`, стенд — `stand.sh`, сид памяти — `seed-memories.mts`, демонстрационная GIF — `qa/ketos-mvp-e2e.gif`.
+- Машинные результаты этапа 30 (кисть): `apps/web/tests/board-strokes.perf.ts` (полоса `pnpm run test:web:perf`), строка `WEB_PERF_RESULT`; отчёт — [reports/stage-30-brush.md](reports/stage-30-brush.md).
 - Отчёты этапа 20: `reports/stage-20-mvp-acceptance.md` (пишется вместе с приёмкой), сценарий приёмки — [mvp-e2e.md](mvp-e2e.md).

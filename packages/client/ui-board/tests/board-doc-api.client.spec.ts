@@ -42,7 +42,7 @@ const SNAPSHOT: BoardSnapshot = {
   selfId: SELF,
   revision: brandNumber<BoardRevision>(1),
   elements: [ELEMENT],
-  limits: { elementBytesMax: 1024, noteTextMax: 1024 },
+  limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2000 },
 }
 
 const PATCH: BoardPatch = {

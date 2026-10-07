@@ -9,8 +9,9 @@ import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardKey } from './locale.ts'
 import { brandNumber } from '@deepseek-ai/dsh-brand'
 import type {
-  BoardDocId, BoardElement, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId,
+  BoardDocId, BoardElement, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId, StrokeWidth,
 } from '@ketos/board-doc/types'
+import type { BoardTool, BoardEraserPreview } from './board-tool.ts'
 import type { CloneEdit } from './clone-draft.ts'
 import {
   BOARD_ZOOM_MAX, BOARD_ZOOM_MIN, PANEL_LEFT_DEFAULT_WIDTH, PANEL_LEFT_MAX_WIDTH,
@@ -250,6 +251,15 @@ type BoardActions = {
   endBoardElementOp: (draft: BoardState, id: ElementId) => void
   /** Show one board notice, or clear it with `null`; the same key shows afresh. */
   setElementNotice: (draft: BoardState, key: BoardKey | null) => void
+  /**
+   * Switch the active tool. Choosing brush or eraser leaves the element
+   * inspector and any in-place edit; `select` leaves the other modes alone.
+   */
+  setTool: (draft: BoardState, tool: BoardTool) => void
+  /** Choose the brush thickness, which also sizes the eraser. */
+  setBrushWidth: (draft: BoardState, width: StrokeWidth) => void
+  /** Replace the live eraser preview, or clear it with `null`. */
+  setEraserPreview: (draft: BoardState, preview: BoardEraserPreview | null) => void
   setSelectingElement: (draft: BoardState, selecting: boolean) => void
   /**
    * Remember (or clear) the window whose session was expanded into the
@@ -323,6 +333,16 @@ export interface BoardState {
   panelExpandedGroups: string[]
   /** Agent preset new windows start with, or '' when the deployment default composes them. */
   defaultPreset: string
+  /** Active tool. Transient view state: the layout never carries it. */
+  tool: BoardTool
+  /** Brush thickness, which also sizes the eraser. Transient view state. */
+  brushWidth: StrokeWidth
+  /**
+   * Live eraser preview: the owner's strokes the pass touched, hidden while
+   * the pass runs, and the remaining parts drawn in their place. Transient
+   * view state; the committed batch replaces both when the pointer lifts.
+   */
+  eraserPreview: BoardEraserPreview | null
   isSelectingElement: boolean
   /**
    * Elements of the board document, keyed by element id. The slice is a
@@ -739,6 +759,9 @@ export function createBoardStore(): BoardStoreHandle {
       panelOrderBy: 'updated',
       panelExpandedGroups: [],
       defaultPreset: '',
+      tool: 'select',
+      brushWidth: 'm',
+      eraserPreview: null,
       isSelectingElement: false,
       boardElements: {},
       boardElementsRevision: brandNumber<BoardRevision>(0),
@@ -1167,6 +1190,8 @@ export function createBoardStore(): BoardStoreHandle {
         const element = draft.boardElements[id as string]
         if (element === undefined || element.ownerId !== currentOwnerId(draft)) return
         draft.editingBoardElementId = id
+        // The in-place editor and a drawing tool are exclusive modes.
+        draft.tool = 'select'
       },
       removeBoardElement: (draft, id) => {
         Reflect.deleteProperty(draft.boardElements, id)
@@ -1186,8 +1211,23 @@ export function createBoardStore(): BoardStoreHandle {
         }
         draft.elementNotice = { key, seq: (draft.elementNotice?.seq ?? 0) + 1 }
       },
+      setTool: (draft, tool) => {
+        draft.tool = tool
+        if (tool === 'select') return
+        // Drawing and editing one element are exclusive gestures: a brush or
+        // eraser stroke must not also pick or edit an element.
+        draft.isSelectingElement = false
+        draft.editingBoardElementId = null
+      },
+      setBrushWidth: (draft, width) => {
+        draft.brushWidth = width
+      },
+      setEraserPreview: (draft, preview) => {
+        draft.eraserPreview = preview
+      },
       setSelectingElement: (draft, selecting) => {
         draft.isSelectingElement = selecting
+        if (selecting) draft.tool = 'select'
       },
       setExpandedWindow: (draft, id) => {
         if (id === null) {

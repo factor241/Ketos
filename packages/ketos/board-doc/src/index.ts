@@ -36,6 +36,8 @@ export interface Config {
   maxElementBytes?: number
   /** Largest note text, in UTF-16 code units (1–1000000). */
   noteTextMax?: number
+  /** Largest number of points one stroke may carry (2–100000). */
+  strokePointsMax?: number
   /** Largest number of elements the document holds (1–100000). */
   maxElements?: number
   /** Largest number of operations one request may batch (1–1024). */
@@ -57,6 +59,7 @@ export const Config: z<Config> = z.object({
   path: z.string().required(),
   maxElementBytes: z.number().step(1).min(1024).max(16_777_216).default(262_144),
   noteTextMax: z.number().step(1).min(1).max(1_000_000).default(20_000),
+  strokePointsMax: z.number().step(1).min(2).max(100_000).default(2000),
   maxElements: z.number().step(1).min(1).max(100_000).default(2000),
   maxOpsPerRequest: z.number().step(1).min(1).max(1024).default(64),
   maxRequestBytes: z.number().step(1).min(1024).max(67_108_864).default(1_048_576),
@@ -80,7 +83,11 @@ export function apply(ctx: Context, config: Config): void {
   const limits = {
     maxOpsPerRequest: config.maxOpsPerRequest as number,
     maxElements: config.maxElements as number,
-    elements: { elementBytesMax: config.maxElementBytes as number, noteTextMax: config.noteTextMax as number },
+    elements: {
+      elementBytesMax: config.maxElementBytes as number,
+      noteTextMax: config.noteTextMax as number,
+      strokePointsMax: config.strokePointsMax as number,
+    },
   }
   const service = new KetosBoardDocService(ctx, {
     path: config.path,

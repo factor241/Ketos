@@ -32,6 +32,41 @@
   cursor: crosshair;
 }
 
+/* Tool modes: the brush draws from a crosshair, the eraser hides the cursor in
+   favor of its ring, and a touch or pen drag must draw instead of scrolling.
+   Element boxes go pointer-transparent so the press reaches the canvas and the
+   drawing lands under them (strokes are the lowest layer anyway). */
+.canvas[data-board-tool='brush'] {
+  cursor: crosshair;
+}
+
+.canvas[data-board-tool='eraser'] {
+  cursor: none;
+}
+
+.canvas[data-board-tool='brush'],
+.canvas[data-board-tool='eraser'] {
+  touch-action: none;
+}
+
+.canvas[data-board-tool='brush'] [data-board-element],
+.canvas[data-board-tool='brush'] [data-board-element] *,
+.canvas[data-board-tool='eraser'] [data-board-element],
+.canvas[data-board-tool='eraser'] [data-board-element] * {
+  pointer-events: none;
+}
+
+/* The eraser ring: fixed screen size, centred on the pointer. */
+.eraserRing {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-label-secondary);
+  border-radius: 50%;
+  corner-shape: round;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 /* No standing `will-change`: the board root arms `will-change: transform` on
    this surface only while a gesture is live (Д6.2), so text stays crisp after
    a zoom stops. */

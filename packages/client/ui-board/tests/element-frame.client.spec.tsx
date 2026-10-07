@@ -66,7 +66,7 @@ function snapshot(elements: readonly BoardElement[], selfId: OwnerId = SELF): Bo
     selfId,
     revision: brandNumber<BoardRevision>(1),
     elements,
-    limits: { elementBytesMax: 262_144, noteTextMax: 20_000 },
+    limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
   }
 }
 

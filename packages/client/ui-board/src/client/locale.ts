@@ -464,6 +464,13 @@ export const zh = {
   'note.size.m': 'M',
   'note.size.l': 'L',
   'note.scale': '缩放',
+  'tool.brush': '画笔',
+  'tool.eraser': '橡皮擦',
+  'tool.width': '粗细',
+  'tool.width.s': '细',
+  'tool.width.m': '中',
+  'tool.width.l': '粗',
+  'stroke.aria': '成员 {name} 的图画',
 } satisfies Record<string, string>
 
 /** Board dictionary key union. */
@@ -938,4 +945,11 @@ export const en = {
   'note.size.m': 'M',
   'note.size.l': 'L',
   'note.scale': 'Scale',
+  'tool.brush': 'Brush',
+  'tool.eraser': 'Eraser',
+  'tool.width': 'Thickness',
+  'tool.width.s': 'Thin',
+  'tool.width.m': 'Medium',
+  'tool.width.l': 'Thick',
+  'stroke.aria': 'Drawing of {name}',
 } satisfies Record<BoardKey, string>

@@ -96,6 +96,7 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && Array.isArray(value['elements']) && value['elements'].every(isBoardElement)
     && isRecord(limits) && isFiniteNumber(limits['elementBytesMax']) && limits['elementBytesMax'] > 0
     && isFiniteNumber(limits['noteTextMax']) && limits['noteTextMax'] > 0
+    && isFiniteNumber(limits['strokePointsMax']) && limits['strokePointsMax'] >= 2
 }
 
 /**

@@ -25,7 +25,11 @@ const ID_A = brandString<ElementId>('00000000-0000-4000-8000-000000000001')
 const ID_B = brandString<ElementId>('00000000-0000-4000-8000-000000000002')
 
 /** The deployment limits the fixture mounts. */
-const LIMITS = { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000 } } as const
+const LIMITS = {
+  maxOpsPerRequest: 64,
+  maxElements: 2000,
+  elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+} as const
 
 /**
  * One create operation.

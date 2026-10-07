@@ -45,6 +45,53 @@ export interface NoteData {
   readonly scale: number
 }
 
+/** Thickness of one stroke; each selection's world width is the protocol constant `STROKE_SIZES`. */
+export type StrokeWidth = 's' | 'm' | 'l'
+
+/**
+ * One point of a stroke: x and y in world units and the pointer pressure in
+ * `[0, 1]`. Stored points are relative to the element's `(x, y)`, so moving a
+ * stroke patches the envelope without rewriting its points.
+ */
+export type StrokePoint = readonly [number, number, number]
+
+/** One point of an eraser path in world units. */
+export type StrokePathPoint = readonly [number, number]
+
+/**
+ * Kind-owned payload of one stroke: the drawing's points relative to the
+ * element's `(x, y)`, the chosen thickness, and whether a pen produced it.
+ * `pen` and `width` are the complete input of the paint options, so every
+ * Ketos renders the same stored points into the same path.
+ */
+export interface StrokeData {
+  readonly points: readonly StrokePoint[]
+  readonly width: StrokeWidth
+  readonly pen: boolean
+}
+
+/** The element box a stroke's relative points must stay inside. */
+export interface StrokeBox {
+  /** Envelope width in world units. */
+  readonly w: number
+  /** Envelope height in world units. */
+  readonly h: number
+}
+
+/** Bounding box a stroke's absolute points resolve into, with the stored relative points. */
+export interface StrokeBounds {
+  /** World x of the box, the leftmost point less half the thickness. */
+  readonly x: number
+  /** World y of the box, the topmost point less half the thickness. */
+  readonly y: number
+  /** World width of the box, the point spread plus the thickness. */
+  readonly w: number
+  /** World height of the box, the point spread plus the thickness. */
+  readonly h: number
+  /** The points relative to `(x, y)`, coordinates rounded to 0.1 and pressure to 0.01. */
+  readonly points: readonly StrokePoint[]
+}
+
 /** Kind-owned payload of one element, carried as plain JSON values. */
 export type BoardElementData = Readonly<Record<string, JsonValue>>
 
@@ -74,6 +121,8 @@ export interface BoardLimits {
   readonly elementBytesMax: number
   /** Largest note text the host accepts, in UTF-16 code units. */
   readonly noteTextMax: number
+  /** Largest number of points one stroke may carry. */
+  readonly strokePointsMax: number
 }
 
 /** Full state of the document at one revision, the first event of the stream. */

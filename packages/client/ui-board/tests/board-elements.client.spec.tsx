@@ -79,6 +79,7 @@ function layerProps(board: BoardState): BoardElementLayerProps {
     resizeElement: vi.fn(),
     removeElement: vi.fn(),
     patchElement: vi.fn(),
+    eraseStrokes: vi.fn(),
   }
 }
 

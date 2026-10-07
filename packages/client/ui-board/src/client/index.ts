@@ -56,6 +56,7 @@ import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
 import { NoteElement } from './elements/NoteElement.tsx'
+import { StrokeElement } from './elements/StrokeElement.tsx'
 import { NoteSettingsButton } from './elements/NoteSettingsButton.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
@@ -952,6 +953,27 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       instance.actions.patchBoardElement(id, patch)
       postElementOps([id], [{ op: 'patch', id, ...patch }], 'element.saveFailed', options?.keepalive === true)
     },
+    eraseStrokes: (removals, parts) => {
+      if (removals.length === 0) return
+      for (const id of removals) instance.actions.removeBoardElement(id)
+      for (const part of parts) instance.actions.createBoardElement(part)
+      postElementOps([
+        ...removals,
+        ...parts.map(part => part.id),
+      ], [
+        ...removals.map(id => ({ op: 'remove' as const, id })),
+        ...parts.map(part => ({
+          op: 'create' as const,
+          id: part.id,
+          kind: part.kind,
+          x: part.x,
+          y: part.y,
+          w: part.w,
+          h: part.h,
+          data: part.data,
+        })),
+      ], 'element.deleteFailed')
+    },
   })
 
   ctx.slots.inject('main', function* () {
@@ -982,6 +1004,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   ctx.slots.inject('board.canvas', () => ctx.slots.register({
     name: 'board.canvas',
     store: boardStore,
+    inject: elementInjected,
     children: {
       'board.windows': { kind: 'single', scope: 'root' },
       'board.elements': { kind: 'single', scope: 'root' },
@@ -1009,6 +1032,14 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     locale: NS,
     inject: elementInjected,
   }, NoteElement))
+
+  // Stroke kind: the body draws the stored points as the owner-colored path.
+  ctx.slots.inject('board.element.body', () => ctx.slots.register({
+    name: 'board.element.body',
+    key: 'stroke',
+    store: boardStore,
+    locale: NS,
+  }, StrokeElement))
 
   // Note toolbar: the owner's font, text-size, and scale settings.
   ctx.slots.inject('board.element.toolbar', () => ctx.slots.register({

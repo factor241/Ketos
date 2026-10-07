@@ -1,0 +1,9 @@
+/* Body of a stroke: the SVG pays the visible path; the body itself accepts no
+   pointer events, so only the paths' own pointer-events areas are targets. */
+.stroke {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}

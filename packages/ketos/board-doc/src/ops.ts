@@ -343,7 +343,7 @@ function assertOwned(element: BoardElement, origin: BoardOrigin, selfId: OwnerId
  * @param limits - element limits.
  */
 function assertValidElement(element: BoardElement, limits: BoardLimits): void {
-  const reason = validateElementData(element.kind, element.data, limits)
+  const reason = validateElementData(element.kind, element.data, limits, { w: element.w, h: element.h })
   if (reason !== null) throw new BoardError('ketos/invalid', reason)
   const bytes = new TextEncoder().encode(JSON.stringify(element)).length
   if (bytes > limits.elementBytesMax) {

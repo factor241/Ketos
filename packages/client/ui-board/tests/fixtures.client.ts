@@ -64,7 +64,7 @@ export function createBoardDocDouble(
     selfId: BENCH_SELF_ID,
     revision: brandNumber<BoardRevision>(0),
     elements: [],
-    limits: { elementBytesMax: 262_144, noteTextMax: 20_000 },
+    limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
   }
   const ops: BoardOp[][] = []
   const streams = new Set<ReadableStreamDefaultController<Uint8Array>>()

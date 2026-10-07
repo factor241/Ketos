@@ -1,0 +1,7 @@
+/* Live brush stroke: an SVG box in world coordinates inside the canvas
+   transform; the paths pay the color, the box takes no pointers. */
+.draft {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}

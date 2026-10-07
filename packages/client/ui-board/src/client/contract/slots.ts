@@ -1002,6 +1002,15 @@ export interface BoardElementInjected {
     patch: BoardElementPatch,
     options?: { readonly keepalive?: boolean },
   ) => void
+  /**
+   * Replace parts of the owner's strokes in one atomic batch: the removals and
+   * the new parts apply locally first, then one operation batch posts; a
+   * refusal clears the optimistic state with a fresh snapshot and a board
+   * notice.
+   * @param removals - stroke identities the eraser pass consumed.
+   * @param parts - the remaining pieces, each a complete stroke element to create.
+   */
+  eraseStrokes: (removals: readonly ElementId[], parts: readonly BoardElementSpec[]) => void
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

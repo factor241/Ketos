@@ -60,6 +60,7 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
   const elements = useStore(s => s.boardElements)
   const selectedId = useStore(s => s.selectedBoardElementId)
   const selfId = useStore(s => s.selfId)
+  const eraserPreview = useStore(s => s.eraserPreview)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
@@ -69,7 +70,12 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
   const viewport: BoardViewport = { panX, panY, zoom, viewportWidth, viewportHeight }
   const visible = visibleWorldRect(viewport, CULL_MARGIN)
   const owner = selfId ?? DEMO_SELF_ID
-  const ordered = Object.values(elements).sort(compareElements).filter(element => isVisible(visible, element))
+  const ordered = Object.values(elements)
+    // A stroke the live eraser pass touched hides while its preview parts draw
+    // in its place; the committed batch replaces both.
+    .filter(element => eraserPreview?.hidden.includes(element.id) !== true)
+    .sort(compareElements)
+    .filter(element => isVisible(visible, element))
 
   return (
     <div data-board-layer="elements" className={css.layer}>

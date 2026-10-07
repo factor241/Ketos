@@ -4,6 +4,11 @@
 // element, and a drag or Delete performed in the second tab shows up in the
 // first.
 //
+// Stage 30.4 adds the brush cases: real mouse strokes drawn at zoom 0.5 and 2,
+// after a pan, and through a mid-stroke ctrl+wheel zoom must land under the
+// cursor (every sampled mouse point within 0.5 screen px of the stored
+// polyline), and the strokes must survive a reload.
+//
 // The scenario seeds one session and a deterministic localStorage layout
 // (`dsh.board.layout`) with one window over the first element, then drives the
 // second tab with real pointer gestures.
@@ -70,6 +75,175 @@ async function createElement(page: Page, id: string, x: number, y: number): Prom
     })
     if (!response.ok) throw new Error(`board ops refused: ${String(response.status)}`)
   }, { id, x, y })
+}
+
+/** The board view as the canvas layer's transform reports it. */
+interface BoardView {
+  readonly scale: number
+  readonly panX: number
+  readonly panY: number
+}
+
+/** Read the board view from the composed canvas transform. */
+function readView(page: Page): Promise<BoardView> {
+  return page.evaluate(() => {
+    const layer = document.querySelector('[data-surface="canvas-layer"]')
+    if (layer === null) throw new Error('board canvas layer is missing')
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(layer).transform)
+    return { scale: matrix.a, panX: matrix.e, panY: matrix.f }
+  })
+}
+
+/** One stroke the document stores, with its points in world units. */
+interface StoredStroke {
+  readonly id: string
+  readonly x: number
+  readonly y: number
+  readonly points: ReadonlyArray<readonly number[]>
+}
+
+/** Every stroke element the document holds. */
+async function readStrokes(page: Page): Promise<StoredStroke[]> {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/ketos.board')
+    const body = await response.json() as {
+      elements: Array<{ id: string; kind: string; x: number; y: number; data: { points?: number[][] } }>
+    }
+    return body.elements
+      .filter(element => element.kind === 'stroke' && Array.isArray(element.data.points))
+      .map(element => ({ id: element.id, x: element.x, y: element.y, points: element.data.points as number[][] }))
+  })
+}
+
+/** One recorded mouse sample with the view in force when it was taken. */
+interface RecordedSample {
+  readonly x: number
+  readonly y: number
+  readonly view: BoardView
+}
+
+/** One world point; the distance helper's input. */
+interface WorldPoint {
+  readonly x: number
+  readonly y: number
+}
+
+/** Closest distance from one world point to a world polyline. */
+function pointToPolyline(point: WorldPoint, line: readonly WorldPoint[]): number {
+  let closest = Number.POSITIVE_INFINITY
+  for (let index = 1; index < line.length; index += 1) {
+    const from = line[index - 1] as WorldPoint
+    const to = line[index] as WorldPoint
+    const ux = to.x - from.x
+    const uy = to.y - from.y
+    const lengthSquared = ux * ux + uy * uy
+    const t = lengthSquared === 0
+      ? 0
+      : Math.min(1, Math.max(0, ((point.x - from.x) * ux + (point.y - from.y) * uy) / lengthSquared))
+    closest = Math.min(closest, Math.hypot(point.x - (from.x + t * ux), point.y - (from.y + t * uy)))
+  }
+  return closest
+}
+
+/** Activate the brush from the dock. */
+async function armBrush(page: Page): Promise<void> {
+  const brush = page.locator('[data-board-action="dock-brush"]')
+  if (await brush.getAttribute('aria-pressed') !== 'true') await brush.click()
+  await settle(page)
+}
+
+/** Zoom with real ctrl+wheel strokes until the scale is within 2% of the target. */
+async function zoomTo(page: Page, target: number, anchor: { readonly x: number; readonly y: number }): Promise<void> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const view = await readView(page)
+    if (Math.abs(view.scale - target) <= target * 0.02) return
+    // One event's delta is clamped to ±50, so a distant zoom converges over
+    // several recomputed strokes.
+    const delta = Math.min(50, Math.max(-50, Math.log(view.scale / target) / 0.0023))
+    await page.mouse.move(anchor.x, anchor.y)
+    await page.keyboard.down('Control')
+    await page.mouse.wheel(0, delta)
+    await page.keyboard.up('Control')
+    await settle(page)
+  }
+  throw new Error('brush zoom did not converge')
+}
+
+/** Pan the empty canvas with the middle button, in screen pixels. */
+async function panBy(page: Page, dx: number, dy: number): Promise<void> {
+  const canvas = await page.locator('[data-surface="canvas"]').boundingBox()
+  if (canvas === null) throw new Error('board canvas is missing')
+  const startX = canvas.x + canvas.width - 300
+  const startY = canvas.y + canvas.height - 200
+  await page.mouse.move(startX, startY)
+  await page.mouse.down({ button: 'middle' })
+  await page.mouse.move(startX + dx, startY + dy, { steps: 10 })
+  await page.mouse.up({ button: 'middle' })
+  await settle(page)
+}
+
+/**
+ * Draw one stroke through screen points with the real mouse, recording every
+ * sample with the live view. `between` runs after the first move, which is how
+ * the mid-stroke zoom case changes the view inside one gesture.
+ */
+async function drawStroke(
+  page: Page,
+  points: ReadonlyArray<{ readonly x: number; readonly y: number }>,
+  between?: () => Promise<void>,
+): Promise<RecordedSample[]> {
+  const recorded: RecordedSample[] = []
+  const record = async (x: number, y: number): Promise<void> => {
+    recorded.push({ x, y, view: await readView(page) })
+  }
+  const first = points[0] as { x: number; y: number }
+  await page.mouse.move(first.x, first.y)
+  await page.mouse.down()
+  await record(first.x, first.y)
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index] as { x: number; y: number }
+    await page.mouse.move(point.x, point.y)
+    await record(point.x, point.y)
+    if (index === 1 && between !== undefined) await between()
+  }
+  await page.mouse.up()
+  await settle(page)
+  return recorded
+}
+
+/** Wait for one stroke the document did not hold before. */
+async function waitForNewStroke(page: Page, known: ReadonlySet<string>): Promise<StoredStroke> {
+  let found: StoredStroke | undefined
+  await expect.poll(async () => {
+    found = (await readStrokes(page)).find(stroke => !known.has(stroke.id))
+    return found !== undefined
+  }, { timeout: 5_000 }).toBe(true)
+  if (found === undefined) throw new Error('new stroke is missing')
+  return found
+}
+
+/**
+ * Assert every recorded mouse sample maps onto the stored stroke within 0.5
+ * screen pixels: each sample is translated with the view it was taken under,
+ * and the distance is measured against the stored world polyline.
+ */
+function assertUnderCursor(
+  samples: readonly RecordedSample[],
+  stroke: StoredStroke,
+  canvas: { readonly x: number; readonly y: number },
+): void {
+  const stored = stroke.points.map(point => ({
+    x: stroke.x + (point[0] as number),
+    y: stroke.y + (point[1] as number),
+  }))
+  expect(stored.length).toBeGreaterThanOrEqual(2)
+  for (const sample of samples) {
+    const world = {
+      x: (sample.x - canvas.x - sample.view.panX) / sample.view.scale,
+      y: (sample.y - canvas.y - sample.view.panY) / sample.view.scale,
+    }
+    expect(pointToPolyline(world, stored) * sample.view.scale).toBeLessThanOrEqual(0.5)
+  }
 }
 
 describe('web e2e: board elements', () => {
@@ -227,6 +401,130 @@ describe('web e2e: board elements', () => {
     await pageA.reload({ waitUntil: 'load' })
     await openBoard(pageA)
     await pageA.locator('[data-board-note-content]', { hasText: 'Hello e2e note' }).waitFor({ timeout: 30_000 })
+    expect(tripwireA.warnings).toEqual([])
+    expect(tripwireA.pageErrors).toEqual([])
+  }, 120_000)
+
+  it('draws under the cursor at two zooms, through pan and a mid-stroke zoom, and restores the strokes', async () => {
+    const canvas = await pageA.locator('[data-surface="canvas"]').boundingBox()
+    if (canvas === null) throw new Error('board canvas is missing')
+    // The drawing area stays clear of the seeded window at every view below.
+    const center = { x: canvas.x + canvas.width * 0.75, y: canvas.y + canvas.height * 0.7 }
+    await armBrush(pageA)
+
+    /** Draw one stroke at the current view and assert it under the cursor. */
+    const drawAndAssert = async (
+      points: ReadonlyArray<{ readonly x: number; readonly y: number }>,
+      between?: () => Promise<void>,
+    ): Promise<void> => {
+      const known = new Set((await readStrokes(pageA)).map(stroke => stroke.id))
+      const samples = await drawStroke(pageA, points, between)
+      const stroke = await waitForNewStroke(pageA, known)
+      assertUnderCursor(samples, stroke, canvas)
+    }
+
+    // 1. Zoomed out to 0.5.
+    await zoomTo(pageA, 0.5, center)
+    await drawAndAssert([
+      { x: center.x - 120, y: center.y - 60 },
+      { x: center.x - 20, y: center.y + 10 },
+      { x: center.x + 80, y: center.y - 40 },
+    ])
+
+    // 2. Zoomed in to 2.
+    await zoomTo(pageA, 2, center)
+    await drawAndAssert([
+      { x: center.x - 100, y: center.y - 80 },
+      { x: center.x + 40, y: center.y + 30 },
+      { x: center.x + 110, y: center.y - 50 },
+    ])
+
+    // 3. After a pan, with the window pushed away from the drawing area.
+    await panBy(pageA, -200, 200)
+    await drawAndAssert([
+      { x: center.x - 90, y: center.y - 70 },
+      { x: center.x + 60, y: center.y + 40 },
+    ])
+
+    // 4. Ctrl+wheel inside one stroke: the samples before the zoom keep their
+    //    view, so the stored points still land under the cursor.
+    await drawAndAssert([
+      { x: center.x - 80, y: center.y - 60 },
+      { x: center.x + 30, y: center.y + 20 },
+      { x: center.x + 100, y: center.y - 30 },
+    ], async () => {
+      await pageA.keyboard.down('Control')
+      await pageA.mouse.wheel(0, -60)
+      await pageA.keyboard.up('Control')
+      await settle(pageA)
+    })
+
+    // 5. Every stroke survives a reload.
+    const ids = (await readStrokes(pageA)).map(stroke => stroke.id)
+    expect(ids.length).toBeGreaterThanOrEqual(4)
+    await pageA.reload({ waitUntil: 'load' })
+    await openBoard(pageA)
+    for (const id of ids) {
+      await pageA.locator(elementSelector(id)).waitFor({ timeout: 30_000 })
+    }
+    expect(tripwireA.warnings).toEqual([])
+    expect(tripwireA.pageErrors).toEqual([])
+  }, 180_000)
+
+  it('selects, moves, and deletes a drawn stroke and ignores its empty box', async () => {
+    // Normalize the view so the seeded window stays clear of the drawing area.
+    await pageA.locator('[data-board-action="dock-reset-view"]').click()
+    await settle(pageA)
+    const canvas = await pageA.locator('[data-surface="canvas"]').boundingBox()
+    if (canvas === null) throw new Error('board canvas is missing')
+    const center = { x: canvas.x + canvas.width * 0.7, y: canvas.y + canvas.height * 0.6 }
+    await armBrush(pageA)
+    const known = new Set((await readStrokes(pageA)).map(stroke => stroke.id))
+    // A "/" diagonal leaves both box corners empty for the miss case.
+    const samples = await drawStroke(pageA, [
+      { x: center.x - 120, y: center.y + 80 },
+      { x: center.x + 120, y: center.y - 80 },
+    ])
+    const stroke = await waitForNewStroke(pageA, known)
+    await pageA.keyboard.press('Escape')
+    await settle(pageA)
+
+    const frame = pageA.locator(elementSelector(stroke.id))
+    const box = await frame.boundingBox()
+    if (box === null) throw new Error('drawn stroke is missing')
+
+    // The empty corner of the box does not select: the line is a diagonal.
+    await pageA.mouse.click(box.x + 4, box.y + 4)
+    await settle(pageA)
+    expect(await frame.getAttribute('data-board-element-selected')).toBeNull()
+
+    // The line itself selects.
+    const first = samples[0] as { x: number; y: number }
+    const last = samples[samples.length - 1] as { x: number; y: number }
+    const middle = { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
+    await pageA.mouse.click(middle.x, middle.y)
+    await expect.poll(async () => await frame.getAttribute('data-board-element-selected'), { timeout: 5_000 }).toBe('')
+
+    // A drag moves it with a patch that keeps its points.
+    const before = (await readStrokes(pageA)).find(candidate => candidate.id === stroke.id)
+    if (before === undefined) throw new Error('stroke left the document')
+    await pageA.mouse.move(middle.x, middle.y)
+    await pageA.mouse.down()
+    await pageA.mouse.move(middle.x + 72, middle.y + 24, { steps: 8 })
+    await pageA.mouse.up()
+    await expect.poll(async () => {
+      const moved = (await readStrokes(pageA)).find(candidate => candidate.id === stroke.id)
+      return moved === undefined ? 'gone' : `${String(moved.x)},${String(moved.y)}`
+    }, { timeout: 5_000 }).not.toBe(`${String(before.x)},${String(before.y)}`)
+    const moved = (await readStrokes(pageA)).find(candidate => candidate.id === stroke.id)
+    expect(moved?.points).toEqual(before.points)
+
+    // Delete removes the selected stroke.
+    await pageA.keyboard.press('Delete')
+    await expect.poll(
+      async () => (await readStrokes(pageA)).some(candidate => candidate.id === stroke.id),
+      { timeout: 5_000 },
+    ).toBe(false)
     expect(tripwireA.warnings).toEqual([])
     expect(tripwireA.pageErrors).toEqual([])
   }, 120_000)

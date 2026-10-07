@@ -1,29 +1,50 @@
 /**
- * Canvas layer of the board: the transformed surface, its dot grid, and the
- * plain background pan. Space/middle-button panning lives on the board root,
- * which also sees the floating chrome; wheel zoom lives there for the same
- * reason. Presentation lives in `DashboardCanvas.module.css`; inline styles
- * carry only geometry and the computed metrics that scale with pan/zoom.
+ * Canvas layer of the board: the transformed surface, its dot grid, the plain
+ * background pan, and the brush/eraser tool gestures. Space/middle-button
+ * panning lives on the board root, which also sees the floating chrome; wheel
+ * zoom lives there for the same reason. Presentation lives in
+ * `DashboardCanvas.module.css`; inline styles carry only geometry and the
+ * computed metrics that scale with pan/zoom.
  */
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { PropsRenderSlots, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { startBoardPanGesture } from '../pan-gesture.ts'
+import { ERASER_RADIUS_PX, type BoardStrokeDraft } from '../board-tool.ts'
+import { startBoardBrushGesture } from '../brush-gesture.ts'
+import { startBoardEraserGesture } from '../eraser-gesture.ts'
+import type { BoardElementInjected } from '../contract/slots.ts'
+import { DEMO_SELF_ID, ownerColorAttr } from '../owners.ts'
+import { StrokeDraft } from './StrokeDraft.tsx'
 import css from './DashboardCanvas.module.css'
 
 export type DashboardCanvasProps =
   PropsRenderSlots<'board.windows' | 'board.elements'>
   & PropsStore<BoardStoreHandle>
+  & BoardElementInjected
 
-export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanvasProps) {
+export function DashboardCanvas({ renderSlot, useStore, actions, createElement, eraseStrokes }: DashboardCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const startGesture = useBoardPointerGesture()
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
+  const tool = useStore(s => s.tool)
+  const brushWidth = useStore(s => s.brushWidth)
+  const limits = useStore(s => s.boardLimits)
+  const selfId = useStore(s => s.selfId)
+  const boardElements = useStore(s => s.boardElements)
+  const eraserPreview = useStore(s => s.eraserPreview)
   const isSelectingElement = useStore(s => s.isSelectingElement)
+  const [eraserPoint, setEraserPoint] = useState<{ readonly x: number; readonly y: number } | null>(null)
+  const [draft, setDraft] = useState<BoardStrokeDraft | null>(null)
+  // The brush samples read the view at their own moment: the ref is rewritten
+  // every render, so a wheel zoom in the middle of a stroke moves the view for
+  // the next sample without shifting the points already drawn.
+  const viewRef = useRef({ panX, panY, zoom })
+  viewRef.current = { panX, panY, zoom }
 
   // Publish the canvas box: window placement and the minimap frustum measure
   // against it. A ResizeObserver follows panel geometry — collapsing the
@@ -41,8 +62,47 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
   }, [actions])
 
   // A plain drag pans only from the bare canvas; a plain click without a drag
-  // drops the window selection (the canvas is the board's empty space).
+  // drops the window selection (the canvas is the board's empty space). With
+  // the brush or eraser active, a primary left press starts the tool gesture
+  // from anywhere on the canvas instead — a window keeps its own gesture, and
+  // the tool CSS makes element boxes transparent so the press reaches here.
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (tool !== 'select') {
+      if (e.button !== 0 || !e.isPrimary) return
+      if (e.target instanceof Element && e.target.closest('[data-board-window]') !== null) return
+      const container = containerRef.current
+      if (tool === 'brush' && limits !== null && container !== null) {
+        startBoardBrushGesture({
+          event: e,
+          start: startGesture,
+          container,
+          view: () => viewRef.current,
+          limits,
+          width: brushWidth,
+          create: createElement,
+          onDraft: setDraft,
+        })
+        return
+      }
+      if (tool === 'eraser' && limits !== null && container !== null) {
+        const owner = selfId ?? DEMO_SELF_ID
+        startBoardEraserGesture({
+          event: e,
+          start: startGesture,
+          container,
+          view: () => viewRef.current,
+          radiusPx: ERASER_RADIUS_PX[brushWidth],
+          strokes: Object.values(boardElements).filter(
+            element => element.kind === 'stroke' && element.ownerId === owner,
+          ),
+          limits,
+          erase: eraseStrokes,
+          onPreview: (preview) => { actions.setEraserPreview(preview) },
+        })
+        return
+      }
+      return
+    }
     if (e.target !== containerRef.current && (e.target as HTMLElement).dataset.surface !== 'canvas-layer') return
     startBoardPanGesture({
       event: e,
@@ -52,7 +112,18 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
       start: startGesture,
       click: () => { actions.clearActiveWindow() },
     })
-  }, [panX, panY, actions, startGesture])
+  }, [tool, limits, brushWidth, selfId, boardElements, createElement, eraseStrokes, panX, panY, actions, startGesture])
+
+  // The eraser ring follows the pointer in screen space; its screen size is
+  // fixed, because the world radius it erases with is this size over the zoom.
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (tool !== 'eraser') return
+    const box = containerRef.current?.getBoundingClientRect()
+    if (box === undefined) return
+    setEraserPoint({ x: e.clientX - box.left, y: e.clientY - box.top })
+  }
+
+  const handlePointerLeave = (): void => { setEraserPoint(null) }
 
   // Grid geometry follows the live zoom; the dot grid paints from these
   // variables.
@@ -75,20 +146,59 @@ export function DashboardCanvas({ renderSlot, useStore, actions }: DashboardCanv
     '--board-zoom': view.zoom,
   } as React.CSSProperties
 
+  const eraserDiameter = ERASER_RADIUS_PX[brushWidth] * 2
+
   return (
     <div
       ref={containerRef}
       data-board-layer="canvas"
       data-surface="canvas"
+      data-board-tool={tool}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       className={clsx(css.canvas, isSelectingElement && css.selecting)}
       style={gridStyle}
     >
       {/* Transformed Canvas Content Surface */}
       <div data-surface="canvas-layer" className={css.surface}>
         {renderSlot('board.elements', {})}
+        {/* The live stroke draws in world coordinates under the windows, the
+            same layer the committed element takes. */}
+        {draft !== null && (
+          <StrokeDraft
+            points={draft.points}
+            width={draft.width}
+            pen={draft.pen}
+            ownerColor={ownerColorAttr({ selfId }, selfId ?? DEMO_SELF_ID)}
+          />
+        )}
+        {/* The eraser pass draws the remaining parts where the hidden originals
+            were; the batch on pointerup replaces both. */}
+        {eraserPreview?.parts.map((part, index) => (
+          <StrokeDraft
+            key={index}
+            points={part.points}
+            width={part.width}
+            pen={part.pen}
+            ownerColor={ownerColorAttr({ selfId }, selfId ?? DEMO_SELF_ID)}
+            preview
+          />
+        ))}
         {renderSlot('board.windows', {})}
       </div>
+      {tool === 'eraser' && eraserPoint !== null && (
+        <div
+          data-board-eraser-ring=""
+          className={css.eraserRing}
+          style={{
+            left: eraserPoint.x,
+            top: eraserPoint.y,
+            width: eraserDiameter,
+            height: eraserDiameter,
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -43,6 +43,12 @@ function canvasProps(
     useStore: <S,>(selector: (value: BoardState) => S): S => selector(state),
     actions,
     renderSlot,
+    createElement: vi.fn(),
+    moveElement: vi.fn(),
+    resizeElement: vi.fn(),
+    removeElement: vi.fn(),
+    patchElement: vi.fn(),
+    eraseStrokes: vi.fn(),
   }
 }
 
@@ -72,6 +78,9 @@ const baseState: BoardState = {
   panelOrderBy: 'updated',
   panelExpandedGroups: [],
   defaultPreset: '',
+  tool: 'select',
+  brushWidth: 'm',
+  eraserPreview: null,
   isSelectingElement: false,
   composerIntents: [],
   composerIntentSeq: 0,

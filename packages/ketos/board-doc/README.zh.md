@@ -39,6 +39,7 @@ kind: "package-reference"
 | `path` | 必填 | SQLite 数据库文件路径，或 `:memory:`。Web 配置传入 `$DSH_HOME/board.db`（Ketos CLI 为 `~/.ketos/board.db`）。 |
 | `maxElementBytes` | `262144` | 单个已存元素的序列化大小上限（字节，1 KiB–16 MiB）。 |
 | `noteTextMax` | `20000` | 单条便签文本长度上限（UTF-16 代码单元，1–1000000）。 |
+| `strokePointsMax` | `2000` | 单个笔画可携带的描点数量上限（2–100000）。 |
 | `maxElements` | `2000` | 文档可容纳的元素数量上限（1–100000）。 |
 | `maxOpsPerRequest` | `64` | 单个请求可批量提交的操作数量上限（1–1024）。 |
 | `maxRequestBytes` | `1048576` | 可接受的操作请求体大小上限（字节，1 KiB–64 MiB）。 |
@@ -62,6 +63,8 @@ kind: "package-reference"
 来自 `browser` 的批次只能创建属于 `selfId` 的元素，并且只能修改或删除自己拥有的元素；`host` 批次绕过该检查。
 
 `note` 类型的数据恰好是 `{ text, font, size, scale }`：`text` 最长为 `noteTextMax` 个 UTF-16 代码单元（与 `maxLength` 语义一致），`font` 为 `sans`、`serif`、`mono` 之一，`size` 为 `s`、`m`、`l` 之一，`scale` 为 `0.5`、`0.75`、`1`、`1.5`、`2`、`3` 之一；任何多余字段、缺失字段或列表之外的值都会以 `ketos/invalid` 拒绝该批次。元素的 `w`/`h` 是便签的世界矩形，内容以 `w/scale × h/scale` 在 `transform: scale(scale)` 下绘制，因此改变缩放会同时 patch `w`、`h` 与 `data.scale`。
+
+`stroke` 类型的数据恰好是 `{ points, width, pen }`：`points` 包含 2 到 `strokePointsMax` 个 `[x, y, pressure]` 三元组，坐标相对于元素的 `(x, y)` 且不超出 `w`/`h`，`pressure` 在 `[0, 1]` 内，`width` 为 `s`、`m`、`l` 之一（4、8 或 16 世界单位），`pen` 记录是否由触控笔绘制；任何多余字段、缺失字段或超界值都会拒绝该批次。`pen` 与 `width` 构成绘制选项的完整输入，因此每个 Ketos 都会把同一组描点渲染为同一条路径。
 
 <a id="understand-the-implementation"></a>
 ## 了解实现

@@ -3337,6 +3337,9 @@ importers:
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
+      perfect-freehand:
+        specifier: 1.2.3
+        version: 1.2.3
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -20851,6 +20854,9 @@ packages:
   perfect-debounce@1.0.0:
     resolution: {integrity: sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==}
 
+  perfect-freehand@1.2.3:
+    resolution: {integrity: sha512-bHZSfqDHGNlPpgH2yxXgPHlQSPpEbo+qg7li0M78J9vNAi2yjwLeA4x79BEQhX44lEWpCLSFCeRZwpw0niiXPA==}
+
   performance-now@2.1.0:
     resolution: {integrity: sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==}
 
@@ -28434,6 +28440,8 @@ snapshots:
   pend@1.2.0: {}
 
   perfect-debounce@1.0.0: {}
+
+  perfect-freehand@1.2.3: {}
 
   performance-now@2.1.0: {}
 

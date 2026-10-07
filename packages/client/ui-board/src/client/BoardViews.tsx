@@ -112,6 +112,7 @@ export function BoardRoot({
     ? undefined
     : s.boardElements[s.selectedBoardElementId as string])
   const selfId = useStore(s => s.selfId)
+  const tool = useStore(s => s.tool)
   const elementNotice = useStore(s => s.elementNotice)
   // An open chats panel is a management surface: the floating chrome would
   // otherwise cover its outer edge, its resize handle, or (in the overlay
@@ -285,6 +286,17 @@ export function BoardRoot({
         actions.setEditingBoardElement(selectedElementId)
         return
       }
+      if (event.key === 'Escape') {
+        // The tool rung of the Escape ladder, below the menu and the focused
+        // editor: one press leaves the brush or eraser for the select tool,
+        // and the window panels keep the key while a tool is active.
+        if (document.querySelector('[role="menu"]') !== null) return
+        if (isBoardEditingTarget(event.target)) return
+        if (tool === 'select') return
+        event.preventDefault()
+        actions.setTool('select')
+        return
+      }
       if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return
       if (isBoardEditingTarget(event.target)) return
       spaceRef.current = true
@@ -302,7 +314,7 @@ export function BoardRoot({
       globalThis.removeEventListener('keydown', onKeyDown)
       globalThis.removeEventListener('keyup', onKeyUp)
     }
-  }, [actions, selectedElementId, selectedElement, selfId, selecting, removeElement])
+  }, [actions, selectedElementId, selectedElement, selfId, selecting, removeElement, tool])
 
   // Space or the middle button pans from anywhere on the board, the floating
   // chrome included: the capture phase takes the pointer before a window's own

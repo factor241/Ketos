@@ -177,6 +177,12 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* A tool control reads as pressed while its mode is active. */
+.controlActive {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+  color: var(--dsw-alias-label-primary);
+}
+
 /* Insertion indicator while a dock drag is live: a 2px accent bar in the gap
    on the side the icon would land. */
 .row[data-dock-drop]::before,

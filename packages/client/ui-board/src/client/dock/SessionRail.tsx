@@ -25,7 +25,8 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CloneId } from '@ketos/clone-core/types'
-import { mintElementId } from '@ketos/board-doc/data'
+import type { StrokeWidth } from '@ketos/board-doc/types'
+import { STROKE_WIDTHS, mintElementId } from '@ketos/board-doc/data'
 import type {
   BoardElementInjected, BoardWindowInjected, BoardWindowState, WindowId,
 } from '../contract/slots.ts'
@@ -225,6 +226,71 @@ function NoteIcon() {
   )
 }
 
+/** Glyph of the brush control: a paintbrush with its bristle tip. */
+function BrushIcon() {
+  return (
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20.5 3.5c-1.5-1.5-4-1.5-5.5 0L8 10.5l5.5 5.5 7-7c1.5-1.5 1.5-4 0-5.5Z" />
+      <path d="M8 10.5 5 17l-2 4 4-2 6.5-3" />
+    </svg>
+  )
+}
+
+/** Glyph of the eraser control: a tilted eraser with its baseline. */
+function EraserIcon() {
+  return (
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6.5 20.5-3.5-3.5 10-10a2.1 2.1 0 0 1 3 0l2.5 2.5a2.1 2.1 0 0 1 0 3l-9.5 9.5H6.5Z" />
+      <path d="M9 21h11" />
+    </svg>
+  )
+}
+
+/** Glyph of the brush-width control: three line weights, the active one opaque. */
+function BrushWidthIcon({ width }: { readonly width: StrokeWidth }) {
+  const rows: ReadonlyArray<{ readonly key: StrokeWidth; readonly y: number }> = [
+    { key: 's', y: 7 },
+    { key: 'm', y: 12 },
+    { key: 'l', y: 17 },
+  ]
+  return (
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      {rows.map(row => (
+        <line key={row.key} x1="4" y1={row.y} x2="20" y2={row.y} opacity={row.key === width ? 1 : 0.35} />
+      ))}
+    </svg>
+  )
+}
+
 export function SessionRail({
   useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, useSessionList,
   useAgentPresetRoster, openChat, openClone, createClone, refreshAgentPresets, refreshClones,
@@ -244,6 +310,8 @@ export function SessionRail({
   const viewportWidth = useStore(s => s.viewportWidth)
   const viewportHeight = useStore(s => s.viewportHeight)
   const chromeInsetSources = useStore(s => s.chromeInsetSources)
+  const tool = useStore(s => s.tool)
+  const brushWidth = useStore(s => s.brushWidth)
   const clones = useCloneList(roster => roster.clones)
   // The clone strip renders in the stored dock order (A6): ids the order does
   // not know yet (a roster addition since the last adoption) follow in roster
@@ -255,8 +323,10 @@ export function SessionRail({
       - (rank.get(String(right.id)) ?? Number.MAX_SAFE_INTEGER))
   }, [cloneOrder, clones])
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
+  const [widthMenu, setWidthMenu] = useState<MenuPlacement | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
+  const widthRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
   const sessionList = useSessionList(s => s)
   const workspaceList = useWorkspaceList(s => s)
@@ -398,6 +468,23 @@ export function SessionRail({
     refreshAgentPresets()
     refreshClones()
     setAddMenu(current => current !== null ? null : menuPlacement(addRef.current, boundary()))
+  }
+
+  /** Thickness rows of the brush-width menu. */
+  const widthItems: readonly MenuEntry[] = [
+    { id: 's', label: t('tool.width.s') },
+    { id: 'm', label: t('tool.width.m') },
+    { id: 'l', label: t('tool.width.l') },
+  ]
+
+  const toggleWidthMenu = (): void => {
+    setWidthMenu(current => current !== null ? null : menuPlacement(widthRef.current, boundary()))
+  }
+
+  const chooseWidth = (id: string): void => {
+    setWidthMenu(null)
+    const width = STROKE_WIDTHS.find(candidate => candidate === id)
+    if (width !== undefined) actions.setBrushWidth(width)
   }
 
   const handleMenuSelect = (id: string): void => {
@@ -566,6 +653,59 @@ export function SessionRail({
           <IconInspectOutlineRegular size={12} />
         </button>
       </Tooltip>
+
+      <Tooltip label={t('tool.brush')} side="top" delayMs={300}>
+        <button
+          type="button"
+          data-board-action="dock-brush"
+          aria-pressed={tool === 'brush'}
+          onClick={() => { actions.setTool(tool === 'brush' ? 'select' : 'brush') }}
+          className={clsx(css.control, tool === 'brush' && css.controlActive)}
+          aria-label={t('tool.brush')}
+        >
+          <BrushIcon />
+        </button>
+      </Tooltip>
+
+      <Tooltip label={t('tool.eraser')} side="top" delayMs={300}>
+        <button
+          type="button"
+          data-board-action="dock-eraser"
+          aria-pressed={tool === 'eraser'}
+          onClick={() => { actions.setTool(tool === 'eraser' ? 'select' : 'eraser') }}
+          className={clsx(css.control, tool === 'eraser' && css.controlActive)}
+          aria-label={t('tool.eraser')}
+        >
+          <EraserIcon />
+        </button>
+      </Tooltip>
+
+      <Tooltip label={t('tool.width')} side="top" delayMs={300} disabled={widthMenu !== null}>
+        <button
+          ref={widthRef}
+          type="button"
+          data-board-action="dock-brush-width"
+          onClick={toggleWidthMenu}
+          className={clsx(css.control, widthMenu !== null && css.controlActive)}
+          aria-label={t('tool.width')}
+        >
+          <BrushWidthIcon width={brushWidth} />
+        </button>
+      </Tooltip>
+
+      <Menu
+        portal
+        open={widthMenu !== null}
+        side={widthMenu?.side ?? 'top'}
+        align={widthMenu?.align ?? 'start'}
+        selection="check"
+        anchor={<span />}
+        getAnchorRect={() => widthRef.current?.getBoundingClientRect() ?? null}
+        items={widthItems}
+        selectedId={brushWidth}
+        onSelect={chooseWidth}
+        onClose={() => { setWidthMenu(null) }}
+      />
 
       <Tooltip label={t('rail.resetView')} side="top" delayMs={300}>
         <button

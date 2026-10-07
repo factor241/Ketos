@@ -115,6 +115,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`open`](https://github.com/sindresorhus/open) | MIT |
 | [`papaparse`](https://github.com/mholt/PapaParse) | MIT |
 | [`pdfjs-dist`](https://github.com/mozilla/pdf.js) | Apache-2.0 |
+| [`perfect-freehand`](https://github.com/steveruizok/perfect-freehand) | MIT |
 | [`picomatch`](https://github.com/micromatch/picomatch) | MIT |
 | [`react`](https://github.com/facebook/react) | MIT |
 | [`react-dom`](https://github.com/facebook/react) | MIT |

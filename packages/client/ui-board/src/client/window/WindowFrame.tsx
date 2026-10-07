@@ -266,6 +266,7 @@ function WindowFrameView({
   // attachments, and panel keep their state and return unchanged.
   const hidden = useStore(s => isWindowHidden(s, cardWindow))
   const isSelectingElement = useStore(s => s.isSelectingElement)
+  const tool = useStore(s => s.tool)
   const hasPanel = features?.panel === true
   // Below the detail threshold the frame swaps its chrome for the simplified
   // card (Д6.1).
@@ -275,10 +276,11 @@ function WindowFrameView({
   const isPanelOpen = hasPanel && (leftPanelOpen || rightPanelOpen)
 
   // Escape closes the chats panel: one handler owns the key. The board's
-  // ladder is menu -> editor -> selection overlay -> panel, so this handler
-  // stands down while the selection overlay is active.
+  // ladder is menu -> editor -> selection overlay -> tool -> panel, so this
+  // handler stands down while the selection overlay or a tool is active.
   useEffect(() => {
     if (isSelectingElement) return
+    if (tool !== 'select') return
     if (!isPanelOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -289,7 +291,7 @@ function WindowFrameView({
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => { globalThis.removeEventListener('keydown', onKeyDown) }
-  }, [isSelectingElement, isPanelOpen, leftPanelOpen, rightPanelOpen, actions, cardWindow.id])
+  }, [isSelectingElement, tool, isPanelOpen, leftPanelOpen, rightPanelOpen, actions, cardWindow.id])
 
   return (
     <div

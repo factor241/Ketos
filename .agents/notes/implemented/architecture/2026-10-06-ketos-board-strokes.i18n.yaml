@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-board-strokes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-board-strokes.md
+/agent-note-board-strokes-freehand-drawing-and-erasing:
+  en: d3bd90621e2b66e6
+  zh: c371f1f61558761e
+/agent-note-board-strokes-freehand-drawing-and-erasing/problem:
+  en: 1aaf25783aa1ec08
+  zh: 79376630d256f6bb
+/agent-note-board-strokes-freehand-drawing-and-erasing/decision:
+  en: 00bc27f5401ac1e5
+  zh: d84d28436c2d65ec
+/agent-note-board-strokes-freehand-drawing-and-erasing/alternatives-considered:
+  en: 826c775047993f9c
+  zh: 4d2005047b89bd10
+/agent-note-board-strokes-freehand-drawing-and-erasing/consequences:
+  en: 5dc2e7fe2f3bbb67
+  zh: fc512a0aa18500b3
+/agent-note-board-strokes-freehand-drawing-and-erasing/testing:
+  en: 2c0e2bfd7bc1e4c4
+  zh: d8c33f2f24df01d3
+/agent-note-board-strokes-freehand-drawing-and-erasing/related:
+  en: 391e0c4b0de4e53e
+  zh: 8205ba3c0ef3a46e

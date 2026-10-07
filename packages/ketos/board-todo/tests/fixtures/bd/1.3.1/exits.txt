@@ -1,0 +1,8 @@
+init exit=0
+close-again exit=0
+reopen-open exit=0
+show-missing exit=1
+missing-parent exit=1
+empty-title exit=1
+init-if-missing existing exit=0 31ms
+init-in-git-cwd exit=0

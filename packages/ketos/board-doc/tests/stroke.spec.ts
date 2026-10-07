@@ -27,7 +27,7 @@ const ID = brandString<ElementId>('00000000-0000-4000-8000-000000000030')
 const LIMITS: BoardOpLimits = {
   maxOpsPerRequest: 64,
   maxElements: 2000,
-  elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+  elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
 }
 
 /** Element box the route's create operations carry. */
@@ -155,7 +155,7 @@ describe('stroke data parsing', () => {
   })
 
   it('refuses stroke data over the element byte budget before parsing the fields', () => {
-    expect(validateElementData('stroke', STROKE, { elementBytesMax: 10, noteTextMax: 20_000, strokePointsMax: 2000 }, BOX))
+    expect(validateElementData('stroke', STROKE, { elementBytesMax: 10, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 }, BOX))
       .toMatch(/exceeds 10 bytes/u)
   })
 })
@@ -325,10 +325,10 @@ describe('stroke erasure', () => {
 describe('stroke limits in the snapshot', () => {
   it('publishes strokePointsMax from the deployment configuration', async () => {
     const { service } = await mount({
-      limits: { ...LIMITS, elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 512 } },
+      limits: { ...LIMITS, elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 512, todoItemsMax: 200 } },
     })
     expect((await service.snapshot()).limits).toEqual({
-      elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 512,
+      elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 512, todoItemsMax: 200,
     })
   })
 })

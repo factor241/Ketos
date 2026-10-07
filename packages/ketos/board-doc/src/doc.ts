@@ -156,9 +156,9 @@ export class BoardDocument {
   }
 
   /**
-   * Write the resolved envelope and data of an existing element. Every data key
-   * of the resolved value is written, so a key-wise merge that changed nothing
-   * is a no-op.
+   * Write the resolved envelope and data of an existing element. The passed
+   * data is the complete value after the key-wise merge, so a key missing from
+   * it is deleted and a merge that changed nothing is a no-op.
    * @param id - element id.
    * @param patch - the resolved element fields.
    */
@@ -172,6 +172,9 @@ export class BoardDocument {
     map.set('z', patch.z)
     map.set('updatedAt', patch.updatedAt)
     const data = map.get(DATA_KEY) as Y.Map<unknown>
+    for (const key of [...data.keys()]) {
+      if (!Object.hasOwn(patch.data, key)) data.delete(key)
+    }
     for (const [key, value] of Object.entries(patch.data)) data.set(key, value)
   }
 

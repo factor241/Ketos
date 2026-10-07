@@ -4347,6 +4347,8 @@ export interface Config {
   noteTextMax?: number
   /** Largest number of points one stroke may carry (2–100000). */
   strokePointsMax?: number
+  /** Largest number of items one to-do list may carry (1–10000). */
+  todoItemsMax?: number
   /** Largest number of elements the document holds (1–100000). */
   maxElements?: number
   /** Largest number of operations one request may batch (1–1024). */
@@ -4364,6 +4366,38 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@ketos/board-doc -->
+
+<!-- BEGIN GENERATED config-catalog:@ketos/board-todo -->
+<a id="ketosboard-todo"></a>
+
+## `@ketos/board-todo`
+
+- `inject`: `connection` · `subprocess` · `commands` · `ketosBoardDoc`
+- `source`: [`packages/ketos/board-todo/src/index.ts:32`](../packages/ketos/board-todo/src/index.ts)
+
+```ts config-catalog
+/** Deployment configuration of the to-do lists. */
+export interface Config {
+  /**
+   * Directory holding the Ketos Beads database. The `bd` CLI stores the
+   * database in `<beadsDir>/.beads`; the shipped web profile passes
+   * `dshHomePath('beads')`. The directory is created owner-only before the
+   * first call.
+   */
+  beadsDir: string
+  /** Executable name or absolute path of the Beads CLI (`bd`). */
+  bdCommand?: string
+  /** Issue prefix `bd init` gives the Ketos database. */
+  beadsPrefix?: string
+  /** Largest time one `bd` call may run, in milliseconds (1000–300000). */
+  bdTimeoutMs?: number
+  /** Largest stdout one `bd` call may produce, in bytes (1 KiB–64 MiB). */
+  bdOutputMaxBytes?: number
+  /** Largest list or item title, in UTF-16 code units (1–10000). */
+  todoTitleMaxChars?: number
+}
+```
+<!-- END GENERATED config-catalog:@ketos/board-todo -->
 
 <!-- BEGIN GENERATED config-catalog:@ketos/clone-core -->
 <a id="ketosclone-core"></a>

@@ -34,6 +34,8 @@ import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { BOARD_ELEMENT_KIND_DESCRIPTORS } from '../board-element-kinds.ts'
 import { placeInSafeArea } from '../board-coordinates.ts'
+import { createTodoList } from '../todo-api.ts'
+import { TodoCreatePopover } from './TodoCreatePopover.tsx'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
 import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
@@ -226,6 +228,29 @@ function NoteIcon() {
   )
 }
 
+/** Glyph of the `create:todo` entry: a checklist with one checked box. */
+function TodoIcon() {
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="6" height="6" rx="1.5" />
+      <path d="M4.5 7 5.8 8.3 7.8 5.8" />
+      <line x1="13" y1="7" x2="21" y2="7" />
+      <rect x="3" y="14" width="6" height="6" rx="1.5" />
+      <line x1="13" y1="17" x2="21" y2="17" />
+    </svg>
+  )
+}
+
 /** Glyph of the brush control: a paintbrush with its bristle tip. */
 function BrushIcon() {
   return (
@@ -325,6 +350,10 @@ export function SessionRail({
   const [addMenu, setAddMenu] = useState<MenuPlacement | null>(null)
   const [widthMenu, setWidthMenu] = useState<MenuPlacement | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // The list-title popover: its anchor rectangle at open time and the
+  // in-flight flag that keeps one creation per click.
+  const [todoCreate, setTodoCreate] = useState<{ anchor: DOMRect; boundary: DOMRect } | null>(null)
+  const [todoBusy, setTodoBusy] = useState(false)
   const addRef = useRef<HTMLButtonElement>(null)
   const widthRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
@@ -508,6 +537,14 @@ export function SessionRail({
       case 'open:tasks':
         openBoardWindow(actions, 'tasks', nextWindowOrdinal(windows))
         return
+      case 'create:todo': {
+        // The catalog asks for the list's title first; the list then opens in
+        // the center of the visible safe area.
+        const rect = addRef.current?.getBoundingClientRect()
+        if (rect === undefined) return
+        setTodoCreate({ anchor: rect, boundary: boundary() })
+        return
+      }
       case 'create:note': {
         // A new note opens at the center of the visible safe area, selected
         // and in editing, whatever the board's pan and zoom.
@@ -549,6 +586,31 @@ export function SessionRail({
     }
   }
 
+  /**
+   * Create a list from the catalog popover in the center of the visible safe
+   * area; a failure surfaces as the dock's localized notice.
+   * @param title - validated list title.
+   */
+  const createTodo = (title: string): void => {
+    const size = BOARD_ELEMENT_KIND_DESCRIPTORS.todo.defaultSize
+    const at = placeInSafeArea(
+      { panX, panY, zoom, viewportWidth, viewportHeight, chromeInsetSources },
+      size.width,
+      size.height,
+    )
+    setTodoBusy(true)
+    void createTodoList(title, at.x, at.y).then((outcome) => {
+      setTodoBusy(false)
+      if (!outcome.ok) {
+        setNotice(t(outcome.code === 'ketos/beads-unavailable'
+          ? 'element.todo.error.unavailable'
+          : 'element.todo.error.failed'))
+        return
+      }
+      setTodoCreate(null)
+    })
+  }
+
   const addMenuItems: readonly MenuEntry[] = [
     { type: 'label', id: 'group.newWindow', text: t('menu.newWindow') },
     { id: 'open:agent', label: t('menu.open.agent'), icon: <IconAgentPresetOutlineRegular /> },
@@ -572,6 +634,7 @@ export function SessionRail({
     { type: 'separator', id: 'separator.boardItems' },
     { type: 'label', id: 'group.boardItems', text: t('menu.group.boardItems') },
     { id: 'create:note', label: t('menu.create.note'), icon: <NoteIcon /> },
+    { id: 'create:todo', label: t('menu.create.todo'), icon: <TodoIcon /> },
     ...(recent.length === 0 ? [] : [
       { type: 'separator', id: 'separator.recent' },
       { type: 'label', id: 'group.recentChats', text: t('menu.recentChats') },
@@ -641,6 +704,17 @@ export function SessionRail({
         onSelect={handleMenuSelect}
         onClose={() => { setAddMenu(null) }}
       />
+
+      {todoCreate !== null && (
+        <TodoCreatePopover
+          anchor={todoCreate.anchor}
+          boundary={todoCreate.boundary}
+          busy={todoBusy}
+          t={t}
+          onCreate={createTodo}
+          onClose={() => { setTodoCreate(null) }}
+        />
+      )}
 
       <Tooltip label={t('menu.selectElement')} side="top" delayMs={300}>
         <button

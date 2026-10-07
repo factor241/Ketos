@@ -1,0 +1,98 @@
+[
+  {
+    "id": "kt-219.1",
+    "title": "Молоко",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:34:36Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:34:37Z",
+    "dependencies": [
+      {
+        "issue_id": "kt-219.1",
+        "depends_on_id": "kt-219",
+        "type": "parent-child",
+        "created_at": "2026-10-05T23:34:36Z",
+        "created_by": "ketos",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "kt-219"
+  },
+  {
+    "id": "kt-219.2",
+    "title": "-h",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:34:36Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:34:37Z",
+    "dependencies": [
+      {
+        "issue_id": "kt-219.2",
+        "depends_on_id": "kt-219",
+        "type": "parent-child",
+        "created_at": "2026-10-05T23:34:36Z",
+        "created_by": "ketos",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "kt-219"
+  },
+  {
+    "id": "kt-219.3",
+    "title": "--parent=evil",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:34:36Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:34:36Z",
+    "dependencies": [
+      {
+        "issue_id": "kt-219.3",
+        "depends_on_id": "kt-219",
+        "type": "parent-child",
+        "created_at": "2026-10-05T23:34:36Z",
+        "created_by": "ketos",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "kt-219"
+  },
+  {
+    "id": "kt-219.4",
+    "title": "Хлеб",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:34:36Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:34:36Z",
+    "dependencies": [
+      {
+        "issue_id": "kt-219.4",
+        "depends_on_id": "kt-219",
+        "type": "parent-child",
+        "created_at": "2026-10-05T23:34:36Z",
+        "created_by": "ketos",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "kt-219"
+  }
+]

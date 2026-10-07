@@ -1,0 +1,24 @@
+[time 1240ms exit=0] bd init --prefix kt --quiet --skip-hooks --skip-agents --non-interactive
+[time 162ms exit=0] bd create --title=Покупки -t epic --actor ketos --json
+[time 156ms exit=0] bd create --title=Покупки 2 -t epic --actor ketos --json
+[time 202ms exit=0] bd create --title=Молоко -t task --parent kt-219 --actor ketos --json
+[time 194ms exit=0] bd create --title=-h -t task --parent kt-219 --actor ketos --json
+[time 188ms exit=0] bd create --title=--parent=evil -t task --parent kt-219 --actor ketos --json
+[time 210ms exit=0] bd create --title=Хлеб -t task --parent kt-219 --actor ketos --json
+[time 168ms exit=0] bd close kt-219.1 --reason Отмечено на доске --actor ketos --json
+[time 122ms exit=0] bd close kt-219.1 --json
+[time 127ms exit=0] bd reopen kt-219.1 --json
+[time 72ms exit=0] bd reopen kt-219.2 --json
+[time 138ms exit=0] bd update kt-219.2 --status closed --json
+[time 127ms exit=0] bd update kt-219.2 --status open --json
+[time 109ms exit=0] bd list --parent kt-219 --all --limit 0 --json
+[time 109ms exit=0] bd list --parent kt-219 --all --limit 2 --json
+[time 109ms exit=0] bd list --parent kt-219 --all --sort created --reverse --limit 0 --json
+[time 117ms exit=0] bd children kt-219 --json
+[time 112ms exit=0] bd show kt-219 --json
+[time 100ms exit=1] bd show kt-nope --json
+[time 109ms exit=1] bd create --title=x -t task --parent kt-nope --json
+[time 20ms exit=1] bd create --title= -t task --json
+[time 110ms exit=0] bd list --parent kt-219 --all --limit 0 --json
+[time 162ms exit=0] bd close kt-219.4 --json
+parallel 6 creates wall 2516ms

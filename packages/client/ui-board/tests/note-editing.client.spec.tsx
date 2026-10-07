@@ -64,7 +64,7 @@ function snapshot(elements: readonly BoardElement[], selfId: OwnerId = SELF): Bo
     selfId,
     revision: brandNumber<BoardRevision>(1),
     elements,
-    limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+    limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }
 
@@ -75,7 +75,7 @@ function instanceWith(elements: readonly BoardElement[], noteTextMax = 20_000): 
   const instance = createBoardStore().create()
   instance.actions.applyBoardSnapshot({
     ...snapshot(elements),
-    limits: { elementBytesMax: 262_144, noteTextMax, strokePointsMax: 2000 },
+    limits: { elementBytesMax: 262_144, noteTextMax, strokePointsMax: 2000, todoItemsMax: 200 },
   })
   return instance
 }

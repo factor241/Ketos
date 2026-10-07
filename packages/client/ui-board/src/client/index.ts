@@ -27,6 +27,8 @@ import { BOARD_ZOOM_MIN } from '../board-settings.ts'
 import type { BoardOp, ElementId } from '@ketos/board-doc/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardWindowDraftFile } from './store.ts'
 import { fetchBoardSnapshot, openBoardEvents, postBoardOps } from './board-doc-api.ts'
+import { placeTodoList } from './todo-api.ts'
+import { TodoPlacement } from './todo-placement.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
 import { openBoardWindow, resolveChatWindow } from './open-window.ts'
@@ -57,6 +59,7 @@ import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
 import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
 import { NoteElement } from './elements/NoteElement.tsx'
 import { StrokeElement } from './elements/StrokeElement.tsx'
+import { TodoElement } from './elements/TodoElement.tsx'
 import { NoteSettingsButton } from './elements/NoteSettingsButton.tsx'
 import { Minimap } from './canvas/Minimap.tsx'
 import { AgentCard } from './window/AgentCard.tsx'
@@ -255,6 +258,25 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     })
     return () => { controller.abort() }
   }, 'ui-board: board element stream')
+
+  // To-do lists created from chat wait for the first visible tab: every
+  // snapshot or patch that still carries `pendingPlacement` is placed once in
+  // the center of the visible safe area, and a hidden tab leaves the list at
+  // (0, 0) for the next visible one.
+  const todoPlacement = new TodoPlacement({
+    getState: () => instance.getSnapshot(),
+    isVisible: () => document.visibilityState === 'visible',
+    place: (id, x, y) => placeTodoList(id, x, y),
+  })
+  ctx.effect(() => {
+    const sweep = (): void => { todoPlacement.sweep() }
+    const unsubscribe = instance.subscribe(sweep)
+    document.addEventListener('visibilitychange', sweep)
+    return () => {
+      unsubscribe()
+      document.removeEventListener('visibilitychange', sweep)
+    }
+  }, 'ui-board: todo placement')
 
   // Clone roster: the /api/ketos.clones list the dock, the Omnibox, and the
   // clone editor read. A failed read keeps the last published list and leaves
@@ -1040,6 +1062,15 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     store: boardStore,
     locale: NS,
   }, StrokeElement))
+
+  // Todo kind: the body renders the host-owned Beads snapshot with the
+  // owner's controls and the move animation; a foreign list renders read-only.
+  ctx.slots.inject('board.element.body', () => ctx.slots.register({
+    name: 'board.element.body',
+    key: 'todo',
+    store: boardStore,
+    locale: NS,
+  }, TodoElement))
 
   // Note toolbar: the owner's font, text-size, and scale settings.
   ctx.slots.inject('board.element.toolbar', () => ctx.slots.register({

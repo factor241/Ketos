@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "id": "kt-1ry",
+      "title": "Покупки",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "epic",
+      "created_at": "2026-10-05T23:32:30Z",
+      "created_by": "user",
+      "updated_at": "2026-10-05T23:32:30Z",
+      "dependent_count": 4,
+      "dependency_count": 0,
+      "comment_count": 0
+    }
+  ],
+  "schema_version": 1
+}

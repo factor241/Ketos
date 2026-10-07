@@ -1,0 +1,29 @@
+/w/kb:
+total 4
+drwxr-xr-x 5 root root 160 Oct  5 23:34 .
+drwxr-xr-x 5 root root 160 Oct  5 23:34 ..
+-rw-r--r-- 1 root root 106 Oct  5 23:34 .gitignore
+drwx------ 8 root root 256 Oct  5 23:34 beads
+-rw------- 1 root root   0 Oct  5 23:34 beads.gate.lock
+
+/w/kb/beads:
+total 20
+drwx------ 8 root root  256 Oct  5 23:34 .
+drwxr-xr-x 5 root root  160 Oct  5 23:34 ..
+-rw------- 1 root root 1941 Oct  5 23:34 .gitignore
+-rw------- 1 root root    6 Oct  5 23:34 .local_version
+-rw-r--r-- 1 root root 2283 Oct  5 23:34 README.md
+-rw------- 1 root root 2872 Oct  5 23:34 config.yaml
+drwx------ 4 root root  128 Oct  5 23:34 embeddeddolt
+-rw------- 1 root root  153 Oct  5 23:34 metadata.json
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "kt",
+  "project_id": "a27e4f70-dc6d-46c6-9902-4d1891177c39"
+}total 0
+drwxr-xr-x 3 root root  96 Oct  5 23:34 .
+drwxr-xr-x 5 root root 160 Oct  5 23:34 ..
+drwxr-xr-x 3 root root  96 Oct  5 23:34 .dolt
+/w/home/.dolt/config_global.json

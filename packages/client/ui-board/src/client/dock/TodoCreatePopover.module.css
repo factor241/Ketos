@@ -1,0 +1,50 @@
+/* The list-title popover: a compact form on the shared menu surface. */
+
+.popover {
+  position: fixed;
+  z-index: 300;
+  box-sizing: border-box;
+  padding: 12px;
+  font-family: var(--dsw-font-family);
+  font-size: var(--board-font-label);
+  color: var(--dsw-alias-label-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--board-gap-row);
+}
+
+.label {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.input {
+  height: var(--board-control-small);
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-line-input);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.action {
+  align-self: flex-end;
+  height: var(--board-control-small);
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-inverse);
+  font: inherit;
+  cursor: pointer;
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

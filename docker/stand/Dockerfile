@@ -31,11 +31,31 @@ RUN apt-get update \
 COPY --from=build /app /app
 COPY docker/stand/stand.patch.yml /usr/local/share/ketos-stand/stand.patch.yml
 COPY docker/stand/docker-entrypoint.sh /usr/local/bin/ketos-stand-entrypoint.sh
+
+# Pin Beads to one release verified by checksum per architecture: the stand
+# ships exactly this build of `bd`, and the MIT notice travels with it.
+ARG BD_VERSION=1.3.1
+ARG BD_SHA256_ARM64=c3b32c71a6c0cd6358a12c28272b17e6818db991da192f87df52339c222e423a
+ARG BD_SHA256_AMD64=3219443a9734b89b93fb16ee8d65844759fa1b3cd3cf139c606b7353cfb0715c
+ARG TARGETARCH
 RUN chmod +x /usr/local/bin/ketos-stand-entrypoint.sh \
- && curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh | bash \
+ && case "$TARGETARCH" in \
+      arm64) bd_sha256="$BD_SHA256_ARM64" ;; \
+      amd64) bd_sha256="$BD_SHA256_AMD64" ;; \
+      *) echo "unsupported TARGETARCH for bd: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSLo /tmp/bd.tgz "https://github.com/gastownhall/beads/releases/download/v${BD_VERSION}/beads_${BD_VERSION}_linux_${TARGETARCH}.tar.gz" \
+ && echo "${bd_sha256}  /tmp/bd.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/bd.tgz -C /tmp bd LICENSE \
+ && install -m 0755 /tmp/bd /usr/local/bin/bd \
+ && mkdir -p /usr/local/share/doc/beads \
+ && install -m 0644 /tmp/LICENSE /usr/local/share/doc/beads/LICENSE \
+ && rm -f /tmp/bd.tgz /tmp/bd /tmp/LICENSE \
  && bd version
 
 ENV DSH_HOME=/data/ketos
+# Beads telemetry is off in every profile: the CLI must never report usage.
+ENV BD_DISABLE_METRICS=1 DO_NOT_TRACK=1
 WORKDIR /workspace
 EXPOSE 3080 8384
 ENTRYPOINT ["/usr/local/bin/ketos-stand-entrypoint.sh"]

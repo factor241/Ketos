@@ -305,7 +305,9 @@ function parseData(value: unknown): BoardElementData | undefined {
 
 /**
  * Merge one patch into the stored element: geometry, `z`, and `data` merge by
- * key, `kind` and the owner stay, and the host stamps the change time.
+ * key, `kind` and the owner stay, and the host stamps the change time. A
+ * `null` value in `data` removes that key, which is how a host clears an
+ * optional flag without rewriting the whole payload.
  * @param existing - stored element.
  * @param op - parsed patch.
  * @param now - batch timestamp.
@@ -319,9 +321,25 @@ function mergePatch(existing: BoardElement, op: BoardPatchOp, now: number): Boar
     w: op.w ?? existing.w,
     h: op.h ?? existing.h,
     z: op.z ?? existing.z,
-    data: op.data === undefined ? existing.data : { ...existing.data, ...op.data },
+    data: op.data === undefined ? existing.data : mergeData(existing.data, op.data),
     updatedAt: now,
   }
+}
+
+/**
+ * Merge one patch's data into the stored data, treating a `null` value as a
+ * removal of that key.
+ * @param existing - stored data.
+ * @param patch - patch data.
+ * @returns the complete data after the merge.
+ */
+function mergeData(existing: BoardElementData, patch: BoardElementData): BoardElementData {
+  const merged: Record<string, BoardElementData[string]> = { ...existing }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) Reflect.deleteProperty(merged, key)
+    else merged[key] = value
+  }
+  return merged
 }
 
 /**

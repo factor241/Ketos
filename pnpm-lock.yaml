@@ -2747,6 +2747,9 @@ importers:
       '@ketos/board-doc':
         specifier: workspace:*
         version: link:../../ketos/board-doc
+      '@ketos/board-todo':
+        specifier: workspace:*
+        version: link:../../ketos/board-todo
       '@ketos/client-locale-ru':
         specifier: workspace:*
         version: link:../../ketos/client-locale-ru
@@ -3325,6 +3328,9 @@ importers:
       '@ketos/board-doc':
         specifier: workspace:~
         version: link:../../ketos/board-doc
+      '@ketos/board-todo':
+        specifier: workspace:~
+        version: link:../../ketos/board-todo
       '@ketos/clone-core':
         specifier: workspace:~
         version: link:../../ketos/clone-core
@@ -9645,6 +9651,52 @@ importers:
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:*
         version: link:../../client/connection
+
+  packages/ketos/board-todo:
+    dependencies:
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-util-values':
+        specifier: workspace:*
+        version: link:../../util/values
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@ketos/board-doc':
+        specifier: workspace:*
+        version: link:../board-doc
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
+      '@deepseek-ai/dsh-commands':
+        specifier: workspace:*
+        version: link:../../interaction/commands
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
+      yjs:
+        specifier: 13.6.33
+        version: 13.6.33
 
   packages/ketos/client-locale-ru:
     devDependencies:

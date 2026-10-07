@@ -1,0 +1,91 @@
+/* One to-do item row: the hidden checkbox, the drawn check, and the title.
+   Motion uses the shared transition tokens and is disabled at reduced motion. */
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--board-gap-row);
+  padding: 3px 0;
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.checkArea {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  cursor: pointer;
+}
+
+.checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.checkbox:focus-visible + .check {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+  border-radius: var(--dsw-radius-xs);
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.checkRing {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.checkPath {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 12;
+  stroke-dashoffset: 12;
+  transition: stroke-dashoffset var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.done .check {
+  color: var(--dsw-alias-brand-primary);
+}
+
+.done .checkPath {
+  stroke-dashoffset: 0;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-decoration: line-through;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.done .title {
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .check,
+  .checkPath,
+  .title {
+    transition: none;
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "data": [
+    {
+      "id": "kt-1ry.4",
+      "title": "Хлеб",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:39Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:33:00Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-1ry.4",
+          "depends_on_id": "kt-1ry",
+          "type": "parent-child",
+          "created_at": "2026-10-06T06:32:38Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-1ry"
+    },
+    {
+      "id": "kt-1ry.2",
+      "title": "-h",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:38Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:32:38Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-1ry.2",
+          "depends_on_id": "kt-1ry",
+          "type": "parent-child",
+          "created_at": "2026-10-06T06:32:37Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-1ry"
+    },
+    {
+      "id": "kt-1ry.3",
+      "title": "--parent=evil",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:38Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:32:38Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-1ry.3",
+          "depends_on_id": "kt-1ry",
+          "type": "parent-child",
+          "created_at": "2026-10-06T06:32:38Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-1ry"
+    },
+    {
+      "id": "kt-1ry.1",
+      "title": "Молоко",
+      "status": "closed",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:37Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:32:58Z",
+      "closed_at": "2026-10-05T23:32:58Z",
+      "close_reason": "Отмечено на доске",
+      "dependencies": [
+        {
+          "issue_id": "kt-1ry.1",
+          "depends_on_id": "kt-1ry",
+          "type": "parent-child",
+          "created_at": "2026-10-06T06:32:36Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-1ry"
+    }
+  ],
+  "schema_version": 1
+}

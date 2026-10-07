@@ -1,0 +1,13 @@
+Error:
+⚠ Found existing Dolt database: /private/tmp/claude-501/-Volumes-Projects-Ketos-bot/97be7275-883b-4cdd-9e92-87090173f149/scratchpad/bdtest/h122b/beads/embeddeddolt/kt
+
+This workspace is already initialized.
+
+To use the existing database:
+  Just run bd commands normally (e.g., bd list)
+
+If the database is genuinely corrupt and unrecoverable:
+  bd export > issue-export.jsonl        # Export issue records first
+  bd init --reinit-local --prefix kt    # Then reinitialize
+
+Aborting.

@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "id": "kt-1ry.4",
+      "title": "Хлеб",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:39Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:33:00Z"
+    }
+  ],
+  "schema_version": 1
+}

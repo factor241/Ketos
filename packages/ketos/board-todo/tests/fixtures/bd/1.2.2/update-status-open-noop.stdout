@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "id": "kt-1ry.2",
+      "title": "-h",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:32:38Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:33:37Z"
+    }
+  ],
+  "schema_version": 1
+}

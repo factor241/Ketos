@@ -5,13 +5,22 @@
  * that renames or closes, the add control, and the layer rules that stand the
  * dock down under a chats panel or a fullscreen window.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { createBoardStore } from '../src/client/store.ts'
-import { safeArea } from '../src/client/board-coordinates.ts'
+import { placeInSafeArea, safeArea } from '../src/client/board-coordinates.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench, t } from './fixtures.client.ts'
+
+const todoApi = vi.hoisted(() => ({
+  createTodoList: vi.fn(),
+  addTodoItem: vi.fn(),
+  setTodoItemDone: vi.fn(),
+  refreshTodoList: vi.fn(),
+  placeTodoList: vi.fn(),
+}))
+vi.mock('../src/client/todo-api.ts', () => todoApi)
 
 /** The live board store instance the renderer resolves for the board's registrations. */
 type BoardInstance = ReturnType<ReturnType<typeof createBoardStore>['create']>
@@ -25,6 +34,11 @@ afterEach(async () => {
     runtimes.clear()
     cleanup()
   }
+})
+
+beforeEach(() => {
+  for (const mock of Object.values(todoApi)) mock.mockReset()
+  todoApi.placeTodoList.mockResolvedValue({ ok: false, code: 'ketos/unreachable' })
 })
 
 /** Bench with the fixture session the window bridge creates for an agent window. */
@@ -309,6 +323,58 @@ describe('board dock', () => {
       expect(document.activeElement).toBe(editor)
       expect(boardDoc.ops.flat().filter(op => op.op === 'create')).toHaveLength(1)
     }
+  })
+
+  it('asks for a title and creates a todo list in the center of the visible safe area', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => {
+      store.actions.setViewport(1200, 900)
+      store.actions.setPan(140, -80)
+      store.actions.setZoom(2)
+    })
+    todoApi.createTodoList.mockResolvedValue({
+      ok: true,
+      elementId: '00000000-0000-4000-8000-0000000000d1',
+      revision: 1,
+    })
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+    const input = screen.getByPlaceholderText(t('element.todo.create.placeholder'))
+    const confirm = screen.getByRole('button', { name: t('element.todo.create.action') })
+    expect(confirm.hasAttribute('disabled')).toBe(true)
+    fireEvent.change(input, { target: { value: '  Покупки  ' } })
+    expect(confirm.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(confirm)
+    await runtime.flush()
+
+    const at = placeInSafeArea(store.store.getSnapshot(), 280, 240)
+    expect(todoApi.createTodoList).toHaveBeenCalledWith('Покупки', at.x, at.y)
+    expect(screen.queryByPlaceholderText(t('element.todo.create.placeholder'))).toBeNull()
+  })
+
+  it('closes the title popover on Escape without creating', async () => {
+    const { runtime, panel } = await bench()
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+    const input = screen.getByPlaceholderText(t('element.todo.create.placeholder'))
+    fireEvent.keyDown(input, { key: 'Escape' })
+    await runtime.flush()
+
+    expect(screen.queryByRole('dialog', { name: t('element.todo.create.title') })).toBeNull()
+    expect(todoApi.createTodoList).not.toHaveBeenCalled()
+  })
+
+  it('notices a failed todo creation with the localized text', async () => {
+    const { runtime, panel } = await bench()
+    todoApi.createTodoList.mockResolvedValue({ ok: false, code: 'ketos/beads-unavailable' })
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+    fireEvent.change(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { target: { value: 'Покупки' } })
+    fireEvent.click(screen.getByRole('button', { name: t('element.todo.create.action') }))
+    await runtime.flush()
+
+    expect(panel.container.querySelector('[data-board-dock-notice]')?.textContent)
+      .toBe(t('element.todo.error.unavailable'))
   })
 
   it('states the dashboard is unavailable without opening a window', async () => {

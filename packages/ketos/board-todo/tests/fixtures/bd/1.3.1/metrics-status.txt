@@ -1,0 +1,16 @@
+Anonymous usage metrics: OFF
+
+What we collect: the name of each bd command you run, plus the bd version
+and OS platform, keyed by a machine-derived, HMAC-protected ID. We never
+collect your issues, paths, remotes, identity, or any text you type. Seeing
+real usage patterns is how we decide what to improve next — thank you for
+helping make bd better.
+
+Where it goes: https://gastownhall-eventsapi.com/mp/collect
+
+  See real examples:  bd metrics example
+  Turn on:            bd metrics on
+
+Note: BD_DISABLE_METRICS=1 is overriding your saved config (which is "on") for this shell.
+ls: cannot access '/w/home/.beads': No such file or directory
+ls: cannot access '/w/home/.config/bd': No such file or directory

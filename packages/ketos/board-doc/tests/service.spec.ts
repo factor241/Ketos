@@ -55,7 +55,11 @@ function mount(path: string, overrides: Partial<KetosBoardDocOptions> = {}): {
   const invalid: string[] = []
   const service = new KetosBoardDocService(ctx, {
     path,
-    limits: { maxOpsPerRequest: 64, maxElements: 2000, elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 } },
+    limits: {
+      maxOpsPerRequest: 64,
+      maxElements: 2000,
+      elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
+    },
     journalCompactRows: 500,
     logger: (message) => { invalid.push(message) },
     ...overrides,
@@ -73,7 +77,7 @@ describe('board document service', () => {
       limits: {
         maxOpsPerRequest: 64,
         maxElements: 2000,
-        elements: { elementBytesMax: 1024, noteTextMax: 20_000, strokePointsMax: 2000 },
+        elements: { elementBytesMax: 1024, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
       },
     })
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -81,7 +85,7 @@ describe('board document service', () => {
     expect(snapshot).toMatchObject({
       revision: 0,
       elements: [],
-      limits: { elementBytesMax: 1024, noteTextMax: 20_000, strokePointsMax: 2000 },
+      limits: { elementBytesMax: 1024, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     })
     expect(snapshot.selfId).toBe(await service.selfId())
     expect(snapshot.docId).toBe(await service.docId())

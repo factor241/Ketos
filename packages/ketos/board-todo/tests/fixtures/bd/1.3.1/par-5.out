@@ -1,0 +1,13 @@
+{
+  "data": {
+    "id": "kt-219.9",
+    "title": "par-5",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:34:40.593686262Z",
+    "created_by": "unknown",
+    "updated_at": "2026-10-05T23:34:40.593686262Z"
+  },
+  "schema_version": 1
+}

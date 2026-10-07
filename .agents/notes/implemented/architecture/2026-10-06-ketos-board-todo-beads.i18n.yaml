@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-board-todo-beads.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-board-todo-beads.md
+/agent-note-to-do-lists-on-beads:
+  en: 4b80a97316f08fad
+  zh: 715003cba4502fc6
+/agent-note-to-do-lists-on-beads/problem:
+  en: 41b72eef31a6851a
+  zh: e64cce73e34ba6c5
+/agent-note-to-do-lists-on-beads/decision:
+  en: 65f0ea17bf850a67
+  zh: fcb53025df532e3a
+/agent-note-to-do-lists-on-beads/alternatives-considered:
+  en: b48c5fd2146d49a5
+  zh: f388980d468ac5d7
+/agent-note-to-do-lists-on-beads/consequences:
+  en: c8d8ca32a5dd896f
+  zh: add20e50a140e656
+/agent-note-to-do-lists-on-beads/testing:
+  en: 6520be6d34f8e5a6
+  zh: 52ebfbd0ffb6baff
+/agent-note-to-do-lists-on-beads/related:
+  en: ea570067d9c10c4a
+  zh: 063f37d6200e46e0

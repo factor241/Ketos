@@ -1,0 +1,146 @@
+/* Todo body: the header, the progress bar, the scrolling item list, and the
+   add field. The surface is the elevated layer-2 fill like the note body. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--board-pad-card);
+  gap: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: var(--board-font-label);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--board-font-title);
+  font-weight: 600;
+}
+
+.refresh {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--dsw-alias-line-border);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.refresh:hover {
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+}
+
+.progress {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  background: var(--dsw-alias-brand-primary);
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.progressText {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+.missing {
+  padding: 4px 8px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* The to-do list surface is elevated (layer-2 fill); rebind the scrollbar
+     thumb indirection in a complete pair, as the scrollbar contract requires. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.doneHeading {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--dsw-alias-line-border);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+}
+
+.addInput {
+  flex: 1;
+  min-width: 0;
+  height: var(--board-control-small);
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-line-input);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--board-font-hint);
+}
+
+.addInput:disabled {
+  opacity: 0.5;
+}
+
+.full {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--board-font-hint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill {
+    transition: none;
+  }
+}

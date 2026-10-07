@@ -13,6 +13,9 @@ const SELF = brandString<OwnerId>('demo-self')
 const OTHER = brandString<OwnerId>('demo-legal')
 const NOW = 1_700_000_000_000
 
+/** One valid todo payload the generic fixtures carry. */
+const DATA: BoardElementData = { epicId: 'kt-1', title: 'list', items: [], syncedAt: '2026-10-06T12:00:00Z' }
+
 /**
  * One deterministic element id.
  * @param serial - number filling the id's last group.
@@ -35,7 +38,7 @@ function limits(overrides: Partial<BoardOpLimits> = {}): BoardOpLimits {
   return {
     maxOpsPerRequest: 64,
     maxElements: 2000,
-    elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+    elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     ...overrides,
   }
 }
@@ -82,7 +85,7 @@ function codeOf(run: () => unknown): string | undefined {
  * @param data - element data.
  * @returns the stored element.
  */
-function seed(doc: BoardDocument, id: ElementId, ownerId: OwnerId = SELF, data: BoardElementData = {}): BoardElement {
+function seed(doc: BoardDocument, id: ElementId, ownerId: OwnerId = SELF, data: BoardElementData = DATA): BoardElement {
   const result = applyBoardOps(doc, [createOp(id, { data })], 'host', ownerId, limits(), NOW)
   return result.upserts[0] as BoardElement
 }
@@ -149,7 +152,7 @@ describe('operation application', () => {
   it('stamps owner, z above the ceiling, and both timestamps on create', () => {
     const { doc } = openDoc()
     seed(doc, ID_A, OTHER)
-    const result = applyBoardOps(doc, [createOp(ID_B, { data: { text: 'привет' } })], 'browser', SELF, limits(), NOW)
+    const result = applyBoardOps(doc, [createOp(ID_B, { data: DATA })], 'browser', SELF, limits(), NOW)
     expect(result).toEqual({
       upserts: [{
         id: ID_B,
@@ -160,7 +163,7 @@ describe('operation application', () => {
         w: 10,
         h: 10,
         z: 2,
-        data: { text: 'привет' },
+        data: DATA,
         createdAt: NOW,
         updatedAt: NOW,
       }],
@@ -170,9 +173,7 @@ describe('operation application', () => {
   })
 
   it('defaults absent create data to an empty object', () => {
-    const { doc } = openDoc()
-    const result = applyBoardOps(doc, [createOp(ID_A)], 'host', SELF, limits(), NOW)
-    expect(result.upserts[0]?.data).toEqual({})
+    expect(resolveCreate(createOp(ID_A), { ids: new Set(), maxZ: 0 }, SELF, NOW).data).toEqual({})
   })
 
   it('refuses a create whose id is occupied and one past the element budget', () => {
@@ -205,11 +206,18 @@ describe('operation application', () => {
 
   it('lets a browser patch its own element and merge data by key', () => {
     const { doc } = openDoc()
-    seed(doc, ID_A, SELF, { a: 1, b: 2 })
-    const result = applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { b: 3, c: 4 } }], 'browser', SELF, limits(), NOW)
-    expect(doc.readElement(ID_A)).toMatchObject({ data: { a: 1, b: 3, c: 4 }, updatedAt: NOW })
+    seed(doc, ID_A, SELF, DATA)
+    const result = applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { title: 'updated' } }], 'browser', SELF, limits(), NOW)
+    expect(doc.readElement(ID_A)).toMatchObject({ data: { epicId: 'kt-1', title: 'updated' }, updatedAt: NOW })
     expect(result.upserts).toHaveLength(1)
     expect(result.removes).toEqual([])
+  })
+
+  it('removes a data key whose patch value is null', () => {
+    const { doc } = openDoc()
+    seed(doc, ID_A, SELF, { ...DATA, missing: true })
+    applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { missing: null } }], 'host', SELF, limits(), NOW)
+    expect(doc.readElement(ID_A)?.data).toEqual(DATA)
   })
 
   it('removes an element and reports it', () => {
@@ -224,7 +232,7 @@ describe('operation application', () => {
     const { doc, updates } = openDoc()
     expect(codeOf(() => applyBoardOps(
       doc,
-      [createOp(ID_A), { op: 'patch', id: ID_B, x: 1 }],
+      [createOp(ID_A, { data: DATA }), { op: 'patch', id: ID_B, x: 1 }],
       'browser',
       SELF,
       limits(),
@@ -239,29 +247,29 @@ describe('operation application', () => {
     const { doc } = openDoc()
     const result = applyBoardOps(
       doc,
-      [createOp(ID_A), { op: 'patch', id: ID_A, x: 7, data: { a: 1 } }],
+      [createOp(ID_A, { data: DATA }), { op: 'patch', id: ID_A, x: 7, data: { title: 'updated' } }],
       'browser',
       SELF,
       limits(),
       NOW,
     )
     expect(result.upserts).toHaveLength(1)
-    expect(doc.readElement(ID_A)).toMatchObject({ x: 7, data: { a: 1 } })
+    expect(doc.readElement(ID_A)).toMatchObject({ x: 7, data: { epicId: 'kt-1', title: 'updated' } })
   })
 
   it('resolves a remove followed by a create of the same id inside one batch', () => {
     const { doc } = openDoc()
-    seed(doc, ID_A, SELF, { old: true })
+    seed(doc, ID_A, SELF, { ...DATA, title: 'old' })
     const result = applyBoardOps(
       doc,
-      [{ op: 'remove', id: ID_A }, createOp(ID_A, { data: { fresh: true } })],
+      [{ op: 'remove', id: ID_A }, createOp(ID_A, { data: { ...DATA, title: 'fresh' } })],
       'browser',
       SELF,
       limits(),
       NOW,
     )
     expect(result.removes).toEqual([])
-    expect(doc.readElement(ID_A)?.data).toEqual({ fresh: true })
+    expect(doc.readElement(ID_A)?.data).toEqual({ ...DATA, title: 'fresh' })
   })
 
   it('reports an element removed earlier in the same batch as absent', () => {
@@ -301,32 +309,32 @@ describe('operation application', () => {
       w: 10,
       h: 10,
       z: 1,
-      data: { text: 'ё' },
+      data: DATA,
       createdAt: NOW,
       updatedAt: NOW,
     }
     const bytes = new TextEncoder().encode(JSON.stringify(base)).length
-    const exact = limits({ elements: { elementBytesMax: bytes, noteTextMax: 20_000, strokePointsMax: 2000 } })
-    expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, exact, NOW)))
+    const exact = limits({ elements: { elementBytesMax: bytes, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 } })
+    expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: DATA })], 'host', SELF, exact, NOW)))
       .toBeUndefined()
-    const tight = limits({ elements: { elementBytesMax: bytes - 1, noteTextMax: 20_000, strokePointsMax: 2000 } })
-    expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: { text: 'ё' } })], 'host', SELF, tight, NOW)))
+    const tight = limits({ elements: { elementBytesMax: bytes - 1, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 } })
+    expect(codeOf(() => applyBoardOps(openDoc().doc, [createOp(ID_A, { data: DATA })], 'host', SELF, tight, NOW)))
       .toBe('ketos/limit')
   })
 
   it('refuses a patch whose merged keys exceed the byte budget', () => {
     const { doc } = openDoc()
-    seed(doc, ID_A, SELF, { a: 'x'.repeat(100) })
-    const tight = limits({ elements: { elementBytesMax: 150, noteTextMax: 20_000, strokePointsMax: 2000 } })
+    seed(doc, ID_A, SELF, DATA)
+    const tight = limits({ elements: { elementBytesMax: 150, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 } })
     expect(codeOf(() => applyBoardOps(
       doc,
-      [{ op: 'patch', id: ID_A, data: { b: 'y'.repeat(100) } }],
+      [{ op: 'patch', id: ID_A, data: { title: 'y'.repeat(100) } }],
       'host',
       SELF,
       tight,
       NOW,
     ))).toBe('ketos/invalid')
-    expect(doc.readElement(ID_A)?.data).toEqual({ a: 'x'.repeat(100) })
+    expect(doc.readElement(ID_A)?.data).toEqual(DATA)
   })
 
   it('rejects an operation variant outside the closed union', () => {

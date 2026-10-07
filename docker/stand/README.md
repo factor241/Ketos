@@ -46,9 +46,20 @@ docker compose -f docker/stand/compose.yaml down -v         # reset volumes (sta
 
 After `restart`, the boards and chats are still there: homes and working directories live in named volumes. The stand does not touch `~/.ketos` on the host.
 
+## Beads (`bd`)
+
+The image installs Beads 1.3.1 from the official release archive, pinned by sha256 per architecture (`BD_VERSION`, `BD_SHA256_ARM64`, `BD_SHA256_AMD64` in the `Dockerfile`). The archive's `LICENSE` is kept at `/usr/local/share/doc/beads/LICENSE`. `BD_DISABLE_METRICS=1` and `DO_NOT_TRACK=1` are set image-wide, so `bd` never reports usage.
+
+To update: copy the new version's values from the release `checksums.txt`, replace `BD_VERSION` and both `BD_SHA256_*` arguments, then rebuild and check:
+
+```sh
+docker compose -f docker/stand/compose.yaml build ketos-a
+docker compose -f docker/stand/compose.yaml exec ketos-a bd version
+```
+
 ## Contents
 
-- `Dockerfile` — a multi-stage build: node:24-bookworm builds the branch, and the runtime receives Syncthing and `bd`.
+- `Dockerfile` — a multi-stage build: node:24-bookworm builds the branch, and the runtime receives Syncthing and the checksum-pinned `bd`.
 - `Dockerfile.dockerignore` — the build context without `.env`, `.git`, `references/`, and `graphify-out*`.
 - `stand.patch.yml` — the profile overlay: the `0.0.0.0` bind, the port from `KETOS_PORT`, trusted hosts, the `opencode-go` route, and the default model.
 - `docker-entrypoint.sh` — starts Syncthing and `ketos web` in one container.

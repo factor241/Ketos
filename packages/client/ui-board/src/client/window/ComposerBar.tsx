@@ -149,6 +149,7 @@ function commandLabel(t: BoardTranslate, name: string): string {
     case 'permission': return t('command.permission')
     case 'model': return t('command.model')
     case 'export': return t('command.export')
+    case 'todo': return t('command.todo')
     default: return `/${name}`
   }
 }
@@ -164,6 +165,7 @@ function commandDescription(t: BoardTranslate, name: string, fallback: string): 
     case 'permission': return t('command.permission.description')
     case 'model': return t('command.model.description')
     case 'export': return t('command.export.description')
+    case 'todo': return t('command.todo.description')
     default: return fallback
   }
 }

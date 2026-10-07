@@ -27,6 +27,45 @@ export type BoardRevision = BrandedNumber<'BoardRevision'>
 /** Kind of a board element; each kind owns its body renderer and data rules. */
 export type BoardElementKind = 'note' | 'stroke' | 'todo'
 
+/** Identity of one Beads issue: the epic of a to-do list or one of its items. */
+export type BeadsIssueId = Branded<'BeadsIssueId'>
+
+/** Beads status of one to-do item, as the board snapshot carries it. */
+export type TodoStatus = 'open' | 'in_progress' | 'blocked' | 'deferred' | 'closed'
+
+/** One item of a to-do list, as the snapshot of the list carries it. */
+export interface TodoItem {
+  /** Beads issue id of the item. */
+  readonly id: BeadsIssueId
+  /** Item text. */
+  readonly title: string
+  /** Beads status; `closed` draws the item under the done section. */
+  readonly status: TodoStatus
+}
+
+/**
+ * Kind-owned payload of one to-do list: the host-owned snapshot of a Beads
+ * epic and its child items. `epicId` names the epic in the Ketos Beads
+ * database, `syncedAt` is the time of the last successful re-read, `missing`
+ * marks an epic whose `bd show` no longer finds it while the item snapshot is
+ * kept, and `pendingPlacement` marks a list created from chat that a visible
+ * browser tab has yet to place in the center of the visible area.
+ */
+export interface TodoData {
+  /** Beads issue id of the list's epic. */
+  readonly epicId: BeadsIssueId
+  /** The epic's title. */
+  readonly title: string
+  /** The epic's child items, in `created_at` order. */
+  readonly items: readonly TodoItem[]
+  /** Time of the last successful re-read, ISO 8601. */
+  readonly syncedAt: string
+  /** Present when `bd` no longer finds the epic; the items stay as last read. */
+  readonly missing?: true
+  /** Present until a visible browser tab places the list. */
+  readonly pendingPlacement?: true
+}
+
 /** Font family one note draws its text with. */
 export type NoteFont = 'sans' | 'serif' | 'mono'
 
@@ -123,6 +162,8 @@ export interface BoardLimits {
   readonly noteTextMax: number
   /** Largest number of points one stroke may carry. */
   readonly strokePointsMax: number
+  /** Largest number of items one to-do list may carry. */
+  readonly todoItemsMax: number
 }
 
 /** Full state of the document at one revision, the first event of the stream. */
@@ -163,6 +204,10 @@ export interface BoardPatchOp {
   readonly w?: number
   readonly h?: number
   readonly z?: number
+  /**
+   * Data fields to merge by key; a `null` value removes that data key from the
+   * stored element, which is how optional flags are cleared.
+   */
   readonly data?: BoardElementData
 }
 

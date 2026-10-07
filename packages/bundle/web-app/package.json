@@ -173,6 +173,7 @@
     "@ketos/client-locale-ru": "workspace:*",
     "@ketos/clone-core": "workspace:*",
     "@ketos/board-doc": "workspace:*",
+    "@ketos/board-todo": "workspace:*",
     "commander": "^15.0.0",
     "open": "^11.0.0",
     "@deepseek-ai/dsh-api-account-controller": "workspace:*",

@@ -62,6 +62,20 @@
       config:
         path: !!js dshHomePath('board.db')
 
+    # Ketos to-do lists: one Beads epic per list in the Ketos-owned database
+    # under $DSH_HOME/beads, reached through the queued telemetry-free bd CLI;
+    # the /api/ketos.board.todo Fetch route and the /todo command. Host row
+    # like the clone and board-document domains.
+    - id: ketos-board-todo
+      name: '@ketos/board-todo'
+      config:
+        beadsDir: !!js dshHomePath('beads')
+        bdCommand: bd
+        beadsPrefix: kt
+        bdTimeoutMs: 15000
+        bdOutputMaxBytes: 1048576
+        todoTitleMaxChars: 200
+
     # Р-3: product analytics and telemetry stay off in Ketos profiles.
     - id: desktop-product-telemetry
       name: '@deepseek-ai/dsh-host-product-telemetry-otel'

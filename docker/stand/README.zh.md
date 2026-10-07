@@ -46,9 +46,20 @@ docker compose -f docker/stand/compose.yaml down -v         # reset volumes (sta
 
 `restart` 之后，看板与聊天仍在原处：主目录与工作目录保存在命名卷中。stand 不会触碰宿主机上的 `~/.ketos`。
 
+## Beads（`bd`）
+
+镜像从官方发布归档安装 Beads 1.3.1，并按架构以 sha256 固定（`Dockerfile` 中的 `BD_VERSION`、`BD_SHA256_ARM64`、`BD_SHA256_AMD64`）。归档中的 `LICENSE` 保留在 `/usr/local/share/doc/beads/LICENSE`。镜像范围内设置了 `BD_DISABLE_METRICS=1` 与 `DO_NOT_TRACK=1`，因此 `bd` 从不上报使用情况。
+
+更新方法：从发布版的 `checksums.txt` 复制新值，替换 `BD_VERSION` 与两个 `BD_SHA256_*` 参数，然后重建并检查：
+
+```sh
+docker compose -f docker/stand/compose.yaml build ketos-a
+docker compose -f docker/stand/compose.yaml exec ketos-a bd version
+```
+
 ## 组成
 
-- `Dockerfile`——多阶段构建：node:24-bookworm 构建本分支，运行时获得 Syncthing 与 `bd`。
+- `Dockerfile`——多阶段构建：node:24-bookworm 构建本分支，运行时获得 Syncthing 与按校验和固定的 `bd`。
 - `Dockerfile.dockerignore`——不含 `.env`、`.git`、`references/`、`graphify-out*` 的构建上下文。
 - `stand.patch.yml`——profile 覆盖层：`0.0.0.0` 绑定、来自 `KETOS_PORT` 的端口、受信主机、`opencode-go` 路由与默认模型。
 - `docker-entrypoint.sh`——在同一个容器中启动 Syncthing 与 `ketos web`。

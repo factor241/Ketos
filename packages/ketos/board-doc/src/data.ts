@@ -10,8 +10,9 @@
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type {
-  BoardElementData, BoardElementKind, BoardLimits, ElementId, NoteData, NoteFont, NoteSize,
-  StrokeBounds, StrokeBox, StrokeData, StrokePathPoint, StrokePoint, StrokeWidth,
+  BeadsIssueId, BoardElementData, BoardElementKind, BoardLimits, ElementId, NoteData, NoteFont,
+  NoteSize, StrokeBounds, StrokeBox, StrokeData, StrokePathPoint, StrokePoint, StrokeWidth,
+  TodoData, TodoItem, TodoStatus,
 } from './types.ts'
 
 /** UUID shape every opaque identifier carries. */
@@ -36,11 +37,23 @@ export const STROKE_WIDTHS: readonly StrokeWidth[] = ['s', 'm', 'l']
  */
 export const STROKE_SIZES: Readonly<Record<StrokeWidth, number>> = { s: 4, m: 8, l: 16 }
 
+/** Beads statuses a to-do item may carry. */
+export const TODO_STATUSES: readonly TodoStatus[] = ['open', 'in_progress', 'blocked', 'deferred', 'closed']
+
+/** Shape every Beads issue id carries: `<prefix>-<serial>[.<child>...]`. */
+export const BEADS_ISSUE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*-[a-z0-9]+(?:\.[0-9]+)*$/
+
 /** Fields one note's data carries; any other field is a refusal. */
 const NOTE_FIELDS: readonly string[] = ['text', 'font', 'size', 'scale']
 
 /** Fields one stroke's data carries; any other field is a refusal. */
 const STROKE_FIELDS: readonly string[] = ['points', 'width', 'pen']
+
+/** Fields one to-do list's data carries; any other field is a refusal. */
+const TODO_FIELDS: readonly string[] = ['epicId', 'title', 'items', 'syncedAt', 'missing', 'pendingPlacement']
+
+/** Fields one to-do item carries; any other field is a refusal. */
+const TODO_ITEM_FIELDS: readonly string[] = ['id', 'title', 'status']
 
 /**
  * Mint one UUIDv4 string from the Web Crypto generator, which exists on every
@@ -131,6 +144,55 @@ export function parseStrokeData(value: unknown, limits: BoardLimits, box: Stroke
     parsed.push([dx, dy, pressure])
   }
   return { points: parsed, width: width as StrokeWidth, pen }
+}
+
+/**
+ * Whether a decoded value is a Beads issue id.
+ * @param value - decoded value.
+ * @returns true when the value carries the Beads id shape.
+ */
+export function isBeadsIssueId(value: unknown): value is BeadsIssueId {
+  return typeof value === 'string' && BEADS_ISSUE_ID_PATTERN.test(value)
+}
+
+/**
+ * Parse one to-do list's data: the epic id, a non-empty title and sync time,
+ * at most `limits.todoItemsMax` items that each carry an id, a non-empty
+ * title, and a known status, and the two optional `true` flags. Any other
+ * field, missing field, or value outside those rules refuses the data.
+ * @param value - decoded data value.
+ * @param limits - element limits the item count must stay inside.
+ * @returns the typed list data, or null when the value is not a valid list.
+ */
+export function parseTodoData(value: unknown, limits: BoardLimits): TodoData | null {
+  if (!isElementData(value)) return null
+  if (Object.keys(value).some(key => !TODO_FIELDS.includes(key))) return null
+  const { epicId, title, items, syncedAt, missing, pendingPlacement } = value
+  if (!isBeadsIssueId(epicId)) return null
+  if (typeof title !== 'string' || title.length === 0) return null
+  if (typeof syncedAt !== 'string' || syncedAt.length === 0) return null
+  if (missing !== undefined && missing !== true) return null
+  if (pendingPlacement !== undefined && pendingPlacement !== true) return null
+  if (!Array.isArray(items) || items.length > limits.todoItemsMax) return null
+  const parsed: TodoItem[] = []
+  for (const item of items) {
+    if (!isElementData(item)) return null
+    const itemKeys = Object.keys(item)
+    if (itemKeys.length !== TODO_ITEM_FIELDS.length || itemKeys.some(key => !TODO_ITEM_FIELDS.includes(key))) return null
+    const { id, title: itemTitle, status } = item
+    if (!isBeadsIssueId(id)) return null
+    if (typeof itemTitle !== 'string' || itemTitle.length === 0) return null
+    if (typeof status !== 'string' || !(TODO_STATUSES as readonly string[]).includes(status)) return null
+    parsed.push({ id, title: itemTitle, status: status as TodoStatus })
+  }
+  return {
+    epicId,
+    title,
+    items: parsed,
+    syncedAt,
+    ...missing === true ? { missing: true as const } : {},
+    ...pendingPlacement === true ? { pendingPlacement: true as const } : {},
+  }
 }
 
 /**
@@ -374,8 +436,8 @@ function segmentSegmentDistance(
 
 /**
  * Validate one kind's data. A note must parse as exact {@link NoteData}, a
- * stroke as exact {@link StrokeData} inside the element box; the todo stage
- * replaces its own branch with the kind's exact rules.
+ * stroke as exact {@link StrokeData} inside the element box, and a to-do list
+ * as exact {@link TodoData} inside the item limit.
  * @param kind - element kind the data belongs to.
  * @param data - decoded data object.
  * @param limits - element limits the data must stay inside.
@@ -400,8 +462,11 @@ export function validateElementData(
       if (common !== null) return common
       return parseStrokeData(data, limits, box) === null ? 'invalid stroke data' : null
     }
-    case 'todo':
-      return commonDataReason(data, limits)
+    case 'todo': {
+      const common = commonDataReason(data, limits)
+      if (common !== null) return common
+      return parseTodoData(data, limits) === null ? 'invalid todo data' : null
+    }
     default:
       return assertNever(kind)
   }

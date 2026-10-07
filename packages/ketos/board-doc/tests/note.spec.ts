@@ -26,7 +26,7 @@ const ID = brandString<ElementId>('00000000-0000-4000-8000-000000000001')
 const LIMITS: BoardOpLimits = {
   maxOpsPerRequest: 64,
   maxElements: 2000,
-  elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000 },
+  elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
 }
 
 /** One complete valid note payload. */
@@ -129,7 +129,7 @@ describe('note data parsing', () => {
   })
 
   it('refuses note data over the element byte budget before parsing the fields', () => {
-    expect(validateElementData('note', NOTE, { elementBytesMax: 10, noteTextMax: 20_000, strokePointsMax: 2000 }, BOX))
+    expect(validateElementData('note', NOTE, { elementBytesMax: 10, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 }, BOX))
       .toMatch(/exceeds 10 bytes/u)
   })
 })
@@ -188,8 +188,13 @@ describe('note text patch', () => {
 describe('note limits in the snapshot', () => {
   it('publishes noteTextMax from the deployment configuration', async () => {
     const { service } = await mount({
-      limits: { ...LIMITS, elements: { elementBytesMax: 262_144, noteTextMax: 512, strokePointsMax: 2000 } },
+      limits: { ...LIMITS, elements: { elementBytesMax: 262_144, noteTextMax: 512, strokePointsMax: 2000, todoItemsMax: 200 } },
     })
-    expect((await service.snapshot()).limits).toEqual({ elementBytesMax: 262_144, noteTextMax: 512, strokePointsMax: 2000 })
+    expect((await service.snapshot()).limits).toEqual({
+      elementBytesMax: 262_144,
+      noteTextMax: 512,
+      strokePointsMax: 2000,
+      todoItemsMax: 200,
+    })
   })
 })

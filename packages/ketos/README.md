@@ -28,6 +28,7 @@ The ketos group owns the packages the Ketos fork adds on top of the upstream Dee
 | [`@ketos/client-locale-ru`](client-locale-ru/README.md) | Russian locale pack for the web GUI: registers `ru`, translates the shared, settings, and board vocabularies, and applies `ru` while the user has no stored locale preference |
 | [`@ketos/clone-core`](clone-core/README.md) | The clone domain: `clones.db` (owner-only SQLite), the forward-only schema, the revision-CAS clone repository, the FTS5 memory store, the clone task table with the goal-driven runner, the `/api/ketos.clones`, `/api/ketos.memory`, and `/api/ketos.tasks` Fetch routes the board's clone and tasks windows call, and the session scope that composes the profile, the memory tools, the interview mode, and the task report tool into the sessions bound to a clone |
 | [`@ketos/board-doc`](board-doc/README.md) | The board document: `board.db` (owner-only SQLite) with the append-only Yjs update journal, the local `selfId` and `docId` kept outside the document, the element envelope and its atomic operation batches, the `ctx.ketosBoardDoc` service other Ketos plugins read and write, and the `/api/ketos.board`, `/api/ketos.board.ops`, and `/api/ketos.board.events` Fetch routes the board elements use |
+| [`@ketos/board-todo`](board-todo/README.md) | The to-do lists: one Beads epic per list in the Ketos-owned database under `$DSH_HOME/beads`, the queued telemetry-free `bd` wrapper, the `/api/ketos.board.todo` Fetch route, and the `/todo` command |
 
 -----
 

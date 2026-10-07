@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/ketos/board-todo/README.md
+/:
+  en: 8b67b21240dbb4e9
+  zh: b60a4795343cf879
+/ketos-board-todo:
+  en: 42fac5a8d768bca5
+  zh: e466342f3f88f3c2
+/ketos-board-todo/summary:
+  en: a055396848d0da07
+  zh: f91894edfb70c7d7
+/ketos-board-todo/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: ffab54373e9e61f0
+/ketos-board-todo/use-this-package:
+  en: e2d7b96c65512a65
+  zh: bb632e3547c81436
+/ketos-board-todo/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 24acd380126d0e00
+/ketos-board-todo/understand-the-implementation/the-host-is-the-only-writer:
+  en: d65a04f13181922a
+  zh: 7c381a221216c1ce
+/ketos-board-todo/understand-the-implementation/the-bd-wrapper:
+  en: 29f9acd381bf6c61
+  zh: ab61d620de6cf55c
+/ketos-board-todo/understand-the-implementation/the-snapshot-and-its-flags:
+  en: 91e72191a73e450e
+  zh: 7df8b7c05d92e178
+/ketos-board-todo/understand-the-implementation/placement:
+  en: 4100116ece5262d1
+  zh: ca2bb828d992c967
+/ketos-board-todo/understand-the-implementation/source-map:
+  en: 2224a7480b4ecafd
+  zh: 7077ddace0ed795d
+/ketos-board-todo/further-exploration:
+  en: a787ec2d7ff9bb81
+  zh: f852aa148504efd9
+/ketos-board-todo/model-experience:
+  en: da2d279bc0e4225f
+  zh: 7dcfc704e971eca1
+/ketos-board-todo/model-experience/kv-cache-effect:
+  en: adc268b9927c6f71
+  zh: fb7a6fa76355b7af
+/ketos-board-todo/known-limitations-and-deferred-work:
+  en: 9e273e16e6cc4faa
+  zh: bb3fb2569dc84c51
+/ketos-board-todo/known-limitations-and-deferred-work/dev-note:
+  en: 399c07719a14c7f6
+  zh: b2dc921a9f3d423f

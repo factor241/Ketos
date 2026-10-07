@@ -1,0 +1,8 @@
+par-3 exit=0
+par-4 exit=0
+par-1 exit=0
+par-2 exit=0
+par-6 exit=0
+par-5 exit=0
+rw-w exit=0
+rw-r exit=0

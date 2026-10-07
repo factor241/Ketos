@@ -7,8 +7,8 @@
     - option "DeepSeek-V4-Flash-Vision-Exp"
   - group "Origin Gateway":
     - text: Origin Gateway
-    - option "Origin Large"
+    - option "Origin Large" [selected]
   - group "Acme Gateway":
     - text: Acme Gateway
-    - option "Acme Large" [selected]
+    - option "Acme Large"
     - option "Acme Small"

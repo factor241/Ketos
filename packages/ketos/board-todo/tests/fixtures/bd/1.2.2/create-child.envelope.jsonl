@@ -1,0 +1,52 @@
+{
+  "data": {
+    "id": "kt-1ry.1",
+    "title": "Молоко",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:32:36.956585Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:32:36.956585Z"
+  },
+  "schema_version": 1
+}
+{
+  "data": {
+    "id": "kt-1ry.2",
+    "title": "-h",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:32:37.569761Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:32:37.569761Z"
+  },
+  "schema_version": 1
+}
+{
+  "data": {
+    "id": "kt-1ry.3",
+    "title": "--parent=evil",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:32:38.272792Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:32:38.272792Z"
+  },
+  "schema_version": 1
+}
+{
+  "data": {
+    "id": "kt-1ry.4",
+    "title": "Хлеб",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-10-05T23:32:38.924816Z",
+    "created_by": "ketos",
+    "updated_at": "2026-10-05T23:32:38.924816Z"
+  },
+  "schema_version": 1
+}

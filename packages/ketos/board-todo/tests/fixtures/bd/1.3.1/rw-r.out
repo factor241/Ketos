@@ -1,0 +1,271 @@
+{
+  "data": [
+    {
+      "id": "kt-219.11",
+      "title": "rw-w",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:41Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:41Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.11",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:41Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.9",
+      "title": "par-5",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:41Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:41Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.9",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:41Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.10",
+      "title": "par-6",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:40Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:40Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.10",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:40Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.6",
+      "title": "par-4",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:39Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:39Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.6",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:39Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.7",
+      "title": "par-1",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:39Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:39Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.7",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:39Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.8",
+      "title": "par-2",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:39Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:39Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.8",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:39Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.5",
+      "title": "par-3",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:38Z",
+      "created_by": "unknown",
+      "updated_at": "2026-10-05T23:34:38Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.5",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:38Z",
+          "created_by": "unknown",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.1",
+      "title": "Молоко",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:36Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:34:37Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.1",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:36Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.2",
+      "title": "-h",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:36Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:34:37Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.2",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:36Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.3",
+      "title": "--parent=evil",
+      "status": "open",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:36Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:34:36Z",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.3",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:36Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    },
+    {
+      "id": "kt-219.4",
+      "title": "Хлеб",
+      "status": "closed",
+      "priority": 2,
+      "issue_type": "task",
+      "created_at": "2026-10-05T23:34:36Z",
+      "created_by": "ketos",
+      "updated_at": "2026-10-05T23:34:38Z",
+      "closed_at": "2026-10-05T23:34:38Z",
+      "close_reason": "Closed",
+      "dependencies": [
+        {
+          "issue_id": "kt-219.4",
+          "depends_on_id": "kt-219",
+          "type": "parent-child",
+          "created_at": "2026-10-05T23:34:36Z",
+          "created_by": "ketos",
+          "metadata": "{}"
+        }
+      ],
+      "dependency_count": 0,
+      "dependent_count": 0,
+      "comment_count": 0,
+      "parent": "kt-219"
+    }
+  ],
+  "schema_version": 1
+}

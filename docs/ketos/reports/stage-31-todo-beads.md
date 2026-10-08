@@ -52,7 +52,7 @@
 | `pnpm run build` | зелёный; 351 клиентский артефакт |
 | `pnpm run hygiene` | зелёный; 18/18 гейтов |
 | `pnpm run verify-cordis-config` | зелёный; 213 конфигов |
-| `pnpm run doc-sync` | зелёный; 43/43 гейта (в коммите `06bf3b9` клиентский каталог слотов был устаревшим — исправлено доработкой, коммит `7bdb7da73c0`) |
+| `pnpm run doc-sync` | зелёный; 43/43 гейта (клиентский каталог слотов был устаревшим — исправлено доработкой) |
 | `pnpm exec vitest run packages/ketos/board-doc packages/ketos/board-todo --coverage …` | зелёный; 17 файлов, покрытие 100% на каждый файл |
 | `pnpm exec vitest run packages/ketos/client-locale-ru --coverage …` | зелёный; 11 тестов, покрытие 100% |
 | `pnpm run verify-client-ui-i18n` | зелёный; 1033 файла |

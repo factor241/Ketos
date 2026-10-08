@@ -38,6 +38,7 @@ function snapshot(): BoardSnapshot {
     selfId: SELF,
     revision: brandNumber<BoardRevision>(1),
     elements: [] as readonly BoardElement[],
+    participants: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }

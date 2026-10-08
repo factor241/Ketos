@@ -528,9 +528,9 @@ async function bootEmptyPreview(origin: string, browser: Browser): Promise<void>
     // routes — the controller publishes an empty list and the header renders
     // no button, which is that surface's designed degradation — and the board
     // document stream retries against a static host that serves no /api. The
-    // board's clone and task roster reads are lazy, so a preview that never
-    // opens the board issues neither; the retries repeat one path, which the
-    // set collapses.
+    // board's clone and task roster reads and the peer state poll are lazy, so
+    // a preview that never opens the board issues none of them; the retries
+    // repeat one path, which the set collapses.
     expect([...new Set(failedResponses)].sort()).toEqual([
       '/api/ketos.board.events',
       '/open-in-app/apps',

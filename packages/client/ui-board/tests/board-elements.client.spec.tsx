@@ -56,6 +56,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     viewportHeight: 800,
     boardDocId: DOC,
     selfId: SELF,
+    boardParticipants: [{ id: SELF, name: 'Kirill', color: 1, updatedAt: 1 }],
     boardElementsRevision: brandNumber<BoardRevision>(1),
     ...overrides,
   }

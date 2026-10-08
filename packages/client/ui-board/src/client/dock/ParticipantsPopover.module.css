@@ -1,0 +1,115 @@
+/* The participants popover: the roster, the invitation flow, and the connect flow. */
+
+.popover {
+  position: fixed;
+  z-index: 300;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--board-gap-row);
+  padding: 12px;
+  font-family: var(--dsw-font-family);
+  font-size: var(--board-font-label);
+  color: var(--dsw-alias-label-primary);
+}
+
+.title {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-height: var(--board-control-small);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--board-owner-edge, var(--dsw-alias-label-tertiary));
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  flex: none;
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.action {
+  height: var(--board-control-small);
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-inverted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.invite,
+.connect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--board-gap-row);
+}
+
+.connectRow {
+  display: flex;
+  gap: var(--board-gap-row);
+}
+
+.code,
+.input {
+  flex: 1;
+  min-width: 0;
+  height: var(--board-control-small);
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--dsw-alias-line-input);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.label {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.hint,
+.unavailable {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.error {
+  font-size: var(--board-font-hint);
+  color: var(--dsw-alias-state-error-primary);
+}

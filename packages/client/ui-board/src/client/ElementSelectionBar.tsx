@@ -13,7 +13,6 @@ import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardElement } from '@ketos/board-doc/types'
 import { BoardPopoverProvider } from './board-popover.tsx'
 import { worldToScreen } from './board-coordinates.ts'
-import { DEMO_SELF_ID } from './owners.ts'
 import type { BoardStoreHandle } from './store.ts'
 import css from './ElementSelectionBar.module.css'
 
@@ -42,7 +41,7 @@ export function ElementSelectionBar({ useStore, renderToolbar }: ElementSelectio
   const zoom = useStore(s => s.zoom)
   if (element === undefined) return null
   const topLeft = worldToScreen({ panX, panY, zoom }, { x: element.x, y: element.y })
-  const editable = element.ownerId === (selfId ?? DEMO_SELF_ID)
+  const editable = selfId !== null && element.ownerId === selfId
   return (
     <BoardPopoverProvider useStore={useStore}>
       <div

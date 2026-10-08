@@ -4118,6 +4118,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'reloads', description: 'Replaced plugins and their module locations.' }],
   },
   {
+    name: 'ketos-peer/connected',
+    mode: 'emit',
+    signature: '\'ketos-peer/connected\'(peer: PeerConnectedEvent): void',
+    summary: 'A channel to a known peer became usable; late listeners read the state and catch up.',
+    description: 'A channel to a known peer became usable; late listeners read the state and catch up.',
+    parameters: [{ name: 'peer', description: 'the peer that just connected.' }],
+  },
+  {
+    name: 'ketos-peer/disconnected',
+    mode: 'emit',
+    signature: '\'ketos-peer/disconnected\'(peer: PeerDisconnectedEvent): void',
+    summary: 'A channel to a known peer ended; reconnection may follow.',
+    description: 'A channel to a known peer ended; reconnection may follow.',
+    parameters: [{ name: 'peer', description: 'the peer whose channel ended.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -5558,6 +5574,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type JsonValue = null | boolean | number | string | JsonValue[] | {\n    [key: string]: JsonValue;\n};',
   },
   {
+    name: 'KetosPeerId',
+    declaration: 'export type KetosPeerId = Branded<\'KetosPeerId\'>;',
+  },
+  {
     name: 'KvFacet',
     declaration: 'export interface KvFacet {\n    open(descriptor: KvUnitDescriptor): Promise<KvUnit>;\n}',
   },
@@ -5898,6 +5918,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OTelEventScalar = string | number | boolean;',
   },
   {
+    name: 'OwnerId',
+    declaration: 'export type OwnerId = Branded<\'OwnerId\'>;',
+  },
+  {
     name: 'PackageResult',
     declaration: 'export interface PackageResult {\n    exitCode: number;\n    output: string;\n    truncated: boolean;\n    logPath: string;\n    kind?: PluginInstallFailureKind;\n    timedOut?: boolean;\n    incompatible?: IncompatiblePlugin[];\n}',
   },
@@ -5906,12 +5930,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n};',
   },
   {
+    name: 'PeerConnectedEvent',
+    declaration: 'export interface PeerConnectedEvent {\n    readonly peerId: KetosPeerId;\n    readonly selfId: PeerState[\'selfId\'];\n    readonly name: string;\n    readonly color: number;\n}',
+  },
+  {
+    name: 'PeerDisconnectedEvent',
+    declaration: 'export interface PeerDisconnectedEvent {\n    readonly peerId: KetosPeerId;\n}',
+  },
+  {
     name: 'PeerId',
     declaration: 'export type PeerId = Branded<\'PeerId\'>;',
   },
   {
+    name: 'PeerLinkState',
+    declaration: 'export type PeerLinkState = \'online\' | \'connecting\' | \'lost\';',
+  },
+  {
     name: 'PeerScope',
     declaration: 'export interface PeerScope {\n    readonly id: PeerId;\n    readonly ctx: Context;\n    dispose(): Promise<void>;\n}',
+  },
+  {
+    name: 'PeerState',
+    declaration: 'export interface PeerState {\n    readonly peerId: KetosPeerId;\n    readonly selfId: OwnerId;\n    readonly name: string;\n    readonly color: number;\n    readonly link: PeerLinkState;\n}',
   },
   {
     name: 'PermissionCatalog',

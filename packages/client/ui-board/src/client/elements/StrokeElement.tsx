@@ -11,7 +11,7 @@
 import { useMemo } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { parseStrokeData } from '@ketos/board-doc/data'
-import { participantLabel, participantOf } from '../owners.ts'
+import { boardParticipants, participantLabel } from '../owners.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { strokeAxisPath, strokeToSvgPath } from '../stroke-path.ts'
 import { NeutralElementBody } from './NeutralElementBody.tsx'
@@ -28,7 +28,7 @@ export type StrokeElementProps =
 export function StrokeElement({ element, useStore, t }: StrokeElementProps) {
   const limits = useStore(s => s.boardLimits)
   const zoom = useStore(s => s.zoom)
-  const selfId = useStore(s => s.selfId)
+  const participants = useStore(s => boardParticipants(s))
   // The parse result is a fresh object per call, so it is memoized by the
   // stored data it derived from; the path module then memoizes by this object,
   // which keeps a pan or zoom from recomputing the outline.
@@ -39,7 +39,7 @@ export function StrokeElement({ element, useStore, t }: StrokeElementProps) {
     [element.data, element.w, element.h, limits],
   )
   if (data === null) return <NeutralElementBody element={element} t={t} />
-  const participant = participantOf({ selfId }, element.ownerId)
+  const participant = participants.find(candidate => candidate.id === element.ownerId)
   return (
     <svg
       data-board-stroke=""

@@ -30,7 +30,6 @@ import { resolveChatWindow } from './open-window.ts'
 import { ElementSelectionBar } from './ElementSelectionBar.tsx'
 import { ElementSelectionOverlay } from './ElementSelectionOverlay.tsx'
 import { HandleRing } from './HandleRing.tsx'
-import { DEMO_SELF_ID } from './owners.ts'
 import { useBoardChromeInset } from './use-board-chrome-inset.ts'
 import { classifyBoardZoomKey } from './keyboard-zoom.ts'
 import { createBoardPinchGesture, type BoardPinchEvent } from './pinch.ts'
@@ -127,6 +126,14 @@ export function BoardRoot({
   // The simplified view swaps the frames' contents; the ring's resize handles
   // stand down with the frame's own handles below the threshold (Д6.1).
   const simplified = useStore(s => s.zoom < detailZoomThreshold)
+
+  // The board surface reports its own lifetime: the peer poll runs only while
+  // this root is rendered, so a closed board panel never touches the peer
+  // routes (and a deployment without the peer plugin sees no 404 noise).
+  useEffect(() => {
+    actions.setBoardMounted(true)
+    return () => { actions.setBoardMounted(false) }
+  }, [actions])
 
   // The lane sends the user to the main panel for a pending approval or
   // question; when the board panel comes back, the window they left from is
@@ -264,7 +271,7 @@ export function BoardRoot({
         const target = event.target
         const insideBoard = pointerInsideRef.current || root.contains(document.activeElement)
         if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
-        if (selectedElement.ownerId !== (selfId ?? DEMO_SELF_ID)) return
+        if (selfId === null || selectedElement.ownerId !== selfId) return
         if (selecting || isBoardEditingTarget(target)) return
         if (target instanceof Element
           && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return
@@ -278,7 +285,7 @@ export function BoardRoot({
         const target = event.target
         const insideBoard = pointerInsideRef.current || root.contains(document.activeElement)
         if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
-        if (selectedElement.kind !== 'note' || selectedElement.ownerId !== (selfId ?? DEMO_SELF_ID)) return
+        if (selectedElement.kind !== 'note' || selfId === null || selectedElement.ownerId !== selfId) return
         if (selecting || isBoardEditingTarget(target)) return
         if (target instanceof Element
           && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return

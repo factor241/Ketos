@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@ketos/board-doc` owns the common model of the board's elements: notes, strokes, todo lists, and (from stage 33) shared window records. One `node:sqlite` database at `$DSH_HOME/board.db` stores a Yjs document as an append-only update journal; the local participant identity `selfId` and the document identity `docId` live in the same database, outside the synchronized document. The package answers the `/api/ketos.board`, `/api/ketos.board.ops`, and `/api/ketos.board.events` Fetch routes, and every other Ketos plugin reaches the same document through the `ctx.ketosBoardDoc` service.
+`@ketos/board-doc` owns the common model of the board's elements: notes, strokes, todo lists, the participant registry, and (from stage 33) shared window records. One `node:sqlite` database at `$DSH_HOME/board.db` stores a Yjs document as an append-only update journal; the local participant identity `selfId` and the document identity `docId` live in the same database, outside the synchronized document. The package answers the `/api/ketos.board`, `/api/ketos.board.ops`, and `/api/ketos.board.events` Fetch routes, and every other Ketos plugin reaches the same document through the `ctx.ketosBoardDoc` service.
 
 ## Table of Contents
 
@@ -57,11 +57,15 @@ The service is the host-side seam for other Ketos packages:
 |---|---|
 | `selfId(): Promise<OwnerId>` | Identity of this Ketos, kept outside the synchronized document |
 | `docId(): Promise<BoardDocId>` | Identity of the document |
-| `snapshot(): Promise<BoardSnapshot>` | Every element at the current revision |
+| `snapshot(): Promise<BoardSnapshot>` | Every element and participant record at the current revision |
 | `apply(ops, origin): Promise<BoardOpsResponse>` | Atomically applies a batch; the new revision comes back |
-| `subscribe(listener): () => void` | One `{ revision, upserts, removes }` per committed journal row; the caller owns the unsubscribe through `ctx.effect` |
+| `participants(): Promise<BoardParticipantRecord[]>` | Every stored participant record this build can decode |
+| `putOwnParticipant({ name, color }): Promise<void>` | Writes the record keyed by this Ketos's `selfId` and announces it with a participant patch |
+| `subscribe(listener): () => void` | One `{ revision, upserts, removes, participants? }` per committed journal row; the caller owns the unsubscribe through `ctx.effect` |
 
 A `browser` batch may only create elements under `selfId` and patch or remove elements it owns; a `host` batch bypasses that check. A patch merges `data` by key and removes the keys whose value is `null`, so a host can clear an optional flag without rewriting the whole payload; the kind's rules are then checked against the complete merged data.
+
+The participant registry lives in a second top-level `Y.Map` named `participants`, keyed by `OwnerId`. Each Ketos writes only the record its own `selfId` keys — `{ name, color, updatedAt }` — which is what keeps two Ketos instances from overwriting each other's identity once stage 33 synchronizes the document. `@ketos/peer` owns the color rule and calls `putOwnParticipant`; a snapshot carries every readable record in `participants`, and a participant write emits a patch with `participants.upserts`/`removes` beside its (empty) element lists. A record that does not match this build is skipped with one log line, exactly like an unreadable element.
 
 The `note` kind's data is exactly `{ text, font, size, scale }`: `text` holds up to `noteTextMax` UTF-16 code units (the `maxLength` semantics), `font` is one of `sans`, `serif`, `mono`, `size` is one of `s`, `m`, `l`, and `scale` is one of `0.5`, `0.75`, `1`, `1.5`, `2`, `3`; any extra field, missing field, or value outside those lists refuses the batch with `ketos/invalid`. The element's `w`/`h` are the note's world rectangle and the content draws at `w/scale × h/scale` under `transform: scale(scale)`, so changing the scale patches `w`, `h`, and `data.scale` together.
 
@@ -140,7 +144,7 @@ No effect; the document changes view state rather than model context.
 
 ## Known Limitations and Deferred Work
 
-- The document currently stores no participants: `selfId` is local to one Ketos, and stage 32 adds the participant registry and stage 33 the document synchronization.
+- The participant registry is written and read locally; the document synchronization that carries the records between two Ketos instances arrives in stage 33, and until then the browser's roster unions the local records with the peer channel's state.
 - Window records arrive in stage 33 as a separate `windows` map of the same document, not as elements of the `elements` map.
 - On Node ≥ 25 the first board access prints one `lib0` warning, `localStorage is not available because --localstorage-file was not provided`; `yjs` is imported lazily, so the warning appears at that first use rather than at startup, and Node 24 (the Docker stand) prints none.
 - The board keeps elements on one layer below every window and selects one element at a time; multi-selection, an interleaved window/element order, and undo history are out of scope.

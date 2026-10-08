@@ -39,9 +39,9 @@ export interface WindowBezelProps {
  * @returns the bezel layer that the frame renders under its content.
  */
 export function WindowBezel({ window: cardWindow, t, useStore, actions }: WindowBezelProps) {
-  // The roster arrives through the store so stage 32 can replace the demo team
-  // without touching the bezel; an id the roster does not know keeps the
-  // neutral unknown color and label.
+  // The roster arrives through the store: document participant records united
+  // with connected peers; an id the roster does not know keeps the neutral
+  // unknown color and label.
   const participants = useStore(s => boardParticipants(s))
   const manageable = useStore(s => canManageWindow(s, cardWindow))
   const owner = participants.find(participant => participant.id === cardWindow.ownerId)

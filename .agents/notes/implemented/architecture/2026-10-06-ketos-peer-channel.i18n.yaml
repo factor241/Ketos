@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-peer-channel.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-peer-channel.md
+/agent-note-the-ketos-peer-channel:
+  en: 1b7a57336bf6f077
+  zh: 02b6ac5bb80dc9b1
+/agent-note-the-ketos-peer-channel/problem:
+  en: f5aecb8ff9559151
+  zh: c14598d23cdd4478
+/agent-note-the-ketos-peer-channel/decision:
+  en: b5c45a4a57afe548
+  zh: ab460e6eca11b394
+/agent-note-the-ketos-peer-channel/alternatives-considered:
+  en: c6911689e9ac8c86
+  zh: eef8bc90ab01eff3
+/agent-note-the-ketos-peer-channel/consequences:
+  en: 7cd02d16c9264cfb
+  zh: 93a02d0e6fc9efcd
+/agent-note-the-ketos-peer-channel/testing:
+  en: 98e6fd9e6b21695c
+  zh: bf27d0857231ea1c
+/agent-note-the-ketos-peer-channel/related:
+  en: 4612c9cfa3586be1
+  zh: 766e1f177a79ed20

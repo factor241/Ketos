@@ -16,6 +16,7 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { BoardElement, BoardElementKind, ElementId } from '@ketos/board-doc/types'
+import type { PeerErrorCode, KetosPeerId } from '@ketos/peer/types'
 import type { BoardWindowAccessMode, WindowBodyKind, WindowKind } from '../../board-settings.ts'
 import type { OwnerId } from '../owners.ts'
 
@@ -258,6 +259,23 @@ export type BoardTaskOutcome =
   | 'agent-not-live'
   | 'conflict'
   | 'failed'
+
+/**
+ * Failure of one peer route call: a host peer code, the client's
+ * not-configured code (the route answered 404), or the client's unreachable
+ * code (transport failure or an answer outside the protocol).
+ */
+export type BoardPeerFailureCode = PeerErrorCode | 'ketos/peer-unavailable' | 'ketos/unreachable'
+
+/** Outcome of asking the host for an invitation code. */
+export type BoardPeerInviteOutcome =
+  | { readonly ok: true; readonly invite: string }
+  | { readonly ok: false; readonly code: BoardPeerFailureCode }
+
+/** Outcome of connecting the local node to the node one invitation code names. */
+export type BoardPeerConnectOutcome =
+  | { readonly ok: true; readonly peerId: KetosPeerId }
+  | { readonly ok: false; readonly code: BoardPeerFailureCode }
 
 /** Round progress of one running task's goal. */
 export interface BoardTaskProgress {
@@ -1011,6 +1029,22 @@ export interface BoardElementInjected {
    * @param parts - the remaining pieces, each a complete stroke element to create.
    */
   eraseStrokes: (removals: readonly ElementId[], parts: readonly BoardElementSpec[]) => void
+}
+
+/** Peer verbs the dock's participants surface calls: the host holds the invitation state. */
+export interface BoardPeerInjected {
+  /**
+   * Ask the host for a one-time invitation code.
+   * @returns the code, or the stable failure code.
+   */
+  createPeerInvite: () => Promise<BoardPeerInviteOutcome>
+  /**
+   * Connect the local node to the node one invitation code names. The route
+   * records the peer; the dock's poll reports it as a participant.
+   * @param invite - the invitation code the other Ketos displayed.
+   * @returns the connected peer's id, or the stable failure code.
+   */
+  connectPeerByInvite: (invite: string) => Promise<BoardPeerConnectOutcome>
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

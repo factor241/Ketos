@@ -513,9 +513,9 @@
     "22d1d53d4aba96162196dbd426e0c70f55f111bf785e8820d226e4656aa9cd4d": 1
   },
   "packages/client/ui-board/tests/leaks.client.spec.tsx": {
-    "71daab7c2bdb31767508d751a1f14fd11689cde7e5428ff70a9b8c2e14c664df": 1,
     "894915fc6a33f404acdd94bdcc7072876e74f5c297b6147bd7aa73fdda19bf5c": 1,
-    "590ed54e6c21afbbf48ee6af4a2912fb9309971b3a60ca6102ed308443fb262f": 1
+    "590ed54e6c21afbbf48ee6af4a2912fb9309971b3a60ca6102ed308443fb262f": 1,
+    "7f0e966011273479a38ea3f97f9c7d0ef1d3cf31baa06b39f86a770c5319d38c": 1
   },
   "packages/client/ui-board/tests/open-window.client.spec.ts": {
     "32596ab2668143f0f029ba295eb09ad0f1afbb243e8c2e4e3c439bc97b3c35c2": 1

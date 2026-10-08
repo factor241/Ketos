@@ -1,0 +1,31 @@
+services:
+  iroh-relay:
+    image: n0computer/iroh-relay:v1.0.2
+    command: ["--config-path", "/config/iroh-relay.toml"]
+    ports:
+      - "443:443/tcp"
+      - "80:80/tcp"
+      - "7842:7842/udp"
+    volumes:
+      - ./iroh-relay.toml:/config/iroh-relay.toml:ro
+      - iroh-relay-certs:/data/certs
+    restart: unless-stopped
+
+  strelaysrv:
+    image: syncthing/relaysrv:2.1.5
+    command:
+      - "-pools="
+      - "-listen=:22067"
+      - "-status-srv=:22070"
+      - "-provided-by=ketos-demo"
+      - "-token=${STRELAY_TOKEN}"
+    volumes:
+      - strelaysrv-keys:/var/strelaysrv
+    ports:
+      - "22067:22067/tcp"
+      - "127.0.0.1:22070:22070/tcp"
+    restart: unless-stopped
+
+volumes:
+  iroh-relay-certs:
+  strelaysrv-keys:

@@ -203,6 +203,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
   ketosBoardDoc: 'Ketos fork host service outside the upstream Cordis projection — packages/ketos/board-doc/README.md owns the API',
+  ketosPeer: 'Ketos fork host service outside the upstream Cordis projection — packages/ketos/peer/README.md owns the API',
 }
 
 /**
@@ -213,6 +214,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
  * {@link EVENT_WALK_EXEMPTIONS} names each one with its documentation owner.
  */
 export const EVENT_SCOPE_PAGE: Record<string, string> = {
+  'ketos-peer': 'ketos-peer.md',
   'app-boot': 'boot.md',
   hmr: 'boot.md',
   'plugin-manager': 'boot.md',
@@ -283,6 +285,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SessionLogReporter: 'otel.md',
   OTelEventRecord: 'otel.md',
   OTelEventScalar: 'otel.md',
+  PeerConnectedEvent: 'ketos-peer.md',
+  PeerDisconnectedEvent: 'ketos-peer.md',
   ProductTelemetryRecord: 'product-telemetry.md',
   ProductTelemetryScalar: 'product-telemetry.md',
   WorkspaceChangesSummary: 'deliverables.md',

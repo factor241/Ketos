@@ -1,10 +1,11 @@
 # Two Ketos instances beside each other, each with its own home volume,
 # Syncthing home, published Web port and Syncthing UI port.
 #
-# Run from the repository root so `../../.env` (OPENCODE_GO_API_KEY) is picked
-# up by env_file; the key is passed as an environment variable only.
-#
-#   docker compose -f docker/stand/compose.yaml up --build
+# The demonstration runs one service per computer: computer 1 runs
+# `docker compose -f docker/stand/compose.yaml up -d ketos-a`, computer 2 runs
+# the same with `ketos-b`, and each computer carries its own `docker/stand/.env`
+# with its participant name (see .env.example). `../../.env` remains an
+# optional source for values shared by the checkout (for example the model key).
 #
 name: ketos-stand
 
@@ -16,7 +17,10 @@ x-ketos-service: &ketos-service
   init: true
   restart: unless-stopped
   env_file:
-    - ../../.env
+    - path: ../../.env
+      required: false
+    - path: .env
+      required: false
 
 services:
   ketos-a:
@@ -24,6 +28,7 @@ services:
     environment:
       KETOS_PORT: "3080"
       KETOS_TRUSTED_HOSTS: localhost
+      KETOS_PARTICIPANT_NAME: ${KETOS_PARTICIPANT_NAME:-}
     ports:
       - "3080:3080"
       - "8384:8384"
@@ -37,6 +42,7 @@ services:
     environment:
       KETOS_PORT: "3081"
       KETOS_TRUSTED_HOSTS: localhost
+      KETOS_PARTICIPANT_NAME: ${KETOS_PARTICIPANT_NAME:-}
     ports:
       - "3081:3081"
       - "8385:8384"

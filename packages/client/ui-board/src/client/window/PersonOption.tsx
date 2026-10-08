@@ -4,7 +4,7 @@
  * menu's people submenu both render their candidates through it, so the rows
  * stay identical.
  */
-import { participantLabel, type BoardParticipant } from '../owners.ts'
+import { participantColorAttr, participantLabel, type BoardParticipant } from '../owners.ts'
 import type { BoardTranslate } from '../locale.ts'
 import css from './WindowBezel.module.css'
 
@@ -23,7 +23,7 @@ export interface PersonOptionProps {
 export function PersonOption({ participant, t }: PersonOptionProps) {
   return (
     <span className={css.personOption}>
-      <span aria-hidden="true" data-board-owner-color={String(participant.color)} className={css.personDot} />
+      <span aria-hidden="true" data-board-owner-color={participantColorAttr(participant)} className={css.personDot} />
       {participantLabel(t, participant)}
     </span>
   )

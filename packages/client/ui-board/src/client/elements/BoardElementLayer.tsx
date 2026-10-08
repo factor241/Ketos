@@ -15,7 +15,7 @@ import { BOARD_ELEMENT_LAYER_RANK } from '@ketos/board-doc/kinds'
 import type { BoardRect } from '../chrome-insets.ts'
 import { visibleWorldRect, type BoardViewport } from '../board-coordinates.ts'
 import { CULL_MARGIN } from '../culling.ts'
-import { DEMO_SELF_ID, ownerColorAttr, participantLabel, participantOf } from '../owners.ts'
+import { boardParticipants, participantColorAttr, participantLabel } from '../owners.ts'
 import type { BoardElementInjected } from '../contract/slots.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { ElementFrame } from './ElementFrame.tsx'
@@ -60,6 +60,7 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
   const elements = useStore(s => s.boardElements)
   const selectedId = useStore(s => s.selectedBoardElementId)
   const selfId = useStore(s => s.selfId)
+  const participants = useStore(s => boardParticipants(s))
   const eraserPreview = useStore(s => s.eraserPreview)
   const panX = useStore(s => s.panX)
   const panY = useStore(s => s.panY)
@@ -69,7 +70,7 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
 
   const viewport: BoardViewport = { panX, panY, zoom, viewportWidth, viewportHeight }
   const visible = visibleWorldRect(viewport, CULL_MARGIN)
-  const owner = selfId ?? DEMO_SELF_ID
+  const roster = new Map(participants.map(participant => [participant.id, participant]))
   const ordered = Object.values(elements)
     // A stroke the live eraser pass touched hides while its preview parts draw
     // in its place; the committed batch replaces both.
@@ -81,8 +82,8 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
     <div data-board-layer="elements" className={css.layer}>
       {ordered.map((element) => {
         const selected = element.id === selectedId
-        const editable = element.ownerId === owner
-        const participant = participantOf({ selfId }, element.ownerId)
+        const editable = selfId !== null && element.ownerId === selfId
+        const participant = roster.get(element.ownerId)
         const label = editable
           ? t('element.aria', { kind: element.kind })
           : t('element.foreign', { name: participantLabel(t, participant) })
@@ -92,7 +93,7 @@ export function BoardElementLayer({ renderSlot, useStore, actions, t, moveElemen
             element={element}
             selected={selected}
             editable={editable}
-            ownerColor={ownerColorAttr({ selfId }, element.ownerId)}
+            ownerColor={participantColorAttr(participant)}
             zoom={zoom}
             label={label}
             resizeLabel={t('element.resize.aria')}

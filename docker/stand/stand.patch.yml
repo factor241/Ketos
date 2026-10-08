@@ -39,3 +39,16 @@
   config:
     provider: opencode-go
     model: deepseek-v4.1-flash
+
+# Peer channel: the shipped web profile keeps `ketos-peer` disabled because a
+# developer machine has no participant name or relay; the stand enables the
+# same row with this computer's identity and the team's private relay. The
+# model key above and these values arrive as environment variables only.
+- id: ketos-peer
+  name: '@ketos/peer'
+  disabled: false
+  config:
+    name: !!js process.env.KETOS_PARTICIPANT_NAME ?? ''
+    relayUrls: !!js (process.env.KETOS_RELAY_URLS ?? '').split(',').filter(Boolean)
+    keyPath: !!js dshHomePath('peer.key')
+    peersPath: !!js dshHomePath('peers.json')

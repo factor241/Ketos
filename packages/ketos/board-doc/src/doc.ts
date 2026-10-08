@@ -12,9 +12,11 @@
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type * as Y from 'yjs'
-import { isElementId } from './data.ts'
+import { isElementId, parseBoardParticipant } from './data.ts'
 import { isBoardElementKind } from './kinds.ts'
-import type { BoardElement, BoardElementKind, BoardOrigin, ElementId, OwnerId } from './types.ts'
+import type {
+  BoardElement, BoardElementKind, BoardOrigin, BoardParticipantRecord, ElementId, OwnerId,
+} from './types.ts'
 
 /** The Yjs module surface the document wrapper uses. */
 type YjsModule = typeof import('yjs')
@@ -24,6 +26,9 @@ export type InvalidElementListener = (message: string) => void
 
 /** Document key of the elements map. */
 const ELEMENTS_KEY = 'elements'
+
+/** Document key of the participant map, keyed by owner id. */
+const PARTICIPANTS_KEY = 'participants'
 
 /** Element key of the kind-owned data map. */
 const DATA_KEY = 'data'
@@ -114,6 +119,47 @@ export class BoardDocument {
   }
 
   /**
+   * Read one participant record by owner id.
+   * @param id - the participant's board identity.
+   * @returns the record, or undefined when it is absent or unreadable.
+   */
+  readParticipant(id: OwnerId): BoardParticipantRecord | undefined {
+    const map = this.participants().get(id)
+    if (map === undefined) return undefined
+    return this.decodeParticipant(id, map)
+  }
+
+  /**
+   * Read every participant record this build can decode, in document order.
+   * @returns the readable participant records.
+   */
+  readParticipants(): readonly BoardParticipantRecord[] {
+    const records: BoardParticipantRecord[] = []
+    for (const [id, map] of this.participants()) {
+      const record = this.decodeParticipant(brandString<OwnerId>(id), map)
+      if (record !== undefined) records.push(record)
+    }
+    return records
+  }
+
+  /**
+   * Write one participant record. The caller has already validated it; each
+   * Ketos writes only the record its own `selfId` keys.
+   * @param id - the participant's board identity.
+   * @param record - name, color, and write time.
+   */
+  writeParticipant(id: OwnerId, record: Omit<BoardParticipantRecord, 'id'>): void {
+    let map = this.participants().get(id)
+    if (map === undefined) {
+      map = new this.y.Map<unknown>()
+      this.participants().set(id, map)
+    }
+    map.set('name', record.name)
+    map.set('color', record.color)
+    map.set('updatedAt', record.updatedAt)
+  }
+
+  /**
    * The highest `z` among readable elements, 0 while the document is empty.
    * @returns the current paint priority ceiling.
    */
@@ -188,6 +234,30 @@ export class BoardDocument {
 
   private elements(): Y.Map<Y.Map<unknown>> {
     return this.doc.getMap<Y.Map<unknown>>(ELEMENTS_KEY)
+  }
+
+  private participants(): Y.Map<Y.Map<unknown>> {
+    return this.doc.getMap<Y.Map<unknown>>(PARTICIPANTS_KEY)
+  }
+
+  /**
+   * Decode one stored participant record after validating it.
+   * @param id - the participant's board identity.
+   * @param map - one participant map.
+   * @returns the record, or undefined when it is unreadable.
+   */
+  private decodeParticipant(id: OwnerId, map: Y.Map<unknown>): BoardParticipantRecord | undefined {
+    const record = parseBoardParticipant({
+      id,
+      name: map.get('name'),
+      color: map.get('color'),
+      updatedAt: map.get('updatedAt'),
+    })
+    if (record === null) {
+      this.onInvalid(`board participant ${id} skipped: record does not match this build`)
+      return undefined
+    }
+    return record
   }
 
   /**

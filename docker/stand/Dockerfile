@@ -26,11 +26,34 @@ RUN pnpm run build \
 
 FROM node:24-bookworm-slim AS runtime
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git ca-certificates curl syncthing \
+ && apt-get install -y --no-install-recommends git ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app /app
 COPY docker/stand/stand.patch.yml /usr/local/share/ketos-stand/stand.patch.yml
 COPY docker/stand/docker-entrypoint.sh /usr/local/bin/ketos-stand-entrypoint.sh
+COPY docker/stand/syncthing-bootstrap.mjs /usr/local/share/ketos-stand/syncthing-bootstrap.mjs
+
+# Pin Syncthing to one official release verified by checksum per architecture:
+# Debian's package (1.19.2) predates relay tokens and would join public relays.
+# The MPL-2.0 license travels with the binary; docker/stand/README.md links the
+# corresponding source.
+ARG SYNCTHING_VERSION=2.1.5
+ARG SYNCTHING_SHA256_ARM64=3666f3069feeee3651e185f867759206059755101797bdd69ea5317610130855
+ARG SYNCTHING_SHA256_AMD64=3d222b609f7ab2944e02748cb10488b4160d446b49e0eafc107ef2a525ab3486
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+      arm64) st_sha256="$SYNCTHING_SHA256_ARM64" ;; \
+      amd64) st_sha256="$SYNCTHING_SHA256_AMD64" ;; \
+      *) echo "unsupported TARGETARCH for syncthing: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSLo /tmp/syncthing.tgz "https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}.tar.gz" \
+ && echo "${st_sha256}  /tmp/syncthing.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/syncthing.tgz -C /tmp \
+ && install -m 0755 "/tmp/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}/syncthing" /usr/local/bin/syncthing \
+ && mkdir -p /usr/local/share/doc/syncthing \
+ && install -m 0644 "/tmp/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}/LICENSE.txt" /usr/local/share/doc/syncthing/LICENSE.txt \
+ && rm -rf "/tmp/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}" /tmp/syncthing.tgz \
+ && syncthing --version
 
 # Pin Beads to one release verified by checksum per architecture: the stand
 # ships exactly this build of `bd`, and the MIT notice travels with it.

@@ -50,6 +50,9 @@ function props(note: BoardElement, noteTextMax: number | null = 20_000): never {
     editable: true,
     useStore: (selector: (state: unknown) => unknown): unknown => selector({
       boardLimits: noteTextMax === null ? null : { elementBytesMax: 262_144, noteTextMax },
+      boardParticipants: [],
+      peerStates: [],
+      peerSelf: null,
     }),
     t,
   } as never

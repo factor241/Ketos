@@ -678,3 +678,28 @@ describe('board dock', () => {
       .toHaveLength(2)
   })
 })
+
+describe('participants control', () => {
+  it('opens the participants popover in the not-configured mode', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => { store.actions.markPeerUnavailable() })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-action="dock-participants"]') as Element)
+    })
+    await runtime.flush()
+    expect(await screen.findByRole('dialog')).not.toBeNull()
+    expect(screen.getByText('Peer networking is not configured')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'Invite' })).toBeNull()
+  })
+
+  it('mounts the popover outside the scrolling rail so its overflow cannot clip it', async () => {
+    const { runtime, panel } = await bench()
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-action="dock-participants"]') as Element)
+    })
+    await runtime.flush()
+    const dialog = await screen.findByRole('dialog')
+    const rail = panel.container.querySelector('[data-board-layer="dock"]')
+    expect(rail?.contains(dialog)).toBe(false)
+  })
+})

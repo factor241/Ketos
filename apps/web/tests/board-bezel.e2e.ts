@@ -220,6 +220,9 @@ describe('web e2e: window owner bezel', () => {
         accent: computed.getPropertyValue('--dsw-alias-state-business-primary').trim(),
       }
     }, WINDOW_A)
+    // The scaffold runs without the peer plugin, so the document carries no
+    // record for the acting owner; the fallback participant paints the first
+    // palette slot and the edge stays painted.
     expect(styles.ownerColor).toBe('1')
     expect(styles.edgeColor).not.toBe('')
     expect(styles.edgeWidth).toBe('2px')

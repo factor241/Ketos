@@ -73,7 +73,8 @@ function sanitizeWindow(raw: unknown): BoardLayoutWindow | undefined {
   if (id === undefined || kind === undefined || bodyKind === undefined) return undefined
   const title = typeof raw.customTitle === 'string' ? raw.customTitle.trim() : ''
   const cloneId = identity(raw.cloneId)
-  // Stage 28 replaces the demo fallback with the host's self id.
+  // A stored window without an owner carries the legacy placeholder; the
+  // first snapshot's adoptSelfId rewrites it to the host's self id.
   const ownerId = isOwnerIdFormat(raw.ownerId) ? raw.ownerId : DEMO_SELF_ID
   const access = sanitizeWindowAccess(raw.access, ownerId)
   return {

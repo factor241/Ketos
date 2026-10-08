@@ -89,7 +89,10 @@ describe('board resource discipline', () => {
     const store = runtime.storeOf('board.dock') as BoardInstance
 
     // Timer accounting starts after mounting, so harness timers are not counted.
-    const pending = new Set<ReturnType<typeof setTimeout>>()
+    // Each entry keeps the requested delay: the peer-state poll is a
+    // plugin-lifetime reader, so the final check tells it apart from a
+    // per-window timer that outlived its window.
+    const pending = new Map<ReturnType<typeof setTimeout>, number>()
     const realSetTimeout = globalThis.setTimeout
     const realClearTimeout = globalThis.clearTimeout
     globalThis.setTimeout = ((handler: TimerHandler, delay?: number) => {
@@ -101,7 +104,7 @@ describe('board resource discipline', () => {
         callback()
       }
       timer.id = realSetTimeout(run, delay)
-      pending.add(timer.id)
+      pending.set(timer.id, delay ?? 0)
       return timer.id
     }) as unknown as typeof setTimeout
     globalThis.clearTimeout = ((id?: ReturnType<typeof setTimeout>) => {
@@ -149,10 +152,12 @@ describe('board resource discipline', () => {
       expect(runtime.sessions.retainInfo('session-1' as SessionId).getSnapshot().referenceCount).toBe(0)
       expect(listListeners()).toBe(baselineListeners)
 
-      // No board timer survives its window: the debounced layout write and the
-      // component timers all settle within the debounce window.
+      // No per-window timer survives its window: the debounced layout write and
+      // the component timers all settle inside the debounce window. The peer
+      // poll stops itself once the host answers 404, so nothing stays pending
+      // here — a rescheduled poll would show up as a fresh 1000ms timer.
       await new Promise(resolve => realSetTimeout(resolve, 1_500))
-      expect([...pending]).toEqual([])
+      expect([...pending.values()]).toEqual([])
     } finally {
       globalThis.setTimeout = realSetTimeout
       globalThis.clearTimeout = realClearTimeout

@@ -2,7 +2,7 @@
 /** Layout persistence: first-frame cache, mirror hydration, debounce, and revision CAS. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { brandString } from '@deepseek-ai/dsh-brand'
+import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
   RemoteResult, SettingsDescribeValue, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -14,8 +14,8 @@ import {
 import {
   BoardLayoutPersistence, BOARD_LAYOUT_CACHE_KEY, readBoardLayoutCache, writeBoardLayoutCache,
 } from '../src/client/board-persistence.ts'
+import type { BoardDocId, BoardRevision, OwnerId } from '@ketos/board-doc/types'
 import { createBoardStore, WINDOW_Z_BASE, type BoardStoreHandle, type BoardStoreInstance } from '../src/client/store.ts'
-import type { OwnerId } from '../src/client/owners.ts'
 import type { WindowId } from '../src/client/contract/slots.ts'
 import { createBoardBench, createConfigFormsDouble, type ConfigFormsDouble } from './fixtures.client.ts'
 
@@ -463,6 +463,15 @@ describe('board layout writes', () => {
 
   it('writes the layout after an access change and a transfer', async () => {
     const { instance, persistence, replace } = bench()
+    const self = brandString<OwnerId>('00000000-0000-4000-8000-0000000000e1')
+    instance.actions.applyBoardSnapshot({
+      docId: brandString<BoardDocId>('00000000-0000-4000-8000-0000000000d1'),
+      selfId: self,
+      revision: brandNumber<BoardRevision>(1),
+      elements: [],
+      participants: [{ id: self, name: 'Kirill', color: 1, updatedAt: 1 }],
+      limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
+    })
     instance.actions.openWindow({
       id: 'agent-1' as WindowId,
       kind: 'agent',
@@ -478,7 +487,7 @@ describe('board layout writes', () => {
     await vi.advanceTimersByTimeAsync(600)
     expect(replace).toHaveBeenCalledTimes(1)
     expect(replace.mock.calls[0]?.[1]).toMatchObject({
-      windows: [expect.objectContaining({ ownerId: 'demo-self', access: { mode: 'all', people: [] } })],
+      windows: [expect.objectContaining({ ownerId: self, access: { mode: 'all', people: [] } })],
     })
 
     instance.actions.transferWindow('agent-1' as WindowId, brandString<OwnerId>('demo-finance'))

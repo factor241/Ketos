@@ -27,6 +27,7 @@ import { BOARD_ZOOM_MIN } from '../board-settings.ts'
 import type { BoardOp, ElementId } from '@ketos/board-doc/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardWindowDraftFile } from './store.ts'
 import { fetchBoardSnapshot, openBoardEvents, postBoardOps } from './board-doc-api.ts'
+import { connectPeer, createInvite, fetchPeerState } from './peer-api.ts'
 import { placeTodoList } from './todo-api.ts'
 import { TodoPlacement } from './todo-placement.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
@@ -47,8 +48,8 @@ import {
 } from './tasks-api.ts'
 import { sessionArtifacts } from './window/artifacts-model.ts'
 import type {
-  BoardCloneRoster, BoardDraftImage, BoardElementInjected, BoardPresetRoster, BoardTaskOutcome, BoardTaskProgress,
-  BoardTaskRoster, BoardWindowInjected, CloneModelOption, WindowId,
+  BoardCloneRoster, BoardDraftImage, BoardElementInjected, BoardPeerInjected, BoardPresetRoster, BoardTaskOutcome,
+  BoardTaskProgress, BoardTaskRoster, BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
 import type { BoardKey } from './locale.ts'
 import { BoardRoot, BoardToggle, type BoardRootInjected, type BoardToggleInjected } from './BoardViews.tsx'
@@ -108,6 +109,13 @@ export interface Config {
   /** How long a hidden tab keeps its board event stream before closing it, in milliseconds. */
   elementStreamHiddenCloseMs?: number
 }
+
+/**
+ * Fallback peer poll pause in milliseconds, used only until the first state
+ * answer carries the host's own `refreshMs`. The cadence is a host choice, so
+ * no deployment knob duplicates it here.
+ */
+const PEER_REFRESH_FALLBACK_MS = 1000
 
 /**
  * Validated board runtime configuration. The default `k = 0.0023 ≈ ln 2 / 300`
@@ -258,6 +266,90 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     })
     return () => { controller.abort() }
   }, 'ui-board: board element stream')
+
+  // Peer state: poll the host while the board surface is rendered and its tab
+  // is visible. The first answer carries the interval the host prefers; until
+  // then a short fallback pause applies. A successful answer replaces the peer
+  // slice. A 404 means the deployment runs without the peer plugin: the slice
+  // clears, the dock reports peer networking as not configured, and the loop
+  // stops. Any other failure — a network error, a 5xx, an undecodable body —
+  // keeps the last slice, downgrades every peer link to lost, and retries on
+  // the same interval, so a restarted host is picked up without a reload. A
+  // hidden tab pauses the poll and a returning one, or a remounted board
+  // surface, reads at once.
+  ctx.effect(() => {
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let stopped = false
+    let unavailable = false
+    let running = false
+    let mounted = instance.getSnapshot().boardMounted
+    let refreshMs = PEER_REFRESH_FALLBACK_MS
+    const schedule = (): void => {
+      if (stopped || unavailable || timer !== undefined || !mounted) return
+      if (document.visibilityState !== 'visible') return
+      timer = setTimeout(() => {
+        timer = undefined
+        void tick()
+      }, refreshMs)
+    }
+    const tick = async (): Promise<void> => {
+      running = true
+      const outcome = await fetchPeerState(controller.signal)
+      running = false
+      if (stopped) return
+      if (outcome.ok) {
+        instance.actions.applyPeerState(outcome.state)
+        refreshMs = outcome.state.refreshMs
+        schedule()
+        return
+      }
+      if (outcome.code === 'ketos/peer-unavailable') {
+        unavailable = true
+        instance.actions.markPeerUnavailable()
+        return
+      }
+      instance.actions.markPeerUnreachable()
+      schedule()
+    }
+    const resume = (): void => {
+      if (stopped || unavailable || running || timer !== undefined) return
+      if (!mounted || document.visibilityState !== 'visible') return
+      void tick()
+    }
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState !== 'visible') {
+        if (timer !== undefined) {
+          clearTimeout(timer)
+          timer = undefined
+        }
+        return
+      }
+      resume()
+    }
+    const unsubscribe = instance.subscribe(() => {
+      const next = instance.getSnapshot().boardMounted
+      if (next === mounted) return
+      mounted = next
+      if (mounted) {
+        resume()
+        return
+      }
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+    })
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    resume()
+    return () => {
+      stopped = true
+      controller.abort()
+      unsubscribe()
+      if (timer !== undefined) clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, 'ui-board: peer state polling')
 
   // To-do lists created from chat wait for the first visible tab: every
   // snapshot or patch that still carries `pendingPlacement` is placed once in
@@ -998,6 +1090,12 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     },
   })
 
+  /** Peer verbs the dock's participants surface calls. */
+  const peerInjected = (): BoardPeerInjected => ({
+    createPeerInvite: () => createInvite(),
+    connectPeerByInvite: invite => connectPeer(invite),
+  })
+
   ctx.slots.inject('main', function* () {
     const disposeSidebar = ctx.layout.declarePanelSidebar(BOARD_PANEL_ID, false)
     yield ctx.slots.register({
@@ -1172,7 +1270,9 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     name: 'board.dock',
     store: boardStore,
     locale: NS,
-    inject: (): BoardWindowInjected & BoardElementInjected => ({ ...injected(), ...elementInjected() }),
+    inject: (): BoardWindowInjected & BoardPeerInjected & BoardElementInjected => ({
+      ...injected(), ...peerInjected(), ...elementInjected(),
+    }),
   }, SessionRail))
 
   ctx.slots.inject('board.minimap', () => ctx.slots.register({

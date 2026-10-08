@@ -9,8 +9,10 @@ import type { CloneId } from '@ketos/clone-core/types'
 import type { BoardKey } from './locale.ts'
 import { brandNumber } from '@deepseek-ai/dsh-brand'
 import type {
-  BoardDocId, BoardElement, BoardLimits, BoardPatch, BoardRevision, BoardSnapshot, ElementId, StrokeWidth,
+  BoardDocId, BoardElement, BoardLimits, BoardParticipantRecord, BoardPatch, BoardRevision, BoardSnapshot,
+  ElementId, StrokeWidth,
 } from '@ketos/board-doc/types'
+import type { PeerSelfState, PeerState, PeerStateResponse } from '@ketos/peer/types'
 import type { BoardTool, BoardEraserPreview } from './board-tool.ts'
 import type { CloneEdit } from './clone-draft.ts'
 import {
@@ -24,7 +26,7 @@ import type {
   WindowBodyKind, WindowId, WindowKind,
 } from './contract/slots.ts'
 import {
-  adoptSelfId, canManageWindow, currentOwnerId, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
+  adoptSelfId, canManageWindow, currentOwnerId, DEMO_SELF_ID, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
 } from './owners.ts'
 import { isWindowOnScreen } from './window-screen.ts'
 import { type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
@@ -227,6 +229,26 @@ type BoardActions = {
    * flight is skipped so the optimistic value is not rolled back by its echo.
    */
   applyBoardPatch: (draft: BoardState, patch: BoardPatch) => void
+  /**
+   * Replace the peer slice with one state answer: the local participant
+   * record, the known peers, and the routes being available. The roster
+   * re-derives from it; the document slice is untouched.
+   */
+  applyPeerState: (draft: BoardState, response: PeerStateResponse) => void
+  /**
+   * Mark peer networking unavailable: the host answered 404, so drop the peer
+   * slice, the local record, and every known peer. The dock shows the
+   * not-configured hint from this state.
+   */
+  markPeerUnavailable: (draft: BoardState) => void
+  /**
+   * Mark the last poll unreachable: keep the peer slice the last answer
+   * reported and downgrade every link to `lost`, because without a host
+   * answer no link is confirmed. A later answer restores what it names.
+   */
+  markPeerUnreachable: (draft: BoardState) => void
+  /** Record whether the board surface is rendered; peer polling follows it. */
+  setBoardMounted: (draft: BoardState, mounted: boolean) => void
   /** Select one element, or clear the selection with `null`. */
   selectBoardElement: (draft: BoardState, id: ElementId | null) => void
   /** Insert one optimistic element; the host stamps owner, z, and timestamps on commit. */
@@ -357,6 +379,22 @@ export interface BoardState {
   boardLimits: BoardLimits | null
   /** Local participant identity from the document; null before the first snapshot. */
   selfId: OwnerId | null
+  /**
+   * Participants the document stores. Every Ketos writes only its own record,
+   * so a synchronized document keeps one writer per entry; a snapshot replaces
+   * the list, a patch upserts and removes.
+   */
+  boardParticipants: BoardParticipantRecord[]
+  /** Local node's participant record as the peer state reports it; null before the first answer. */
+  peerSelf: PeerSelfState | null
+  /** Known peers as the last peer state answer reported them. */
+  peerStates: readonly PeerState[]
+  /** Whether the peer routes answered; false before the first answer and after a 404. */
+  peerAvailable: boolean
+  /** Whether the state route answered 404; the dock's not-configured hint follows it. */
+  peerMissing: boolean
+  /** Whether the board surface is rendered; peer polling runs only while it is. */
+  boardMounted: boolean
   /** The one selected element, or null. */
   selectedBoardElementId: ElementId | null
   /** The one element open for in-place editing, or null. */
@@ -629,6 +667,33 @@ function moveBefore<T extends string>(order: readonly T[], id: T, before: T | nu
 }
 
 /**
+ * Whether two local peer records carry the same fields.
+ * @param left - the stored record, or null before the first answer.
+ * @param right - the answer's record.
+ * @returns whether the answer changes nothing.
+ */
+function samePeerSelf(left: PeerSelfState | null, right: PeerSelfState): boolean {
+  return left !== null
+    && left.selfId === right.selfId && left.name === right.name && left.color === right.color
+}
+
+/**
+ * Whether two known-peer lists carry the same records in the same order.
+ * @param left - the stored list.
+ * @param right - the answer's list.
+ * @returns whether the answer changes nothing.
+ */
+function samePeers(left: readonly PeerState[], right: readonly PeerState[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((peer, index) => {
+    const other = right[index]
+    return other !== undefined
+      && peer.peerId === other.peerId && peer.selfId === other.selfId
+      && peer.name === other.name && peer.color === other.color && peer.link === other.link
+  })
+}
+
+/**
  * The window's draft entry, created empty on the first write. The read-back
  * returns the immer draft over the fresh entry, so the caller's mutations are
  * tracked; mutating the assigned literal would not be.
@@ -692,7 +757,9 @@ function insertWindow(
 ): void {
   const placed: BoardWindowState = {
     ...window,
-    ownerId: window.ownerId ?? currentOwnerId(draft),
+    // Before the first snapshot the acting identity is unknown; the legacy
+    // placeholder owns the window until adoptSelfId rewrites it.
+    ownerId: window.ownerId ?? currentOwnerId(draft) ?? DEMO_SELF_ID,
     access: window.access === undefined
       ? { mode: 'owner', people: [] }
       : { mode: window.access.mode, people: [...window.access.people] },
@@ -768,6 +835,12 @@ export function createBoardStore(): BoardStoreHandle {
       boardDocId: null,
       boardLimits: null,
       selfId: null,
+      boardParticipants: [],
+      peerSelf: null,
+      peerStates: [],
+      peerAvailable: false,
+      peerMissing: false,
+      boardMounted: false,
       selectedBoardElementId: null,
       editingBoardElementId: null,
       pendingBoardElementOps: [],
@@ -1108,6 +1181,7 @@ export function createBoardStore(): BoardStoreHandle {
         draft.boardElementsRevision = snapshot.revision
         draft.boardDocId = snapshot.docId
         draft.boardLimits = snapshot.limits
+        draft.boardParticipants = [...snapshot.participants]
         // A full snapshot is authoritative: operations in flight are settled by
         // it, and an element it no longer holds cannot stay selected.
         draft.pendingBoardElementOps = []
@@ -1124,6 +1198,17 @@ export function createBoardStore(): BoardStoreHandle {
       applyBoardPatch: (draft, patch) => {
         if (patch.revision <= draft.boardElementsRevision) return
         draft.boardElementsRevision = patch.revision
+        if (patch.participants !== undefined) {
+          for (const record of patch.participants.upserts) {
+            const index = draft.boardParticipants.findIndex(held => held.id === record.id)
+            if (index < 0) draft.boardParticipants.push(record)
+            else draft.boardParticipants[index] = record
+          }
+          if (patch.participants.removes.length > 0) {
+            const removed = new Set(patch.participants.removes)
+            draft.boardParticipants = draft.boardParticipants.filter(held => !removed.has(held.id))
+          }
+        }
         for (const element of patch.upserts) {
           if (draft.pendingBoardElementOps.includes(element.id)) continue
           draft.boardElements[element.id as string] = element
@@ -1135,6 +1220,33 @@ export function createBoardStore(): BoardStoreHandle {
           if (draft.selectedBoardElementId === id) draft.selectedBoardElementId = null
           if (draft.editingBoardElementId === id) draft.editingBoardElementId = null
         }
+      },
+      applyPeerState: (draft, response) => {
+        // An unchanged answer is not a store change: the poll repeats every
+        // second, and every mutation would re-arm the layout write debounce.
+        if (draft.peerAvailable && !draft.peerMissing && samePeerSelf(draft.peerSelf, response.self)
+          && samePeers(draft.peerStates, response.peers)) return
+        draft.peerSelf = { ...response.self }
+        draft.peerStates = response.peers.map(peer => ({ ...peer }))
+        draft.peerAvailable = true
+        draft.peerMissing = false
+      },
+      markPeerUnavailable: (draft) => {
+        if (draft.peerMissing && !draft.peerAvailable && draft.peerSelf === null && draft.peerStates.length === 0) return
+        draft.peerSelf = null
+        draft.peerStates = []
+        draft.peerAvailable = false
+        draft.peerMissing = true
+      },
+      markPeerUnreachable: (draft) => {
+        // The roster keeps the identities, names, and colors of the last
+        // answer; only a link the host did not confirm this poll degrades.
+        if (draft.peerStates.every(peer => peer.link === 'lost')) return
+        draft.peerStates = draft.peerStates.map(peer => peer.link === 'lost' ? peer : { ...peer, link: 'lost' as const })
+      },
+      setBoardMounted: (draft, mounted) => {
+        if (draft.boardMounted === mounted) return
+        draft.boardMounted = mounted
       },
       selectBoardElement: (draft, id) => {
         draft.selectedBoardElementId = id === null || draft.boardElements[id as string] !== undefined ? id : null
@@ -1148,7 +1260,10 @@ export function createBoardStore(): BoardStoreHandle {
         draft.boardElements[spec.id as string] = {
           id: spec.id,
           kind: spec.kind,
-          ownerId: currentOwnerId(draft),
+          // The host stamps the real owner on commit; before the first
+          // snapshot the legacy placeholder stands in until the echo or the
+          // next snapshot replaces it.
+          ownerId: currentOwnerId(draft) ?? DEMO_SELF_ID,
           x: spec.x,
           y: spec.y,
           w: spec.w,

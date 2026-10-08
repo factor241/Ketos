@@ -11,7 +11,8 @@
  * while pan and zoom only move it.
  */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
-import { PopoverHostProvider } from '@deepseek-ai/dsh-client-ui-primitives'
+import { createPortal } from 'react-dom'
+import { PopoverHostProvider, usePopoverHost } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardState, BoardStoreHandle } from './store.ts'
 import type { WindowId } from './contract/slots.ts'
@@ -96,6 +97,20 @@ export function useBoardMenuDismiss(onClose: () => void): void {
     previous.current = token
     close.current()
   }, [token])
+}
+
+/**
+ * Mount one dock popover through the nearest popover host. The dock rail
+ * scrolls horizontally, so a popover rendered inside it would be clipped by
+ * that overflow; the host (the board's screen-space popover layer at scale 1,
+ * or the browser body without a board root) sits outside every scroller and
+ * above the canvas.
+ * @param props - the popover subtree to mount.
+ * @returns the portaled subtree.
+ */
+export function BoardPopoverPortal({ children }: { readonly children: ReactNode }) {
+  const host = usePopoverHost()
+  return createPortal(children, host.container)
 }
 
 /** Props for {@link BoardPopoverProvider}: the store seat and the window whose geometry scopes the host. */

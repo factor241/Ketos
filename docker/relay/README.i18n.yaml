@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docker/relay/README.md
+/ketos-relay-services-vps:
+  en: 144a9cad8c6619c7
+  zh: 9992525619014164
+/ketos-relay-services-vps/ports:
+  en: 28290829cc511df8
+  zh: df514c51ffb4cca6
+/ketos-relay-services-vps/deployment:
+  en: 532077fc74ea53c6
+  zh: d0e2af20733638a8
+/ketos-relay-services-vps/reading-the-credentials-for-the-stand:
+  en: 06ddb1c3e1129a04
+  zh: b4e810662591e9a2
+/ketos-relay-services-vps/fallback-modes:
+  en: 6db7a06ce50b039c
+  zh: d91bcbdbb6360d1d

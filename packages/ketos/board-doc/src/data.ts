@@ -10,9 +10,9 @@
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type {
-  BeadsIssueId, BoardElementData, BoardElementKind, BoardLimits, ElementId, NoteData, NoteFont,
-  NoteSize, StrokeBounds, StrokeBox, StrokeData, StrokePathPoint, StrokePoint, StrokeWidth,
-  TodoData, TodoItem, TodoStatus,
+  BeadsIssueId, BoardElementData, BoardElementKind, BoardLimits, BoardParticipantRecord,
+  ElementId, NoteData, NoteFont, NoteSize, OwnerId, StrokeBounds, StrokeBox, StrokeData,
+  StrokePathPoint, StrokePoint, StrokeWidth, TodoData, TodoItem, TodoStatus,
 } from './types.ts'
 
 /** UUID shape every opaque identifier carries. */
@@ -55,6 +55,18 @@ const TODO_FIELDS: readonly string[] = ['epicId', 'title', 'items', 'syncedAt', 
 /** Fields one to-do item carries; any other field is a refusal. */
 const TODO_ITEM_FIELDS: readonly string[] = ['id', 'title', 'status']
 
+/** Fields one participant record carries; any other field is a refusal. */
+const PARTICIPANT_FIELDS: readonly string[] = ['id', 'name', 'color', 'updatedAt']
+
+/** Largest participant name and participant id, in UTF-16 code units. */
+export const PARTICIPANT_NAME_MAX = 64
+
+/** Smallest palette color a participant record may carry. */
+export const PARTICIPANT_COLOR_MIN = 1
+
+/** Largest palette color a participant record may carry. */
+export const PARTICIPANT_COLOR_MAX = 10
+
 /**
  * Mint one UUIDv4 string from the Web Crypto generator, which exists on every
  * supported Node runtime and in the browser.
@@ -94,6 +106,31 @@ export function isElementId(value: unknown): value is ElementId {
  */
 export function isElementData(value: unknown): value is BoardElementData {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Parse one participant record: exactly the four fields, a non-empty id and
+ * name of at most {@link PARTICIPANT_NAME_MAX} characters, a palette color,
+ * and a finite write time. The document read and the browser decoders share
+ * this rule, so both sides accept the same records.
+ * @param value - decoded record value.
+ * @returns the typed record, or null when the value is not a valid record.
+ */
+export function parseBoardParticipant(value: unknown): BoardParticipantRecord | null {
+  if (!isElementData(value)) return null
+  const keys = Object.keys(value)
+  if (keys.length !== PARTICIPANT_FIELDS.length || keys.some(key => !PARTICIPANT_FIELDS.includes(key))) return null
+  const { id, name, color, updatedAt } = value
+  if (typeof id !== 'string' || id.length === 0 || id.length > PARTICIPANT_NAME_MAX) return null
+  if (typeof name !== 'string' || name.length === 0 || name.length > PARTICIPANT_NAME_MAX) return null
+  if (
+    typeof color !== 'number'
+    || !Number.isInteger(color)
+    || color < PARTICIPANT_COLOR_MIN
+    || color > PARTICIPANT_COLOR_MAX
+  ) return null
+  if (typeof updatedAt !== 'number' || !Number.isFinite(updatedAt)) return null
+  return { id: brandString<OwnerId>(id), name, color, updatedAt }
 }
 
 /**

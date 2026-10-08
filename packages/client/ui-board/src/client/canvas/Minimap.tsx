@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
-import { ownerColorAttr } from '../owners.ts'
+import { boardParticipants, participantColorAttr } from '../owners.ts'
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import css from './Minimap.module.css'
 
@@ -29,7 +29,7 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
   const zoom = useStore(s => s.zoom)
   const windows = useStore(s => s.windows)
   const elements = useStore(s => s.boardElements)
-  const selfId = useStore(s => s.selfId)
+  const participants = useStore(s => boardParticipants(s))
   const activeWindowId = useStore(s => s.activeWindowId)
   const viewportWidth = useStore(s => s.viewportWidth)
   const viewportHeight = useStore(s => s.viewportHeight)
@@ -130,7 +130,7 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
           <rect
             key={element.id}
             data-board-element-rect={element.kind}
-            data-board-owner-color={ownerColorAttr({ selfId }, element.ownerId)}
+            data-board-owner-color={participantColorAttr(participants.find(candidate => candidate.id === element.ownerId))}
             x={toMiniX(element.x)}
             y={toMiniY(element.y)}
             width={Math.max(3, element.w * scale)}

@@ -76,6 +76,21 @@
         bdOutputMaxBytes: 1048576
         todoTitleMaxChars: 200
 
+    # Ketos peer channel: the iroh node with a stored key behind
+    # ctx.ketosPeer, the framed messages consumers of stages 33-35 extend, the
+    # one-time invitation code, and the /api/ketos.peer.* Fetch routes.
+    # Disabled here because the identity and relay URLs exist only on the
+    # stand, which enables this row in docker/stand/stand.patch.yml; a
+    # developer machine therefore never loads the native module.
+    - id: ketos-peer
+      name: '@ketos/peer'
+      disabled: true
+      config:
+        name: !!js process.env.KETOS_PARTICIPANT_NAME ?? ''
+        relayUrls: !!js (process.env.KETOS_RELAY_URLS ?? '').split(',').filter(Boolean)
+        keyPath: !!js dshHomePath('peer.key')
+        peersPath: !!js dshHomePath('peers.json')
+
     # Р-3: product analytics and telemetry stay off in Ketos profiles.
     - id: desktop-product-telemetry
       name: '@deepseek-ai/dsh-host-product-telemetry-otel'

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@ketos/board-doc` 拥有看板元素的通用模型：便签、笔迹、待办清单，以及（自阶段 33 起）共享的窗口记录。`$DSH_HOME/board.db` 中的一个 `node:sqlite` 数据库以只追加更新日志的形式存储 Yjs 文档；本地参与者身份 `selfId` 与文档身份 `docId` 存放在同一数据库中、位于同步文档之外。该包提供 `/api/ketos.board`、`/api/ketos.board.ops` 和 `/api/ketos.board.events` Fetch 路由，其他 Ketos 插件通过 `ctx.ketosBoardDoc` 服务访问同一文档。
+`@ketos/board-doc` 拥有看板元素的通用模型：便签、笔迹、待办清单、参与者注册表，以及（自阶段 33 起）共享的窗口记录。`$DSH_HOME/board.db` 中的一个 `node:sqlite` 数据库以只追加更新日志的形式存储 Yjs 文档；本地参与者身份 `selfId` 与文档身份 `docId` 存放在同一数据库中、位于同步文档之外。该包提供 `/api/ketos.board`、`/api/ketos.board.ops` 和 `/api/ketos.board.events` Fetch 路由，其他 Ketos 插件通过 `ctx.ketosBoardDoc` 服务访问同一文档。
 
 ## 目录
 
@@ -57,11 +57,15 @@ kind: "package-reference"
 |---|---|
 | `selfId(): Promise<OwnerId>` | 本 Ketos 的身份，存放在同步文档之外 |
 | `docId(): Promise<BoardDocId>` | 文档身份 |
-| `snapshot(): Promise<BoardSnapshot>` | 当前修订号下的全部元素 |
+| `snapshot(): Promise<BoardSnapshot>` | 当前修订号下的全部元素与参与者记录 |
 | `apply(ops, origin): Promise<BoardOpsResponse>` | 原子应用一个批次，并返回新修订号 |
-| `subscribe(listener): () => void` | 每条已提交日志行产生一次 `{ revision, upserts, removes }`；调用方通过 `ctx.effect` 持有取消订阅函数 |
+| `participants(): Promise<BoardParticipantRecord[]>` | 本构建能解码的全部已存储参与者记录 |
+| `putOwnParticipant({ name, color }): Promise<void>` | 写入以本 Ketos 的 `selfId` 为键的记录，并以参与者补丁宣告 |
+| `subscribe(listener): () => void` | 每条已提交日志行产生一次 `{ revision, upserts, removes, participants? }`；调用方通过 `ctx.effect` 持有取消订阅函数 |
 
 来自 `browser` 的批次只能创建属于 `selfId` 的元素，并且只能修改或删除自己拥有的元素；`host` 批次绕过该检查。补丁按键合并 `data`，并移除值为 `null` 的键，因此宿主可以在不重写整个负载的情况下清除可选标志；随后会针对合并后的完整数据检查该类型的规则。
+
+参与者注册表位于第二个顶层 `Y.Map`（名为 `participants`），以 `OwnerId` 为键。每个 Ketos 只写以自己的 `selfId` 为键的记录——`{ name, color, updatedAt }`——这正是阶段 33 同步文档后两个 Ketos 实例不会互相覆盖身份的原因。颜色规则由 `@ketos/peer` 拥有并调用 `putOwnParticipant`；快照在 `participants` 中携带每条可读记录，参与者写入会在（空的）元素列表之外发出带 `participants.upserts`/`removes` 的补丁。与本构建不符的记录会被跳过并记录一行日志，与不可读元素完全一致。
 
 `note` 类型的数据恰好是 `{ text, font, size, scale }`：`text` 最长为 `noteTextMax` 个 UTF-16 代码单元（与 `maxLength` 语义一致），`font` 为 `sans`、`serif`、`mono` 之一，`size` 为 `s`、`m`、`l` 之一，`scale` 为 `0.5`、`0.75`、`1`、`1.5`、`2`、`3` 之一；任何多余字段、缺失字段或列表之外的值都会以 `ketos/invalid` 拒绝该批次。元素的 `w`/`h` 是便签的世界矩形，内容以 `w/scale × h/scale` 在 `transform: scale(scale)` 下绘制，因此改变缩放会同时 patch `w`、`h` 与 `data.scale`。
 
@@ -142,7 +146,7 @@ None, as the board document is user interface state: the snapshot, operations, a
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 文档目前不存储参与者：`selfId` 属于单个 Ketos；阶段 32 增加参与者注册表，阶段 33 实现文档同步。
+- 参与者注册表只在本地读写；在两个 Ketos 实例之间携带记录的文档同步在阶段 33 到来，在此之前浏览器名册把本地记录与对等通道的状态合并展示。
 - 窗口记录将在阶段 33 作为同一文档中的一个独立 `windows` 映射出现，而不是 `elements` 映射中的元素。
 - 在 Node ≥ 25 上，首次访问看板会打印一条 `lib0` 警告「localStorage is not available because --localstorage-file was not provided」；由于 `yjs` 是惰性导入的，该警告出现在首次使用时而非启动时，而 Node 24（Docker 环境）不打印任何警告。
 - 看板将元素放在所有窗口之下的单一图层中，并且一次只选中一个元素；多选、窗口与元素的交错顺序以及撤销历史不在范围内。

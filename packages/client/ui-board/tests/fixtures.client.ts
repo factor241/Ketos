@@ -23,6 +23,7 @@ import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/cli
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
 import { BOARD_DOC_EVENTS_PATH, BOARD_DOC_OPS_PATH, BOARD_DOC_PATH } from '../src/client/board-doc-api.ts'
+import { PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH } from '../src/client/peer-api.ts'
 import { en, type BoardTranslate } from '../src/client/locale.ts'
 
 /** Identity the bench's document double serves before a test replaces it. */
@@ -47,23 +48,45 @@ export interface BoardDocDouble {
   readonly fetch: typeof fetch
 }
 
+/** Answers the double serves on the three peer routes. */
+export interface BoardPeerDoubleOptions {
+  /** Answer of the state route; omitted answers 404, the no-peer-networking mode. */
+  readonly state?: () => Response | Promise<Response>
+  /** Answer of the invitation route; omitted answers 503 `ketos/peer-offline`. */
+  readonly invite?: () => Response | Promise<Response>
+  /** Answer of the connect route for one posted invite; omitted answers 400 `ketos/invalid`. */
+  readonly connect?: (invite: string) => Response | Promise<Response>
+}
+
 /**
  * Build the board document double.
- * @param initial - snapshot to serve first; omitted starts an empty document.
+ * @param initial - snapshot to serve first; omitted starts an empty document
+ * with the bench's own participant record.
  * @param fallback - handler for every other path; defaults to the fetch
  * installed when the double is built, so a spec's own stub keeps serving its
  * routes while the board routes answer from the double.
+ * @param peer - answers of the three peer routes; omitted answers the
+ * deployment-without-peer-networking defaults.
  * @returns the double.
  */
 export function createBoardDocDouble(
   initial?: BoardSnapshot,
   fallback: typeof fetch = globalThis.fetch,
+  peer: BoardPeerDoubleOptions = {},
 ): BoardDocDouble {
   let snapshot: BoardSnapshot = initial ?? {
     docId: BENCH_DOC_ID,
     selfId: BENCH_SELF_ID,
     revision: brandNumber<BoardRevision>(0),
     elements: [],
+    // The participant records a real deployment's document carries: this
+    // Ketos plus the teammates the window owner/access specs name.
+    participants: [
+      { id: BENCH_SELF_ID, name: 'Kirill', color: 1, updatedAt: 1 },
+      { id: brandString<OwnerId>('demo-finance'), name: 'Finance', color: 2, updatedAt: 1 },
+      { id: brandString<OwnerId>('demo-legal'), name: 'Legal', color: 3, updatedAt: 1 },
+      { id: brandString<OwnerId>('demo-analyst'), name: 'Analyst', color: 4, updatedAt: 1 },
+    ],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
   const ops: BoardOp[][] = []
@@ -104,6 +127,20 @@ export function createBoardDocDouble(
           if (own !== undefined) streams.delete(own)
         },
       }), { headers: { 'content-type': 'text/event-stream; charset=utf-8' } })
+    }
+    if (pathname === PEER_STATE_PATH) {
+      if (peer.state === undefined) return new Response(null, { status: 404 })
+      return await peer.state()
+    }
+    if (pathname === PEER_INVITE_PATH) {
+      if (peer.invite === undefined) return Response.json({ ok: false, error: 'ketos/peer-offline' }, { status: 503 })
+      return await peer.invite()
+    }
+    if (pathname === PEER_CONNECT_PATH) {
+      const body = await request.json().catch((): unknown => ({})) as { invite?: unknown }
+      const invite = typeof body.invite === 'string' ? body.invite : ''
+      if (peer.connect === undefined) return Response.json({ ok: false, error: 'ketos/invalid' }, { status: 400 })
+      return await peer.connect(invite)
     }
     return await fallback(input, init)
   }

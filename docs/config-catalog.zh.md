@@ -4434,6 +4434,45 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@ketos/clone-core -->
 
+<!-- BEGIN GENERATED config-catalog:@ketos/peer -->
+<a id="ketospeer"></a>
+
+## `@ketos/peer`
+
+- `inject`: `connection` · `ketosBoardDoc`
+- `source`: [`packages/ketos/peer/src/index.ts:27`](../packages/ketos/peer/src/index.ts)
+
+```ts config-catalog
+/** Deployment configuration of the peer node. */
+export interface Config {
+  /** Participant name this Ketos publishes to the other side. */
+  name: string
+  /** Relay URLs of the team's private iroh relay; at least one is required. */
+  relayUrls: string[]
+  /** Path of the stored 32-byte node key; the parent directory is created owner-only. */
+  keyPath: string
+  /** Path of the known-peer file. */
+  peersPath: string
+  /** Largest accepted frame body, in bytes (1 KiB–64 MiB). */
+  maxFrameBytes?: number
+  /** How long `invite()` waits for a relay address, in milliseconds (1000–120000). */
+  onlineTimeoutMs?: number
+  /** How long a dial or handshake step may take, in milliseconds (1000–120000). */
+  connectTimeoutMs?: number
+  /** First reconnection pause, in milliseconds (100–60000). */
+  reconnectMinMs?: number
+  /** Reconnection pause ceiling, in milliseconds (100–600000). */
+  reconnectMaxMs?: number
+  /** Lifetime of one invitation secret, in milliseconds (60000–86400000). */
+  inviteTtlMs?: number
+  /** Poll interval the state route publishes, in milliseconds (250–60000). */
+  stateRefreshMs?: number
+  /** Local address the node binds, when the deployment pins one. */
+  bindAddr?: string
+}
+```
+<!-- END GENERATED config-catalog:@ketos/peer -->
+
 ## 无配置的可加载插件
 
 这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。

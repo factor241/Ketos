@@ -1,0 +1,40 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "files": [
+    "src/color.ts",
+    "src/frame.ts",
+    "src/index.ts",
+    "src/invite.ts",
+    "src/iroh-transport.ts",
+    "src/key-file.ts",
+    "src/link.ts",
+    "src/memory-transport.ts",
+    "src/peers-file.ts",
+    "src/routes.ts",
+    "src/service.ts",
+    "src/transport.ts",
+    "src/types.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../client/connection/tsconfig.host.json"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../board-doc/tsconfig.host.json"
+    }
+  ]
+}

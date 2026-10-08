@@ -4,9 +4,10 @@
  * `+` control, submits on Enter, closes on Escape, and keeps its action
  * inactive while the title is empty or a creation is in flight.
  */
-import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BoardTranslate } from '../locale.ts'
+import { useDockPopover } from './dock-popover.ts'
 import css from './TodoCreatePopover.module.css'
 
 /** Fixed width of the popover in screen pixels. */
@@ -31,39 +32,12 @@ export interface TodoCreatePopoverProps {
 export function TodoCreatePopover({ anchor, boundary, busy, t, onCreate, onClose }: TodoCreatePopoverProps) {
   const [title, setTitle] = useState('')
   const inputId = useId()
-  const surfaceRef = useRef<HTMLDivElement>(null)
   const trimmed = title.trim()
-
-  // A click anywhere outside the popover closes it; Escape is handled on the
-  // surface itself, and Enter submits the form.
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent): void => {
-      const node = surfaceRef.current
-      if (node === null || event.target instanceof Node && node.contains(event.target)) return
-      onClose()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => { document.removeEventListener('pointerdown', onPointerDown) }
-  }, [onClose])
-  const left = Math.min(
-    Math.max(anchor.left, boundary.left),
-    Math.max(boundary.left, boundary.right - POPOVER_WIDTH),
-  )
-  const style: CSSProperties = {
-    left,
-    bottom: window.innerHeight - anchor.top + 8,
-    width: POPOVER_WIDTH,
-  }
+  const { surfaceRef, style, onKeyDown } = useDockPopover(anchor, boundary, POPOVER_WIDTH, onClose)
   const submit = (event: FormEvent): void => {
     event.preventDefault()
     if (trimmed === '' || busy) return
     onCreate(trimmed)
-  }
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape') return
-    event.preventDefault()
-    event.stopPropagation()
-    onClose()
   }
   return (
     <MenuSurface

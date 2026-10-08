@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for ketos-peer.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/ketos-peer.md
+/ketos-peer-channel:
+  en: 04b0842b0d286b61
+  zh: 058ed0abb70f9677
+/ketos-peer-channel/ownership:
+  en: 7f06d7f9848a27c0
+  zh: 3a69abb44891d189
+/ketos-peer-channel/channel:
+  en: 6811208eab6dc63a
+  zh: 23d3e15941015f32
+/ketos-peer-channel/events:
+  en: 6399ac14605a69ac
+  zh: d936118e503649e9

@@ -78,6 +78,7 @@ function snapshot(elements: readonly BoardElement[]): BoardSnapshot {
     selfId: SELF,
     revision: brandNumber<BoardRevision>(1),
     elements,
+    participants: [{ id: SELF, name: 'Kirill', color: 1, updatedAt: 1 }],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }

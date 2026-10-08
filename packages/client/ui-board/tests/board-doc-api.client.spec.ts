@@ -42,6 +42,7 @@ const SNAPSHOT: BoardSnapshot = {
   selfId: SELF,
   revision: brandNumber<BoardRevision>(1),
   elements: [ELEMENT],
+  participants: [],
   limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2000, todoItemsMax: 200 },
 }
 
@@ -97,6 +98,29 @@ describe('board document decoders', () => {
       { ...PATCH, revision: Number.NaN },
       { ...PATCH, upserts: 'x' },
       { ...PATCH, removes: ['nope'] },
+    ]) expect(isBoardPatch(bad)).toBe(false)
+  })
+
+  it('decodes participant changes and refuses malformed records', () => {
+    const participant = { id: String(SELF), name: 'Kirill', color: 1, updatedAt: 1 }
+
+    expect(isBoardSnapshot({ ...SNAPSHOT, participants: [participant] })).toBe(true)
+    for (const bad of [
+      { ...SNAPSHOT, participants: 'x' },
+      { ...SNAPSHOT, participants: [{}] },
+      { ...SNAPSHOT, participants: [{ ...participant, name: '' }] },
+      { ...SNAPSHOT, participants: [{ ...participant, name: 'a'.repeat(65) }] },
+      { ...SNAPSHOT, participants: [{ ...participant, color: 0 }] },
+      { ...SNAPSHOT, participants: [{ ...participant, extra: 1 }] },
+    ]) expect(isBoardSnapshot(bad)).toBe(false)
+
+    expect(isBoardPatch({ ...PATCH, participants: { upserts: [participant], removes: [String(SELF)] } })).toBe(true)
+    expect(isBoardPatch(PATCH)).toBe(true)
+    for (const bad of [
+      { ...PATCH, participants: {} },
+      { ...PATCH, participants: { upserts: [{}], removes: [] } },
+      { ...PATCH, participants: { upserts: [], removes: [''] } },
+      { ...PATCH, participants: { upserts: [], removes: [7] } },
     ]) expect(isBoardPatch(bad)).toBe(false)
   })
 })

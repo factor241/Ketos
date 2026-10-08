@@ -166,6 +166,28 @@ export interface BoardLimits {
   readonly todoItemsMax: number
 }
 
+/**
+ * One participant record stored in the document, keyed by `selfId`. Each
+ * Ketos writes only its own record; a synchronized document therefore holds
+ * one writer per entry.
+ */
+export interface BoardParticipantRecord {
+  /** Board participant identity this record belongs to. */
+  readonly id: OwnerId
+  /** Display name, 1–64 characters. */
+  readonly name: string
+  /** Palette color, 1–10. */
+  readonly color: number
+  /** Last write time in milliseconds since the Unix epoch; the writer sets it. */
+  readonly updatedAt: number
+}
+
+/** Participant changes one patch carries beside its element changes. */
+export interface BoardParticipantPatch {
+  readonly upserts: readonly BoardParticipantRecord[]
+  readonly removes: readonly OwnerId[]
+}
+
 /** Full state of the document at one revision, the first event of the stream. */
 export interface BoardSnapshot {
   readonly docId: BoardDocId
@@ -173,6 +195,8 @@ export interface BoardSnapshot {
   readonly selfId: OwnerId
   readonly revision: BoardRevision
   readonly elements: readonly BoardElement[]
+  /** Every stored participant record this build can decode. */
+  readonly participants: readonly BoardParticipantRecord[]
   readonly limits: BoardLimits
 }
 
@@ -181,6 +205,8 @@ export interface BoardPatch {
   readonly revision: BoardRevision
   readonly upserts: readonly BoardElement[]
   readonly removes: readonly ElementId[]
+  /** Present when the batch changed participants rather than elements. */
+  readonly participants?: BoardParticipantPatch
 }
 
 /** One create operation; the host fills `ownerId`, `z`, and the timestamps. */

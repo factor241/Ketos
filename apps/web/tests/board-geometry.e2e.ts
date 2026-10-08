@@ -1045,12 +1045,13 @@ describe('web e2e: spatial board geometry', () => {
         return action === 'dock-row' ? 'row' : action
       })
     })
-    // The open windows, then the add menu, the element picker, the brush and
-    // eraser controls with the thickness menu, and the view reset; clone rows
-    // follow the second divider (Т1.9).
+    // The open windows, then the add menu, the participants control, the
+    // element picker, the brush and eraser controls with the thickness menu,
+    // and the view reset; clone rows follow the second divider (Т1.9).
     expect(order).toEqual([
       'row', 'row', 'row',
-      'dock-add', 'dock-select-element', 'dock-brush', 'dock-eraser', 'dock-brush-width', 'dock-reset-view',
+      'dock-add', 'dock-participants', 'dock-select-element', 'dock-brush', 'dock-eraser', 'dock-brush-width',
+      'dock-reset-view',
     ])
   }, 60_000)
 

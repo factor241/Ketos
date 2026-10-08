@@ -24,7 +24,7 @@ import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { parseNoteData } from '@ketos/board-doc/data'
 import type { BoardElementInjected, BoardElementPatch } from '../contract/slots.ts'
-import { participantLabel, participantOf } from '../owners.ts'
+import { boardParticipants, participantLabel } from '../owners.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { NeutralElementBody } from './NeutralElementBody.tsx'
 import css from './NoteElement.module.css'
@@ -41,7 +41,7 @@ export type NoteElementProps =
 export function NoteElement({ element, useStore, actions, t, patchElement }: NoteElementProps) {
   const limits = useStore(s => s.boardLimits)
   const editing = useStore(s => s.editingBoardElementId === element.id)
-  const selfId = useStore(s => s.selfId)
+  const participants = useStore(s => boardParticipants(s))
   const [draft, setDraft] = useState<string | null>(null)
   const draftRef = useRef<string | null>(null)
   const dirtyRef = useRef(false)
@@ -124,7 +124,7 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
       data-board-note=""
       data-board-wheel="native"
       role="group"
-      aria-label={t('note.aria', { name: participantLabel(t, participantOf({ selfId }, element.ownerId)) })}
+      aria-label={t('note.aria', { name: participantLabel(t, participants.find(candidate => candidate.id === element.ownerId)) })}
       className={css.scroll}
     >
       <div

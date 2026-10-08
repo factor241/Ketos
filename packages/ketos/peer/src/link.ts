@@ -1,0 +1,337 @@
+/**
+ * One peer connection's framed message channel: a serialized write queue, a
+ * read loop that turns bytes into frames, request/response correlation with
+ * per-request timeouts, and close handling that never lets a malformed frame
+ * throw past the loop. The channel above it — service, handshake, known
+ * peers — sees only typed payloads.
+ * @module @ketos/peer/link
+ */
+
+import {
+  PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, PeerFrameError, classifyPeerPayload, encodePeerFrame,
+  frameNameFor, parseByePayload, parseHelloPayload, parsePeerFrameHeader, parsePeerFramePayload,
+  type PeerEnvelope, type PeerHelloPayload,
+} from './frame.ts'
+import type { PeerConnection, PeerStream } from './transport.ts'
+import type { KetosPeerId } from './types.ts'
+
+/** The close code an application frame error closes a connection with. */
+export const PEER_LINK_PROTOCOL_CLOSE_CODE = 2n
+
+/** The close code a refused connection carries. */
+export const PEER_LINK_REFUSED_CLOSE_CODE = 1n
+
+/** The close code a duplicate connection carries. */
+export const PEER_LINK_DUPLICATE_CLOSE_CODE = 3n
+
+/** What one frame listener receives beside the payload. */
+export interface PeerFrameContext {
+  /** Present when the frame was a request this Ketos must answer. */
+  readonly requestId?: string
+}
+
+/**
+ * Returned by a listener that has no handler for the frame; a request then
+ * stays unanswered and its sender times out, which the channel treats as the
+ * regular outcome for a reserved type no consumer registered yet.
+ */
+export const PEER_UNHANDLED: unique symbol = Symbol('ketos-peer-unhandled')
+
+/**
+ * Receives one frame of a registered type. For a request, the first
+ * registered listener's resolved value becomes the response body; every
+ * listener of the type still runs. For a plain message the return value is
+ * ignored.
+ */
+export type PeerFrameListener = (
+  code: number,
+  payload: unknown,
+  context: PeerFrameContext,
+) => unknown
+
+/** Deployment inputs of one link. */
+export interface PeerLinkOptions {
+  /** Identity of the remote node. */
+  readonly peerId: KetosPeerId
+  /** Largest accepted frame body, in bytes. */
+  readonly maxFrameBytes: number
+  /** Receives one line per protocol anomaly. */
+  readonly logger: (message: string) => void
+  /** Receives a `hello` a peer sends after the handshake, such as a color change. */
+  readonly onHello: (hello: PeerHelloPayload) => void
+}
+
+/** One in-flight request the link is waiting to answer. */
+interface PendingRequest {
+  /** Frame code the response must carry. */
+  readonly code: number
+  readonly resolve: (payload: unknown) => void
+  readonly reject: (error: Error) => void
+  readonly timer: NodeJS.Timeout
+}
+
+/**
+ * Read one frame from a stream.
+ * @param stream - the stream to read.
+ * @param maxFrameBytes - largest accepted body.
+ * @returns the decoded code and payload.
+ */
+export async function readPeerFrame(stream: PeerStream, maxFrameBytes: number): Promise<{ code: number; payload: unknown }> {
+  const header = await stream.readExact(PEER_FRAME_HEADER_BYTES)
+  const { length, code } = parsePeerFrameHeader(header)
+  if (length > maxFrameBytes) {
+    throw new PeerFrameError(`frame length ${String(length)} exceeds ${String(maxFrameBytes)} bytes`)
+  }
+  const body = length === 0 ? new Uint8Array(0) : await stream.readExact(length)
+  return { code, payload: parsePeerFramePayload(body) }
+}
+
+/**
+ * Write one frame to a stream.
+ * @param stream - the stream to write.
+ * @param code - frame code.
+ * @param payload - JSON-serializable payload.
+ */
+export async function writePeerFrame(stream: PeerStream, code: number, payload: unknown): Promise<void> {
+  await stream.write(encodePeerFrame(code, payload))
+}
+
+/**
+ * One framed channel over an open connection and its single bidirectional
+ * stream. The owner constructs the link after the handshake frames and calls
+ * {@link PeerLink.start}; disposal is {@link PeerLink.close}.
+ */
+export class PeerLink {
+  private readonly listeners = new Set<PeerFrameListener>()
+  private readonly pending = new Map<string, PendingRequest>()
+  private readonly closeWaiters = new Set<(reason: string) => void>()
+  private writeQueue: Promise<void> = Promise.resolve()
+  private closedReason: string | undefined
+  private requestSequence = 0
+
+  /**
+   * @param connection - the open transport connection.
+   * @param stream - the connection's single stream, past the handshake.
+   * @param options - peer id, frame bound, and log sink.
+   */
+  constructor(
+    private readonly connection: PeerConnection,
+    private readonly stream: PeerStream,
+    private readonly options: PeerLinkOptions,
+  ) {
+    void connection.closed().then(
+      (reason) => { this.settle(reason) },
+      (error: unknown) => { this.settle(`connection closed: ${String(error)}`) },
+    )
+  }
+
+  /** Identity of the remote node. */
+  get peerId(): KetosPeerId {
+    return this.options.peerId
+  }
+
+  /**
+   * Register a frame listener for every type.
+   * @param listener - receives each decoded frame.
+   * @returns the unsubscribe function.
+   */
+  onFrame(listener: PeerFrameListener): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  /** Start the read loop. */
+  start(): void {
+    void this.readLoop()
+  }
+
+  /**
+   * Queue one frame for writing.
+   * @param code - frame code.
+   * @param payload - JSON-serializable payload.
+   * @returns a promise settling when the transport accepted the bytes.
+   */
+  send(code: number, payload: unknown): Promise<void> {
+    if (this.closedReason !== undefined) return Promise.reject(new Error('peer link is closed'))
+    let frame: Uint8Array
+    try {
+      frame = encodePeerFrame(code, payload)
+    } catch (error: unknown) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+    }
+    const write = this.writeQueue.then(() => this.stream.write(frame))
+    this.writeQueue = write.catch(() => undefined)
+    return write
+  }
+
+  /**
+   * Send one frame without waiting; a failed write is logged instead of
+   * rejecting, for announcements whose caller cannot handle an error.
+   * @param code - frame code.
+   * @param payload - JSON-serializable payload.
+   */
+  trySend(code: number, payload: unknown): void {
+    void this.send(code, payload).catch((error: unknown) => {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: send failed: ${String(error)}`)
+    })
+  }
+
+  /**
+   * Send one request and wait for its response envelope on the same frame
+   * type.
+   * @param code - frame code.
+   * @param payload - request body.
+   * @param timeoutMs - how long to wait for the answer.
+   * @returns the response body.
+   */
+  request(code: number, payload: unknown, timeoutMs: number): Promise<unknown> {
+    if (this.closedReason !== undefined) return Promise.reject(new Error('peer link is closed'))
+    this.requestSequence += 1
+    const requestId = `${Date.now().toString(36)}:${this.requestSequence.toString(36)}:${Math.random().toString(16).slice(2, 10)}`
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(requestId)
+        reject(new Error(`peer request timed out after ${String(timeoutMs)} ms`))
+      }, timeoutMs)
+      timer.unref()
+      this.pending.set(requestId, { code, resolve, reject, timer })
+      this.send(code, { requestId, request: payload }).catch((error: unknown) => {
+        this.pending.delete(requestId)
+        clearTimeout(timer)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      })
+    })
+  }
+
+  /**
+   * A promise settling with the close reason when the link ends.
+   * @returns the close reason.
+   */
+  closed(): Promise<string> {
+    if (this.closedReason !== undefined) return Promise.resolve(this.closedReason)
+    return new Promise((resolve) => { this.closeWaiters.add(resolve) })
+  }
+
+  /**
+   * Close the link regularly: send `bye`, then close the connection.
+   * @param reason - short reason text.
+   */
+  async close(reason: string): Promise<void> {
+    if (this.closedReason !== undefined) return
+    try {
+      await this.send(PEER_FRAME_CODES.bye, { reason })
+    } catch {
+      // The peer is already gone; the connection close below is the real act.
+    }
+    this.fail(0n, reason)
+  }
+
+  private async readLoop(): Promise<void> {
+    try {
+      while (this.closedReason === undefined) {
+        const { code, payload } = await readPeerFrame(this.stream, this.options.maxFrameBytes)
+        this.dispatch(code, payload)
+      }
+    } catch (error: unknown) {
+      if (this.closedReason !== undefined) return
+      const reason = error instanceof Error ? error.message : String(error)
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: closing after ${reason}`)
+      this.fail(PEER_LINK_PROTOCOL_CLOSE_CODE, 'protocol error')
+    }
+  }
+
+  private dispatch(code: number, payload: unknown): void {
+    void this.handleFrame(code, payload).catch((error: unknown) => {
+      if (this.closedReason !== undefined) return
+      const reason = error instanceof Error ? error.message : String(error)
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: closing after ${reason}`)
+      this.fail(PEER_LINK_PROTOCOL_CLOSE_CODE, 'protocol error')
+    })
+  }
+
+  private async handleFrame(code: number, payload: unknown): Promise<void> {
+    if (code === PEER_FRAME_CODES.bye) {
+      const bye = parseByePayload(payload)
+      this.settle(`bye: ${bye.reason}`)
+      this.fail(0n, 'bye')
+      return
+    }
+    if (code === PEER_FRAME_CODES.hello) {
+      this.options.onHello(parseHelloPayload(payload))
+      return
+    }
+    const name = frameNameFor(code)
+    if (name === undefined) throw new PeerFrameError(`unknown frame code ${String(code)}`)
+    const envelope = classifyPeerPayload(payload)
+    if (envelope.kind === 'response' || envelope.kind === 'error') {
+      this.settleResponse(code, envelope)
+      return
+    }
+    const listeners = [...this.listeners]
+    if (listeners.length === 0) {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
+      return
+    }
+    if (envelope.kind === 'message') {
+      const results = await Promise.all(listeners.map(listener => listener(code, payload, {})))
+      if (results[0] === PEER_UNHANDLED) {
+        this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
+      }
+      return
+    }
+    let body: unknown
+    try {
+      const results = await Promise.all(
+        listeners.map(listener => listener(code, envelope.body, { requestId: envelope.requestId })),
+      )
+      if (results[0] === PEER_UNHANDLED) {
+        this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
+        return
+      }
+      // JSON drops an undefined field, which would leave the envelope without
+      // its response marker; a void handler therefore answers null.
+      body = results[0]
+    } catch (error: unknown) {
+      await this.send(code, { requestId: envelope.requestId, error: error instanceof Error ? error.message : String(error) })
+      return
+    }
+    await this.send(code, { requestId: envelope.requestId, response: body === undefined ? null : body })
+  }
+
+  private settleResponse(code: number, envelope: Extract<PeerEnvelope, { kind: 'response' | 'error' }>): void {
+    const pending = this.pending.get(envelope.requestId)
+    if (pending === undefined) {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: response for unknown request ignored`)
+      return
+    }
+    if (pending.code !== code) {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: response on the wrong frame type ignored`)
+      return
+    }
+    this.pending.delete(envelope.requestId)
+    clearTimeout(pending.timer)
+    if (envelope.kind === 'response') pending.resolve(envelope.body)
+    else pending.reject(new Error(envelope.message))
+  }
+
+  private fail(code: bigint, reason: string): void {
+    this.settle(`closed locally: ${reason} (code ${code.toString()})`)
+    try {
+      this.connection.close(code, reason)
+    } catch (error: unknown) {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: close failed: ${String(error)}`)
+    }
+  }
+
+  private settle(reason: string): void {
+    if (this.closedReason !== undefined) return
+    this.closedReason = reason
+    for (const resolve of [...this.closeWaiters]) resolve(reason)
+    this.closeWaiters.clear()
+    for (const [requestId, pending] of [...this.pending]) {
+      this.pending.delete(requestId)
+      clearTimeout(pending.timer)
+      pending.reject(new Error(`peer link closed before the response: ${reason}`))
+    }
+  }
+}

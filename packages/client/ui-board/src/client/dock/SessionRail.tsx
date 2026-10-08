@@ -17,6 +17,7 @@ import {
   IconFullscreenOutlineRegular,
   IconInspectOutlineRegular,
   IconPlusOutlineRegular,
+  IconUsersOutlineRegular,
   Menu,
   StateDot,
   Tooltip,
@@ -28,16 +29,17 @@ import type { CloneId } from '@ketos/clone-core/types'
 import type { StrokeWidth } from '@ketos/board-doc/types'
 import { STROKE_WIDTHS, mintElementId } from '@ketos/board-doc/data'
 import type {
-  BoardElementInjected, BoardWindowInjected, BoardWindowState, WindowId,
+  BoardElementInjected, BoardPeerInjected, BoardWindowInjected, BoardWindowState, WindowId,
 } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
 import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { BOARD_ELEMENT_KIND_DESCRIPTORS } from '../board-element-kinds.ts'
 import { placeInSafeArea } from '../board-coordinates.ts'
 import { createTodoList } from '../todo-api.ts'
+import { ParticipantsPopover } from './ParticipantsPopover.tsx'
 import { TodoCreatePopover } from './TodoCreatePopover.tsx'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
-import { BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
+import { BoardPopoverPortal, BoardPopoverProvider, useBoardPopoverBoundary } from '../board-popover.tsx'
 import { useBoardChromeInset } from '../use-board-chrome-inset.ts'
 import { useBoardPointerGesture } from '../pointer-gesture.ts'
 import { openBoardWindow, type BoardActions } from '../open-window.ts'
@@ -52,6 +54,7 @@ export type SessionRailProps =
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
   & InjectFace<BoardWindowInjected>
+  & InjectFace<BoardPeerInjected>
   & BoardElementInjected
 
 /** Most recent chats the dock's `+` menu offers. */
@@ -319,7 +322,7 @@ function BrushWidthIcon({ width }: { readonly width: StrokeWidth }) {
 export function SessionRail({
   useStore, actions, t, useWindowSession, useCloneList, useWorkspaceList, useSessionList,
   useAgentPresetRoster, openChat, openClone, createClone, refreshAgentPresets, refreshClones,
-  createElement,
+  createElement, createPeerInvite, connectPeerByInvite,
 }: SessionRailProps) {
   // The dock reads its own order (A6): raising a window reorders the paint
   // stack, never the icons.
@@ -354,7 +357,10 @@ export function SessionRail({
   // in-flight flag that keeps one creation per click.
   const [todoCreate, setTodoCreate] = useState<{ anchor: DOMRect; boundary: DOMRect } | null>(null)
   const [todoBusy, setTodoBusy] = useState(false)
+  // The participants popover's anchor rectangle at open time.
+  const [participants, setParticipants] = useState<{ anchor: DOMRect; boundary: DOMRect } | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
+  const participantsRef = useRef<HTMLButtonElement>(null)
   const widthRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
   const sessionList = useSessionList(s => s)
@@ -505,6 +511,14 @@ export function SessionRail({
     { id: 'm', label: t('tool.width.m') },
     { id: 'l', label: t('tool.width.l') },
   ]
+
+  /** Open or close the participants popover above its dock control. */
+  const toggleParticipants = (): void => {
+    setParticipants(current => current !== null ? null : {
+      anchor: participantsRef.current?.getBoundingClientRect() ?? new DOMRect(),
+      boundary: boundary(),
+    })
+  }
 
   const toggleWidthMenu = (): void => {
     setWidthMenu(current => current !== null ? null : menuPlacement(widthRef.current, boundary()))
@@ -706,14 +720,43 @@ export function SessionRail({
       />
 
       {todoCreate !== null && (
-        <TodoCreatePopover
-          anchor={todoCreate.anchor}
-          boundary={todoCreate.boundary}
-          busy={todoBusy}
-          t={t}
-          onCreate={createTodo}
-          onClose={() => { setTodoCreate(null) }}
-        />
+        <BoardPopoverPortal>
+          <TodoCreatePopover
+            anchor={todoCreate.anchor}
+            boundary={todoCreate.boundary}
+            busy={todoBusy}
+            t={t}
+            onCreate={createTodo}
+            onClose={() => { setTodoCreate(null) }}
+          />
+        </BoardPopoverPortal>
+      )}
+
+      <Tooltip label={t('peer.participants')} side="top" delayMs={300} disabled={participants !== null}>
+        <button
+          ref={participantsRef}
+          type="button"
+          data-board-action="dock-participants"
+          onClick={toggleParticipants}
+          className={clsx(css.control, participants !== null && css.controlActive)}
+          aria-label={t('peer.participants')}
+        >
+          <IconUsersOutlineRegular size={12} />
+        </button>
+      </Tooltip>
+
+      {participants !== null && (
+        <BoardPopoverPortal>
+          <ParticipantsPopover
+            anchor={participants.anchor}
+            boundary={participants.boundary}
+            t={t}
+            useStore={useStore}
+            createInvite={createPeerInvite}
+            connectPeer={connectPeerByInvite}
+            onClose={() => { setParticipants(null) }}
+          />
+        </BoardPopoverPortal>
       )}
 
       <Tooltip label={t('menu.selectElement')} side="top" delayMs={300}>

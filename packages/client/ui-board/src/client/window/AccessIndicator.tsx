@@ -13,7 +13,8 @@
 import { IconUserOutlineRegular, IconUsersOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BoardWindowAccessMode } from '../../board-settings.ts'
 import {
-  participantInitial, participantLabel, type BoardParticipant, type OwnerColorAttr, type OwnerId,
+  participantColorAttr, participantInitial, participantLabel,
+  type BoardParticipant, type OwnerColorAttr, type OwnerId,
 } from '../owners.ts'
 import type { BoardKey, BoardTranslate } from '../locale.ts'
 import css from './WindowBezel.module.css'
@@ -52,7 +53,7 @@ export function accessPeople(
   return people.map((id) => {
     const participant = participants.find(candidate => candidate.id === id)
     return {
-      color: participant === undefined ? 'unknown' : String(participant.color) as OwnerColorAttr,
+      color: participantColorAttr(participant),
       label: participantLabel(t, participant),
     }
   })

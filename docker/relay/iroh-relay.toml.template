@@ -1,0 +1,11 @@
+enable_relay = true
+http_bind_addr = "[::]:80"
+enable_quic_addr_discovery = true
+enable_metrics = false
+
+[tls]
+cert_mode = "LetsEncrypt"
+hostname = "${IROH_RELAY_HOST}"
+contact = "${ACME_CONTACT}"
+cert_dir = "/data/certs"
+prod_tls = true

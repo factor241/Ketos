@@ -11,8 +11,9 @@ import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
-  BoardDocId, BoardElement, BoardPatch, BoardRevision, BoardSnapshot, ElementId, OwnerId,
+  BoardDocId, BoardElement, BoardPatch, BoardParticipantRecord, BoardRevision, BoardSnapshot, ElementId, OwnerId,
 } from '@ketos/board-doc/types'
+import type { KetosPeerId, PeerStateResponse } from '@ketos/peer/types'
 import { BOARD_SETTINGS_NAMESPACE } from '../src/board-settings.ts'
 import { BoardLayoutPersistence } from '../src/client/board-persistence.ts'
 import { DEMO_SELF_ID, boardParticipants, currentOwnerId } from '../src/client/owners.ts'
@@ -55,6 +56,7 @@ function snapshot(overrides: Partial<BoardSnapshot> = {}): BoardSnapshot {
     selfId: SELF,
     revision: brandNumber<BoardRevision>(1),
     elements: [element()],
+    participants: [],
     limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2000, todoItemsMax: 200 },
     ...overrides,
   }
@@ -100,7 +102,10 @@ describe('element snapshot and patch', () => {
   it('replaces the slice and adopts selfId from the first snapshot', () => {
     const instance = store()
     instance.actions.openWindow(windowSpec('w1'))
-    expect(currentOwnerId(instance.getSnapshot())).toBe(DEMO_SELF_ID)
+    // Before the snapshot the acting identity is unknown; the placeholder
+    // owner stands in for it.
+    expect(currentOwnerId(instance.getSnapshot())).toBeNull()
+    expect(instance.getSnapshot().windows['w1']?.ownerId).toBe(DEMO_SELF_ID)
 
     instance.actions.applyBoardSnapshot(snapshot({ revision: brandNumber<BoardRevision>(3) }))
     const state = instance.getSnapshot()
@@ -196,6 +201,70 @@ describe('optimistic element operations', () => {
     instance.actions.moveBoardElement(ID_A, 1, 1)
     instance.actions.resizeBoardElement(ID_A, 1, 1)
     expect(instance.getSnapshot().boardElements).toEqual({})
+  })
+})
+
+describe('participants and peer state', () => {
+  const OTHER = brandString<OwnerId>('00000000-0000-4000-8000-0000000000e2')
+  const first: BoardParticipantRecord = { id: SELF, name: 'Kirill', color: 1, updatedAt: 1 }
+  const second: BoardParticipantRecord = { id: OTHER, name: 'Anna', color: 2, updatedAt: 2 }
+
+  it('replaces participants with a snapshot and applies patch upserts and removes', () => {
+    const instance = store()
+    instance.actions.applyBoardSnapshot(snapshot({ participants: [first] }))
+    expect(instance.getSnapshot().boardParticipants).toEqual([first])
+
+    instance.actions.applyBoardPatch(patch({
+      revision: brandNumber<BoardRevision>(2),
+      participants: { upserts: [second], removes: [] },
+    }))
+    expect(instance.getSnapshot().boardParticipants).toEqual([first, second])
+
+    const updated: BoardParticipantRecord = { ...first, name: 'Kir', color: 3, updatedAt: 3 }
+    instance.actions.applyBoardPatch(patch({
+      revision: brandNumber<BoardRevision>(3),
+      participants: { upserts: [updated], removes: [OTHER] },
+    }))
+    expect(instance.getSnapshot().boardParticipants).toEqual([updated])
+  })
+
+  it('applies the peer slice, degrades links while unreachable, and clears it on 404', () => {
+    const instance = store()
+    const response: PeerStateResponse = {
+      self: { selfId: SELF, name: 'Kirill', color: 1 },
+      peers: [{ peerId: brandString<KetosPeerId>('peer-one'), selfId: OTHER, name: 'Anna', color: 2, link: 'online' }],
+      refreshMs: 500,
+    }
+    const listener = vi.fn()
+    const unsubscribe = instance.subscribe(listener)
+
+    instance.actions.applyPeerState(response)
+    expect(instance.getSnapshot().peerAvailable).toBe(true)
+    expect(instance.getSnapshot().peerMissing).toBe(false)
+    expect(instance.getSnapshot().peerSelf).toEqual(response.self)
+    expect(instance.getSnapshot().peerStates).toEqual(response.peers)
+    // The poll repeats every second: an unchanged answer must not notify.
+    instance.actions.applyPeerState(response)
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    // An unreachable host keeps the roster and drops the unconfirmed link; a
+    // second failure changes nothing.
+    instance.actions.markPeerUnreachable()
+    expect(instance.getSnapshot().peerAvailable).toBe(true)
+    expect(instance.getSnapshot().peerSelf).toEqual(response.self)
+    expect(instance.getSnapshot().peerStates[0]?.link).toBe('lost')
+    instance.actions.markPeerUnreachable()
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    // A 404 is terminal for the dock's hint: the slice and the local record go.
+    instance.actions.markPeerUnavailable()
+    expect(instance.getSnapshot().peerAvailable).toBe(false)
+    expect(instance.getSnapshot().peerMissing).toBe(true)
+    expect(instance.getSnapshot().peerSelf).toBeNull()
+    expect(instance.getSnapshot().peerStates).toEqual([])
+    instance.actions.markPeerUnavailable()
+    expect(listener).toHaveBeenCalledTimes(3)
+    unsubscribe()
   })
 })
 

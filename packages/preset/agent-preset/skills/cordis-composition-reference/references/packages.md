@@ -283,6 +283,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@ketos/board-todo` | yes | Ketos board to-do lists: one Beads epic per list in $DSH_HOME/beads, the bd CLI wrapper, the /api/ketos.board.todo Fetch route, and the /todo command |
 | `@ketos/client-locale-ru` | no | Ketos language pack: the Russian locale, its common, settings, and board dictionaries, and the ru default for Russian browsers without a stored preference |
 | `@ketos/clone-core` | yes | Ketos clone domain: the clones.db node:sqlite database, its forward-only schema, the clone repository, the /api/ketos.clones Fetch route, and the interview mode that drafts a clone profile |
+| `@ketos/peer` | yes | Ketos peer channel: the iroh node with a stored key, the framed message channel, the ctx.ketosPeer service, the one-time invitation code, the known-peer file, and the /api/ketos.peer.* Fetch routes |
 
 ## llm
 

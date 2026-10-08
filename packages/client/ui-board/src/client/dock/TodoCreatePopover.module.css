@@ -39,7 +39,7 @@
   border: none;
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-brand-primary);
-  color: var(--dsw-alias-label-inverse);
+  color: var(--dsw-alias-label-primary-inverted);
   font: inherit;
   cursor: pointer;
 }

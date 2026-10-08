@@ -9,12 +9,13 @@
  * origin). Every decoded value is validated before it reaches the store.
  */
 import { brandNumber } from '@deepseek-ai/dsh-brand'
-import { UUID_PATTERN, isElementData, isElementId } from '@ketos/board-doc/data'
+import { UUID_PATTERN, isElementData, isElementId, parseBoardParticipant } from '@ketos/board-doc/data'
 import { isBoardElementKind } from '@ketos/board-doc/kinds'
 import type {
   BoardElement, BoardErrorCode, BoardOp, BoardPatch, BoardRevision, BoardSnapshot,
 } from '@ketos/board-doc/types'
 import { ketosRoute } from './ketos-route.ts'
+import { isOwnerIdFormat } from './owners.ts'
 
 /** Path of the snapshot route on the host. */
 export const BOARD_DOC_PATH = '/api/ketos.board'
@@ -48,13 +49,22 @@ export interface BoardStreamOptions {
   readonly hiddenCloseMs: number
 }
 
-/** Whether a decoded value is a plain JSON object. */
-function isRecord(value: unknown): value is Record<string, unknown> {
+/**
+ * Whether a decoded value is a plain JSON object. Shared with `peer-api.ts`,
+ * which validates the same wire shapes.
+ * @param value - decoded value.
+ * @returns whether the value is a non-null, non-array object.
+ */
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Whether a decoded value is a finite number. */
-function isFiniteNumber(value: unknown): value is number {
+/**
+ * Whether a decoded value is a finite number.
+ * @param value - decoded value.
+ * @returns whether the value is a finite number.
+ */
+export function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
@@ -83,6 +93,18 @@ export function isBoardElement(value: unknown): value is BoardElement {
 }
 
 /**
+ * Whether a decoded value is one participant change set: every upsert is a
+ * complete participant record and every removal a well-formed owner id.
+ */
+function isBoardParticipantPatch(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  return Array.isArray(value['upserts'])
+    && value['upserts'].every(participant => parseBoardParticipant(participant) !== null)
+    && Array.isArray(value['removes'])
+    && value['removes'].every(isOwnerIdFormat)
+}
+
+/**
  * Decode one full document snapshot.
  * @param value - decoded JSON value.
  * @returns whether the value is a complete snapshot.
@@ -94,6 +116,8 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && isUuid(value['selfId'])
     && isFiniteNumber(value['revision']) && value['revision'] >= 0
     && Array.isArray(value['elements']) && value['elements'].every(isBoardElement)
+    && Array.isArray(value['participants'])
+    && value['participants'].every(participant => parseBoardParticipant(participant) !== null)
     && isRecord(limits) && isFiniteNumber(limits['elementBytesMax']) && limits['elementBytesMax'] > 0
     && isFiniteNumber(limits['noteTextMax']) && limits['noteTextMax'] > 0
     && isFiniteNumber(limits['strokePointsMax']) && limits['strokePointsMax'] >= 2
@@ -107,9 +131,11 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
  */
 export function isBoardPatch(value: unknown): value is BoardPatch {
   if (!isRecord(value)) return false
+  const participants = value['participants']
   return isFiniteNumber(value['revision']) && value['revision'] >= 0
     && Array.isArray(value['upserts']) && value['upserts'].every(isBoardElement)
     && Array.isArray(value['removes']) && value['removes'].every(isElementId)
+    && (participants === undefined || isBoardParticipantPatch(participants))
 }
 
 /** Whether a decoded value is one of the host's stable board codes. */

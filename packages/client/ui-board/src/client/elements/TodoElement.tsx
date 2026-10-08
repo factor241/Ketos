@@ -15,7 +15,7 @@ import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-cli
 import { parseTodoData } from '@ketos/board-doc/data'
 import type { TodoItem } from '@ketos/board-doc/types'
 import type { BoardKey } from '../locale.ts'
-import { participantLabel, participantOf } from '../owners.ts'
+import { boardParticipants, participantLabel } from '../owners.ts'
 import type { BoardStoreHandle } from '../store.ts'
 import { addTodoItem, refreshTodoList, setTodoItemDone, type TodoFailureCode } from '../todo-api.ts'
 import { NeutralElementBody } from './NeutralElementBody.tsx'
@@ -40,7 +40,7 @@ function noticeKey(code: TodoFailureCode): BoardKey {
 
 export function TodoElement({ element, editable, useStore, actions, t }: TodoElementProps) {
   const limits = useStore(s => s.boardLimits)
-  const selfId = useStore(s => s.selfId)
+  const participants = useStore(s => boardParticipants(s))
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   /** Optimistic states by item id; dropped once the snapshot agrees. */
@@ -163,7 +163,7 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
     <div
       data-board-todo=""
       role="group"
-      aria-label={t('element.todo.aria', { name: participantLabel(t, participantOf({ selfId }, element.ownerId)) })}
+      aria-label={t('element.todo.aria', { name: participantLabel(t, participants.find(candidate => candidate.id === element.ownerId)) })}
       className={css.root}
     >
       <div className={css.header}>

@@ -359,6 +359,10 @@
       // the bare alias resolves the Host plugin for tests and scripts.
       "@ketos/board-todo": ["./packages/ketos/board-todo/src"],
       "@ketos/board-todo/types": ["./packages/ketos/board-todo/src/types.ts"],
+      // The peer package's browser face is its type-only `./types` module;
+      // the bare alias resolves the Host plugin for tests and scripts.
+      "@ketos/peer": ["./packages/ketos/peer/src"],
+      "@ketos/peer/types": ["./packages/ketos/peer/src/types.ts"],
       "@deepseek-ai/dsh-compaction-image-offload/projection": ["./packages/compaction/compaction-image-offload/src/projection.ts"],
       "@deepseek-ai/dsh-session-format-catalog/message-projections": ["./packages/session/session-format-catalog/src/message-projections.ts"],
       "@deepseek-ai/dsh-native-command/types": ["./packages/util/native-command/src/types.ts"],

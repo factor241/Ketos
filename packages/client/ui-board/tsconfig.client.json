@@ -86,6 +86,9 @@
     },
     {
       "path": "../../ketos/board-todo/tsconfig.client.json"
+    },
+    {
+      "path": "../../ketos/peer/tsconfig.client.json"
     }
   ]
 }

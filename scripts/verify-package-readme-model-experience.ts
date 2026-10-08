@@ -233,6 +233,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/ketos/client-locale-ru': { kind: 'none', reason: 'Client-only locale pack; the UI copy it maps never enters model context or changes model input.' },
   'packages/ketos/board-doc': { kind: 'none', reason: 'Host-owned board document; its snapshot, operations, and event stream never enter a model request or Session event.' },
   'packages/ketos/board-todo': { kind: 'none', reason: 'Host-owned to-do lists; /todo records only log-only command/run and command/done events, and nothing it writes enters a model request.' },
+  'packages/ketos/peer': { kind: 'none', reason: 'Host-owned transport state: peer identities, invitation codes, frame bodies, and participant colors reach the browser and other host packages, never a model request or Session event.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
 }
 

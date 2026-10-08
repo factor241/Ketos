@@ -16,7 +16,7 @@ import { ERASER_RADIUS_PX, type BoardStrokeDraft } from '../board-tool.ts'
 import { startBoardBrushGesture } from '../brush-gesture.ts'
 import { startBoardEraserGesture } from '../eraser-gesture.ts'
 import type { BoardElementInjected } from '../contract/slots.ts'
-import { DEMO_SELF_ID, ownerColorAttr } from '../owners.ts'
+import { ownerColorAttr } from '../owners.ts'
 import { StrokeDraft } from './StrokeDraft.tsx'
 import css from './DashboardCanvas.module.css'
 
@@ -35,6 +35,8 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
   const brushWidth = useStore(s => s.brushWidth)
   const limits = useStore(s => s.boardLimits)
   const selfId = useStore(s => s.selfId)
+  // The live stroke is this participant's; its color comes from the roster.
+  const selfColor = useStore(s => s.selfId === null ? 'unknown' as const : ownerColorAttr(s, s.selfId))
   const boardElements = useStore(s => s.boardElements)
   const eraserPreview = useStore(s => s.eraserPreview)
   const isSelectingElement = useStore(s => s.isSelectingElement)
@@ -85,7 +87,8 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
         return
       }
       if (tool === 'eraser' && limits !== null && container !== null) {
-        const owner = selfId ?? DEMO_SELF_ID
+        // Before the first snapshot nothing belongs to this participant yet.
+        const owner = selfId
         startBoardEraserGesture({
           event: e,
           start: startGesture,
@@ -93,7 +96,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
           view: () => viewRef.current,
           radiusPx: ERASER_RADIUS_PX[brushWidth],
           strokes: Object.values(boardElements).filter(
-            element => element.kind === 'stroke' && element.ownerId === owner,
+            element => element.kind === 'stroke' && owner !== null && element.ownerId === owner,
           ),
           limits,
           erase: eraseStrokes,
@@ -170,7 +173,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
             points={draft.points}
             width={draft.width}
             pen={draft.pen}
-            ownerColor={ownerColorAttr({ selfId }, selfId ?? DEMO_SELF_ID)}
+            ownerColor={selfColor}
           />
         )}
         {/* The eraser pass draws the remaining parts where the hidden originals
@@ -181,7 +184,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
             points={part.points}
             width={part.width}
             pen={part.pen}
-            ownerColor={ownerColorAttr({ selfId }, selfId ?? DEMO_SELF_ID)}
+            ownerColor={selfColor}
             preview
           />
         ))}

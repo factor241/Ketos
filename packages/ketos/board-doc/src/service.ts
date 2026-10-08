@@ -7,12 +7,16 @@
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
+import {
+  PARTICIPANT_COLOR_MAX, PARTICIPANT_COLOR_MIN, PARTICIPANT_NAME_MAX,
+} from './data.ts'
 import { BoardDatabase, ensureIdentity, type BoardIdentity } from './db.ts'
 import { BoardDocument } from './doc.ts'
 import { BoardJournal } from './journal.ts'
 import { applyBoardOps, type BoardOpLimits } from './ops.ts'
 import type {
-  BoardDocId, BoardOp, BoardOpsResponse, BoardOrigin, BoardPatch, BoardSnapshot, OwnerId,
+  BoardDocId, BoardOp, BoardOpsResponse, BoardOrigin, BoardParticipantRecord, BoardPatch,
+  BoardSnapshot, OwnerId,
 } from './types.ts'
 
 /** One committed document change, as a subscriber receives it. */
@@ -94,8 +98,48 @@ export class KetosBoardDocService extends Service {
       selfId: open.identity.selfId,
       revision: open.journal.revision(),
       elements: open.document.readAll(),
+      participants: open.document.readParticipants(),
       limits: this.options.limits.elements,
     }
+  }
+
+  /**
+   * Every stored participant record of the document.
+   * @returns the readable participant records.
+   */
+  async participants(): Promise<readonly BoardParticipantRecord[]> {
+    return (await this.open()).document.readParticipants()
+  }
+
+  /**
+   * Write the local Ketos's own participant record and announce it. The write
+   * touches only the record keyed by this Ketos's `selfId`, which is what
+   * keeps two Ketos instances from overwriting each other's name and color.
+   * @param participant - the name and palette color to publish.
+   * @returns a promise settling after the journal row commits.
+   */
+  async putOwnParticipant(participant: { name: string; color: number }): Promise<void> {
+    const { name, color } = participant
+    if (name.length === 0 || name.length > PARTICIPANT_NAME_MAX) {
+      throw new Error(`participant name must be 1–${String(PARTICIPANT_NAME_MAX)} characters`)
+    }
+    if (!Number.isInteger(color) || color < PARTICIPANT_COLOR_MIN || color > PARTICIPANT_COLOR_MAX) {
+      throw new Error(`participant color must be an integer from ${String(PARTICIPANT_COLOR_MIN)} to ${String(PARTICIPANT_COLOR_MAX)}`)
+    }
+    const open = await this.open()
+    const record: BoardParticipantRecord = {
+      id: open.identity.selfId,
+      name,
+      color,
+      updatedAt: Date.now(),
+    }
+    open.document.transact('host', () => { open.document.writeParticipant(record.id, record) })
+    this.emit({
+      revision: open.journal.revision(),
+      upserts: [],
+      removes: [],
+      participants: { upserts: [record], removes: [] },
+    })
   }
 
   /**

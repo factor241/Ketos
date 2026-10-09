@@ -42,11 +42,12 @@ The shipped `web` profile mounts the package through the `dsh-web-app` bundle pa
 | `strokePointsMax` | `2000` | Largest number of points one stroke may carry (2–100000). |
 | `todoItemsMax` | `200` | Largest number of items one to-do list may carry (1–10000). |
 | `maxElements` | `2000` | Largest number of elements the document holds (1–100000). |
-| `maxOpsPerRequest` | `64` | Largest number of operations one request may batch (1–1024). |
+| `maxWindowRecords` | `100` | Largest number of window records the document holds (1–10000). |
+| `maxOpsPerRequest` | `512` | Largest number of operations one request may batch (1–1024). |
 | `maxRequestBytes` | `1048576` | Largest accepted operation-request body, in bytes (1 KiB–64 MiB). |
 | `journalCompactRows` | `500` | Journal rows after which the store compacts to one update row (1–100000). |
 | `heartbeatMs` | `15000` | Event-stream heartbeat interval, in milliseconds (1000–300000). |
-| `maxStreamQueueBytes` | `4194304` | Largest buffered event-stream backlog, in bytes (16 KiB–256 MiB). |
+| `maxStreamQueueBytes` | `4194304` | Largest buffered backlog of patches and heartbeats per event stream, in bytes (16 KiB–256 MiB); the snapshot is not counted. |
 | `maxStreams` | `16` | Largest number of concurrent event streams (1–1024). |
 
 The package has no browser bundle: `packages/client/ui-board` talks to the routes with plain `fetch` and imports the browser-safe `./types` (and, from stage 28.3, `./kinds` and `./data`) modules, so the board keeps its elements inside the existing registrations instead of adding a client plugin row.
@@ -61,11 +62,23 @@ The service is the host-side seam for other Ketos packages:
 | `apply(ops, origin): Promise<BoardOpsResponse>` | Atomically applies a batch; the new revision comes back |
 | `participants(): Promise<BoardParticipantRecord[]>` | Every stored participant record this build can decode |
 | `putOwnParticipant({ name, color }): Promise<void>` | Writes the record keyed by this Ketos's `selfId` and announces it with a participant patch |
-| `subscribe(listener): () => void` | One `{ revision, upserts, removes, participants? }` per committed journal row; the caller owns the unsubscribe through `ctx.effect` |
+| `subscribe(listener): () => void` | One `{ revision, upserts, removes, participants?, windows? }` per committed change; the caller owns the unsubscribe through `ctx.effect` |
+| `stateVector(): Promise<Uint8Array>` | This document's encoded state vector, sent to another Ketos at connection time |
+| `diffSince(stateVector): Promise<Uint8Array>` | One update carrying everything the other side's state vector does not cover |
+| `applyRemote(update): Promise<BoardRemoteResult>` | Applies an update that arrived from another Ketos with the `peer` origin; unreadable bytes throw `BoardSyncError` and change nothing; `{ pending }` is true while Yjs keeps part of the update waiting for an earlier update |
+| `onLocalUpdate(listener): () => void` | One raw update per transaction this Ketos produced; remote and `load`-replay updates never reach the listener |
 
-A `browser` batch may only create elements under `selfId` and patch or remove elements it owns; a `host` batch bypasses that check. A patch merges `data` by key and removes the keys whose value is `null`, so a host can clear an optional flag without rewriting the whole payload; the kind's rules are then checked against the complete merged data.
+A `browser` batch may only create elements under `selfId` and patch or remove elements it owns; a `host` batch bypasses that check. A `browser` batch also cannot create an element of a host-data kind (`BOARD_HOST_DATA_KINDS`, today `todo`) or patch its `data`, and answers `ketos/element-host-data` (403); moving, resizing, restacking, and removing such an element stay allowed, because its data mirrors Beads and only the host writes it. A patch merges `data` by key and removes the keys whose value is `null`, so a host can clear an optional flag without rewriting the whole payload; the kind's rules are then checked against the complete merged data.
 
 The participant registry lives in a second top-level `Y.Map` named `participants`, keyed by `OwnerId`. Each Ketos writes only the record its own `selfId` keys — `{ name, color, updatedAt }` — which is what keeps two Ketos instances from overwriting each other's identity once stage 33 synchronizes the document. `@ketos/peer` owns the color rule and calls `putOwnParticipant`; a snapshot carries every readable record in `participants`, and a participant write emits a patch with `participants.upserts`/`removes` beside its (empty) element lists. A record that does not match this build is skipped with one log line, exactly like an unreadable element.
+
+A failed journal append (`BoardJournalError`) leaves the change in memory but not in `board.db`, and Yjs 13.6.33 stops dispatching `update` events of a document whose listener threw. `apply`, `applyRemote`, and `putOwnParticipant` therefore drop that document from the cache and reload it from `board.db` on the next call, so the failed change disappears from memory instead of being half-written; the caller sees the error and no subscriber hears a patch. A read (`snapshot`, `participants`, `stateVector`, `diffSince`) that obtained the document before another call broke its journal reloads it first as well, so no snapshot or diff carries a change that is missing from `board.db`. A failed compaction is only logged: the appended row is committed and the next append retries. An exception from a `subscribe` or `onLocalUpdate` listener is logged and never fails the committed batch or starves the listeners after it.
+
+### Synchronization
+
+Stage 33 keeps the whole document equal on two Ketos instances; this package knows nothing about the channel. `@ketos/peer` sends `stateVector()` at connection time, answers the other side's vector with `diffSince(vector)`, and feeds every arriving update to `applyRemote(update)`. A remote update is a normal transaction: it appends one journal row with the `peer` origin and emits the same `{ revision, upserts, removes, participants?, windows? }` patch to stream subscribers, so the browser learns the change over the existing event stream. `onLocalUpdate(listener)` relays the updates this Ketos itself produced — the transaction that a browser batch or a host call committed — and never relays `applyRemote` (origin `peer`) or the journal replay (origin `load`), which is what keeps the exchange from echoing. The bytes are validated before they reach the document: an unreadable update throws `BoardSyncError` and leaves the document as it was. `applyRemote` resolves to `{ pending }`: true when the update depends on one that has not arrived (Yjs keeps `pendingStructs` or `pendingDs`); while anything waits, the received bytes are also appended whole as one more `peer` row, because the transaction's own row carries only the integrated part, so the waiting part survives a restart and integrates by itself when the missing update is applied. An entry the update carries that this build cannot decode (an element, participant, or window record of another version, or a value that is not a map) is skipped in the patch and reported to the log, exactly as in a snapshot; a key this Ketos writes (its own participant record, a window it hosts) replaces such a value with a new record.
+
+Window records are written idempotently: a `window.put` whose content equals the stored record in every field except `updatedAt` mutates nothing, appends no journal row, and emits no patch. `clampWindowTitle(title)` from `./windows` cuts a title to the record limit (200 UTF-16 code units) without splitting a surrogate pair, and `eraserPathReachesBox(path, radius, box)` from `./data` tells the client whether an eraser path can reach a stroke's world box (`{ x, y, w, h }`) before it runs `eraseStroke` on every point; it answers false only when the path stays farther than `radius` from the box.
 
 The `note` kind's data is exactly `{ text, font, size, scale }`: `text` holds up to `noteTextMax` UTF-16 code units (the `maxLength` semantics), `font` is one of `sans`, `serif`, `mono`, `size` is one of `s`, `m`, `l`, and `scale` is one of `0.5`, `0.75`, `1`, `1.5`, `2`, `3`; any extra field, missing field, or value outside those lists refuses the batch with `ketos/invalid`. The element's `w`/`h` are the note's world rectangle and the content draws at `w/scale × h/scale` under `transform: scale(scale)`, so changing the scale patches `w`, `h`, and `data.scale` together.
 
@@ -87,9 +100,13 @@ The Yjs document holds one `Y.Map` named `elements`, keyed by `ElementId`; every
 
 Every committed `doc.transact` produces one Yjs update, and the store appends it as one row of `updates(seq INTEGER PRIMARY KEY AUTOINCREMENT, update BLOB, origin TEXT, at TEXT)`. The `revision` the browser reads is that row's `seq`: it is monotone across restarts and compactions, and a batch is one transaction, one update, and one row. Loading merges the stored updates through `Y.mergeUpdates` and applies them with the `load` origin; the update listener ignores `load` and appends every other origin. When the journal passes `journalCompactRows` rows, one SQL transaction writes `Y.encodeStateAsUpdate(doc)` as a `compact` row and deletes every earlier row, so the revision never decreases.
 
+### Window records
+
+A third top-level `Y.Map` named `windows` carries one record per open board window, keyed by the client-minted `WindowId`. A record is `{ id, hostId, ownerId, kind, bodyKind, title, ordinal, x, y, w, h, z, access, status, sessionId?, updatedAt }`: `hostId` names the Ketos where the window lives, `ownerId` the participant who manages it there, `title` is the user-given or chat name (`null` lets the receiver name the window by `kind` and `ordinal` in its own locale), `status` is the window's session status, `sessionId` accompanies chat windows only, and `access` is the owner/selected/all vocabulary of the layout. The host stamps `hostId = selfId` and `updatedAt`; a `window.put` whose record names another `hostId`, or that targets a record another Ketos published, refuses with `ketos/window-foreign` (409), so one window has exactly one writer. A `window.remove` of an absent key changes nothing; a `browser` removal of a key that holds a record this build cannot decode refuses with `ketos/window-foreign`, because the record may belong to another Ketos, and a `host` removal deletes it. The record budget is `maxWindowRecords`; a snapshot carries every readable record in `windows`, a patch the changed ones in `windows.upserts`/`windows.removes`, and records never enter the element map.
+
 ### Identities
 
-The first open creates `selfId` (a UUIDv4 minted on `crypto.getRandomValues`) and `docId` in the `meta` table and keeps them for the life of the database; later opens read them, and a value that is not a UUID is a loud open failure. `board.db` carries its own `application_id` and `user_version`, so opening an unrelated SQLite file fails instead of writing to it, and the file is created `0600` inside a `0700` directory with WAL and a busy wait, like the clone database.
+The first open creates `selfId` (a UUIDv4 minted on `crypto.getRandomValues`) and `docId` in the `meta` table and keeps them for the life of the database; later opens read them, and a value that is not a UUID is a loud open failure. `board.db` carries its own `application_id` and `user_version`, so opening an unrelated SQLite file fails instead of writing to it: a non-empty file with `application_id` 0 is adopted only when it already holds the `updates` and `meta` tables, and an empty new file is stamped on first open. The file is created `0600` inside a `0700` directory. The open sequence sets `PRAGMA locking_mode = EXCLUSIVE`, takes the lock with `BEGIN EXCLUSIVE; COMMIT`, and only then enables WAL, so a second Ketos process on the same `DSH_HOME` fails at once (`busy_timeout = 0`, because the holder keeps the lock for its whole life) with `board database <path> is open in another Ketos process` instead of compacting rows the first process still depends on; for the same reason `sqlite3` cannot read the file while Ketos runs.
 
 ### Routes and error codes
 
@@ -97,9 +114,9 @@ The first open creates `selfId` (a UUIDv4 minted on `crypto.getRandomValues`) an
 |---|---|---|---|
 | `/api/ketos.board` | `GET` | — | `BoardSnapshot` |
 | `/api/ketos.board.ops` | `POST` | `{ ops: BoardOp[] }` | `{ ok: true, revision }` |
-| `/api/ketos.board.events` | `GET` | — | `text/event-stream`: one `snapshot` event, then `patch` events and `: ping` heartbeats |
+| `/api/ketos.board.events` | `GET` | — | `text/event-stream`: one `snapshot` event, then `patch` events and `: ping` heartbeats; a final `overflow` event (`{ "reason": "queue" }`) precedes a close for overflow |
 
-A refused batch answers the HTTP status with `{ ok: false, error }`, where the error is one of `ketos/invalid` (400), `ketos/element-not-found` (404), `ketos/element-foreign` and `ketos/element-exists` and `ketos/limit` (409), or an empty 500 body. A body over `maxRequestBytes` answers 413. The event stream closes when the request aborts or its consumer cancels, when the buffered backlog passes `maxStreamQueueBytes` (the browser reconnects and re-reads the snapshot), and a stream over `maxStreams` answers 503; disposal of the plugin closes every open stream.
+A refused batch answers the HTTP status with `{ ok: false, error }`, where the error is one of `ketos/invalid` (400), `ketos/element-not-found` (404), `ketos/element-host-data` (403), `ketos/element-foreign`, `ketos/element-exists`, `ketos/window-foreign`, and `ketos/limit` (409), or an empty 500 body. A body over `maxRequestBytes` answers 413. The event stream closes when the request aborts or its consumer cancels, when the unread patches and heartbeats pass `maxStreamQueueBytes`, and a stream over `maxStreams` answers 503; the snapshot is not counted, so a snapshot larger than the bound does not close the stream. An overflowing stream sends one `overflow` event, logs one line, and closes, which lets the browser tell the bound from a transport failure and re-read the snapshot after a pause; disposal of the plugin closes every open stream.
 
 ### Laziness
 
@@ -111,12 +128,13 @@ A refused batch answers the HTTP status with `{ ok: false, error }`, where the e
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `name`/`inject`/`Config`/`apply`, the service, and the route registrations |
 | [`src/types.ts`](src/types.ts) | The branded identifiers, the element envelope, the snapshot and patch, the operation union, and the error codes; the module browser code imports type-only |
-| [`src/kinds.ts`](src/kinds.ts) | The element-kind list, the layer ranks, and the coordinate bound |
-| [`src/data.ts`](src/data.ts) | UUID minting and the per-kind data validation the browser shares |
+| [`src/kinds.ts`](src/kinds.ts) | The element-kind list, the host-data kinds, the layer ranks, and the coordinate bound |
+| [`src/data.ts`](src/data.ts) | UUID minting, the per-kind data validation, and the stroke geometry (`eraseStroke`, `eraserPathReachesBox`) the browser shares |
+| [`src/windows.ts`](src/windows.ts) | Window id and record validation, `clampWindowTitle`, and the content comparison shared by the wire and the browser |
 | [`src/db.ts`](src/db.ts) | Owner-only file creation, the open sequence, the local identity, and the shared lazy handle |
 | [`src/schema.ts`](src/schema.ts) | Identity and version stamps and the forward-only migration steps |
-| [`src/journal.ts`](src/journal.ts) | Loading, appending, compacting, and observing the update journal |
-| [`src/doc.ts`](src/doc.ts) | The Yjs document wrapper: element reads, writes, and change decoding |
+| [`src/journal.ts`](src/journal.ts) | Loading, appending, compacting, and observing the update journal; `BoardJournalError` and the `broken` flag |
+| [`src/doc.ts`](src/doc.ts) | The Yjs document wrapper: element, participant, and window reads, writes, and change decoding |
 | [`src/ops.ts`](src/ops.ts) | Operation-body parsing, defaults, owner rules, and the atomic transaction |
 | [`src/service.ts`](src/service.ts) | The `ctx.ketosBoardDoc` service definition |
 | [`src/routes.ts`](src/routes.ts) | The snapshot and operations Fetch routes and their error codes |
@@ -144,8 +162,9 @@ No effect; the document changes view state rather than model context.
 
 ## Known Limitations and Deferred Work
 
-- The participant registry is written and read locally; the document synchronization that carries the records between two Ketos instances arrives in stage 33, and until then the browser's roster unions the local records with the peer channel's state.
-- Window records arrive in stage 33 as a separate `windows` map of the same document, not as elements of the `elements` map.
+- `applyRemote` trusts the other Ketos: it does not check owners, the `maxElements` and `maxWindowRecords` budgets, or the host-data kinds on the data it receives, which is deliberate until per-person rights are decided after the demo.
+- Window records carry the published view of a window, not its live session: a receiver renders a placeholder until the owning Ketos answers a transcript request (stage 34).
+- A window record rewrite is last-writer-wins per field, which is sound because only the hosting Ketos writes its records; a browser tab that is not visible never publishes.
 - On Node ≥ 25 the first board access prints one `lib0` warning, `localStorage is not available because --localstorage-file was not provided`; `yjs` is imported lazily, so the warning appears at that first use rather than at startup, and Node 24 (the Docker stand) prints none.
 - The board keeps elements on one layer below every window and selects one element at a time; multi-selection, an interleaved window/element order, and undo history are out of scope.
 - The event stream is the package's first SSE route; it relies on the browser closing its connection in a hidden tab to stay inside the HTTP/1.1 per-origin connection budget.

@@ -56,6 +56,30 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* Quiet text button in a roster row: forgets a peer that has no channel. */
+.forget {
+  flex: none;
+  height: var(--board-control-small);
+  padding: 0 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: var(--board-font-hint);
+  cursor: pointer;
+}
+
+.forget:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.forget:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .action {
   height: var(--board-control-small);
   padding: 0 12px;
@@ -91,7 +115,7 @@
   height: var(--board-control-small);
   box-sizing: border-box;
   padding: 0 8px;
-  border: 1px solid var(--dsw-alias-line-input);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: inherit;

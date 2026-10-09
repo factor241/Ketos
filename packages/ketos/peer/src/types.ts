@@ -58,6 +58,8 @@ export type PeerErrorCode =
   | 'ketos/invite-used'
   | 'ketos/peer-unreachable'
   | 'ketos/peer-offline'
+  | 'ketos/peer-online'
+  | 'ketos/peer-unknown'
 
 /** Answer of a successful `POST /api/ketos.peer.connect`. */
 export interface PeerConnectResponse {
@@ -69,4 +71,10 @@ export interface PeerConnectResponse {
 export interface PeerInviteResponse {
   /** The one-time invitation code to hand to the second Ketos. */
   readonly invite: string
+}
+
+/** Answer of a successful `POST /api/ketos.peer.forget`. */
+export interface PeerForgetResponse {
+  /** Always true; a refusal answers `{ ok: false, error }` instead. */
+  readonly ok: true
 }

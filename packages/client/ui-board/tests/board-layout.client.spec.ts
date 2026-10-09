@@ -133,6 +133,47 @@ describe('captureBoardLayout', () => {
   })
 })
 
+describe('window custom title bound', () => {
+  /** Open one agent window and return the store. */
+  function storeWithWindow() {
+    const instance = createBoardStore().create()
+    instance.actions.addWindow({
+      id: 'agent-1' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      ownerId: DEMO_SELF_ID,
+      access: { mode: 'owner', people: [] },
+      x: 0,
+      y: 0,
+      width: 552,
+      height: 648,
+      zIndex: WINDOW_Z_BASE,
+    })
+    return instance
+  }
+
+  it('cuts a custom title to the longest title a window record accepts', () => {
+    const instance = storeWithWindow()
+    instance.actions.setWindowCustomTitle('agent-1' as WindowId, 'я'.repeat(300))
+    expect(instance.getSnapshot().windows['agent-1']?.customTitle).toBe('я'.repeat(200))
+  })
+
+  it('does not split a surrogate pair at the bound', () => {
+    const instance = storeWithWindow()
+    instance.actions.setWindowCustomTitle('agent-1' as WindowId, `${'a'.repeat(199)}😀tail`)
+    expect(instance.getSnapshot().windows['agent-1']?.customTitle).toBe('a'.repeat(199))
+  })
+
+  it('stores control characters as spaces, so the published title is one the host accepts', () => {
+    const instance = storeWithWindow()
+    instance.actions.setWindowCustomTitle('agent-1' as WindowId, 'a\tb')
+    expect(instance.getSnapshot().windows['agent-1']?.customTitle).toBe('a b')
+    instance.actions.setWindowCustomTitle('agent-1' as WindowId, '\n\u0000\u007f')
+    expect(instance.getSnapshot().windows['agent-1']).not.toHaveProperty('customTitle')
+  })
+})
+
 describe('sanitizeBoardLayout', () => {
   it('adopts a complete document unchanged', () => {
     const layout = sanitizeBoardLayout(document())

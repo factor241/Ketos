@@ -28,6 +28,7 @@ const ID_B = brandString<ElementId>('00000000-0000-4000-8000-000000000002')
 const LIMITS = {
   maxOpsPerRequest: 64,
   maxElements: 2000,
+  maxWindowRecords: 100,
   elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
 } as const
 
@@ -58,7 +59,7 @@ async function temporaryDirectory(): Promise<string> {
 async function seedForeignElement(path: string): Promise<void> {
   const db = await openDatabase(path)
   const doc = new Y.Doc()
-  const journal = new BoardJournal(db, doc, 500)
+  const journal = new BoardJournal(db, doc, 500, () => {})
   await journal.load()
   doc.transact(() => {
     const map = new Y.Map<unknown>()
@@ -206,6 +207,24 @@ describe('board operation route', () => {
     const removal = await post({ ops: [{ op: 'remove', id: ID_A }] })
     expect(removal.status).toBe(409)
     expect(await jsonBody(removal)).toMatchObject({ error: 'ketos/element-foreign' })
+  })
+
+  it('answers 403 when the browser creates a host-owned element or writes its data', async () => {
+    const { post, service } = await fixture()
+    const todo = { epicId: 'kt-1', title: 'list', items: [], syncedAt: '2026-10-06T12:00:00Z' }
+
+    const created = await post({ ops: [{ op: 'create', id: ID_A, kind: 'todo', x: 0, y: 0, w: 10, h: 10, data: todo }] })
+    expect(created.status).toBe(403)
+    expect(await jsonBody(created)).toEqual({ ok: false, error: 'ketos/element-host-data' })
+
+    await service.apply([{ op: 'create', id: ID_A, kind: 'todo', x: 0, y: 0, w: 10, h: 10, data: todo }], 'host')
+    const patched = await post({ ops: [{ op: 'patch', id: ID_A, data: { epicId: 'kt-9' } }] })
+    expect(patched.status).toBe(403)
+    expect(await jsonBody(patched)).toEqual({ ok: false, error: 'ketos/element-host-data' })
+    expect((await service.snapshot()).elements).toMatchObject([{ id: ID_A, data: { epicId: 'kt-1' } }])
+
+    const moved = await post({ ops: [{ op: 'patch', id: ID_A, x: 4 }] })
+    expect(moved.status).toBe(200)
   })
 
   it('answers 409 when the document reached its element budget', async () => {

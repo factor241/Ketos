@@ -246,10 +246,14 @@ describe('board apply services', () => {
     expect(Config({})).toEqual({
       wheelMode: 'pan',
       zoomSensitivity: 0.0023,
+      windowPublishDebounceMs: 300,
+      windowPublishRetryMs: 5_000,
       detailZoomThreshold: 0.4,
       elementStreamRetryMinMs: 1_000,
       elementStreamRetryMaxMs: 15_000,
       elementStreamHiddenCloseMs: 60_000,
+      todoPlacementRetryMinMs: 1_000,
+      todoPlacementRetryMaxMs: 30_000,
     })
   })
 })

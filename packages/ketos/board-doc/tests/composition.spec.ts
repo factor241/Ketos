@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, FiberState, Service } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
@@ -18,6 +19,7 @@ import { openDatabase } from '../src/db.ts'
 import { BOARD_EVENTS_PATH } from '../src/events.ts'
 import { BoardJournal } from '../src/journal.ts'
 import { BOARD_OPS_PATH, BOARD_PATH } from '../src/routes.ts'
+import type { ElementId } from '../src/types.ts'
 
 /**
  * Stand-in for the connection service that records exact routes and disposes
@@ -147,7 +149,7 @@ describe('board document package real Loader composition', () => {
     // and reports it through the host log instead of failing the snapshot.
     const db = await openDatabase(path)
     const doc = new Y.Doc()
-    const journal = new BoardJournal(db, doc, 500)
+    const journal = new BoardJournal(db, doc, 500, () => {})
     await journal.load()
     doc.transact(() => {
       const map = new Y.Map<unknown>()
@@ -159,6 +161,31 @@ describe('board document package real Loader composition', () => {
 
     const snapshot = await ctx.ketosBoardDoc.snapshot()
     expect(snapshot.elements).toEqual([])
+  })
+
+  it('closes an event stream that the configured queue bound overflows with the overflow event', async () => {
+    const { ctx, routes } = await boot({ maxStreamQueueBytes: 16_384, noteTextMax: 20_000 })
+    const response = await routes.get(BOARD_EVENTS_PATH)!.fetch(new Request(`http://localhost${BOARD_EVENTS_PATH}`))
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    // Nothing is read while a patch larger than the bound is committed.
+    await ctx.ketosBoardDoc.snapshot()
+    await ctx.ketosBoardDoc.apply([{
+      op: 'create',
+      id: brandString<ElementId>('00000000-0000-4000-8000-000000000001'),
+      kind: 'note',
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      data: { text: 'x'.repeat(17_000), font: 'sans', size: 'm', scale: 1 },
+    }], 'host')
+    let received = ''
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      received += decoder.decode(chunk.value, { stream: true })
+    }
+    expect(received.startsWith('event: snapshot')).toBe(true)
+    expect(received.endsWith('event: overflow\ndata: {"reason":"queue"}\n\n')).toBe(true)
   })
 
   it('fails loading when a limit leaves its declared bounds', async () => {

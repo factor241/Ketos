@@ -7,36 +7,36 @@
  * The toggle is optimistic: the row moves immediately and rolls back with a
  * board notice when the host refuses. Rows are keyed by issue id, so a done
  * item keeps its DOM node while the container moves it below the done
- * heading, and the layout effect animates that move with a FLIP transform
- * unless the user asked for reduced motion.
+ * heading, and the layout effect animates the user's own toggle with a FLIP
+ * transform measured in layout offsets inside the list, unless the user asked
+ * for reduced motion.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { parseTodoData } from '@ketos/board-doc/data'
 import type { TodoItem } from '@ketos/board-doc/types'
-import type { BoardKey } from '../locale.ts'
 import { boardParticipants, participantLabel } from '../owners.ts'
 import type { BoardStoreHandle } from '../store.ts'
-import { addTodoItem, refreshTodoList, setTodoItemDone, type TodoFailureCode } from '../todo-api.ts'
+import { addTodoItem, refreshTodoList, setTodoItemDone } from '../todo-api.ts'
+import { todoNoticeKey } from '../todo-notice.ts'
 import { NeutralElementBody } from './NeutralElementBody.tsx'
 import { TodoItemRow } from './TodoItemRow.tsx'
 import css from './TodoElement.module.css'
+
+/**
+ * Read the list's layout width, which makes the browser compute the pending
+ * styles of its rows.
+ * @param list - the list node, absent before mount.
+ * @returns the width in CSS pixels, 0 without a node.
+ */
+function readListWidth(list: HTMLElement | null): number {
+  return list?.offsetWidth ?? 0
+}
 
 export type TodoElementProps =
   PropsRuntime<'board.element.body', 'todo'>
   & PropsStore<BoardStoreHandle>
   & PropsLocale<'board'>
-
-/**
- * Localized notice for one failed to-do operation.
- * @param code - failure code the host answered with.
- * @returns the dictionary key of the notice.
- */
-function noticeKey(code: TodoFailureCode): BoardKey {
-  if (code === 'ketos/beads-unavailable') return 'element.todo.error.unavailable'
-  if (code === 'ketos/limit') return 'element.todo.full'
-  return 'element.todo.error.failed'
-}
 
 export function TodoElement({ element, editable, useStore, actions, t }: TodoElementProps) {
   const limits = useStore(s => s.boardLimits)
@@ -46,7 +46,10 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
   /** Optimistic states by item id; dropped once the snapshot agrees. */
   const [pending, setPending] = useState<ReadonlyMap<string, boolean>>(() => new Map())
   const rowNodes = useRef(new Map<string, HTMLDivElement>())
-  const previousRects = useRef(new Map<string, DOMRect>())
+  /** Row offsets inside the list recorded by the last toggle, until the next layout effect consumes them. */
+  const firstOffsets = useRef<Map<string, { readonly left: number; readonly top: number }> | null>(null)
+  const frameRef = useRef(0)
+  const listRef = useRef<HTMLDivElement>(null)
   const elementId = element.id
 
   const registerRow = useCallback((id: string) => (node: HTMLDivElement | null): void => {
@@ -58,13 +61,13 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
   // authoritative change of the same item is never masked by a stale override.
   useEffect(() => {
     if (limits === null) return
-    const data = parseTodoData(element.data, limits)
-    if (data === null) return
+    const stored = parseTodoData(element.data, limits)
+    if (stored === null) return
     setPending((current) => {
       if (current.size === 0) return current
       const next = new Map(current)
       let changed = false
-      for (const item of data.items) {
+      for (const item of stored.items) {
         if (next.get(item.id) === (item.status === 'closed')) {
           next.delete(item.id)
           changed = true
@@ -74,44 +77,63 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
     })
   }, [element.data, limits])
 
-  // FLIP: after every commit, rows that moved from their previous screen
-  // position animate from the old spot to the new one. Reduced motion skips
-  // the animation, and a row seen for the first time never moves.
+  const data = limits === null ? null : parseTodoData(element.data, limits)
+  const isDone = (item: TodoItem): boolean => pending.get(item.id) ?? item.status === 'closed'
+  /** Row order of the open section, then the done section; changes exactly when a row changes section. */
+  const partitionKey = data === null
+    ? ''
+    : `${data.items.filter(item => !isDone(item)).map(item => item.id).join(',')}|${data.items.filter(isDone).map(item => item.id).join(',')}`
+
+  // FLIP: `toggle()` records the rows' layout offsets inside the list (First)
+  // and this effect, keyed by the section partition, reads them again (Last)
+  // and plays the difference. Layout offsets ignore the canvas transform, so
+  // panning, zooming, and moving the element never animate rows; only the
+  // user's own toggle does. Reduced motion skips the animation.
   useLayoutEffect(() => {
-    const next = new Map<string, DOMRect>()
-    for (const [id, node] of rowNodes.current) next.set(id, node.getBoundingClientRect())
+    const first = firstOffsets.current
+    firstOffsets.current = null
+    if (first === null) return
     const reduced = typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!reduced) {
-      for (const [id, rect] of next) {
-        const before = previousRects.current.get(id)
-        const node = rowNodes.current.get(id)
-        if (before === undefined || node === undefined) continue
-        const dx = before.left - rect.left
-        const dy = before.top - rect.top
-        if (dx === 0 && dy === 0) continue
-        node.style.transition = 'none'
-        node.style.transform = `translate(${dx}px, ${dy}px)`
-        requestAnimationFrame(() => {
-          node.style.transition = ''
-          node.style.transform = ''
-        })
-      }
+    if (reduced) return
+    const moved: HTMLDivElement[] = []
+    for (const [id, node] of rowNodes.current) {
+      const before = first.get(id)
+      if (before === undefined) continue
+      const dx = before.left - node.offsetLeft
+      const dy = before.top - node.offsetTop
+      if (dx === 0 && dy === 0) continue
+      node.style.transition = 'none'
+      node.style.transform = `translate(${String(dx)}px, ${String(dy)}px)`
+      moved.push(node)
     }
-    previousRects.current = next
-  })
+    if (moved.length === 0) return
+    // The loop's offset reads flushed the style of every row but the last one
+    // it inverted; one more layout read commits that row's inverted transform,
+    // so its transition starts from it when the next frame releases all rows.
+    readListWidth(listRef.current)
+    frameRef.current = requestAnimationFrame(() => {
+      for (const node of moved) {
+        node.style.transition = ''
+        node.style.transform = ''
+      }
+    })
+  }, [partitionKey])
+
+  useEffect(() => () => { cancelAnimationFrame(frameRef.current) }, [])
 
   if (limits === null) return <NeutralElementBody element={element} t={t} />
-  const data = parseTodoData(element.data, limits)
   if (data === null) return <NeutralElementBody element={element} t={t} />
 
-  const isDone = (item: TodoItem): boolean => pending.get(item.id) ?? item.status === 'closed'
   const open = data.items.filter(item => !isDone(item))
   const done = data.items.filter(item => isDone(item))
   const fraction = data.items.length === 0 ? 0 : done.length / data.items.length
   const full = data.items.length >= limits.todoItemsMax
 
   const toggle = (item: TodoItem, next: boolean): void => {
+    const offsets = new Map<string, { readonly left: number; readonly top: number }>()
+    for (const [id, node] of rowNodes.current) offsets.set(id, { left: node.offsetLeft, top: node.offsetTop })
+    firstOffsets.current = offsets
     setPending(current => new Map(current).set(item.id, next))
     void setTodoItemDone(elementId, item.id, next).then((outcome) => {
       if (outcome.ok) return
@@ -120,7 +142,7 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
         without.delete(item.id)
         return without
       })
-      actions.setElementNotice(noticeKey(outcome.code))
+      actions.setElementNotice(todoNoticeKey(outcome.code, 'list'))
     })
   }
 
@@ -132,7 +154,7 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
     void addTodoItem(elementId, title).then((outcome) => {
       setBusy(false)
       if (!outcome.ok) {
-        actions.setElementNotice(noticeKey(outcome.code))
+        actions.setElementNotice(todoNoticeKey(outcome.code, 'add'))
         return
       }
       setDraft('')
@@ -143,7 +165,7 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
     setBusy(true)
     void refreshTodoList(elementId).then((outcome) => {
       setBusy(false)
-      if (!outcome.ok) actions.setElementNotice(noticeKey(outcome.code))
+      if (!outcome.ok) actions.setElementNotice(todoNoticeKey(outcome.code, 'list'))
     })
   }
 
@@ -195,10 +217,14 @@ export function TodoElement({ element, editable, useStore, actions, t }: TodoEle
         <span className={css.progressText}>{t('element.todo.progress', { done: done.length, total: data.items.length })}</span>
       </div>
       {data.missing === true && <div className={css.missing}>{t('element.todo.missing')}</div>}
-      <div className={css.list} data-board-wheel="native" role="list">
-        {open.map(renderRow)}
-        {done.length > 0 && <div className={css.doneHeading} data-board-todo-done="" role="presentation">{t('element.todo.done')}</div>}
-        {done.map(renderRow)}
+      <div ref={listRef} className={css.list} data-board-wheel="native" role="list">
+        {[
+          ...open.map(renderRow),
+          ...(done.length > 0
+            ? [<div key="done-heading" className={css.doneHeading} data-board-todo-done="" role="listitem">{t('element.todo.done')}</div>]
+            : []),
+          ...done.map(renderRow),
+        ]}
       </div>
       {editable && (
         <form className={css.addRow} onSubmit={submitItem} onPointerDown={(event) => { event.stopPropagation() }}>

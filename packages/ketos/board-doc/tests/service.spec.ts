@@ -58,6 +58,7 @@ function mount(path: string, overrides: Partial<KetosBoardDocOptions> = {}): {
     limits: {
       maxOpsPerRequest: 64,
       maxElements: 2000,
+      maxWindowRecords: 100,
       elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     },
     journalCompactRows: 500,
@@ -77,6 +78,7 @@ describe('board document service', () => {
       limits: {
         maxOpsPerRequest: 64,
         maxElements: 2000,
+        maxWindowRecords: 100,
         elements: { elementBytesMax: 1024, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
       },
     })

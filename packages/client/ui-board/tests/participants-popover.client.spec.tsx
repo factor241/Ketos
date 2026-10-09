@@ -34,6 +34,7 @@ function storeWith(participants: ReadonlyArray<{ id: OwnerId; name: string; colo
     revision: brandNumber<BoardRevision>(1),
     elements: [],
     participants: participants.map(participant => ({ ...participant, updatedAt: 1 })),
+    windows: [],
     limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
   })
   return instance
@@ -44,7 +45,7 @@ function connectPeers(instance: BoardStoreInstance, peers: ReadonlyArray<{
   readonly selfId: OwnerId
   readonly name: string
   readonly color: number
-  readonly link: 'online' | 'lost'
+  readonly link: 'online' | 'connecting' | 'lost'
 }>): void {
   instance.actions.applyPeerState({
     self: { selfId: SELF, name: 'Kirill', color: 1 },
@@ -228,6 +229,159 @@ describe('connect flow', () => {
       expect(screen.getByRole('alert').textContent).toBe(refusal.text)
     }
     unmount()
+  })
+})
+
+describe('forgetting a peer', () => {
+  const peerIdOf = (id: OwnerId): KetosPeerId => brandString<KetosPeerId>(`peer-${String(id)}`)
+  const rowOf = (id: OwnerId): Element | undefined =>
+    [...screen.getByRole('dialog').querySelectorAll('[data-board-participant]')]
+      .find(candidate => candidate.getAttribute('data-board-participant') === String(id))
+
+  it('offers "Forget" only for a known peer without a live channel', () => {
+    const instance = storeWith([
+      { id: SELF, name: 'Kirill', color: 1 },
+      { id: REMOTE, name: 'Remote', color: 5 },
+    ])
+    connectPeers(instance, [
+      { selfId: REMOTE, name: 'Remote', color: 5, link: 'online' },
+      { selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' },
+      { selfId: brandString<OwnerId>('00000000-0000-4000-8000-0000000000e4'), name: 'Dialing', color: 7, link: 'connecting' },
+    ])
+    render(<ParticipantsPopover {...props(instance)} />)
+    expect(rowOf(REMOTE)?.querySelector('[data-board-action="peer-forget"]')).toBeNull()
+    expect(rowOf(SELF)?.querySelector('[data-board-action="peer-forget"]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Forget Ghost' }).textContent).toBe('Forget')
+    expect(screen.getByRole('button', { name: 'Forget Dialing' })).not.toBeNull()
+  })
+
+  it('asks the host to forget the peer and drops a peer-only participant from the list', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const forgetPeer = vi.fn(async () => ({ ok: true as const }))
+    render(<ParticipantsPopover {...props(instance, { forgetPeer })} />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+    })
+    expect(forgetPeer).toHaveBeenCalledWith(peerIdOf(GHOST))
+    expect(rowOf(GHOST)).toBeUndefined()
+    expect(rowOf(SELF)).not.toBeUndefined()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('keeps a participant the document records, without the link mark and the button', async () => {
+    const instance = storeWith([
+      { id: SELF, name: 'Kirill', color: 1 },
+      { id: REMOTE, name: 'Remote', color: 5 },
+    ])
+    connectPeers(instance, [{ selfId: REMOTE, name: 'Remote', color: 5, link: 'lost' }])
+    render(<ParticipantsPopover {...props(instance, { forgetPeer: vi.fn(async () => ({ ok: true as const })) })} />)
+    expect(rowOf(REMOTE)?.textContent).toContain('Not connected')
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Remote' }))
+    })
+    const row = rowOf(REMOTE)
+    expect(row?.textContent).toContain('Remote')
+    expect(row?.textContent).not.toContain('Not connected')
+    expect(row?.querySelector('[data-board-action="peer-forget"]')).toBeNull()
+  })
+
+  it('shows a forgotten peer again once it reconnects while the popover stays open', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const seated = props(instance, { forgetPeer: vi.fn(async () => ({ ok: true as const })) })
+    const { rerender } = render(<ParticipantsPopover {...seated} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+    })
+    expect(rowOf(GHOST)).toBeUndefined()
+
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'online' }])
+    rerender(<ParticipantsPopover {...seated} />)
+    expect(rowOf(GHOST)?.textContent).toContain('Connected')
+  })
+
+  it('shows a forgotten peer in any state once a poll dropped it and it came back', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const seated = props(instance, { forgetPeer: vi.fn(async () => ({ ok: true as const })) })
+    const { rerender } = render(<ParticipantsPopover {...seated} />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+    })
+    connectPeers(instance, [])
+    rerender(<ParticipantsPopover {...seated} />)
+    expect(rowOf(GHOST)).toBeUndefined()
+
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'connecting' }])
+    rerender(<ParticipantsPopover {...seated} />)
+    expect(rowOf(GHOST)?.textContent).toContain('Not connected')
+  })
+
+  it('shows the refusal text and keeps the peer and the button', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const forgetPeer = vi.fn(async () => ({ ok: false as const, code: 'ketos/peer-online' as const }))
+    render(<ParticipantsPopover {...props(instance, { forgetPeer })} />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+    })
+    expect(screen.getByRole('alert').textContent).toBe('The connection is still open')
+    expect(rowOf(GHOST)).not.toBeUndefined()
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Forget Ghost' }).disabled).toBe(false)
+  })
+
+  it('treats a peer the host no longer knows as forgotten', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const forgetPeer = vi.fn(async () => ({ ok: false as const, code: 'ketos/peer-unknown' as const }))
+    render(<ParticipantsPopover {...props(instance, { forgetPeer })} />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+    })
+    expect(rowOf(GHOST)).toBeUndefined()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('keeps one forget request in flight at a time', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    let release: (() => void) | undefined
+    const forgetPeer = vi.fn(() => new Promise<{ ok: true }>((resolve) => { release = () => { resolve({ ok: true }) } }))
+    render(<ParticipantsPopover {...props(instance, { forgetPeer })} />)
+    const button = screen.getByRole('button', { name: 'Forget Ghost' }) as HTMLButtonElement
+
+    fireEvent.click(button)
+    expect(button.disabled).toBe(true)
+    fireEvent.click(button)
+    expect(forgetPeer).toHaveBeenCalledTimes(1)
+    await act(async () => { release?.() })
+    expect(rowOf(GHOST)).toBeUndefined()
+  })
+
+  it('posts to the forget route when the dock supplies no forget verb', async () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [{ selfId: GHOST, name: 'Ghost', color: 6, link: 'lost' }])
+    const requests: Request[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
+      requests.push(new Request(input as never, init))
+      return Response.json({ ok: true })
+    }))
+    try {
+      render(<ParticipantsPopover {...props(instance)} />)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Forget Ghost' }))
+      })
+      expect(new URL(requests[0]?.url ?? '').pathname).toBe('/api/ketos.peer.forget')
+      expect(await requests[0]?.json()).toEqual({ peerId: peerIdOf(GHOST) })
+      expect(rowOf(GHOST)).toBeUndefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
 

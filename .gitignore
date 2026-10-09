@@ -1,5 +1,9 @@
 CLAUDE.local.md
+docker/relay/iroh-relay.toml
 .env
+.env.*
+!.env.example
+!.env.*.example
 apps/desktop/.env.windows
 apps/desktop/.env.macos
 apps/desktop/*.p12

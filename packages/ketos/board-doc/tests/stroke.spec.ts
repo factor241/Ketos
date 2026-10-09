@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
-  STROKE_SIZES, STROKE_WIDTHS, eraseStroke, mintElementId, parseStrokeData, simplifyStroke, strokeBounds,
+  STROKE_SIZES, STROKE_WIDTHS, eraseStroke, eraserPathReachesBox, mintElementId, parseStrokeData, simplifyStroke, strokeBounds,
   validateElementData,
 } from '../src/data.ts'
 import type { BoardOpLimits } from '../src/ops.ts'
@@ -27,6 +27,7 @@ const ID = brandString<ElementId>('00000000-0000-4000-8000-000000000030')
 const LIMITS: BoardOpLimits = {
   maxOpsPerRequest: 64,
   maxElements: 2000,
+  maxWindowRecords: 100,
   elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
 }
 
@@ -330,5 +331,56 @@ describe('stroke limits in the snapshot', () => {
     expect((await service.snapshot()).limits).toEqual({
       elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 512, todoItemsMax: 200,
     })
+  })
+})
+
+describe('eraser path prefilter', () => {
+  const BOX = { x: 0, y: 0, w: 10, h: 10 }
+
+  it('accepts a path with a point inside the box and a path that crosses it without an end inside', () => {
+    expect(eraserPathReachesBox([[5, 5]], 1, BOX)).toBe(true)
+    expect(eraserPathReachesBox([[-20, 5], [30, 5]], 1, BOX)).toBe(true)
+    expect(eraserPathReachesBox([[20, 20], [5, 5]], 1, BOX)).toBe(true)
+  })
+
+  it('accepts a path closer to the box than the radius and rejects one farther away', () => {
+    expect(eraserPathReachesBox([[12, 5]], 3, BOX)).toBe(true)
+    expect(eraserPathReachesBox([[14, 5]], 3, BOX)).toBe(false)
+    // Diagonal reach past a corner: 3 units along each axis is farther than 3.
+    expect(eraserPathReachesBox([[13, 13]], 3, BOX)).toBe(false)
+    expect(eraserPathReachesBox([[12, 12]], 3, BOX)).toBe(true)
+  })
+
+  it('rejects a diagonal path whose bounding rectangle overlaps the box but whose segment does not', () => {
+    expect(eraserPathReachesBox([[-20, 5], [5, -20]], 2, BOX)).toBe(false)
+  })
+
+  it('rejects a path whose rows lie above or below the box while its columns overlap it', () => {
+    expect(eraserPathReachesBox([[2, -50], [8, -40]], 3, BOX)).toBe(false)
+    expect(eraserPathReachesBox([[2, 50], [8, 60]], 3, BOX)).toBe(false)
+    expect(eraserPathReachesBox([[-50, 2], [-40, 8]], 3, BOX)).toBe(false)
+  })
+
+  it('rejects an empty path and a path entirely beyond the radius', () => {
+    expect(eraserPathReachesBox([], 100, BOX)).toBe(false)
+    expect(eraserPathReachesBox([[100, 100], [200, 300]], 5, BOX)).toBe(false)
+  })
+
+  it('never rejects a path that eraseStroke would cut', () => {
+    let seed = 7
+    const next = (): number => {
+      seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
+      return seed / 2_147_483_648
+    }
+    for (let round = 0; round < 400; round++) {
+      const absolute: StrokePoint[] = Array.from({ length: 2 + Math.floor(next() * 5) }, () => [next() * 100, next() * 100, 0.5])
+      const bounds = strokeBounds(absolute, 8)
+      const path: StrokePathPoint[] = Array.from({ length: 1 + Math.floor(next() * 3) }, () => [next() * 160 - 30, next() * 160 - 30])
+      const radius = 1 + next() * 20
+      const stored = bounds.points.map(([x, y, pressure]): StrokePoint => [x + bounds.x, y + bounds.y, pressure])
+      const parts = eraseStroke(stored, path, radius)
+      const cut = parts.length !== 1 || parts[0]?.length !== stored.length
+      if (cut) expect(eraserPathReachesBox(path, radius, bounds), `round ${String(round)}`).toBe(true)
+    }
   })
 })

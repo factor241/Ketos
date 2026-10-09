@@ -21,7 +21,7 @@ import { StrokeDraft } from './StrokeDraft.tsx'
 import css from './DashboardCanvas.module.css'
 
 export type DashboardCanvasProps =
-  PropsRenderSlots<'board.windows' | 'board.elements'>
+  PropsRenderSlots<'board.windows' | 'board.elements' | 'board.foreign.windows'>
   & PropsStore<BoardStoreHandle>
   & BoardElementInjected
 
@@ -64,9 +64,9 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
   }, [actions])
 
   // A plain drag pans only from the bare canvas; a plain click without a drag
-  // drops the window selection (the canvas is the board's empty space). With
-  // the brush or eraser active, a primary left press starts the tool gesture
-  // from anywhere on the canvas instead — a window keeps its own gesture, and
+  // drops the window and element selection (the canvas is the board's empty
+  // space). With the brush or eraser active, a primary left press starts the
+  // tool gesture from anywhere on the canvas instead — a window keeps its own gesture, and
   // the tool CSS makes element boxes transparent so the press reaches here.
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (tool !== 'select') {
@@ -113,7 +113,11 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
       panY,
       actions,
       start: startGesture,
-      click: () => { actions.clearActiveWindow() },
+      click: () => {
+        actions.clearActiveWindow()
+        // A selected element would otherwise take the next Backspace.
+        actions.selectBoardElement(null)
+      },
     })
   }, [tool, limits, brushWidth, selfId, boardElements, createElement, eraseStrokes, panX, panY, actions, startGesture])
 
@@ -188,6 +192,9 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
             preview
           />
         ))}
+        {/* Foreign windows paint above the elements and below the local
+            windows, each at its published z. */}
+        {renderSlot('board.foreign.windows', {})}
         {renderSlot('board.windows', {})}
       </div>
       {tool === 'eraser' && eraserPoint !== null && (

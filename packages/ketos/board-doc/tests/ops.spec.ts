@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import * as Y from 'yjs'
 import { BoardDocument } from '../src/doc.ts'
+import { BOARD_ELEMENT_KINDS, BOARD_HOST_DATA_KINDS } from '../src/kinds.ts'
 import { applyBoardOps, parseBoardOps, resolveCreate, type BoardOpLimits } from '../src/ops.ts'
 import type { BoardCreateOp, BoardElement, BoardElementData, BoardOp, ElementId, OwnerId } from '../src/types.ts'
 import { BoardError } from '../src/wire.ts'
@@ -15,6 +16,9 @@ const NOW = 1_700_000_000_000
 
 /** One valid todo payload the generic fixtures carry. */
 const DATA: BoardElementData = { epicId: 'kt-1', title: 'list', items: [], syncedAt: '2026-10-06T12:00:00Z' }
+
+/** One valid note payload the browser-origin fixtures carry. */
+const NOTE: BoardElementData = { text: 'a', font: 'sans', size: 'm', scale: 1 }
 
 /**
  * One deterministic element id.
@@ -38,6 +42,7 @@ function limits(overrides: Partial<BoardOpLimits> = {}): BoardOpLimits {
   return {
     maxOpsPerRequest: 64,
     maxElements: 2000,
+    maxWindowRecords: 100,
     elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     ...overrides,
   }
@@ -152,22 +157,24 @@ describe('operation application', () => {
   it('stamps owner, z above the ceiling, and both timestamps on create', () => {
     const { doc } = openDoc()
     seed(doc, ID_A, OTHER)
-    const result = applyBoardOps(doc, [createOp(ID_B, { data: DATA })], 'browser', SELF, limits(), NOW)
+    const result = applyBoardOps(doc, [createOp(ID_B, { kind: 'note', data: NOTE })], 'browser', SELF, limits(), NOW)
     expect(result).toEqual({
       upserts: [{
         id: ID_B,
-        kind: 'todo',
+        kind: 'note',
         ownerId: SELF,
         x: 0,
         y: 0,
         w: 10,
         h: 10,
         z: 2,
-        data: DATA,
+        data: NOTE,
         createdAt: NOW,
         updatedAt: NOW,
       }],
       removes: [],
+      windowUpserts: [],
+      windowRemoves: [],
     })
     expect(doc.readElement(ID_B)).toEqual(result.upserts[0])
   })
@@ -179,8 +186,9 @@ describe('operation application', () => {
   it('refuses a create whose id is occupied and one past the element budget', () => {
     const { doc } = openDoc()
     seed(doc, ID_A)
-    expect(codeOf(() => applyBoardOps(doc, [createOp(ID_A)], 'browser', SELF, limits(), NOW))).toBe('ketos/element-exists')
-    expect(codeOf(() => applyBoardOps(doc, [createOp(ID_B)], 'browser', SELF, limits({ maxElements: 1 }), NOW)))
+    expect(codeOf(() => applyBoardOps(doc, [createOp(ID_A, { kind: 'note', data: NOTE })], 'browser', SELF, limits(), NOW)))
+      .toBe('ketos/element-exists')
+    expect(codeOf(() => applyBoardOps(doc, [createOp(ID_B, { kind: 'note', data: NOTE })], 'browser', SELF, limits({ maxElements: 1 }), NOW)))
       .toBe('ketos/limit')
   })
 
@@ -207,8 +215,9 @@ describe('operation application', () => {
   it('lets a browser patch its own element and merge data by key', () => {
     const { doc } = openDoc()
     seed(doc, ID_A, SELF, DATA)
-    const result = applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { title: 'updated' } }], 'browser', SELF, limits(), NOW)
-    expect(doc.readElement(ID_A)).toMatchObject({ data: { epicId: 'kt-1', title: 'updated' }, updatedAt: NOW })
+    applyBoardOps(doc, [createOp(ID_B, { kind: 'note', data: NOTE })], 'browser', SELF, limits(), NOW)
+    const result = applyBoardOps(doc, [{ op: 'patch', id: ID_B, data: { text: 'updated' } }], 'browser', SELF, limits(), NOW)
+    expect(doc.readElement(ID_B)).toMatchObject({ data: { ...NOTE, text: 'updated' }, updatedAt: NOW })
     expect(result.upserts).toHaveLength(1)
     expect(result.removes).toEqual([])
   })
@@ -224,7 +233,7 @@ describe('operation application', () => {
     const { doc } = openDoc()
     seed(doc, ID_A)
     const result = applyBoardOps(doc, [{ op: 'remove', id: ID_A }], 'browser', SELF, limits(), NOW)
-    expect(result).toEqual({ upserts: [], removes: [ID_A] })
+    expect(result).toEqual({ upserts: [], removes: [ID_A], windowUpserts: [], windowRemoves: [] })
     expect(doc.readElement(ID_A)).toBeUndefined()
   })
 
@@ -232,7 +241,7 @@ describe('operation application', () => {
     const { doc, updates } = openDoc()
     expect(codeOf(() => applyBoardOps(
       doc,
-      [createOp(ID_A, { data: DATA }), { op: 'patch', id: ID_B, x: 1 }],
+      [createOp(ID_A, { kind: 'note', data: NOTE }), { op: 'patch', id: ID_B, x: 1 }],
       'browser',
       SELF,
       limits(),
@@ -247,14 +256,14 @@ describe('operation application', () => {
     const { doc } = openDoc()
     const result = applyBoardOps(
       doc,
-      [createOp(ID_A, { data: DATA }), { op: 'patch', id: ID_A, x: 7, data: { title: 'updated' } }],
+      [createOp(ID_A, { kind: 'note', data: NOTE }), { op: 'patch', id: ID_A, x: 7, data: { text: 'updated' } }],
       'browser',
       SELF,
       limits(),
       NOW,
     )
     expect(result.upserts).toHaveLength(1)
-    expect(doc.readElement(ID_A)).toMatchObject({ x: 7, data: { epicId: 'kt-1', title: 'updated' } })
+    expect(doc.readElement(ID_A)).toMatchObject({ x: 7, data: { ...NOTE, text: 'updated' } })
   })
 
   it('resolves a remove followed by a create of the same id inside one batch', () => {
@@ -262,14 +271,14 @@ describe('operation application', () => {
     seed(doc, ID_A, SELF, { ...DATA, title: 'old' })
     const result = applyBoardOps(
       doc,
-      [{ op: 'remove', id: ID_A }, createOp(ID_A, { data: { ...DATA, title: 'fresh' } })],
+      [{ op: 'remove', id: ID_A }, createOp(ID_A, { kind: 'note', data: { ...NOTE, text: 'fresh' } })],
       'browser',
       SELF,
       limits(),
       NOW,
     )
     expect(result.removes).toEqual([])
-    expect(doc.readElement(ID_A)?.data).toEqual({ ...DATA, title: 'fresh' })
+    expect(doc.readElement(ID_A)).toMatchObject({ kind: 'note', data: { ...NOTE, text: 'fresh' } })
   })
 
   it('reports an element removed earlier in the same batch as absent', () => {
@@ -288,7 +297,7 @@ describe('operation application', () => {
 
   it('applies an empty batch as a no-op', () => {
     const { doc, updates } = openDoc()
-    expect(applyBoardOps(doc, [], 'browser', SELF, limits(), NOW)).toEqual({ upserts: [], removes: [] })
+    expect(applyBoardOps(doc, [], 'browser', SELF, limits(), NOW)).toEqual({ upserts: [], removes: [], windowUpserts: [], windowRemoves: [] })
     expect(updates()).toBe(0)
   })
 
@@ -362,5 +371,59 @@ describe('create resolution', () => {
     })
     expect(codeOf(() => resolveCreate(createOp(ID_C), { ids: new Set([ID_C]), maxZ: 0 }, SELF, NOW)))
       .toBe('ketos/element-exists')
+  })
+})
+
+describe('host-owned element data', () => {
+  it('lists the todo kind as host-owned and every host-owned kind as a known kind', () => {
+    expect(BOARD_HOST_DATA_KINDS).toEqual(['todo'])
+    for (const kind of BOARD_HOST_DATA_KINDS) expect(BOARD_ELEMENT_KINDS).toContain(kind)
+  })
+
+  it('refuses a browser create of a host-owned kind and leaves the document untouched', () => {
+    const { doc, updates } = openDoc()
+    expect(codeOf(() => applyBoardOps(
+      doc,
+      [createOp(ID_A, { kind: 'todo', data: DATA })],
+      'browser',
+      SELF,
+      limits(),
+      NOW,
+    ))).toBe('ketos/element-host-data')
+    expect(doc.count()).toBe(0)
+    expect(updates()).toBe(0)
+  })
+
+  it('refuses a browser patch of host-owned data, including its own element and an empty data object', () => {
+    const { doc } = openDoc()
+    seed(doc, ID_A, SELF, DATA)
+    for (const data of [{ epicId: 'kt-2' }, { title: 'renamed' }, {}]) {
+      expect(codeOf(() => applyBoardOps(doc, [{ op: 'patch', id: ID_A, data }], 'browser', SELF, limits(), NOW)))
+        .toBe('ketos/element-host-data')
+    }
+    expect(doc.readElement(ID_A)?.data).toEqual(DATA)
+  })
+
+  it('lets a browser move, resize, restack, and remove a host-owned element', () => {
+    const { doc } = openDoc()
+    seed(doc, ID_A, SELF, DATA)
+    const patched = applyBoardOps(doc, [{ op: 'patch', id: ID_A, x: 5, y: 6, w: 20, h: 30, z: 9 }], 'browser', SELF, limits(), NOW)
+    expect(patched.upserts[0]).toMatchObject({ x: 5, y: 6, w: 20, h: 30, z: 9, data: DATA })
+    const removed = applyBoardOps(doc, [{ op: 'remove', id: ID_A }], 'browser', SELF, limits(), NOW)
+    expect(removed.removes).toEqual([ID_A])
+  })
+
+  it('lets the host create a host-owned element and patch its data', () => {
+    const { doc } = openDoc()
+    seed(doc, ID_A, SELF, DATA)
+    applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { title: 'synced' } }], 'host', SELF, limits(), NOW)
+    expect(doc.readElement(ID_A)?.data).toMatchObject({ epicId: 'kt-1', title: 'synced' })
+  })
+
+  it('lets a browser create and edit a kind that is not host-owned', () => {
+    const { doc } = openDoc()
+    applyBoardOps(doc, [createOp(ID_A, { kind: 'note', data: NOTE })], 'browser', SELF, limits(), NOW)
+    applyBoardOps(doc, [{ op: 'patch', id: ID_A, data: { text: 'b' } }], 'browser', SELF, limits(), NOW)
+    expect(doc.readElement(ID_A)?.data).toMatchObject({ text: 'b' })
   })
 })

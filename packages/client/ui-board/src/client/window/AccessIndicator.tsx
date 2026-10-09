@@ -7,7 +7,8 @@
  * informational caption a participant without management rights sees.
  * `owner` shows the person glyph and «Only me», `all` the group glyph and
  * «Everyone», and `selected` a stack of up to three person circles with a
- * tooltip that names every selected person. Either form carries
+ * tooltip that names every selected person; the accessible name of both forms
+ * lists them too. Either form carries
  * `data-board-bezel-item`, so the window drag ignores it.
  */
 import { IconUserOutlineRegular, IconUsersOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -78,6 +79,14 @@ export interface AccessIndicatorProps {
  * @returns the indicator at the bezel's right side.
  */
 export function AccessIndicator({ mode, people, t, onTriggerClick, expanded = false }: AccessIndicatorProps) {
+  // The tooltip names the selected people for the pointer; the accessible name
+  // carries them for the keyboard and screen readers.
+  const modeLabel = mode === 'selected' && people.length > 0
+    ? t('bezel.access.people.aria', {
+      mode: t(ACCESS_MODE_KEY[mode]),
+      names: people.map(person => person.label).join(', '),
+    })
+    : t(ACCESS_MODE_KEY[mode])
   const inner = (() => {
     if (mode === 'owner') {
       return (
@@ -122,7 +131,7 @@ export function AccessIndicator({ mode, people, t, onTriggerClick, expanded = fa
         className={css.access}
         aria-haspopup="menu"
         aria-expanded={expanded}
-        aria-label={t('bezel.access.aria', { mode: t(ACCESS_MODE_KEY[mode]) })}
+        aria-label={t('bezel.access.aria', { mode: modeLabel })}
         onClick={onTriggerClick}
       >
         {inner}
@@ -130,7 +139,7 @@ export function AccessIndicator({ mode, people, t, onTriggerClick, expanded = fa
     )
   }
   return (
-    <span data-board-bezel-item role="img" aria-label={t(ACCESS_MODE_KEY[mode])} className={css.access}>
+    <span data-board-bezel-item role="img" aria-label={modeLabel} className={css.access}>
       {inner}
     </span>
   )

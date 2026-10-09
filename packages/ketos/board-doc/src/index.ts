@@ -42,6 +42,8 @@ export interface Config {
   todoItemsMax?: number
   /** Largest number of elements the document holds (1–100000). */
   maxElements?: number
+  /** Largest number of window records the document holds (1–10000). */
+  maxWindowRecords?: number
   /** Largest number of operations one request may batch (1–1024). */
   maxOpsPerRequest?: number
   /** Largest accepted operation-request body, in bytes (1 KiB–64 MiB). */
@@ -50,7 +52,7 @@ export interface Config {
   journalCompactRows?: number
   /** Event-stream heartbeat interval, in milliseconds (1000–300000). */
   heartbeatMs?: number
-  /** Largest buffered event-stream backlog, in bytes (16 KiB–256 MiB). */
+  /** Largest buffered backlog of patches and heartbeats per event stream, in bytes (16 KiB–256 MiB); the snapshot is not counted. */
   maxStreamQueueBytes?: number
   /** Largest number of concurrent event streams (1–1024). */
   maxStreams?: number
@@ -64,7 +66,8 @@ export const Config: z<Config> = z.object({
   strokePointsMax: z.number().step(1).min(2).max(100_000).default(2000),
   todoItemsMax: z.number().step(1).min(1).max(10_000).default(200),
   maxElements: z.number().step(1).min(1).max(100_000).default(2000),
-  maxOpsPerRequest: z.number().step(1).min(1).max(1024).default(64),
+  maxWindowRecords: z.number().step(1).min(1).max(10_000).default(100),
+  maxOpsPerRequest: z.number().step(1).min(1).max(1024).default(512),
   maxRequestBytes: z.number().step(1).min(1024).max(67_108_864).default(1_048_576),
   journalCompactRows: z.number().step(1).min(1).max(100_000).default(500),
   heartbeatMs: z.number().step(1).min(1000).max(300_000).default(15_000),
@@ -86,6 +89,7 @@ export function apply(ctx: Context, config: Config): void {
   const limits = {
     maxOpsPerRequest: config.maxOpsPerRequest as number,
     maxElements: config.maxElements as number,
+    maxWindowRecords: config.maxWindowRecords as number,
     elements: {
       elementBytesMax: config.maxElementBytes as number,
       noteTextMax: config.noteTextMax as number,
@@ -108,5 +112,6 @@ export function apply(ctx: Context, config: Config): void {
     heartbeatMs: config.heartbeatMs as number,
     maxStreamQueueBytes: config.maxStreamQueueBytes as number,
     maxStreams: config.maxStreams as number,
+    logger: (message) => { ctx.logger('ketos-board-doc').warn(message) },
   })
 }

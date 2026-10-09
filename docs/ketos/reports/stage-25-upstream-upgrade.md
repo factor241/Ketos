@@ -1,6 +1,6 @@
 # Этап 25. Обновление ядра до dsh-v0.2.0-rc.2 — отчёт
 
-> План: [upstream-upgrade-plan.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/upstream-upgrade-plan.md) (разделы 1–4, этапы У0–У6). Эпик Beads: `ketos-tu8`. Ветка: `stage-25-upstream-0.2.0-rc.2`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-25`. Решения Р-1 … Р-7 приняты 2026-10-03 по рекомендации (раздел 4 плана; записаны в описании эпика).
+> План: upstream-upgrade-plan.md (`~/Downloads/ketos_v7_master_plan/upstream-upgrade-plan.md`) (разделы 1–4, этапы У0–У6). Эпик Beads: `ketos-tu8`. Ветка: `stage-25-upstream-0.2.0-rc.2`, worktree `<корень репозитория>.worktrees/stage-25`. Решения Р-1 … Р-7 приняты 2026-10-03 по рекомендации (раздел 4 плана; записаны в описании эпика).
 
 ## 1. Итог этапа
 
@@ -11,13 +11,13 @@
 - Эпик `ketos-tu8` и 23 задачи подэтапов У0.1 … У6.3 созданы в Beads с зависимостями раздела 5 плана (цепочка У0 → У1 → У2 → (У3 ∥ У4) → У5 → У6).
 - Решения Р-1 … Р-7 записаны в описание эпика.
 - Стенды на `:3080` не запущены (порт свободен, процессов Ketos нет).
-- Архив данных: `/Users/kirillustuzanin/Downloads/ketos-home-backup-20261003-2108.tar.gz` — 281 КБ.
+- Архив данных: `~/Downloads/ketos-home-backup-20261003-2108.tar.gz` — 281 КБ.
 - Верхние записи архива (`tar -tzf | cut -d/ -f1-2 | sort -u`): `.ketos/.anonymous-user-id`, `.ketos/.credentials.yaml`, `.ketos/clones.db`, `.ketos/profiles`, `.ketos/sessions`, `.ketos/settings.yaml`, `.ketos/storages`.
 
 ## 3. У0.2. Worktree и базовая линия
 
 - `git fetch upstream --tags` выполнен; `dsh-v0.2.0-rc.2` = `этап 25`.
-- `git worktree add "/Volumes/Projects/Ketos bot.worktrees/stage-25" -b stage-25-upstream-0.2.0-rc.2 main`; `pnpm install` и `pnpm run build` зелёные.
+- `git worktree add "<корень репозитория>.worktrees/stage-25" -b stage-25-upstream-0.2.0-rc.2 main`; `pnpm install` и `pnpm run build` зелёные.
 - Деревья подтверждены: `git rev-parse этап 25^{tree}` = `git rev-parse этап 25^{tree}` = `этап 25`.
 
 ### 3.1. Базовая линия на main

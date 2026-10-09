@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
-import type { BoardDocId, BoardElement, BoardRevision, ElementId, OwnerId } from '@ketos/board-doc/types'
+import type { BoardDocId, BoardElement, BoardRevision, ElementId, OwnerId, WindowId } from '@ketos/board-doc/types'
 import { Minimap } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas } from '../src/client/canvas/DashboardCanvas.tsx'
 import { BoardElementLayer, type BoardElementLayerProps } from '../src/client/elements/BoardElementLayer.tsx'
@@ -79,7 +79,7 @@ function layerProps(board: BoardState): BoardElementLayerProps {
     moveElement: vi.fn(),
     resizeElement: vi.fn(),
     removeElement: vi.fn(),
-    patchElement: vi.fn(),
+    patchElement: vi.fn(() => Promise.resolve(true)),
     eraseStrokes: vi.fn(),
   }
 }
@@ -136,6 +136,21 @@ describe('element layer culling', () => {
   })
 })
 
+describe('element layer editing note', () => {
+  it('keeps the note being edited rendered after it left the culling rectangle', () => {
+    const board = state({
+      editingBoardElementId: NOTE_A,
+      boardElements: {
+        [NOTE_A as string]: element(NOTE_A, { x: 5_000, y: 5_000 }),
+        [FAR as string]: element(FAR, { x: 5_000, y: 5_000 }),
+      },
+    })
+    const { container } = render(<BoardElementLayer {...layerProps(board)} />)
+    expect(container.querySelector(`[data-board-element-id="${NOTE_A}"]`)).not.toBeNull()
+    expect(container.querySelector(`[data-board-element-id="${FAR}"]`)).toBeNull()
+  })
+})
+
 describe('canvas layer order', () => {
   it('renders the element layer before the window layer', () => {
     const board = state({ boardElements: { [NOTE_A as string]: element(NOTE_A) } })
@@ -150,10 +165,10 @@ describe('canvas layer order', () => {
       actions: instance.actions,
       renderSlot,
     } as never))
-    expect(calls).toEqual(['board.elements', 'board.windows'])
+    expect(calls).toEqual(['board.elements', 'board.foreign.windows', 'board.windows'])
     const surface = container.querySelector('[data-surface="canvas-layer"]')
     const markers = [...(surface?.children ?? [])].map(child => child.getAttribute('data-testid'))
-    expect(markers).toEqual(['board.elements', 'board.windows'])
+    expect(markers).toEqual(['board.elements', 'board.foreign.windows', 'board.windows'])
   })
 })
 
@@ -182,5 +197,40 @@ describe('minimap elements', () => {
     expect(y).toBeGreaterThanOrEqual(0)
     expect(x).toBeLessThanOrEqual(200)
     expect(y).toBeLessThanOrEqual(140)
+  })
+
+  it('projects a foreign window record in its owner color', () => {
+    const board = state({
+      windowRecords: {
+        'agent-remote': {
+          id: 'agent-remote' as WindowId,
+          hostId: brandString<OwnerId>('owner-remote'),
+          ownerId: brandString<OwnerId>('owner-remote'),
+          kind: 'agent',
+          bodyKind: 'conversation',
+          title: null,
+          ordinal: 1,
+          x: 200,
+          y: 200,
+          w: 300,
+          h: 200,
+          z: 10,
+          access: { mode: 'owner', people: [] },
+          status: 'idle',
+          updatedAt: 1,
+        },
+      },
+    })
+    const instance = createBoardStore().create()
+    const props = {
+      useStore: (selector: (value: BoardState) => unknown): unknown => selector(board),
+      actions: instance.actions,
+      t,
+    } as never
+    const { container } = render(createElement(Minimap, props))
+    const rect = container.querySelector('[data-board-foreign-rect]')
+    expect(rect?.getAttribute('data-board-foreign-rect')).toBe('agent')
+    // The roster does not know the record's owner, so the neutral color stands.
+    expect(rect?.getAttribute('data-board-owner-color')).toBe('unknown')
   })
 })

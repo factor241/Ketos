@@ -26,6 +26,13 @@
   outline-offset: 2px;
 }
 
+/* Keyboard focus without a selection (a foreign element) still shows where it is. */
+.frame:focus-visible,
+.handle:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+
 .body {
   width: 100%;
   height: 100%;
@@ -43,5 +50,24 @@
   background: var(--dsw-alias-state-business-primary);
   border: 1px solid var(--dsw-alias-bg-layer-1);
   cursor: nwse-resize;
+  pointer-events: auto;
+}
+
+/* Stale-data badge of a foreign element whose owner has no channel: a small
+   chip on the frame's top edge. */
+.stale {
+  position: absolute;
+  top: -10px;
+  left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  /* The badge carries a tooltip, so it takes the pointer the frame body passes on. */
   pointer-events: auto;
 }

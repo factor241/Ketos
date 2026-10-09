@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-06-ketos-board-sync.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-ketos-board-sync.md
+/agent-note-ketos-board-synchronization:
+  en: 0973c178e4e9e273
+  zh: eddfb4488c8cc50c
+/agent-note-ketos-board-synchronization/problem:
+  en: d1452fa928f7ec63
+  zh: 8e3b5d613f6943df
+/agent-note-ketos-board-synchronization/decision:
+  en: 763b9b71c3e5c3fe
+  zh: f88a3187d8499af5
+/agent-note-ketos-board-synchronization/alternatives-considered:
+  en: dfa5227acac9916b
+  zh: d2219a218232058c
+/agent-note-ketos-board-synchronization/consequences:
+  en: 036854901fb44ac9
+  zh: 330ca8df9981757f
+/agent-note-ketos-board-synchronization/testing:
+  en: 623671e7caba1a28
+  zh: 545abe4f8cf3ded7
+/agent-note-ketos-board-synchronization/related:
+  en: c3d4626957fa6a08
+  zh: 59742e70e6377316

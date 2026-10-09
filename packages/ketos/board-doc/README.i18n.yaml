@@ -15,8 +15,11 @@
   en: d152484eb41ac6b4
   zh: ef6805c80e17a904
 /ketos-board-doc/use-this-package:
-  en: 96afbb3a568b56b0
-  zh: a1d0faddac9d7990
+  en: c048704b39a6d796
+  zh: 53830aa746c98d80
+/ketos-board-doc/use-this-package/synchronization:
+  en: d2b1c2a4a740ff9b
+  zh: 3320f4f47d928427
 /ketos-board-doc/understand-the-implementation:
   en: 42b15ac6321706aa
   zh: 719821b4cc9187ce
@@ -26,18 +29,21 @@
 /ketos-board-doc/understand-the-implementation/journal-and-revisions:
   en: aa3e02e7d3fba8b3
   zh: 5cf2f8675b9bd54b
+/ketos-board-doc/understand-the-implementation/window-records:
+  en: cda4be4f995f0ab0
+  zh: 292edbe10d12ea15
 /ketos-board-doc/understand-the-implementation/identities:
-  en: d729e8b775dbd4b2
-  zh: 189e8dc7a3418191
+  en: f4e6ec705cd00336
+  zh: 8934d832c5177680
 /ketos-board-doc/understand-the-implementation/routes-and-error-codes:
-  en: 0072b2c72a759a72
-  zh: 129bd3d4114ca8b9
+  en: 2b4f18034d3aed9f
+  zh: 8ef52d1958da62fc
 /ketos-board-doc/understand-the-implementation/laziness:
   en: 1c1d88929fe59afc
   zh: 5e2d5bf0ed2a2d9c
 /ketos-board-doc/understand-the-implementation/source-map:
-  en: 543f94445fbc894d
-  zh: 53106bff487b3f20
+  en: 5107852a914ac41d
+  zh: ebb4c91d472013d0
 /ketos-board-doc/further-exploration:
   en: 16dac1e3fa3927a5
   zh: 51ea9cb8dbbae7c2
@@ -48,8 +54,8 @@
   en: 42d44b69d834b2a6
   zh: d04474bc44302f5d
 /ketos-board-doc/known-limitations-and-deferred-work:
-  en: 471787dbbf3a24ba
-  zh: fcd634dcb17cc119
+  en: 0fee59846a9ba5dd
+  zh: 931f0ccf93062a12
 /ketos-board-doc/known-limitations-and-deferred-work/dev-note:
   en: 2c5bf90d9fa85616
   zh: 50dc0b782ea7d876

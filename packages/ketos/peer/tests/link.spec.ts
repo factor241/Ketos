@@ -8,7 +8,8 @@ import {
   PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, encodePeerFrame, type PeerHelloPayload,
 } from '../src/frame.ts'
 import {
-  PEER_LINK_PROTOCOL_CLOSE_CODE, PEER_UNHANDLED, PeerLink, readPeerFrame, writePeerFrame,
+  PEER_LINK_BYE_GRACE_MS, PEER_LINK_PROTOCOL_CLOSE_CODE, PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE, PEER_UNHANDLED, PeerLink,
+  readPeerFrame, writePeerFrame,
 } from '../src/link.ts'
 import { createMemoryStreamPair, createMemoryTransports, type MemoryTransportPair } from '../src/memory-transport.ts'
 import type { PeerConnection, PeerStream } from '../src/transport.ts'
@@ -127,7 +128,7 @@ async function createLinkPair(maxFrameBytes = 1024): Promise<{ a: LinkHarness; b
   await pair.a.bind()
   await pair.b.bind()
   const connectionA = await pair.a.dial(pair.b.invitationTicket())
-  const connectionB = await pair.b.accept()
+  const connectionB = await (await pair.b.accept()).complete()
   const streamA = await connectionA.openStream()
   const streamB = await connectionB.acceptStream()
   const a = createLink(connectionA, streamA, { maxFrameBytes })
@@ -180,6 +181,19 @@ describe('peer frame reading', () => {
     await writer.write(header)
     await expect(readPeerFrame(reader, 64)).rejects.toThrow(/not JSON/u)
   })
+
+  it('reads a binary body as its bytes and refuses an empty one', async () => {
+    const [reader, writer] = createMemoryStreamPair()
+    const bytes = new Uint8Array([9, 8, 7])
+    await writePeerFrame(writer, PEER_FRAME_CODES['board.sv'], bytes)
+    await expect(readPeerFrame(reader, 64)).resolves.toEqual({ code: PEER_FRAME_CODES['board.sv'], payload: bytes })
+
+    const [emptyReader, emptyWriter] = createMemoryStreamPair()
+    const header = new Uint8Array(PEER_FRAME_HEADER_BYTES)
+    header[4] = PEER_FRAME_CODES['board.sv']
+    await emptyWriter.write(header)
+    await expect(readPeerFrame(emptyReader, 64)).rejects.toThrow(/must not be empty/u)
+  })
 })
 
 describe('peer link lifecycle', () => {
@@ -190,9 +204,9 @@ describe('peer link lifecycle', () => {
     const unsubscribe = harness.link.onFrame((_code, payload) => { seen.push(payload); return PEER_UNHANDLED })
     unsubscribe()
     harness.link.start()
-    await writer.write(encodePeerFrame(3, { n: 1 }))
+    await writer.write(encodePeerFrame(5, { n: 1 }))
     await vi.waitFor(() => { expect(harness.logs).toHaveLength(1) })
-    expect(harness.logs[0]).toContain('frame board.sv has no handler')
+    expect(harness.logs[0]).toContain('frame chat.transcript.request has no handler')
     expect(seen).toEqual([])
   })
 
@@ -201,8 +215,8 @@ describe('peer link lifecycle', () => {
     await harness.link.close('done')
     expect(connection.closeCalls).toEqual([{ code: 0n, reason: 'done' }])
     await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: PEER_FRAME_CODES.bye, payload: { reason: 'done' } })
-    await expect(harness.link.send(3, { n: 1 })).rejects.toThrow(/closed/u)
-    await expect(harness.link.request(3, { n: 1 }, 50)).rejects.toThrow(/closed/u)
+    await expect(harness.link.send(5, { n: 1 })).rejects.toThrow(/closed/u)
+    await expect(harness.link.request(5, { n: 1 }, 50)).rejects.toThrow(/closed/u)
     await expect(harness.link.closed()).resolves.toContain('closed locally: done')
     await harness.link.close('again')
     expect(connection.closeCalls).toHaveLength(1)
@@ -225,9 +239,15 @@ describe('peer link lifecycle', () => {
 
   it('rejects an in-flight request when the connection ends', async () => {
     const { harness, connection } = createRawLink()
-    const pending = harness.link.request(3, { n: 1 }, 1000)
+    const pending = harness.link.request(5, { n: 1 }, 1000)
     connection.settle('dropped')
     await expect(pending).rejects.toThrow(/closed before the response: dropped/u)
+  })
+
+  it('carries an application close code when one is given', async () => {
+    const { harness, connection } = createRawLink()
+    await harness.link.close('too large', PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE)
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE, reason: 'too large' }])
   })
 
   it('lets the connection close win over a concurrent read failure', async () => {
@@ -238,6 +258,26 @@ describe('peer link lifecycle', () => {
     await flush()
     expect(harness.logs).toEqual([])
     expect(connection.closeCalls).toEqual([])
+  })
+
+  it('ignores a handler answer that fails after the link closed', async () => {
+    const { a, b } = await createLinkPair()
+    let completed = false
+    b.link.onFrame(async () => {
+      await new Promise((resolve) => { setTimeout(resolve, 20) })
+      completed = true
+      return { ok: true }
+    })
+    a.link.start()
+    b.link.start()
+    const pending = a.link.request(5, { n: 1 }, 500)
+    await a.link.close('done')
+    await expect(pending).rejects.toThrow(/closed before the response/u)
+    await new Promise((resolve) => { setTimeout(resolve, 40) })
+    // The request handler finished after the bye; its response write failed on
+    // the closed link and the dispatch reported nothing.
+    expect(completed).toBe(true)
+    expect(b.logs).toEqual([])
   })
 
   it('logs a failed connection close and still settles', async () => {
@@ -276,6 +316,19 @@ describe('peer link protocol refusals', () => {
     expect(harness.logs[0]).toContain('frame body is not JSON')
   })
 
+  it('closes with the protocol code on a JSON body of a binary frame code', async () => {
+    const { harness, connection, writer } = createRawLink()
+    const seen: unknown[] = []
+    harness.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    harness.link.start()
+    await writer.write(rawFrame(PEER_FRAME_CODES['board.update'], '{"0":1,"1":2}'))
+    await vi.waitFor(() => {
+      expect(connection.closeCalls).toEqual([{ code: PEER_LINK_PROTOCOL_CLOSE_CODE, reason: 'protocol error' }])
+    })
+    expect(seen).toEqual([])
+    expect(harness.logs[0]).toContain('must not be JSON')
+  })
+
   it('closes with the protocol code on an unknown frame code and stays usable', async () => {
     const { harness, connection, writer } = createRawLink()
     harness.link.start()
@@ -288,6 +341,26 @@ describe('peer link protocol refusals', () => {
     next.harness.link.start()
     await next.writer.write(encodePeerFrame(PEER_FRAME_CODES.bye, { reason: 'later' }))
     await expect(next.harness.link.closed()).resolves.toBe('bye: later')
+  })
+
+  it('closes with the protocol code when onHello throws a non-Error', async () => {
+    const [stream, writer] = createMemoryStreamPair()
+    const connection = new StubConnection()
+    const logs: string[] = []
+    const link = new PeerLink(connection, stream, {
+      peerId: connection.peerId,
+      maxFrameBytes: 1024,
+      logger: (message) => { logs.push(message) },
+      onHello: () => { throw 'bad hello' },
+    })
+    cleanups.push(() => {
+      connection.settle('test cleanup')
+      void writer.finish()
+    })
+    link.start()
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 }))
+    await expect(link.closed()).resolves.toContain('protocol error')
+    expect(logs[0]).toContain('closing after bad hello')
   })
 
   it('closes with the protocol code when the stream fails with a non-Error', async () => {
@@ -304,24 +377,31 @@ describe('peer link protocol refusals', () => {
     expect(harness.logs[0]).toContain('closing after socket gone')
   })
 
-  it('closes with the protocol code when a message listener throws a non-Error', async () => {
+  it('logs a throwing message listener and keeps the connection alive', async () => {
     const { harness, connection, writer } = createRawLink()
+    const seen: unknown[] = []
     harness.link.onFrame(() => { throw 'plain failure' })
+    harness.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
     harness.link.start()
-    await writer.write(encodePeerFrame(3, { n: 1 }))
-    await expect(harness.link.closed()).resolves.toContain('protocol error')
-    expect(harness.logs[0]).toContain('closing after plain failure')
-    expect(connection.closeCalls[0]?.code).toBe(PEER_LINK_PROTOCOL_CLOSE_CODE)
+    await writer.write(encodePeerFrame(5, { n: 1 }))
+    await vi.waitFor(() => { expect(harness.logs.some(line => line.includes('handler failed: plain failure'))).toBe(true) })
+    expect(seen).toEqual([{ n: 1 }])
+    expect(connection.closeCalls).toEqual([])
+
+    // The channel still dispatches the next frame.
+    await writer.write(encodePeerFrame(5, { n: 2 }))
+    await vi.waitFor(() => { expect(seen).toEqual([{ n: 1 }, { n: 2 }]) })
+    expect(connection.closeCalls).toEqual([])
   })
 
-  it('ignores a later listener failure once the connection is gone', async () => {
+  it('contains a later listener failure once the connection is gone', async () => {
     const { harness, connection, writer } = createRawLink()
     harness.link.onFrame(() => { connection.close(0n, 'gone') })
     harness.link.onFrame(() => { throw new Error('late failure') })
     harness.link.start()
-    await writer.write(encodePeerFrame(3, { n: 1 }))
+    await writer.write(encodePeerFrame(5, { n: 1 }))
     await flush()
-    expect(harness.logs).toEqual([])
+    expect(harness.logs.some(line => line.includes('handler failed: Error: late failure'))).toBe(true)
     expect(connection.closeCalls).toEqual([{ code: 0n, reason: 'gone' }])
     await expect(harness.link.closed()).resolves.toContain('closed locally: gone')
   })
@@ -333,26 +413,26 @@ describe('peer link frame dispatch', () => {
     const seen: { code: number; payload: unknown }[] = []
     harness.link.onFrame((code, payload) => { seen.push({ code, payload }); return PEER_UNHANDLED })
     harness.link.start()
-    await writer.write(encodePeerFrame(3, { n: 7 }))
+    await writer.write(encodePeerFrame(5, { n: 7 }))
     await vi.waitFor(() => { expect(harness.logs).toHaveLength(1) })
-    expect(seen).toEqual([{ code: 3, payload: { n: 7 } }])
-    expect(harness.logs[0]).toContain('frame board.sv has no handler')
+    expect(seen).toEqual([{ code: 5, payload: { n: 7 } }])
+    expect(harness.logs[0]).toContain('frame chat.transcript.request has no handler')
   })
 
   it('ignores a reserved frame when no listener is registered', async () => {
     const { harness, writer } = createRawLink()
     harness.link.start()
-    await writer.write(encodePeerFrame(4, { n: 1 }))
+    await writer.write(encodePeerFrame(6, { n: 1 }))
     await vi.waitFor(() => { expect(harness.logs).toHaveLength(1) })
-    expect(harness.logs[0]).toContain('frame board.update has no handler')
+    expect(harness.logs[0]).toContain('frame chat.transcript.response has no handler')
   })
 
   it('passes a hello sent after the handshake to the onHello callback', async () => {
     const { harness, writer } = createRawLink()
     harness.link.start()
-    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 1, selfId: 'owner-b', name: 'Юрист', color: 2 }))
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 }))
     await vi.waitFor(() => { expect(harness.hellos).toHaveLength(1) })
-    expect(harness.hellos[0]).toEqual({ v: 1, selfId: 'owner-b', name: 'Юрист', color: 2 })
+    expect(harness.hellos[0]).toEqual({ v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
   })
 
   it('settles on bye and closes the connection without a protocol code', async () => {
@@ -370,14 +450,14 @@ describe('peer link over a dialed memory connection', () => {
     const seen: unknown[] = []
     b.link.onFrame((code, payload, context) => {
       if (context.requestId === undefined) { seen.push({ code, payload }); return undefined }
-      return code === 3 ? { echo: payload } : undefined
+      return code === 5 ? { echo: payload } : undefined
     })
     a.link.start()
     b.link.start()
-    await a.link.send(3, { n: 1 })
-    await vi.waitFor(() => { expect(seen).toEqual([{ code: 3, payload: { n: 1 } }]) })
-    await expect(a.link.request(3, { n: 2 }, 500)).resolves.toEqual({ echo: { n: 2 } })
-    await expect(a.link.request(4, { n: 3 }, 500)).resolves.toBeNull()
+    await a.link.send(5, { n: 1 })
+    await vi.waitFor(() => { expect(seen).toEqual([{ code: 5, payload: { n: 1 } }]) })
+    await expect(a.link.request(5, { n: 2 }, 500)).resolves.toEqual({ echo: { n: 2 } })
+    await expect(a.link.request(6, { n: 3 }, 500)).resolves.toBeNull()
   })
 
   it('rejects a request with the error envelope of a throwing handler', async () => {
@@ -385,36 +465,36 @@ describe('peer link over a dialed memory connection', () => {
     first.b.link.onFrame(() => { throw new Error('handler exploded') })
     first.a.link.start()
     first.b.link.start()
-    await expect(first.a.link.request(3, { n: 1 }, 500)).rejects.toThrow('handler exploded')
+    await expect(first.a.link.request(5, { n: 1 }, 500)).rejects.toThrow('handler exploded')
 
     const second = await createLinkPair()
     second.b.link.onFrame(() => { throw 'not an Error' })
     second.a.link.start()
     second.b.link.start()
-    await expect(second.a.link.request(3, { n: 1 }, 500)).rejects.toThrow('not an Error')
+    await expect(second.a.link.request(5, { n: 1 }, 500)).rejects.toThrow('not an Error')
   })
 
   it('times out a request the peer never answers', async () => {
     const { a, b } = await createLinkPair()
     a.link.start()
     b.link.start()
-    await expect(a.link.request(4, { n: 1 }, 30)).rejects.toThrow(/timed out after 30 ms/u)
+    await expect(a.link.request(6, { n: 1 }, 30)).rejects.toThrow(/timed out after 30 ms/u)
   })
 
   it('ignores a response for an unknown request and one on the wrong frame type', async () => {
     const { a, b } = await createLinkPair()
     b.link.onFrame((_code, _payload, context) => {
       if (context.requestId === undefined) return PEER_UNHANDLED
-      void b.link.send(4, { requestId: context.requestId, response: 'late' })
+      void b.link.send(6, { requestId: context.requestId, response: 'late' })
       return PEER_UNHANDLED
     })
     a.link.start()
     b.link.start()
-    await b.link.send(3, { requestId: 'missing', response: 1 })
+    await b.link.send(5, { requestId: 'missing', response: 1 })
     await vi.waitFor(() => {
       expect(a.logs.some(line => line.includes('response for unknown request ignored'))).toBe(true)
     })
-    await expect(a.link.request(3, { n: 1 }, 60)).rejects.toThrow(/timed out/u)
+    await expect(a.link.request(5, { n: 1 }, 60)).rejects.toThrow(/timed out/u)
     expect(a.logs.some(line => line.includes('response on the wrong frame type ignored'))).toBe(true)
   })
 })
@@ -434,21 +514,21 @@ describe('peer link write queue', () => {
     }
     const connection = new StubConnection()
     const harness = createLink(connection, stream)
-    await expect(harness.link.send(3, { n: 1 })).rejects.toThrow('write refused')
-    await harness.link.send(3, { n: 2 })
-    await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: 3, payload: { n: 2 } })
+    await expect(harness.link.send(5, { n: 1 })).rejects.toThrow('write refused')
+    await harness.link.send(5, { n: 2 })
+    await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: 5, payload: { n: 2 } })
   })
 
   it('rejects a payload the frame encoder refuses', async () => {
     const { harness } = createRawLink()
     const circular: Record<string, unknown> = {}
     circular.self = circular
-    await expect(harness.link.send(3, circular)).rejects.toThrow(TypeError)
-    await expect(harness.link.request(3, circular, 50)).rejects.toThrow(TypeError)
+    await expect(harness.link.send(5, circular)).rejects.toThrow(TypeError)
+    await expect(harness.link.request(5, circular, 50)).rejects.toThrow(TypeError)
 
     const hostile = { toJSON: (): never => { throw 'bad payload' } }
-    await expect(harness.link.send(3, hostile)).rejects.toThrow('bad payload')
-    await expect(harness.link.request(3, hostile, 50)).rejects.toThrow('bad payload')
+    await expect(harness.link.send(5, hostile)).rejects.toThrow('bad payload')
+    await expect(harness.link.request(5, hostile, 50)).rejects.toThrow('bad payload')
   })
 
   it('normalizes a non-Error write rejection for a waiting request', async () => {
@@ -460,7 +540,7 @@ describe('peer link write queue', () => {
     }
     const connection = new StubConnection()
     const harness = createLink(connection, stream)
-    await expect(harness.link.request(3, { n: 1 }, 50)).rejects.toThrow('wire gone')
+    await expect(harness.link.request(5, { n: 1 }, 50)).rejects.toThrow('wire gone')
   })
 
   it('closes even when the bye frame cannot be written', async () => {
@@ -476,6 +556,30 @@ describe('peer link write queue', () => {
     expect(connection.closeCalls).toEqual([{ code: 0n, reason: 'done' }])
   })
 
+  it('closes the connection shortly after close() while a write to a stalled peer never completes', async () => {
+    vi.useFakeTimers()
+    cleanups.push(() => { vi.useRealTimers() })
+    const [base] = createMemoryStreamPair()
+    const stream: PeerStream = {
+      write: () => new Promise<void>(() => undefined),
+      readExact: length => base.readExact(length),
+      finish: () => base.finish(),
+    }
+    const connection = new StubConnection()
+    const harness = createLink(connection, stream)
+    const stalled = harness.link.send(5, { n: 1 })
+    stalled.catch(() => undefined)
+    let closed = false
+    const closing = harness.link.close('done', PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE).then(() => { closed = true })
+    await vi.advanceTimersByTimeAsync(PEER_LINK_BYE_GRACE_MS - 1)
+    expect(closed).toBe(false)
+    expect(connection.closeCalls).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    await closing
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE, reason: 'done' }])
+    await expect(harness.link.closed()).resolves.toContain('closed locally: done')
+  })
+
   it('logs a best-effort send failure instead of rejecting', async () => {
     const [base] = createMemoryStreamPair()
     const stream: PeerStream = {
@@ -485,9 +589,43 @@ describe('peer link write queue', () => {
     }
     const connection = new StubConnection()
     const harness = createLink(connection, stream)
-    harness.link.trySend(3, { n: 1 })
+    harness.link.trySend(5, { n: 1 })
     await vi.waitFor(() => {
       expect(harness.logs.some(line => line.includes('send failed'))).toBe(true)
     })
+  })
+})
+
+describe('peer link binary frames and bounds', () => {
+  it('carries raw bytes between two links without an envelope', async () => {
+    const { a, b } = await createLinkPair()
+    const seen: unknown[] = []
+    b.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    a.link.start()
+    b.link.start()
+    const bytes = new Uint8Array([1, 2, 3])
+    await a.link.send(PEER_FRAME_CODES['board.update'], bytes)
+    await vi.waitFor(() => { expect(seen).toEqual([bytes]) })
+    expect(a.logs).toEqual([])
+  })
+
+  it('refuses a JSON payload on a binary code without breaking the link', async () => {
+    const { a, b } = await createLinkPair()
+    const seen: unknown[] = []
+    b.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    a.link.start()
+    b.link.start()
+    await expect(a.link.send(PEER_FRAME_CODES['board.update'], { n: 1 })).rejects.toThrow(/Uint8Array/u)
+    expect(seen).toEqual([])
+    await a.link.send(PEER_FRAME_CODES['board.update'], new Uint8Array([5]))
+    await vi.waitFor(() => { expect(seen).toEqual([new Uint8Array([5])]) })
+    expect(a.logs).toEqual([])
+  })
+
+  it('refuses a body over the frame bound before writing it', async () => {
+    const { harness, writer } = createRawLink({ maxFrameBytes: 8 })
+    await expect(harness.link.send(5, 'x'.repeat(32))).rejects.toThrow(/exceeds 8 bytes/u)
+    await harness.link.send(5, { n: 1 })
+    await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: 5, payload: { n: 1 } })
   })
 })

@@ -13,19 +13,23 @@
  * snapshots never overwrite the textarea or move its caret, and the draft
  * reaches the document through one debounced `patch { data: { text } }` (the
  * owner's display choices merge back by key). Leaving the editor, `pagehide`,
- * and a hidden tab flush the pending text; the page-lifetime flush posts with
- * `keepalive` so a quickly closed tab does not lose the last letters.
+ * a hidden tab, and unmounting flush the pending text; the page-lifetime flush
+ * posts with `keepalive` so a quickly closed tab does not lose the last
+ * letters. The editor closes only after the host accepted the text, including a
+ * debounced patch still in flight when the editor is left: a refused patch
+ * keeps the editor open with the draft, and the next flush sends it again.
  */
 import {
-  useCallback, useEffect, useRef, useState,
+  useCallback, useContext, useEffect, useRef, useState,
   type ChangeEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { parseNoteData } from '@ketos/board-doc/data'
-import type { BoardElementInjected, BoardElementPatch } from '../contract/slots.ts'
+import type { BoardElementInjected } from '../contract/slots.ts'
 import { boardParticipants, participantLabel } from '../owners.ts'
 import type { BoardStoreHandle } from '../store.ts'
+import { CommittedEditingContext } from './BoardElementLayer.tsx'
 import { NeutralElementBody } from './NeutralElementBody.tsx'
 import css from './NoteElement.module.css'
 
@@ -45,6 +49,13 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
   const [draft, setDraft] = useState<string | null>(null)
   const draftRef = useRef<string | null>(null)
   const dirtyRef = useRef(false)
+  /** The latest patch request still awaiting the host's answer. */
+  const inFlightRef = useRef<Promise<boolean> | null>(null)
+  const exitingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const committedEditing = useContext(CommittedEditingContext)
+  const editingRef = useRef(editing)
+  editingRef.current = editing
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementId = element.id
 
@@ -55,30 +66,71 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
     timerRef.current = null
   }, [])
 
-  /** Write the pending draft as one patch; a clean draft writes nothing. */
-  const flush = useCallback((keepalive: boolean): void => {
+  /**
+   * Write the pending draft as one patch; a clean draft writes nothing. A
+   * patch the host refuses marks the draft pending again, so the next flush
+   * sends the latest text; a refusal never turns an absent draft into empty
+   * text.
+   * @param keepalive - post as a page-lifetime request.
+   * @returns true when nothing was left to write or the host accepted the text.
+   */
+  const flush = useCallback(async (keepalive: boolean): Promise<boolean> => {
     cancelTimer()
-    if (!dirtyRef.current) return
+    const text = draftRef.current
+    if (!dirtyRef.current || text === null) return true
     dirtyRef.current = false
-    const patch: BoardElementPatch = { data: { text: draftRef.current ?? '' } }
-    patchElement(elementId, patch, keepalive ? { keepalive: true } : undefined)
+    const request = patchElement(elementId, { data: { text } }, keepalive ? { keepalive: true } : undefined)
+    inFlightRef.current = request
+    const saved = await request
+    if (inFlightRef.current === request) inFlightRef.current = null
+    if (!saved && draftRef.current !== null) dirtyRef.current = true
+    return saved
   }, [cancelTimer, elementId, patchElement])
+  const flushRef = useRef(flush)
+  flushRef.current = flush
 
-  /** Close the editor: the last text goes out, the draft is dropped. */
-  const exitEditing = useCallback((): void => {
-    flush(false)
+  /**
+   * Close the editor once the last text is saved. A save already in flight
+   * (the debounced write) is answered first; its refusal, a refused exit
+   * flush, or typing while either was in flight keeps the editor open with
+   * the draft.
+   */
+  const exitEditing = useCallback(async (): Promise<void> => {
+    if (exitingRef.current) return
+    exitingRef.current = true
+    const inFlight = inFlightRef.current
+    const saved = (inFlight === null || await inFlight) && await flush(false)
+    exitingRef.current = false
+    if (!saved || dirtyRef.current || !mountedRef.current) return
     draftRef.current = null
     setDraft(null)
     actions.setEditingBoardElement(null)
   }, [actions, flush])
 
+  // Unmounting while editing (the element left the layer) saves the pending
+  // draft and ends the editing mode, so a remount never reopens the editor and
+  // takes the focus. The editing target is the layer's committed one: when
+  // another element opened in the commit that unmounts this body, its edit
+  // stays open.
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      void flushRef.current(false)
+      const stillEditing = committedEditing === null
+        ? editingRef.current
+        : committedEditing.current === elementId
+      if (stillEditing) actions.setEditingBoardElement(null)
+    }
+  }, [actions, committedEditing, elementId])
+
   // A hidden or unloading page flushes the pending text as a page-lifetime
   // request; the editor stays open for the next visit to the tab.
   useEffect(() => {
     if (!editing) return
-    const onPageHide = (): void => { flush(true) }
+    const onPageHide = (): void => { void flush(true) }
     const onVisibilityChange = (): void => {
-      if (document.visibilityState === 'hidden') flush(true)
+      if (document.visibilityState === 'hidden') void flush(true)
     }
     window.addEventListener('pagehide', onPageHide)
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -97,7 +149,7 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
     cancelTimer()
     timerRef.current = setTimeout(() => {
       timerRef.current = null
-      flush(false)
+      void flush(false)
     }, NOTE_TEXT_WRITE_DEBOUNCE_MS)
   }
 
@@ -108,7 +160,7 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
     if (event.nativeEvent.isComposing) return
     event.preventDefault()
     event.stopPropagation()
-    exitEditing()
+    void exitEditing()
   }
 
   if (limits === null) return <NeutralElementBody element={element} t={t} />
@@ -145,7 +197,7 @@ export function NoteElement({ element, useStore, actions, t, patchElement }: Not
               autoFocus
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              onBlur={exitEditing}
+              onBlur={() => { void exitEditing() }}
             />
           )
           : note.text}

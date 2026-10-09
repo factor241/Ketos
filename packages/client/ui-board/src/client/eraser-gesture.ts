@@ -5,21 +5,24 @@
  * a pointercancel or an unmount discards the pass without an operation.
  *
  * The eraser radius is its fixed screen radius over the live zoom, so the hole
- * a pass cuts matches the ring the user sees at any scale.
+ * a pass cuts matches the ring the user sees at any scale. The pass is
+ * incremental (see `eraser-pass.ts`): each frame cuts only the path samples
+ * added since the previous one, and strokes the new samples cannot reach cost
+ * nothing.
  */
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { eraseStroke, parseStrokeData, STROKE_SIZES, strokeBounds } from '@ketos/board-doc/data'
-import type { BoardElement, BoardLimits, ElementId, StrokePathPoint, StrokePoint } from '@ketos/board-doc/types'
+import { parseStrokeData, STROKE_SIZES, strokeBounds } from '@ketos/board-doc/data'
+import type { BoardElement, BoardLimits, ElementId } from '@ketos/board-doc/types'
 import type { BoardElementSpec } from './contract/slots.ts'
 import type { BoardView } from './board-coordinates.ts'
 import type { BoardGestureHandlers } from './pointer-gesture.ts'
 import type { BoardEraserPreview, BoardStrokeDraft } from './board-tool.ts'
+import { EraserPass, type EraserTarget } from './eraser-pass.ts'
 import { boardToolWorldPoint, startBoardToolGesture, strokeSpecFromBounds } from './tool-gesture.ts'
 
 /** One owner stroke the eraser may touch, with its points in world units. */
-interface EraserCandidate {
+interface EraserCandidate extends EraserTarget {
   readonly element: BoardElement
-  readonly points: readonly StrokePoint[]
   readonly width: BoardStrokeDraft['width']
   readonly pen: boolean
 }
@@ -56,58 +59,50 @@ export function startBoardEraserGesture(options: BoardEraserGestureOptions): voi
     const data = parseStrokeData(element.data, options.limits, { w: element.w, h: element.h })
     if (data === null) continue
     candidates.push({
+      id: element.id,
+      box: { x: element.x, y: element.y, w: element.w, h: element.h },
       element,
       points: data.points.map(([x, y, pressure]) => [element.x + x, element.y + y, pressure]),
       width: data.width,
       pen: data.pen,
     })
   }
-  const path: StrokePathPoint[] = []
+  const pass = new EraserPass(candidates)
 
-  const append = (sample: PointerEvent): void => {
-    const world = boardToolWorldPoint(options.container, options.view(), sample)
-    path.push([world.x, world.y])
-  }
-
-  /** Every touched stroke and its remaining parts at the current path and radius. */
-  const touchedStrokes = (): Array<{ candidate: EraserCandidate; parts: StrokePoint[][] }> => {
-    const radius = options.radiusPx / options.view().zoom
-    const touched: Array<{ candidate: EraserCandidate; parts: StrokePoint[][] }> = []
-    for (const candidate of candidates) {
-      const parts = eraseStroke(candidate.points, path, radius)
-      if (parts.length === 1 && parts[0]?.length === candidate.points.length) continue
-      touched.push({ candidate, parts })
-    }
-    return touched
-  }
+  /** Eraser radius in world units at the live zoom. */
+  const worldRadius = (): number => options.radiusPx / options.view().zoom
 
   startBoardToolGesture({
     event: options.event,
     start: options.start,
-    sample: append,
+    sample: (sample) => {
+      const world = boardToolWorldPoint(options.container, options.view(), sample)
+      pass.add(world.x, world.y, worldRadius())
+    },
     frame: () => {
-      const touched = touchedStrokes()
+      const touched = pass.touched(worldRadius())
       if (touched.length === 0) {
         options.onPreview(null)
         return
       }
       const parts: BoardStrokeDraft[] = []
-      for (const { candidate, parts: remaining } of touched) {
-        for (const part of remaining) parts.push({ points: part, width: candidate.width, pen: candidate.pen })
+      for (const { target, parts: remaining } of touched) {
+        for (const part of remaining) parts.push({ points: part, width: target.width, pen: target.pen })
       }
-      options.onPreview({ hidden: touched.map(({ candidate }) => candidate.element.id), parts })
+      options.onPreview({ hidden: touched.map(({ target }) => target.element.id), parts })
     },
     end: (endEvent) => {
       options.onPreview(null)
       if (endEvent === null || endEvent.type !== 'pointerup') return
-      const touched = touchedStrokes()
+      pass.finish()
+      const touched = pass.touched(worldRadius())
       if (touched.length === 0) return
       const removals: ElementId[] = []
       const specs: BoardElementSpec[] = []
-      for (const { candidate, parts } of touched) {
-        removals.push(candidate.element.id)
+      for (const { target, parts } of touched) {
+        removals.push(target.element.id)
         for (const part of parts) {
-          specs.push(strokeSpecFromBounds(strokeBounds(part, STROKE_SIZES[candidate.width]), candidate.width, candidate.pen))
+          specs.push(strokeSpecFromBounds(strokeBounds(part, STROKE_SIZES[target.width]), target.width, target.pen))
         }
       }
       options.erase(removals, specs)

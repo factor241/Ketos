@@ -36,6 +36,7 @@ import { nextWindowOrdinal, type BoardStoreHandle } from '../store.ts'
 import { BOARD_ELEMENT_KIND_DESCRIPTORS } from '../board-element-kinds.ts'
 import { placeInSafeArea } from '../board-coordinates.ts'
 import { createTodoList } from '../todo-api.ts'
+import { todoNoticeKey } from '../todo-notice.ts'
 import { ParticipantsPopover } from './ParticipantsPopover.tsx'
 import { TodoCreatePopover } from './TodoCreatePopover.tsx'
 import { menuPlacement, type MenuPlacement } from '../menu-placement.ts'
@@ -59,6 +60,13 @@ export type SessionRailProps =
 
 /** Most recent chats the dock's `+` menu offers. */
 const RECENT_CHAT_LIMIT = 6
+
+/**
+ * The title popover's wrapper generates no box, so the popover keeps its fixed
+ * placement and the popover layer's pointer rule while the wrapper still
+ * contains its nodes.
+ */
+const TODO_CREATE_WRAPPER_STYLE = { display: 'contents' } as const
 
 interface DockRowProps {
   readonly window: BoardWindowState
@@ -360,6 +368,7 @@ export function SessionRail({
   // The participants popover's anchor rectangle at open time.
   const [participants, setParticipants] = useState<{ anchor: DOMRect; boundary: DOMRect } | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
+  const todoCreateRef = useRef<HTMLDivElement>(null)
   const participantsRef = useRef<HTMLButtonElement>(null)
   const widthRef = useRef<HTMLButtonElement>(null)
   const boundary = useBoardPopoverBoundary()
@@ -601,6 +610,21 @@ export function SessionRail({
   }
 
   /**
+   * Close the title popover. The keyboard returns to the `+` control only
+   * while the popover is open and holds the focus, or lost it to the page
+   * (its action disabled during the request); a creation that settles after
+   * an outside click closed the popover leaves the focus where the user put it.
+   */
+  const closeTodoCreate = (): void => {
+    const surface = todoCreateRef.current
+    const active = document.activeElement
+    const holdsFocus = surface !== null
+      && (active === null || active === document.body || surface.contains(active))
+    setTodoCreate(null)
+    if (holdsFocus) addRef.current?.focus()
+  }
+
+  /**
    * Create a list from the catalog popover in the center of the visible safe
    * area; a failure surfaces as the dock's localized notice.
    * @param title - validated list title.
@@ -616,12 +640,12 @@ export function SessionRail({
     void createTodoList(title, at.x, at.y).then((outcome) => {
       setTodoBusy(false)
       if (!outcome.ok) {
-        setNotice(t(outcome.code === 'ketos/beads-unavailable'
-          ? 'element.todo.error.unavailable'
-          : 'element.todo.error.failed'))
+        setNotice(t(todoNoticeKey(outcome.code, 'create')))
         return
       }
-      setTodoCreate(null)
+      // The new list is an element: leave a drawing tool for the select tool.
+      actions.setTool('select')
+      closeTodoCreate()
     })
   }
 
@@ -721,14 +745,17 @@ export function SessionRail({
 
       {todoCreate !== null && (
         <BoardPopoverPortal>
-          <TodoCreatePopover
-            anchor={todoCreate.anchor}
-            boundary={todoCreate.boundary}
-            busy={todoBusy}
-            t={t}
-            onCreate={createTodo}
-            onClose={() => { setTodoCreate(null) }}
-          />
+          {/* A box-less wrapper the focus check measures the popover with. */}
+          <div ref={todoCreateRef} style={TODO_CREATE_WRAPPER_STYLE}>
+            <TodoCreatePopover
+              anchor={todoCreate.anchor}
+              boundary={todoCreate.boundary}
+              busy={todoBusy}
+              t={t}
+              onCreate={createTodo}
+              onClose={closeTodoCreate}
+            />
+          </div>
         </BoardPopoverPortal>
       )}
 
@@ -797,26 +824,28 @@ export function SessionRail({
         </button>
       </Tooltip>
 
-      <Tooltip label={t('tool.width')} side="top" delayMs={300} disabled={widthMenu !== null}>
-        <button
-          ref={widthRef}
-          type="button"
-          data-board-action="dock-brush-width"
-          onClick={toggleWidthMenu}
-          className={clsx(css.control, widthMenu !== null && css.controlActive)}
-          aria-label={t('tool.width')}
-        >
-          <BrushWidthIcon width={brushWidth} />
-        </button>
-      </Tooltip>
-
       <Menu
         portal
         open={widthMenu !== null}
         side={widthMenu?.side ?? 'top'}
         align={widthMenu?.align ?? 'start'}
         selection="check"
-        anchor={<span />}
+        anchor={(
+          <Tooltip label={t('tool.width')} side="top" delayMs={300} disabled={widthMenu !== null}>
+            <button
+              ref={widthRef}
+              type="button"
+              data-board-action="dock-brush-width"
+              onClick={toggleWidthMenu}
+              className={clsx(css.control, widthMenu !== null && css.controlActive)}
+              aria-label={t('tool.width')}
+              aria-haspopup="menu"
+              aria-expanded={widthMenu !== null}
+            >
+              <BrushWidthIcon width={brushWidth} />
+            </button>
+          </Tooltip>
+        )}
         getAnchorRect={() => widthRef.current?.getBoundingClientRect() ?? null}
         items={widthItems}
         selectedId={brushWidth}

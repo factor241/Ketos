@@ -4,7 +4,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { SubprocessExecutableNotFoundError, SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
@@ -179,7 +179,11 @@ describe('BeadsCli', () => {
    * @param overrides - options to replace.
    * @returns the wrapper and the double.
    */
-  function build(scripts: ScriptedRun[], overrides: Partial<BeadsCliOptions> = {}): { cli: BeadsCli; subprocess: ScriptedSubprocess } {
+  function build(
+    scripts: ScriptedRun[],
+    overrides: Partial<BeadsCliOptions> = {},
+    ambientEnv: NodeJS.ProcessEnv = {},
+  ): { cli: BeadsCli; subprocess: ScriptedSubprocess } {
     const subprocess = new ScriptedSubprocess(new Context())
     subprocess.scripts.push(...scripts)
     const cli = new BeadsCli(subprocess, {
@@ -191,7 +195,7 @@ describe('BeadsCli', () => {
       todoTitleMaxChars: 200,
       logger: (message) => { logs.push(message) },
       ...overrides,
-    })
+    }, ambientEnv)
     return { cli, subprocess }
   }
 
@@ -248,6 +252,27 @@ describe('BeadsCli', () => {
         expect(spec.graceMs).toBe(2_000)
       }
       expect(logs).toEqual([`bd 1.3.1 is ready at ${EXECUTABLE}`])
+    })
+
+    it('blanks every ambient BEADS_* and BD_* setting that could redirect the database', async () => {
+      const ambient = {
+        BEADS_DB: '/elsewhere/beads.db',
+        BD_DB: '/elsewhere/bd.db',
+        BEADS_DOLT_SERVER_HOST: 'db.example',
+        BEADS_DOLT_SERVER_PORT: '3307',
+        BD_ACTOR: 'someone',
+        HOME: '/home/u',
+      }
+      const { cli, subprocess } = build([versionRun('1.3.1'), INIT, updateRun(ITEM, 'closed')], {}, ambient)
+      await cli.setDone(ITEM, true, new AbortController().signal)
+      for (const spec of subprocess.spawns) {
+        expect(spec.env).toMatchObject({
+          BEADS_DB: '', BD_DB: '', BEADS_DOLT_SERVER_HOST: '', BEADS_DOLT_SERVER_PORT: '', BD_ACTOR: '',
+          BEADS_DIR: join(dir, '.beads'),
+          BD_JSON_ENVELOPE: '1',
+        })
+        expect(spec.env).not.toHaveProperty('HOME')
+      }
     })
 
     it('resolves the executable once and reuses it', async () => {
@@ -343,11 +368,26 @@ describe('BeadsCli', () => {
       ])
       const first = cli.setDone(ITEM, true, new AbortController().signal)
       const second = cli.setDone(ITEM, true, new AbortController().signal)
+      // The first call creates the beads directory on the real file system before it spawns.
+      await vi.waitFor(() => { expect(subprocess.spawns).toHaveLength(1) })
       await tick()
       expect(subprocess.spawns).toHaveLength(1)
       gate.resolve()
       await Promise.all([first, second])
       expect(subprocess.spawns).toHaveLength(4)
+    })
+
+    it('aborts the running call and rejects later calls after dispose', async () => {
+      const never = deferred()
+      const { cli, subprocess } = build([{ ...versionRun('1.3.1'), gate: never.promise }])
+      const running = cli.createEpic('x', new AbortController().signal).catch((caught: unknown) => caught)
+      const queued = cli.createEpic('z', new AbortController().signal).catch((caught: unknown) => caught)
+      await vi.waitFor(() => { expect(subprocess.spawns).toHaveLength(1) })
+      await cli.dispose()
+      expect(await running).toBeInstanceOf(BeadsCommandError)
+      expect(await queued).toBeInstanceOf(BeadsUnavailableError)
+      await expect(cli.createEpic('y', new AbortController().signal)).rejects.toBeInstanceOf(BeadsUnavailableError)
+      expect(subprocess.spawns).toHaveLength(1)
     })
 
     it('keeps the queue running after a failed call', async () => {
@@ -412,8 +452,7 @@ describe('BeadsCli', () => {
       const error = await cli.createEpic('x', new AbortController().signal).catch((caught: unknown) => caught)
       expect(error).toBeInstanceOf(BeadsCommandError)
       expect((error as Error).message).toMatch(/timed out after 20ms/u)
-      await tick()
-      expect(subprocess.spawns).toHaveLength(1)
+      await vi.waitFor(() => { expect(subprocess.spawns).toHaveLength(1) })
     })
 
     it('reports a caller abort without treating it as a timeout', async () => {

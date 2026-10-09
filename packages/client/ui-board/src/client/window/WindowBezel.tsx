@@ -10,11 +10,12 @@
  * `WindowFrame.module.css` because CSS-module class names are hashed per file.
  * The background drags the window through the same hook as the header.
  */
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardWindowState } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
-import { boardParticipants, canManageWindow, participantLabel } from '../owners.ts'
+import { boardParticipants, canManageWindow, ownerIsUnknown, participantLabel } from '../owners.ts'
 import { accessPeople, AccessIndicator } from './AccessIndicator.tsx'
 import { AccessMenu } from './AccessMenu.tsx'
 import { OwnerBadge } from './OwnerBadge.tsx'
@@ -31,24 +32,46 @@ export interface WindowBezelProps {
   readonly useStore: PropsStore<BoardStoreHandle>['useStore']
   /** Board action face, for the background drag. */
   readonly actions: PropsStore<BoardStoreHandle>['actions']
+  /**
+   * Whether the acting participant manages this window: the owner controls and
+   * the background drag render. A foreign window passes false and gets the
+   * informational bezel without menus or movement.
+   */
+  readonly interactive?: boolean
+  /** Stale-data badge text; absent renders no badge (the owner has a channel). */
+  readonly staleLabel?: string | undefined
+  /** Tooltip of the stale-data badge. */
+  readonly staleHint?: string | undefined
 }
 
 /**
  * Render the owner bezel of one window.
- * @param props - the window, the translator, the store seat, and the action face.
+ * @param props - the window, the translator, the store seat, the action face, and the interactive flag.
  * @returns the bezel layer that the frame renders under its content.
  */
-export function WindowBezel({ window: cardWindow, t, useStore, actions }: WindowBezelProps) {
+export function WindowBezel({
+  window: cardWindow, t, useStore, actions, interactive = true, staleLabel, staleHint,
+}: WindowBezelProps) {
   // The roster arrives through the store: document participant records united
   // with connected peers; an id the roster does not know keeps the neutral
   // unknown color and label.
   const participants = useStore(s => boardParticipants(s))
-  const manageable = useStore(s => canManageWindow(s, cardWindow))
+  const manageable = useStore(s => interactive && canManageWindow(s, cardWindow))
+  // A window of this layout whose owner nobody knows can be taken over; a
+  // foreign window (not interactive) never can.
+  const claimable = useStore(s => interactive && s.windows[cardWindow.id as string] !== undefined
+    && ownerIsUnknown(s, cardWindow.ownerId))
   const owner = participants.find(participant => participant.id === cardWindow.ownerId)
-  const handlePointerDown = useWindowDragStart(cardWindow, useStore, actions)
+  const drag = useWindowDragStart(cardWindow, useStore, actions)
+  const handlePointerDown = interactive ? drag : undefined
 
   return (
-    <div data-board-bezel className={css.bezel} onPointerDown={handlePointerDown}>
+    <div
+      data-board-bezel
+      data-board-bezel-interactive={interactive}
+      className={css.bezel}
+      onPointerDown={handlePointerDown === undefined ? undefined : handlePointerDown}
+    >
       <div className={css.strip}>
         {manageable
           ? (
@@ -60,6 +83,22 @@ export function WindowBezel({ window: cardWindow, t, useStore, actions }: Window
           : (
             <>
               <OwnerBadge label={participantLabel(t, owner)} />
+              {claimable && (
+                <button
+                  type="button"
+                  data-board-action="bezel-claim"
+                  data-board-bezel-item
+                  className={css.claim}
+                  onClick={() => { actions.claimWindow(cardWindow.id) }}
+                >
+                  {t('bezel.claim')}
+                </button>
+              )}
+              {staleLabel !== undefined && (
+                <Tooltip label={staleHint ?? staleLabel} side="bottom">
+                  <span data-board-stale="" tabIndex={0} className={css.stale}>{staleLabel}</span>
+                </Tooltip>
+              )}
               <AccessIndicator
                 mode={cardWindow.access.mode}
                 people={accessPeople(t, participants, cardWindow.access.people)}

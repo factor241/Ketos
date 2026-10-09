@@ -32,6 +32,8 @@ import { placeTodoList } from './todo-api.ts'
 import { TodoPlacement } from './todo-placement.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
 import { BoardSessionBridge } from './session-bridge.ts'
+import { WindowPublisher } from './window-publish.ts'
+import { windowStatus } from './window-status.ts'
 import { openBoardWindow, resolveChatWindow } from './open-window.ts'
 import { BOARD_PANEL_ID } from './contract/slots.ts'
 import {
@@ -57,6 +59,7 @@ import { ReturnToWindowAction, type ReturnToWindowActionInjected } from './Retur
 import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
+import { ForeignWindowLayer } from './window/ForeignWindowLayer.tsx'
 import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
 import { NoteElement } from './elements/NoteElement.tsx'
 import { StrokeElement } from './elements/StrokeElement.tsx'
@@ -108,6 +111,14 @@ export interface Config {
   elementStreamRetryMaxMs?: number
   /** How long a hidden tab keeps its board event stream before closing it, in milliseconds. */
   elementStreamHiddenCloseMs?: number
+  /** Quiet period after the last window change before its record is published, in milliseconds. */
+  windowPublishDebounceMs?: number
+  /** Pause before a window record is published again after an unreachable host, in milliseconds. */
+  windowPublishRetryMs?: number
+  /** First pause before a to-do list placement is retried after an unreachable host, in milliseconds. */
+  todoPlacementRetryMinMs?: number
+  /** Longest pause between placement retries, in milliseconds. */
+  todoPlacementRetryMaxMs?: number
 }
 
 /**
@@ -132,6 +143,10 @@ export const Config: z<Config> = z.object({
   elementStreamRetryMinMs: z.number().step(1).min(100).max(60_000).default(1_000),
   elementStreamRetryMaxMs: z.number().step(1).min(1_000).max(300_000).default(15_000),
   elementStreamHiddenCloseMs: z.number().step(1).min(1_000).max(3_600_000).default(60_000),
+  windowPublishDebounceMs: z.number().step(1).min(100).max(10_000).default(300),
+  windowPublishRetryMs: z.number().step(1).min(1_000).max(60_000).default(5_000),
+  todoPlacementRetryMinMs: z.number().step(1).min(100).max(60_000).default(1_000),
+  todoPlacementRetryMaxMs: z.number().step(1).min(1_000).max(300_000).default(30_000),
 })
 
 /**
@@ -358,6 +373,9 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const todoPlacement = new TodoPlacement({
     getState: () => instance.getSnapshot(),
     isVisible: () => document.visibilityState === 'visible',
+    isBoardMounted: () => instance.getSnapshot().boardMounted,
+    ownerId: () => instance.getSnapshot().selfId,
+    retry: { initialMs: config.todoPlacementRetryMinMs as number, maxMs: config.todoPlacementRetryMaxMs as number },
     place: (id, x, y) => placeTodoList(id, x, y),
   })
   ctx.effect(() => {
@@ -367,6 +385,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     return () => {
       unsubscribe()
       document.removeEventListener('visibilitychange', sweep)
+      todoPlacement.dispose()
     }
   }, 'ui-board: todo placement')
 
@@ -380,6 +399,34 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const cloneRoster = createSnapshotStore<BoardCloneRoster>({ clones: [], loaded: false })
   /** Newest roster read; an older answer never overwrites a newer one. */
   let cloneReadSeq = 0
+
+  // Shared window records: publish this browser's windows into the document.
+  // The publisher reads the layout from the store and the per-window session
+  // channel for status, title, and session id; only the visible tab publishes.
+  const windowPublisher = new WindowPublisher({
+    getState: () => instance.getSnapshot(),
+    subscribe: listener => instance.subscribe(listener),
+    watchWindow: (windowId, listener) => bridge.channel(windowId).subscribe(listener),
+    statusFor: windowId => windowStatus(bridge.channel(windowId).getSnapshot()),
+    sessionFor: windowId => bridge.sessionFor(windowId),
+    chatTitleFor: windowId => bridge.channel(windowId).getSnapshot().displayTitle,
+    isVisible: () => document.visibilityState === 'visible',
+    onVisibilityChange: (listener) => {
+      document.addEventListener('visibilitychange', listener)
+      return () => { document.removeEventListener('visibilitychange', listener) }
+    },
+    post: op => postBoardOps([op]),
+    clones: {
+      nameOf: id => cloneRoster.getSnapshot().clones.find(clone => clone.id === id)?.name,
+      subscribe: listener => cloneRoster.subscribe(listener),
+    },
+    log: (message) => { console.warn(`ui-board: ${message}`) },
+  }, {
+    debounceMs: config.windowPublishDebounceMs as number,
+    retryMs: config.windowPublishRetryMs as number,
+  })
+  ctx.effect(() => windowPublisher.start(), 'ui-board: window publisher')
+
   const refreshClones = (): void => {
     const seq = ++cloneReadSeq
     void listClones().then((result) => {
@@ -1024,15 +1071,16 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     ops: readonly BoardOp[],
     failureKey: BoardKey,
     keepalive = false,
-  ): void => {
+  ): Promise<boolean> => {
     for (const id of ids) instance.actions.beginBoardElementOp(id)
-    void postBoardOps(ops, { keepalive }).then((outcome) => {
+    return postBoardOps(ops, { keepalive }).then((outcome) => {
       for (const id of ids) instance.actions.endBoardElementOp(id)
-      if (outcome.ok) return
+      if (outcome.ok) return true
       instance.actions.setElementNotice(failureKey)
       void fetchBoardSnapshot().then((snapshot) => {
         if (snapshot !== undefined) instance.actions.applyBoardSnapshot(snapshot)
       })
+      return false
     })
   }
 
@@ -1040,7 +1088,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
   const elementInjected = (): BoardElementInjected => ({
     createElement: (spec) => {
       instance.actions.createBoardElement(spec)
-      postElementOps([spec.id], [{
+      void postElementOps([spec.id], [{
         op: 'create',
         id: spec.id,
         kind: spec.kind,
@@ -1053,25 +1101,25 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     },
     moveElement: (id, x, y) => {
       instance.actions.moveBoardElement(id, x, y)
-      postElementOps([id], [{ op: 'patch', id, x, y }], 'element.saveFailed')
+      void postElementOps([id], [{ op: 'patch', id, x, y }], 'element.saveFailed')
     },
     resizeElement: (id, width, height) => {
       instance.actions.resizeBoardElement(id, width, height)
-      postElementOps([id], [{ op: 'patch', id, w: width, h: height }], 'element.saveFailed')
+      void postElementOps([id], [{ op: 'patch', id, w: width, h: height }], 'element.saveFailed')
     },
     removeElement: (id) => {
       instance.actions.removeBoardElement(id)
-      postElementOps([id], [{ op: 'remove', id }], 'element.deleteFailed')
+      void postElementOps([id], [{ op: 'remove', id }], 'element.deleteFailed')
     },
     patchElement: (id, patch, options) => {
       instance.actions.patchBoardElement(id, patch)
-      postElementOps([id], [{ op: 'patch', id, ...patch }], 'element.saveFailed', options?.keepalive === true)
+      return postElementOps([id], [{ op: 'patch', id, ...patch }], 'element.saveFailed', options?.keepalive === true)
     },
     eraseStrokes: (removals, parts) => {
       if (removals.length === 0) return
       for (const id of removals) instance.actions.removeBoardElement(id)
       for (const part of parts) instance.actions.createBoardElement(part)
-      postElementOps([
+      void postElementOps([
         ...removals,
         ...parts.map(part => part.id),
       ], [
@@ -1128,8 +1176,22 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
     children: {
       'board.windows': { kind: 'single', scope: 'root' },
       'board.elements': { kind: 'single', scope: 'root' },
+      'board.foreign.windows': { kind: 'single', scope: 'root' },
     },
   }, DashboardCanvas))
+
+  // 3c. Foreign-window layer: renders the shared records of other Ketoses in
+  //     paint order, between the elements and the local windows. It declares
+  //     the keyed foreign-body seat; the shared placeholder covers kinds
+  //     without an occupant (stage 34 registers the chat card).
+  ctx.slots.inject('board.foreign.windows', () => ctx.slots.register({
+    name: 'board.foreign.windows',
+    store: boardStore,
+    locale: NS,
+    children: {
+      'board.foreign.window.body': { kind: 'keyed', scope: 'root' },
+    },
+  }, ForeignWindowLayer))
 
   // 3b. Element layer: declares the keyed element-body seat; its fallback
   //     neutral body covers kinds without a registered occupant.

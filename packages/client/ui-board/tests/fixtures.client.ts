@@ -87,6 +87,7 @@ export function createBoardDocDouble(
       { id: brandString<OwnerId>('demo-legal'), name: 'Legal', color: 3, updatedAt: 1 },
       { id: brandString<OwnerId>('demo-analyst'), name: 'Analyst', color: 4, updatedAt: 1 },
     ],
+    windows: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
   const ops: BoardOp[][] = []

@@ -59,6 +59,20 @@ export interface PeerConnection {
 }
 
 /**
+ * One incoming connection whose transport handshake has not completed. A
+ * stranger or a broken peer fails here, inside the connection's own task,
+ * instead of ending the accept loop.
+ */
+export interface PeerIncoming {
+  /**
+   * Complete the transport handshake of this incoming connection. The remote
+   * identity of the returned connection is authenticated by the transport.
+   * @returns the open connection, or a rejection when the handshake fails.
+   */
+  complete(): Promise<PeerConnection>
+}
+
+/**
  * One side of the peer transport: a bound node identity plus the dial and
  * accept halves of the connection flow.
  */
@@ -95,10 +109,12 @@ export interface PeerTransport {
    */
   dial(ticket: string): Promise<PeerConnection>
   /**
-   * Wait for the next incoming connection.
-   * @returns the accepted connection.
+   * Wait for the next incoming connection. The wait rejects only when the
+   * transport is closed; a failing handshake surfaces from
+   * {@link PeerIncoming.complete} instead.
+   * @returns the incoming connection, not yet handshaken.
    */
-  accept(): Promise<PeerConnection>
+  accept(): Promise<PeerIncoming>
   /** Close the node and every connection it holds. */
   close(): Promise<void>
 }

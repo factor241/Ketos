@@ -64,6 +64,12 @@ sudo ufw enable
    KETOS_SYNCTHING_RELAY=relay://<SERVER-IP>:22067/?id=<ID>&token=<STRELAY_TOKEN>
    ```
 
+## Access and secrets
+
+- `iroh-relay` accepts every endpoint by default: anyone who knows the host name can use the relay. Restricting it to the Ketos endpoints is a change on the VPS (the `access` setting of the `iroh-relay` configuration, see the iroh-relay documentation) and is made by the operator, not by the stand.
+- The `strelaysrv` token is passed as a command-line argument, so `docker inspect` and `ps` on the VPS show it. Only the VPS administrator can read it.
+- `iroh-relay.toml` is rendered by `render-config.sh` from `.env` and is git-ignored; edit the template, not the rendered file.
+
 ## Fallback modes
 
 1. If Let's Encrypt refuses `sslip.io`: switch to `<IP>.nip.io` in `.env`, rerun `render-config.sh`, and `docker compose up -d`.

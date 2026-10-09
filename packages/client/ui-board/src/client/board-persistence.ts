@@ -12,6 +12,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // derives from (the shared describe reader; cross-plugin collaboration goes
 // through the service, never a value import).
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   BOARD_SETTINGS_NAMESPACE, type BoardLayoutDocument, type BoardSettings, type BoardSettingsBindings,
 } from '../board-settings.ts'
@@ -192,14 +193,43 @@ export class BoardLayoutPersistence {
     }
   }
 
-  /** Adopt the server section once the mirror holds a ready answer with the namespace. */
+  /**
+   * Adopt the server section once the mirror holds a ready answer, then mark
+   * where the layout came from. Every ready answer marks it `server` — a
+   * hydrated document, a cache that stays ahead, a server without a user
+   * document, a document the sanitizer refuses, and an answer without the
+   * namespace. A mirror that is unavailable marks it `memory`: a non-loopback
+   * page keeps preferences in page memory, so its layout is not the one the
+   * other pages of this Ketos paint. Only a mirror that has not answered
+   * (`idle`, `loading`, or a failed read) leaves the source null, which holds
+   * the window publisher's reconciliation back.
+   */
   private adoptServerLayout(): void {
     if (this.disposed || this.serverChecked) return
     const snapshot = this.describeFace.getSnapshot()
+    if (snapshot.status === 'unavailable') {
+      this.serverChecked = true
+      this.instance.actions.markLayoutAdopted('memory')
+      return
+    }
     if (snapshot.status !== 'ready') return
     const view = snapshot.view?.namespaces.find(entry => entry.ns === BOARD_SETTINGS_NAMESPACE)
-    if (view === undefined) return
+    if (view === undefined) {
+      this.instance.actions.markLayoutAdopted('server')
+      return
+    }
     this.serverChecked = true
+    this.adoptSection(view)
+    this.instance.actions.markLayoutAdopted('server')
+  }
+
+  /**
+   * Apply the revision rules to the server's namespace view: adopt it when it
+   * is ahead of (or there is no) cache, push the cache back when the server
+   * lags a lost write.
+   * @param view - the board namespace view the mirror holds.
+   */
+  private adoptSection(view: SettingsNamespaceView): void {
     // `user` marks that the entry was written; `value` is the schema-resolved
     // section, which is what the board adopts (the raw layer omits defaults,
     // including the document `version`).

@@ -23,6 +23,10 @@
       "types": "./lib/types/data.d.ts",
       "default": "./lib/types/data.js"
     },
+    "./windows": {
+      "types": "./lib/types/windows.d.ts",
+      "default": "./lib/types/windows.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },

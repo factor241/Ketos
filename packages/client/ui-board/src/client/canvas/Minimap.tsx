@@ -28,8 +28,12 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
   const panY = useStore(s => s.panY)
   const zoom = useStore(s => s.zoom)
   const windows = useStore(s => s.windows)
+  const windowRecords = useStore(s => s.windowRecords)
+  const selfId = useStore(s => s.selfId)
   const elements = useStore(s => s.boardElements)
   const participants = useStore(s => boardParticipants(s))
+  // Own records are the local windows; the rest are other Ketoses' placeholders.
+  const foreignRecords = Object.values(windowRecords).filter(record => record.hostId !== selfId)
   const activeWindowId = useStore(s => s.activeWindowId)
   const viewportWidth = useStore(s => s.viewportWidth)
   const viewportHeight = useStore(s => s.viewportHeight)
@@ -49,6 +53,12 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
     minY = Math.min(minY, win.y)
     maxX = Math.max(maxX, win.x + win.width)
     maxY = Math.max(maxY, win.y + win.height)
+  }
+  for (const record of foreignRecords) {
+    minX = Math.min(minX, record.x)
+    minY = Math.min(minY, record.y)
+    maxX = Math.max(maxX, record.x + record.w)
+    maxY = Math.max(maxY, record.y + record.h)
   }
   // The world frame covers the elements too: a board whose windows sit in one
   // corner still shows a note the user placed far away.
@@ -168,6 +178,20 @@ export function Minimap({ useStore, actions, t }: MinimapProps) {
             />
           )
         })}
+
+        {foreignRecords.map(record => (
+          <rect
+            key={record.id}
+            data-board-foreign-rect={record.kind}
+            data-board-owner-color={participantColorAttr(participants.find(candidate => candidate.id === record.ownerId))}
+            x={toMiniX(record.x)}
+            y={toMiniY(record.y)}
+            width={Math.max(4, record.w * scale)}
+            height={Math.max(4, record.h * scale)}
+            rx={3}
+            className={css.foreign}
+          />
+        ))}
 
         <rect
           x={frustumX}

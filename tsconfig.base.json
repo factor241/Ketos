@@ -355,6 +355,7 @@
       "@ketos/board-doc/types": ["./packages/ketos/board-doc/src/types.ts"],
       "@ketos/board-doc/kinds": ["./packages/ketos/board-doc/src/kinds.ts"],
       "@ketos/board-doc/data": ["./packages/ketos/board-doc/src/data.ts"],
+      "@ketos/board-doc/windows": ["./packages/ketos/board-doc/src/windows.ts"],
       // The to-do package's browser face is its type-only `./types` module;
       // the bare alias resolves the Host plugin for tests and scripts.
       "@ketos/board-todo": ["./packages/ketos/board-todo/src"],

@@ -43,6 +43,7 @@ const SNAPSHOT: BoardSnapshot = {
   revision: brandNumber<BoardRevision>(1),
   elements: [ELEMENT],
   participants: [],
+  windows: [],
   limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2000, todoItemsMax: 200 },
 }
 
@@ -158,6 +159,9 @@ describe('board document requests', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ok: false, error: 'ketos/element-foreign' }, { status: 409 })))
     expect(await postBoardOps([])).toEqual({ ok: false, code: 'ketos/element-foreign' })
 
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ok: false, error: 'ketos/element-host-data' }, { status: 403 })))
+    expect(await postBoardOps([])).toEqual({ ok: false, code: 'ketos/element-host-data' })
+
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
     expect(await fetchBoardSnapshot()).toBeUndefined()
     expect(await postBoardOps([])).toEqual({ ok: false, code: 'ketos/unreachable' })
@@ -214,6 +218,94 @@ describe('board event stream', () => {
     expect(calls).toHaveLength(2)
     await vi.advanceTimersByTimeAsync(1)
     expect(calls).toHaveLength(3)
+    controller.abort()
+  })
+
+  it('keeps growing the pause while connections open but never deliver a snapshot', async () => {
+    vi.useFakeTimers()
+    const calls: number[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls.push(Date.now())
+      return framesResponse([': ping\n\n'])
+    }))
+    const controller = new AbortController()
+    openBoardEvents(controller.signal, () => {}, { retryMinMs: 100, retryMaxMs: 1_000, hiddenCloseMs: 10_000 })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(199)
+    expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(calls).toHaveLength(3)
+    controller.abort()
+  })
+
+  it('returns to the shortest pause after an accepted snapshot', async () => {
+    vi.useFakeTimers()
+    const calls: number[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls.push(Date.now())
+      if (calls.length <= 2) throw new Error('offline')
+      return framesResponse([`event: snapshot\ndata: ${JSON.stringify(SNAPSHOT)}\n\n`])
+    }))
+    const controller = new AbortController()
+    openBoardEvents(controller.signal, () => {}, { retryMinMs: 100, retryMaxMs: 1_000, hiddenCloseMs: 10_000 })
+    await vi.advanceTimersByTimeAsync(300)
+    expect(calls).toHaveLength(3)
+    await vi.advanceTimersByTimeAsync(99)
+    expect(calls).toHaveLength(3)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(calls).toHaveLength(4)
+    controller.abort()
+  })
+
+  it('lengthens the pause after each overflow and relaxes it after a healthy connection', async () => {
+    vi.useFakeTimers()
+    const calls: number[] = []
+    const overflow = 'event: overflow\ndata: {"reason":"queue"}\n\n'
+    const snapshot = `event: snapshot\ndata: ${JSON.stringify(SNAPSHOT)}\n\n`
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls.push(Date.now())
+      return framesResponse(calls.length <= 2 ? [snapshot, overflow] : [snapshot])
+    }))
+    const events: BoardStreamEvent[] = []
+    const controller = new AbortController()
+    openBoardEvents(controller.signal, (event) => { events.push(event) }, {
+      retryMinMs: 100, retryMaxMs: 10_000, hiddenCloseMs: 10_000,
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(199)
+    expect(calls).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(399)
+    expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(calls).toHaveLength(3)
+    // The third connection ended without an overflow: the pause relaxes.
+    await vi.advanceTimersByTimeAsync(100)
+    expect(calls).toHaveLength(4)
+    expect(events.every(event => event.type === 'snapshot')).toBe(true)
+    controller.abort()
+  })
+
+  it('ignores an overflow payload it cannot read', async () => {
+    vi.useFakeTimers()
+    const calls: number[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls.push(Date.now())
+      return framesResponse([
+        `event: snapshot\ndata: ${JSON.stringify(SNAPSHOT)}\n\n`,
+        'event: overflow\ndata: {"reason":"other"}\n\n',
+      ])
+    }))
+    const controller = new AbortController()
+    openBoardEvents(controller.signal, () => {}, { retryMinMs: 100, retryMaxMs: 10_000, hiddenCloseMs: 10_000 })
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(calls).toHaveLength(2)
     controller.abort()
   })
 

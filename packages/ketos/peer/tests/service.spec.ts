@@ -2,10 +2,10 @@
 // participant publication and the color rule, the invitation handshake with
 // its refusals, the known-peer file, framed send/request handling, and
 // reconnection with its pause sequence.
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { OwnerId } from '@ketos/board-doc/types'
@@ -14,16 +14,27 @@ import { formatInvite } from '../src/invite.ts'
 import { readPeerFrame, writePeerFrame } from '../src/link.ts'
 import { createMemoryStreamPair, createMemoryTransports, type MemoryTransportPair } from '../src/memory-transport.ts'
 import { KetosPeerService, type KetosPeerOptions } from '../src/service.ts'
-import type { PeerConnection, PeerStream, PeerTransport } from '../src/transport.ts'
+import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from '../src/transport.ts'
 import type { KetosPeerId } from '../src/types.ts'
 
-// The channel reserves codes 3-7 for the consumers of stages 33-35; this spec
-// merges one reserved type into the map the way stage 33 will.
+// A consumer merges its payload type into the map; this spec uses a test-only
+// name so it never collides with the types the reserved codes 5-7 receive.
 declare module '../src/frame.ts' {
   interface PeerFrameTypeMap {
-    'board.update': { readonly n: number }
+    'ketos.test.echo': { readonly n: number }
   }
 }
+
+/** Wire code the spec registers for `ketos.test.echo`, outside the reserved range. */
+const TEST_ECHO_CODE = 200
+
+beforeAll(() => {
+  (PEER_FRAME_CODES as Record<string, number>)['ketos.test.echo'] = TEST_ECHO_CODE
+})
+
+afterAll(() => {
+  delete (PEER_FRAME_CODES as Record<string, number>)['ketos.test.echo']
+})
 
 /** One participant record the fake board document holds. */
 interface StoredParticipant {
@@ -163,14 +174,35 @@ async function createPair(leftSelf = 'owner-a', rightSelf = 'owner-b'): Promise<
   return [left, right]
 }
 
+/**
+ * Open a raw connection to a service, send a `hello`, and read the reply, as
+ * a known peer's redial does.
+ * @param transport - the dialing endpoint.
+ * @param ticket - ticket of the service's endpoint.
+ * @returns the open connection and its stream.
+ */
+async function dialAndHello(
+  transport: PeerTransport,
+  ticket: string,
+): Promise<{ connection: PeerConnection; stream: PeerStream }> {
+  const connection = await transport.dial(ticket)
+  const stream = await connection.openStream()
+  await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
+  await readPeerFrame(stream, 4096)
+  return { connection, stream }
+}
+
 /** A transport whose configured step fails, to drive error branches. */
 class StubTransport implements PeerTransport {
   onlineError: unknown
   ticketError: unknown
   dialError: unknown
   bindError: unknown
+  bindGate: Promise<void> | undefined
   bindCalls = 0
+  closeCalls = 0
   dialCalls = 0
+  readonly dialTimes: number[] = []
   readonly ticket = 'memory:<stub>'
   readonly id = brandString<KetosPeerId>('stub-self')
 
@@ -179,6 +211,7 @@ class StubTransport implements PeerTransport {
   /** {@inheritDoc PeerTransport.bind} */
   async bind(): Promise<void> {
     this.bindCalls += 1
+    await this.bindGate
     if (this.bindError !== undefined) throw this.bindError
   }
   /** {@inheritDoc PeerTransport.online} */
@@ -197,15 +230,18 @@ class StubTransport implements PeerTransport {
   /** {@inheritDoc PeerTransport.dial} */
   async dial(): Promise<PeerConnection> {
     this.dialCalls += 1
+    this.dialTimes.push(Date.now())
     if (this.dialError !== undefined) throw this.dialError
     throw new Error('stub dial is not connected')
   }
   /** {@inheritDoc PeerTransport.accept} */
-  accept(): Promise<PeerConnection> {
+  accept(): Promise<PeerIncoming> {
     return Promise.reject(new Error('stub accept is not connected'))
   }
   /** {@inheritDoc PeerTransport.close} */
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    this.closeCalls += 1
+  }
 }
 
 describe('peer service start and participants', () => {
@@ -247,6 +283,16 @@ describe('peer service start and participants', () => {
     transport.bindError = undefined
     await harness.service.ensureStarted()
     expect(transport.bindCalls).toBe(2)
+  })
+
+  it('closes the transport of a start that failed when the service closes', async () => {
+    const transport = new StubTransport()
+    transport.bindError = new Error('bind failed')
+    const harness = await createHarness({ selfId: 'owner-a', transport })
+    await expect(harness.service.ensureStarted()).rejects.toThrow(/bind failed/u)
+    expect(transport.closeCalls).toBe(0)
+    await harness.service.close()
+    expect(transport.closeCalls).toBe(1)
   })
 
   it('starts with known peers only when the file names someone', async () => {
@@ -340,24 +386,41 @@ describe('peer service invitation handshake', () => {
     await expect(waiting.service.invite()).rejects.toMatchObject({ code: 'ketos/peer-offline' })
   })
 
-  it('closes a duplicate incoming connection without adding a second channel', async () => {
-    const [left, right] = await createPair()
-    const code = await left.service.invite()
-    await right.service.connect(code)
+  it('replaces the live channel when the same known peer connects again', async () => {
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', pair, transport: pair.a, logger: (message) => { logs.push(message) } })
+    await writeFile(join(left.root, 'peers.json'), JSON.stringify([{
+      peerId: String(pair.b.selfId()), selfId: 'owner-b', name: 'Юрист', color: 2, lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    await left.service.ensureStarted()
+    await pair.b.bind()
+    const connected: unknown[] = []
+    const disconnected: unknown[] = []
+    left.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    left.ctx.on('ketos-peer/disconnected', (event) => { disconnected.push(event) })
+
+    const first = await dialAndHello(pair.b, pair.a.invitationTicket())
     await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
-    const duplicate = await right.transport.dial(left.transport.invitationTicket())
-    const stream = await duplicate.openStream()
-    await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 1, selfId: 'owner-b', name: 'Юрист', color: 1 })
-    const closed = await duplicate.closed()
-    expect(closed).toContain('duplicate')
-    expect(closed).toContain('(code 3)')
-    expect(left.service.peers()).toHaveLength(1)
+    // The first connection is dead on the far side; the peer redials.
+    const second = await dialAndHello(pair.b, pair.a.invitationTicket())
+
+    await expect(first.connection.closed()).resolves.toMatch(/replaced.*\(code 5\)/u)
+    await vi.waitFor(() => { expect(connected).toHaveLength(2) })
+    expect(disconnected).toHaveLength(1)
+    expect(left.service.peers()[0]?.link).toBe('online')
+    expect(logs.some(line => line.includes('peer.replaced'))).toBe(true)
+    const secondState = await Promise.race([
+      second.connection.closed(),
+      new Promise<string>((resolve) => { setTimeout(() => { resolve('open') }, 50) }),
+    ])
+    expect(secondState).toBe('open')
   })
 
-  it('keeps the live link when a racing dial attaches a duplicate, closing it with code 3', async () => {
+  it('lets the newer of two racing dials of this node replace the older link, closing it with code 5', async () => {
     const rogue = new RogueDialTransport(async (stream) => {
       await readPeerFrame(stream, 1_000_000)
-      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 1, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
     })
     const harness = await createHarness({ selfId: 'owner-b', transport: rogue })
     const connected: unknown[] = []
@@ -365,7 +428,8 @@ describe('peer service invitation handshake', () => {
     const code = formatInvite('memory:<rogue>', 'abcdefghijklmnopqrstuvwxyz')
 
     // Both calls pass the pre-dial check before either handshake attaches, so
-    // the second attach meets the live link of the first.
+    // the second attach meets the live link of the first. Same dialer: the
+    // newer connection wins on both ends, as the accepting side also keeps it.
     const [first, second] = await Promise.all([
       harness.service.connect(code),
       harness.service.connect(code),
@@ -373,10 +437,175 @@ describe('peer service invitation handshake', () => {
 
     expect(String(first.peerId)).toBe('rogue-peer')
     expect(String(second.peerId)).toBe('rogue-peer')
-    expect(rogue.closes.filter(close => close.code === 3n)).toEqual([{ code: 3n, reason: 'duplicate' }])
+    await vi.waitFor(() => { expect(rogue.closes.filter(close => close.code === 5n)).toEqual([{ code: 5n, reason: 'replaced' }]) })
+    expect(rogue.closes.filter(close => close.code === 3n)).toEqual([])
     expect(harness.service.peers()).toHaveLength(1)
     expect(harness.service.peers()[0]?.link).toBe('online')
-    expect(connected).toHaveLength(1)
+    expect(connected).toHaveLength(2)
+  })
+})
+
+/** Wraps a transport so its first accept fails, like an incoming handshake that breaks. */
+class FailFirstAcceptTransport implements PeerTransport {
+  private failed = false
+
+  /**
+   * @param inner - the transport every other call delegates to.
+   */
+  constructor(private readonly inner: PeerTransport) {}
+
+  /** {@inheritDoc PeerTransport.selfId} */
+  selfId(): KetosPeerId { return this.inner.selfId() }
+  /** {@inheritDoc PeerTransport.bind} */
+  bind(): Promise<void> { return this.inner.bind() }
+  /** {@inheritDoc PeerTransport.online} */
+  online(): Promise<void> { return this.inner.online() }
+  /** {@inheritDoc PeerTransport.invitationTicket} */
+  invitationTicket(): string { return this.inner.invitationTicket() }
+  /** {@inheritDoc PeerTransport.ticketPeerId} */
+  ticketPeerId(ticket: string): KetosPeerId { return this.inner.ticketPeerId(ticket) }
+  /** {@inheritDoc PeerTransport.dial} */
+  dial(ticket: string): Promise<PeerConnection> { return this.inner.dial(ticket) }
+  /** {@inheritDoc PeerTransport.accept} */
+  accept(): Promise<PeerIncoming> {
+    if (this.failed) return this.inner.accept()
+    this.failed = true
+    return Promise.resolve({ complete: () => Promise.reject(new Error('incoming handshake broke')) })
+  }
+  /** {@inheritDoc PeerTransport.close} */
+  close(): Promise<void> { return this.inner.close() }
+}
+
+describe('peer service disposal during start and handshakes', () => {
+  it('waits for a start in flight before closing the transport', async () => {
+    const transport = new StubTransport()
+    let release: () => void = () => undefined
+    transport.bindGate = new Promise<void>((resolve) => { release = resolve })
+    const harness = await createHarness({ selfId: 'owner-a', transport })
+    const starting = harness.service.ensureStarted()
+    starting.catch(() => undefined)
+    await vi.waitFor(() => { expect(transport.bindCalls).toBe(1) })
+
+    let closed = false
+    const closing = harness.service.close().then(() => { closed = true })
+    await new Promise((resolve) => { setTimeout(resolve, 30) })
+    expect(closed).toBe(false)
+    expect(transport.closeCalls).toBe(0)
+
+    release()
+    await closing
+    await expect(starting).rejects.toThrow(/already closed/u)
+    expect(transport.closeCalls).toBe(1)
+    expect(harness.board.ownWrites).toEqual([])
+  })
+
+  it('refuses to attach a dialed channel after the service closed', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const rogue = new RogueDialTransport(async (stream) => {
+      await readPeerFrame(stream, 1_000_000)
+      await gate
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+    })
+    const harness = await createHarness({ selfId: 'owner-b', transport: rogue })
+    const connected: unknown[] = []
+    harness.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    const connecting = harness.service.connect(formatInvite('memory:<rogue>', 'abcdefghijklmnopqrstuvwxyz'))
+    connecting.catch(() => undefined)
+    await vi.waitFor(() => { expect(rogue.dialCalls).toBe(1) })
+    await harness.service.close()
+    release()
+    await expect(connecting).rejects.toMatchObject({ code: 'ketos/peer-offline' })
+    expect(connected).toEqual([])
+    expect(harness.service.peers()).toEqual([])
+    expect(rogue.closes).toHaveLength(1)
+    await expect(readPeers(harness.root)).rejects.toThrow(/ENOENT/u)
+  })
+
+  it('refuses to attach a dialed channel when the service closes while the peer file is written', async () => {
+    let closeService: () => void = () => undefined
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', name: 'Кирилл', pair, transport: pair.a })
+    const right = await createHarness({
+      selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b,
+      logger: (message) => { if (message.includes('known-peer file write failed')) closeService() },
+    })
+    closeService = () => { void right.service.close() }
+    const connected: unknown[] = []
+    right.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    const code = await left.service.invite()
+    await right.service.ensureStarted()
+    // A directory in place of the file makes the write after the hello fail,
+    // and the failure log closes the service between the write and the attach.
+    await mkdir(join(right.root, 'peers.json'))
+
+    await expect(right.service.connect(code)).rejects.toMatchObject({ code: 'ketos/peer-offline' })
+    expect(connected).toEqual([])
+    expect(right.service.peers().map(state => state.link)).not.toContain('online')
+  })
+
+  it('closes an accepted channel quietly when the service closed during its handshake', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const hello = encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+    const transport = new RogueAcceptTransport(hello, gate)
+    const logs: string[] = []
+    const harness = await createHarness({ selfId: 'owner-b', transport, logger: (message) => { logs.push(message) } })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([{
+      peerId: 'rogue-peer', selfId: 'owner-a', name: 'Кирилл', color: 1, lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    const connected: unknown[] = []
+    harness.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    await harness.service.ensureStarted()
+    await harness.service.close()
+    release()
+    await vi.waitFor(() => { expect(transport.closes).toEqual([{ code: 0n, reason: 'shutdown' }]) })
+    expect(connected).toEqual([])
+    expect(logs.filter(line => line.includes('handshake from'))).toEqual([])
+  })
+})
+
+describe('peer accept loop', () => {
+  it('keeps accepting after one incoming handshake fails', async () => {
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({
+      selfId: 'owner-a', name: 'Кирилл', pair, transport: new FailFirstAcceptTransport(pair.a),
+      logger: (message) => { logs.push(message) },
+    })
+    const right = await createHarness({ selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b })
+    const code = await left.service.invite()
+    await right.service.connect(code)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+    expect(logs.some(line => line.includes('incoming handshake broke'))).toBe(true)
+  })
+})
+
+describe('peer accept loop after a refused stranger', () => {
+  it('keeps accepting after an unknown node sends a first frame that is not hello', async () => {
+    const [left, right] = await createPair()
+    const code = await left.service.invite()
+    await right.service.ensureStarted()
+    const stranger = await right.transport.dial(left.transport.invitationTicket())
+    const strangerStream = await stranger.openStream()
+    await writePeerFrame(strangerStream, PEER_FRAME_CODES.bye, { reason: 'not a hello' })
+    await expect(stranger.closed()).resolves.toContain('(code 2)')
+
+    await right.service.connect(code)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+  })
+
+  it('keeps accepting after an unknown node presents no secret', async () => {
+    const [left, right] = await createPair()
+    const code = await left.service.invite()
+    await right.service.ensureStarted()
+    const stranger = await right.transport.dial(left.transport.invitationTicket())
+    const strangerStream = await stranger.openStream()
+    await writePeerFrame(strangerStream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-z', name: 'Z', color: 3 })
+    await expect(stranger.closed()).resolves.toContain('(code 1)')
+
+    await right.service.connect(code)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
   })
 })
 
@@ -387,14 +616,46 @@ describe('peer framed messages', () => {
     await right.service.connect(code)
     const leftId = await left.service.nodeId()
     const seen: { payload: unknown; from: KetosPeerId }[] = []
-    left.service.handle('board.update', (payload, from) => { seen.push({ payload, from }); return { first: payload.n } })
-    left.service.handle('board.update', (payload) => { seen.push({ payload, from: right.transport.selfId() }); return { second: true } })
-    await right.service.send(leftId, 'board.update', { n: 7 })
+    left.service.handle('ketos.test.echo', (payload, from) => { seen.push({ payload, from }); return { first: payload.n } })
+    left.service.handle('ketos.test.echo', (payload) => { seen.push({ payload, from: right.transport.selfId() }); return { second: true } })
+    await right.service.send(leftId, 'ketos.test.echo', { n: 7 })
     await vi.waitFor(() => { expect(seen).toHaveLength(2) })
     expect(seen[0]?.payload).toEqual({ n: 7 })
-    const response = await right.service.request(leftId, 'board.update', { n: 8 }, { timeoutMs: 500 })
+    const response = await right.service.request(leftId, 'ketos.test.echo', { n: 8 }, { timeoutMs: 500 })
     expect(response).toEqual({ first: 8 })
     await vi.waitFor(() => { expect(seen).toHaveLength(4) })
+  })
+
+  it('runs every handler when an earlier one throws and logs a later one that rejects', async () => {
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', pair, transport: pair.a, logger: (message) => { logs.push(message) } })
+    const right = await createHarness({ selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b })
+    await right.service.connect(await left.service.invite())
+    const leftId = await left.service.nodeId()
+    const seen: number[] = []
+    left.service.handle('ketos.test.echo', () => { throw new Error('first handler threw') })
+    left.service.handle('ketos.test.echo', () => { throw 'second handler threw' })
+    left.service.handle('ketos.test.echo', async () => { throw new Error('third handler rejected') })
+    left.service.handle('ketos.test.echo', (payload) => { seen.push(payload.n) })
+    await right.service.send(leftId, 'ketos.test.echo', { n: 1 })
+    await vi.waitFor(() => { expect(seen).toEqual([1]) })
+    await vi.waitFor(() => { expect(logs.some(line => line.includes('third handler rejected'))).toBe(true) })
+    expect(logs.some(line => line.includes('first handler threw'))).toBe(true)
+    expect(logs.some(line => line.includes('second handler threw'))).toBe(true)
+  })
+
+  it('answers a request with the first handler and logs a later handler that rejects', async () => {
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', pair, transport: pair.a, logger: (message) => { logs.push(message) } })
+    const right = await createHarness({ selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b })
+    await right.service.connect(await left.service.invite())
+    const leftId = await left.service.nodeId()
+    left.service.handle('ketos.test.echo', payload => ({ first: payload.n }))
+    left.service.handle('ketos.test.echo', async () => { throw new Error('later handler rejected') })
+    await expect(right.service.request(leftId, 'ketos.test.echo', { n: 3 }, { timeoutMs: 500 })).resolves.toEqual({ first: 3 })
+    await vi.waitFor(() => { expect(logs.some(line => line.includes('later handler rejected'))).toBe(true) })
   })
 
   it('uses the connect timeout when a request names none', async () => {
@@ -402,8 +663,8 @@ describe('peer framed messages', () => {
     const code = await left.service.invite()
     await right.service.connect(code)
     const leftId = await left.service.nodeId()
-    left.service.handle('board.update', payload => payload)
-    await expect(right.service.request(leftId, 'board.update', { n: 9 })).resolves.toEqual({ n: 9 })
+    left.service.handle('ketos.test.echo', payload => payload)
+    await expect(right.service.request(leftId, 'ketos.test.echo', { n: 9 })).resolves.toEqual({ n: 9 })
   })
 
   it('times out an unanswered request and surfaces a handler error', async () => {
@@ -411,15 +672,15 @@ describe('peer framed messages', () => {
     const code = await left.service.invite()
     await right.service.connect(code)
     const leftId = await left.service.nodeId()
-    await expect(right.service.request(leftId, 'board.update', { n: 1 }, { timeoutMs: 50 }))
+    await expect(right.service.request(leftId, 'ketos.test.echo', { n: 1 }, { timeoutMs: 50 }))
       .rejects.toThrow(/timed out/u)
-    const unsubscribe = left.service.handle('board.update', () => { throw new Error('handler exploded') })
-    await expect(right.service.request(leftId, 'board.update', { n: 2 }, { timeoutMs: 500 }))
+    const unsubscribe = left.service.handle('ketos.test.echo', () => { throw new Error('handler exploded') })
+    await expect(right.service.request(leftId, 'ketos.test.echo', { n: 2 }, { timeoutMs: 500 }))
       .rejects.toThrow(/handler exploded/u)
     unsubscribe()
-    await expect(right.service.send(brandString<KetosPeerId>('nobody'), 'board.update', { n: 1 }))
+    await expect(right.service.send(brandString<KetosPeerId>('nobody'), 'ketos.test.echo', { n: 1 }))
       .rejects.toThrow(/not connected/u)
-    await expect(right.service.request(brandString<KetosPeerId>('nobody'), 'board.update', { n: 1 }))
+    await expect(right.service.request(brandString<KetosPeerId>('nobody'), 'ketos.test.echo', { n: 1 }))
       .rejects.toThrow(/not connected/u)
   })
 })
@@ -489,6 +750,126 @@ describe('peer reconnection', () => {
     await vi.waitFor(() => { expect(right.service.peers()[0]?.link).toBe('online') }, { timeout: 2000 })
   })
 
+  /**
+   * Build a left/right pair where the left side closes every channel the
+   * moment it opens, as a synchronization update over the bound does, and
+   * record when the right side lost each channel and when it redialed. The
+   * pause before a redial is the redial time minus the loss time on the fake
+   * clock, independent of how long the handshake's file writes take.
+   * @param logs - receives the right side's log lines.
+   * @param stableAtAttempt - the redial count at which the left side stops closing.
+   * @returns both harnesses and the recorded times.
+   */
+  async function createClosingPair(logs: string[], stableAtAttempt = Infinity): Promise<{
+    right: Harness
+    attempts: number[]
+    lostAt: number[]
+  }> {
+    vi.useFakeTimers()
+    const pair = createMemoryTransports()
+    // The handshake's file writes finish on the real clock while the fake clock
+    // runs ahead, so the handshake bound must not expire under test load.
+    const left = await createHarness({
+      selfId: 'owner-a', name: 'Кирилл', pair, transport: pair.a, connectTimeoutMs: 60_000,
+    })
+    const right = await createHarness({
+      selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b, connectTimeoutMs: 60_000,
+      logger: (message) => { logs.push(message) },
+    })
+    let closing = true
+    left.ctx.on('ketos-peer/connected', (event) => {
+      if (closing) left.service.closeSyncTooLarge(event.peerId)
+    })
+    const lostAt: number[] = []
+    right.ctx.on('ketos-peer/disconnected', () => { lostAt.push(Date.now()) })
+    const realDial = right.transport.dial.bind(right.transport)
+    const attempts: number[] = []
+    vi.spyOn(right.transport, 'dial').mockImplementation(async (ticket: string) => {
+      attempts.push(Date.now())
+      if (attempts.length === stableAtAttempt) closing = false
+      return realDial(ticket)
+    })
+    await right.service.connect(await left.service.invite())
+    attempts.length = 0
+    return { right, attempts, lostAt }
+  }
+
+  /**
+   * Advance fake time until the right side redialed a number of times.
+   * @param attempts - dial timestamps.
+   * @param count - redials to wait for.
+   */
+  async function advanceUntilAttempts(attempts: readonly number[], count: number): Promise<void> {
+    for (let elapsed = 0; elapsed < 5000 && attempts.length < count; elapsed += 5) {
+      await vi.advanceTimersByTimeAsync(5)
+    }
+    expect(attempts).toHaveLength(count)
+  }
+
+  /**
+   * Advance fake time until the harness reports its peer online; the
+   * handshake's file writes finish on the real clock, so the link opens a few
+   * fake steps after the redial.
+   * @param harness - the dialing side.
+   */
+  async function advanceUntilOnline(harness: Harness): Promise<void> {
+    for (let elapsed = 0; elapsed < 5000 && harness.service.peers()[0]?.link !== 'online'; elapsed += 5) {
+      await vi.advanceTimersByTimeAsync(5)
+    }
+    expect(harness.service.peers()[0]?.link).toBe('online')
+  }
+
+  it('doubles the pause while every new channel closes right after it opened', async () => {
+    const logs: string[] = []
+    const { attempts, lostAt } = await createClosingPair(logs)
+    await advanceUntilAttempts(attempts, 4)
+    const pauses = attempts.map((time, index) => time - (lostAt[index] as number))
+    // Nominal pauses 50, 100, 200, 200 (ceiling) with ±20% jitter, never above 200.
+    expect(pauses[0]).toBeGreaterThanOrEqual(40)
+    expect(pauses[0]).toBeLessThanOrEqual(60)
+    expect(pauses[1]).toBeGreaterThanOrEqual(80)
+    expect(pauses[1]).toBeLessThanOrEqual(120)
+    expect(pauses[2]).toBeGreaterThanOrEqual(160)
+    expect(pauses[2]).toBeLessThanOrEqual(200)
+    expect(pauses[3]).toBeGreaterThanOrEqual(160)
+    expect(pauses[3]).toBeLessThanOrEqual(200)
+    expect(logs.filter(line => line.includes('peer.flapping')).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('returns to the first pause once a channel lived as long as reconnectMaxMs', async () => {
+    const logs: string[] = []
+    const { right, attempts, lostAt } = await createClosingPair(logs, 3)
+    // Attempts 1 and 2 open channels that close at once; attempt 3 stays open.
+    await advanceUntilAttempts(attempts, 3)
+    await advanceUntilOnline(right)
+    await vi.advanceTimersByTimeAsync(250)
+    const flappingBefore = logs.filter(line => line.includes('peer.flapping')).length
+    right.pair.dropConnections()
+    await advanceUntilAttempts(attempts, 4)
+    const pause = attempts[3]! - lostAt[3]!
+    expect(pause).toBeGreaterThanOrEqual(40)
+    expect(pause).toBeLessThanOrEqual(60)
+    expect(logs.filter(line => line.includes('peer.flapping'))).toHaveLength(flappingBefore)
+  })
+
+  it('never pauses longer than reconnectMaxMs, jitter included', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(Math, 'random').mockReturnValue(0.999)
+    const transport = new StubTransport()
+    transport.dialError = new Error('disabled network')
+    const harness = await createHarness({ selfId: 'owner-a', transport })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([{
+      peerId: 'peer-x', selfId: 'owner-x', name: 'X', color: 2,
+      ticket: 'memory:<x>', lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    await harness.service.ensureStarted()
+    await vi.advanceTimersByTimeAsync(1500)
+    const gaps = transport.dialTimes.slice(1).map((time, index) => time - (transport.dialTimes[index] as number))
+    expect(gaps.length).toBeGreaterThanOrEqual(4)
+    expect(Math.max(...gaps)).toBeLessThanOrEqual(200)
+    expect(gaps.at(-1)).toBe(200)
+  })
+
   it('cancels pending attempts when the plugin unloads', async () => {
     vi.useFakeTimers()
     const transport = new StubTransport()
@@ -505,6 +886,129 @@ describe('peer reconnection', () => {
     await harness.service.close()
     await vi.advanceTimersByTimeAsync(10_000)
     expect(transport.dialCalls).toBe(attemptsBeforeClose)
+  })
+})
+
+describe('peer forget', () => {
+  /** One stored record of a known peer. */
+  const knownRecord = {
+    peerId: 'peer-x', selfId: 'owner-x', name: 'X', color: 2, ticket: 'memory:<x>', lastSeen: '2026-10-07T00:00:00.000Z',
+  }
+
+  it('removes a lost peer from memory and the file and stops its redials', async () => {
+    vi.useFakeTimers()
+    const transport = new StubTransport()
+    transport.dialError = new Error('disabled network')
+    const harness = await createHarness({ selfId: 'owner-a', transport })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([knownRecord]))
+    await harness.service.ensureStarted()
+    await vi.advanceTimersByTimeAsync(600)
+    expect(transport.dialCalls).toBeGreaterThan(0)
+
+    await harness.service.forget(brandString<KetosPeerId>('peer-x'))
+    const dialsAtForget = transport.dialCalls
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    expect(transport.dialCalls).toBe(dialsAtForget)
+    expect(harness.service.peers()).toEqual([])
+    expect(JSON.parse(await readPeers(harness.root))).toEqual([])
+  })
+
+  it('refuses an unknown peer and a peer with an open channel', async () => {
+    const [left, right] = await createPair()
+    const code = await left.service.invite()
+    await right.service.connect(code)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+    const peerId = left.service.peers()[0]?.peerId as KetosPeerId
+
+    await expect(left.service.forget(peerId)).rejects.toMatchObject({ code: 'ketos/peer-online' })
+    await expect(left.service.forget(brandString<KetosPeerId>('nobody')))
+      .rejects.toMatchObject({ code: 'ketos/peer-unknown' })
+    expect(left.service.peers()).toHaveLength(1)
+    expect(JSON.parse(await readPeers(left.root))).toHaveLength(1)
+  })
+
+  it('refuses the forgotten peer when it connects again without a code', async () => {
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', pair, transport: pair.a })
+    await writeFile(join(left.root, 'peers.json'), JSON.stringify([{
+      peerId: String(pair.b.selfId()), selfId: 'owner-b', name: 'Юрист', color: 2, lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    await left.service.ensureStarted()
+    await pair.b.bind()
+    const known = await dialAndHello(pair.b, pair.a.invitationTicket())
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+    known.connection.close(0n, 'done')
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('lost') })
+
+    await left.service.forget(pair.b.selfId())
+    const again = await pair.b.dial(pair.a.invitationTicket())
+    const stream = await again.openStream()
+    await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
+    await expect(again.closed()).resolves.toContain('(code 1)')
+    expect(left.service.peers()).toEqual([])
+  })
+
+  it('abandons a redial that was in flight when the peer was forgotten', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const rogue = new RogueDialTransport(async (stream) => {
+      await readPeerFrame(stream, 1_000_000)
+      await gate
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+    })
+    const harness = await createHarness({ selfId: 'owner-b', transport: rogue, reconnectMinMs: 10, reconnectMaxMs: 20 })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([{
+      peerId: 'rogue-peer', selfId: 'owner-a', name: 'Кирилл', color: 1,
+      ticket: 'memory:<rogue>', lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    const connected: unknown[] = []
+    harness.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    await harness.service.ensureStarted()
+    await vi.waitFor(() => { expect(rogue.dialCalls).toBe(1) })
+
+    await harness.service.forget(brandString<KetosPeerId>('rogue-peer'))
+    release()
+    await vi.waitFor(() => { expect(rogue.closes).toEqual([{ code: 2n, reason: 'handshake' }]) })
+
+    expect(connected).toEqual([])
+    expect(harness.service.peers()).toEqual([])
+    expect(JSON.parse(await readPeers(harness.root))).toEqual([])
+    expect(rogue.dialCalls).toBe(1)
+  })
+
+  it('keeps the peer known and redialing when the file cannot be written', async () => {
+    vi.useFakeTimers()
+    const transport = new StubTransport()
+    transport.dialError = new Error('disabled network')
+    const harness = await createHarness({ selfId: 'owner-a', transport })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([knownRecord]))
+    await harness.service.ensureStarted()
+    // A directory in place of the file makes the atomic rename fail.
+    await rm(join(harness.root, 'peers.json'))
+    await mkdir(join(harness.root, 'peers.json'))
+
+    await expect(harness.service.forget(brandString<KetosPeerId>('peer-x'))).rejects.toThrow()
+    expect(harness.service.peers()).toHaveLength(1)
+    const dialsAfterFailure = transport.dialCalls
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(transport.dialCalls).toBeGreaterThan(dialsAfterFailure)
+  })
+})
+
+describe('peer forget without a ticket', () => {
+  it('keeps a peer that has no ticket known when the file cannot be written', async () => {
+    const harness = await createHarness({ selfId: 'owner-a' })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([{
+      peerId: 'peer-x', selfId: 'owner-x', name: 'X', color: 2, lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    await harness.service.ensureStarted()
+    await rm(join(harness.root, 'peers.json'))
+    await mkdir(join(harness.root, 'peers.json'))
+
+    await expect(harness.service.forget(brandString<KetosPeerId>('peer-x'))).rejects.toThrow()
+    expect(harness.service.peers()).toHaveLength(1)
+    expect(harness.service.peers()[0]?.link).toBe('lost')
   })
 })
 
@@ -530,7 +1034,10 @@ class RogueAcceptTransport implements PeerTransport {
   /**
    * @param firstFrame - the bytes the dialing side "sent" before anything else.
    */
-  constructor(private readonly firstFrame: Uint8Array) {}
+  constructor(
+    private readonly firstFrame: Uint8Array,
+    private readonly gate: Promise<void> = Promise.resolve(),
+  ) {}
 
   /** {@inheritDoc PeerTransport.selfId} */
   selfId(): KetosPeerId { return this.id }
@@ -545,17 +1052,19 @@ class RogueAcceptTransport implements PeerTransport {
   /** {@inheritDoc PeerTransport.dial} */
   dial(): Promise<PeerConnection> { return Promise.reject(new Error('no dial')) }
   /** {@inheritDoc PeerTransport.accept} */
-  accept(): Promise<PeerConnection> {
+  accept(): Promise<PeerIncoming> {
     if (this.served) return new Promise(() => undefined)
     this.served = true
     const [serviceSide, rogueSide] = createMemoryStreamPair()
-    void rogueSide.write(this.firstFrame)
+    void this.gate.then(() => rogueSide.write(this.firstFrame))
     return Promise.resolve({
-      peerId: brandString<KetosPeerId>('rogue-peer'),
-      openStream: async () => serviceSide,
-      acceptStream: async () => serviceSide,
-      closed: () => new Promise<string>(() => undefined),
-      close: (code, reason) => { this.closes.push({ code, reason }) },
+      complete: () => Promise.resolve({
+        peerId: brandString<KetosPeerId>('rogue-peer'),
+        openStream: async () => serviceSide,
+        acceptStream: async () => serviceSide,
+        closed: () => new Promise<string>(() => undefined),
+        close: (code, reason) => { this.closes.push({ code, reason }) },
+      }),
     })
   }
   /** {@inheritDoc PeerTransport.close} */
@@ -597,7 +1106,7 @@ class RogueDialTransport implements PeerTransport {
     }
   }
   /** {@inheritDoc PeerTransport.accept} */
-  accept(): Promise<PeerConnection> { return new Promise(() => undefined) }
+  accept(): Promise<PeerIncoming> { return new Promise(() => undefined) }
   /** {@inheritDoc PeerTransport.close} */
   async close(): Promise<void> {}
 }
@@ -651,6 +1160,43 @@ describe('peer handshake refusals', () => {
   })
 })
 
+describe('peer first-frame bound', () => {
+  /**
+   * A frame header that declares a body of the given size, without the body.
+   * @param code - frame code.
+   * @param length - declared body length.
+   * @returns the five header bytes.
+   */
+  function headerOnly(code: number, length: number): Uint8Array {
+    const header = new Uint8Array(5)
+    new DataView(header.buffer).setUint32(0, length)
+    header[4] = code
+    return header
+  }
+
+  it('closes an incoming connection whose first frame exceeds the hello bound at once', async () => {
+    const transport = new RogueAcceptTransport(headerOnly(PEER_FRAME_CODES.hello, 5000))
+    const logs: string[] = []
+    const harness = await createHarness({
+      selfId: 'owner-a', transport, connectTimeoutMs: 5000, logger: (message) => { logs.push(message) },
+    })
+    await harness.service.ensureStarted()
+    await vi.waitFor(() => { expect(transport.closes).toContainEqual({ code: 2n, reason: 'handshake' }) }, { timeout: 500 })
+    expect(logs.some(line => line.includes('exceeds 4096 bytes'))).toBe(true)
+  })
+
+  it('refuses a dialed reply whose first frame exceeds the hello bound at once', async () => {
+    const rogue = new RogueDialTransport(async (stream) => {
+      await readPeerFrame(stream, 1_000_000)
+      await stream.write(headerOnly(PEER_FRAME_CODES.hello, 5000))
+    })
+    const harness = await createHarness({ selfId: 'owner-b', transport: rogue, connectTimeoutMs: 5000 })
+    const code = formatInvite('memory:<rogue>', 'abcdefghijklmnopqrstuvwxyz')
+    await expect(harness.service.connect(code)).rejects.toMatchObject({ code: 'ketos/invite-used' })
+    expect(rogue.closes).toContainEqual({ code: 1n, reason: 'connect failed' })
+  })
+})
+
 describe('peer participant edge cases', () => {
   it('keeps both colors when the palette is exhausted', async () => {
     const seed = Array.from({ length: 10 }, (_, index) => ({
@@ -701,6 +1247,52 @@ describe('peer participant edge cases', () => {
     await expect(right.service.connect(wrong)).rejects.toMatchObject({ code: 'ketos/invite-used' })
     const answer = await right.service.connect(code)
     expect(String(answer.peerId)).toBe(String(left.transport.selfId()))
+  })
+
+  it('burns the invitation after five wrong secrets', async () => {
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({
+      selfId: 'owner-a', name: 'Кирилл', pair, transport: pair.a, logger: (message) => { logs.push(message) },
+    })
+    const right = await createHarness({ selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b })
+    const code = await left.service.invite()
+    const wrong = formatInvite(left.transport.invitationTicket(), 'abcdefghijklmnopqrstuvwxyz')
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(right.service.connect(wrong)).rejects.toMatchObject({ code: 'ketos/invite-used' })
+    }
+    expect(logs.some(line => line.includes('peer.invite-burned'))).toBe(true)
+    await expect(right.service.connect(code)).rejects.toMatchObject({ code: 'ketos/invite-used' })
+    expect(left.service.peers()).toEqual([])
+    // A fresh invitation starts a new budget.
+    const fresh = await left.service.invite()
+    await right.service.connect(fresh)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+  })
+
+  it('keeps the invitation after four wrong secrets', async () => {
+    const [left, right] = await createPair()
+    const code = await left.service.invite()
+    const wrong = formatInvite(left.transport.invitationTicket(), 'abcdefghijklmnopqrstuvwxyz')
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await expect(right.service.connect(wrong)).rejects.toMatchObject({ code: 'ketos/invite-used' })
+    }
+    await right.service.connect(code)
+    await vi.waitFor(() => { expect(left.service.peers()[0]?.link).toBe('online') })
+  })
+
+  it('refuses a secret of the wrong length from an unknown node', async () => {
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', name: 'Кирилл', pair, transport: pair.a })
+    await left.service.invite()
+    await pair.b.bind()
+    const connection = await pair.b.dial(pair.a.invitationTicket())
+    const stream = await connection.openStream()
+    await writePeerFrame(stream, PEER_FRAME_CODES.hello, {
+      v: 2, selfId: 'owner-b', name: 'Юрист', color: 2, invite: 'short',
+    })
+    await expect(connection.closed()).resolves.toContain('(code 1)')
+    expect(left.service.peers()).toEqual([])
   })
 
   it('surfaces a non-Error dial failure as unreachable', async () => {

@@ -18,6 +18,13 @@ export type ElementId = Branded<'ElementId'>
 /** Identity of one board participant; the local Ketos owns exactly one. */
 export type OwnerId = Branded<'OwnerId'>
 
+/**
+ * Identity of one board window, minted by the client that opens it. The brand
+ * is the client layout vocabulary's `BoardWindowId` brand, so a window state
+ * and its published record share one type.
+ */
+export type WindowId = Branded<'BoardWindowId'>
+
 /** Identity of the board document, stable across restarts of one Ketos. */
 export type BoardDocId = Branded<'BoardDocId'>
 
@@ -26,6 +33,66 @@ export type BoardRevision = BrandedNumber<'BoardRevision'>
 
 /** Kind of a board element; each kind owns its body renderer and data rules. */
 export type BoardElementKind = 'note' | 'stroke' | 'todo'
+
+/** Kind of a board window; each kind selects the frame the client renders. */
+export type BoardWindowKind = 'agent' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'tasks'
+
+/** Body of a board window; each body selects the `board.window.body` occupant. */
+export type BoardWindowBodyKind =
+  | 'conversation' | 'connectors' | 'settings' | 'dashboard' | 'clone' | 'clone-memory' | 'tasks'
+
+/** Status of one published window, as the publisher's session resolves it. */
+export type BoardWindowStatus = 'idle' | 'running' | 'ready' | 'error'
+
+/**
+ * Identity of the Harness session one chat window shows. The brand is the
+ * canonical `SessionId` brand, so the value crosses to the session packages
+ * without a conversion.
+ */
+export type WindowSessionId = Branded<'SessionId'>
+
+/** Who one window is open to; the client's access menu owns the semantics. */
+export type BoardWindowAccessMode = 'owner' | 'selected' | 'all'
+
+/** Access of one window: its mode plus the people a `selected` window admits. */
+export interface BoardWindowAccess {
+  readonly mode: BoardWindowAccessMode
+  /** Owner ids the window is open to under `selected`, in menu order. */
+  readonly people: readonly OwnerId[]
+}
+
+/**
+ * One window as the shared document carries it. The record lives where the
+ * window lives: `hostId` names the publishing Ketos, `ownerId` the participant
+ * who manages the window there. `title` is the user-given name or the chat
+ * title; `null` lets the receiver name the window by `kind` and `ordinal`.
+ */
+export interface BoardWindowRecord {
+  /** Board-local window identity, minted by the publisher. */
+  readonly id: WindowId
+  /** Identity of the Ketos where the window lives; the host stamps it. */
+  readonly hostId: OwnerId
+  /** Participant who owns and manages the window. */
+  readonly ownerId: OwnerId
+  readonly kind: BoardWindowKind
+  readonly bodyKind: BoardWindowBodyKind
+  /** User-given or chat name; null names the window by kind and ordinal. */
+  readonly title: string | null
+  /** Ordinal among the window's kind, fixed at opening. */
+  readonly ordinal: number
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+  readonly z: number
+  readonly access: BoardWindowAccess
+  /** Status the publisher resolved from the window's session. */
+  readonly status: BoardWindowStatus
+  /** Session a chat window shows; present only for windows that carry one. */
+  readonly sessionId?: WindowSessionId
+  /** Last-change time in milliseconds since the Unix epoch; the host stamps it. */
+  readonly updatedAt: number
+}
 
 /** Identity of one Beads issue: the epic of a to-do list or one of its items. */
 export type BeadsIssueId = Branded<'BeadsIssueId'>
@@ -117,6 +184,18 @@ export interface StrokeBox {
   readonly h: number
 }
 
+/** The world rectangle of a stroke element: its `(x, y)` origin and size. */
+export interface StrokeWorldBox {
+  /** World x of the left edge. */
+  readonly x: number
+  /** World y of the top edge. */
+  readonly y: number
+  /** World width. */
+  readonly w: number
+  /** World height. */
+  readonly h: number
+}
+
 /** Bounding box a stroke's absolute points resolve into, with the stored relative points. */
 export interface StrokeBounds {
   /** World x of the box, the leftmost point less half the thickness. */
@@ -188,6 +267,12 @@ export interface BoardParticipantPatch {
   readonly removes: readonly OwnerId[]
 }
 
+/** Window-record changes one patch carries beside its element changes. */
+export interface BoardWindowPatch {
+  readonly upserts: readonly BoardWindowRecord[]
+  readonly removes: readonly WindowId[]
+}
+
 /** Full state of the document at one revision, the first event of the stream. */
 export interface BoardSnapshot {
   readonly docId: BoardDocId
@@ -197,6 +282,8 @@ export interface BoardSnapshot {
   readonly elements: readonly BoardElement[]
   /** Every stored participant record this build can decode. */
   readonly participants: readonly BoardParticipantRecord[]
+  /** Every stored window record this build can decode. */
+  readonly windows: readonly BoardWindowRecord[]
   readonly limits: BoardLimits
 }
 
@@ -207,6 +294,32 @@ export interface BoardPatch {
   readonly removes: readonly ElementId[]
   /** Present when the batch changed participants rather than elements. */
   readonly participants?: BoardParticipantPatch
+  /** Present when the batch changed window records. */
+  readonly windows?: BoardWindowPatch
+}
+
+/** Outcome of applying one update from another Ketos to the document. */
+export interface BoardRemoteResult {
+  /**
+   * Whether Yjs kept structs or deletions of the document waiting for an
+   * earlier update that has not arrived. The update is applied as far as its
+   * dependencies allow; while anything waits, the received bytes are also
+   * journaled whole, so the waiting part survives a restart and integrates
+   * when the missing update arrives. The sender must still deliver what the
+   * document's state vector misses.
+   */
+  readonly pending: boolean
+}
+
+/**
+ * Payload of the `overflow` event of the event stream. The host sends it as
+ * the last event before it closes a stream whose unread patches passed the
+ * queue bound; the browser re-reads the snapshot after a pause instead of
+ * treating the close as a transport failure.
+ */
+export interface BoardOverflowEvent {
+  /** What the host ran out of: the per-stream queue of unread patches. */
+  readonly reason: 'queue'
 }
 
 /** One create operation; the host fills `ownerId`, `z`, and the timestamps. */
@@ -243,8 +356,47 @@ export interface BoardRemoveOp {
   readonly id: ElementId
 }
 
+/**
+ * One publish of a window record. The client sends everything it knows about
+ * the window; the host stamps `hostId` with its own `selfId` and `updatedAt`
+ * with the batch time. A record written by another Ketos is refused.
+ */
+export interface BoardWindowPutOp {
+  readonly op: 'window.put'
+  readonly record: BoardWindowRecordInput
+}
+
+/** One removal of a window record. */
+export interface BoardWindowRemoveOp {
+  readonly op: 'window.remove'
+  readonly id: WindowId
+}
+
+/**
+ * One window record as a publisher sends it: the complete record, with
+ * `hostId` and `updatedAt` optional because the host stamps them.
+ */
+export interface BoardWindowRecordInput {
+  readonly id: WindowId
+  /** Present when the publisher relays a record it holds; must equal `selfId`. */
+  readonly hostId?: OwnerId
+  readonly ownerId: OwnerId
+  readonly kind: BoardWindowKind
+  readonly bodyKind: BoardWindowBodyKind
+  readonly title: string | null
+  readonly ordinal: number
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+  readonly z: number
+  readonly access: BoardWindowAccess
+  readonly status: BoardWindowStatus
+  readonly sessionId?: WindowSessionId
+}
+
 /** An operation of one atomic batch the browser sends. */
-export type BoardOp = BoardCreateOp | BoardPatchOp | BoardRemoveOp
+export type BoardOp = BoardCreateOp | BoardPatchOp | BoardRemoveOp | BoardWindowPutOp | BoardWindowRemoveOp
 
 /**
  * Who sent an operation batch: a `browser` batch may only touch the elements
@@ -264,4 +416,6 @@ export type BoardErrorCode =
   | 'ketos/element-not-found'
   | 'ketos/element-foreign'
   | 'ketos/element-exists'
+  | 'ketos/element-host-data'
+  | 'ketos/window-foreign'
   | 'ketos/limit'

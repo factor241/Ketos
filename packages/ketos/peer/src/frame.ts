@@ -9,6 +9,20 @@
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { OwnerId } from '@ketos/board-doc/types'
 
+/**
+ * Version of the peer protocol, announced in `hello.v` and in the transport
+ * protocol name. Version 2 carries the board synchronization frames as raw
+ * bytes; a build speaking version 1 sent them as JSON and cannot connect.
+ */
+export const PEER_PROTOCOL_VERSION = 2
+
+/**
+ * Largest body of the first frame a connection carries. A `hello` holds a
+ * bounded id, name, color, and secret, so a stranger's first frame is capped
+ * far below `maxFrameBytes` before the invitation secret is checked.
+ */
+export const PEER_HELLO_MAX_BYTES = 4096
+
 /** Bytes of one frame header: a big-endian u32 length plus the u8 code. */
 export const PEER_FRAME_HEADER_BYTES = 5
 
@@ -31,10 +45,29 @@ export const PEER_FRAME_CODES = {
 /** Name of one reserved frame type. */
 export type PeerFrameName = keyof typeof PEER_FRAME_CODES
 
+/**
+ * Reserved codes whose body is raw bytes, not JSON: the two board
+ * synchronization frames carry Yjs update bytes, which JSON would inflate and
+ * never restore. A binary body is a non-empty `Uint8Array`.
+ */
+export const PEER_BINARY_FRAME_CODES: readonly number[] = [
+  PEER_FRAME_CODES['board.sv'],
+  PEER_FRAME_CODES['board.update'],
+]
+
+/**
+ * Whether one wire code carries a raw-byte body.
+ * @param code - wire code.
+ * @returns whether the body is binary.
+ */
+export function isBinaryFrameCode(code: number): boolean {
+  return PEER_BINARY_FRAME_CODES.includes(code)
+}
+
 /** The `hello` frame: the dialer's introduction, answered by the receiver. */
 export interface PeerHelloPayload {
-  /** Protocol version of the channel; this build speaks 1. */
-  readonly v: 1
+  /** Protocol version of the channel; this build speaks {@link PEER_PROTOCOL_VERSION}. */
+  readonly v: typeof PEER_PROTOCOL_VERSION
   /** The sender's board participant id. */
   readonly selfId: OwnerId
   /** The sender's participant name. */
@@ -55,13 +88,16 @@ export interface PeerByePayload {
 }
 
 /**
- * Frame payloads by type name. Consumers of stages 33–35 merge their own
- * entries through declaration merging; `send` and `request` accept exactly
- * the names this map knows.
+ * Frame payloads by type name. The board synchronization frames carry
+ * `Uint8Array` bodies, every other frame JSON; consumers of stages 34–35
+ * merge their own entries through declaration merging, and `send` and
+ * `request` accept exactly the names this map knows.
  */
 export interface PeerFrameTypeMap {
   hello: PeerHelloPayload
   bye: PeerByePayload
+  'board.sv': Uint8Array
+  'board.update': Uint8Array
 }
 
 /** Name of one frame type this build can send. */
@@ -109,18 +145,31 @@ export function frameNameFor(code: number): PeerFrameName | undefined {
 }
 
 /**
- * Encode one frame: a big-endian u32 length, the u8 code, then the JSON body.
+ * Encode one frame: a big-endian u32 length, the u8 code, then the body. A
+ * binary code carries a non-empty `Uint8Array` verbatim; every other code
+ * carries the JSON of its payload.
  * @param code - wire code.
- * @param payload - JSON-serializable payload.
+ * @param payload - the typed payload of the code.
  * @returns the encoded frame.
  */
 export function encodePeerFrame(code: number, payload: unknown): Uint8Array {
-  const body = new TextEncoder().encode(JSON.stringify(payload))
+  const body = isBinaryFrameCode(code) ? binaryBody(payload) : new TextEncoder().encode(JSON.stringify(payload))
   const frame = new Uint8Array(PEER_FRAME_HEADER_BYTES + body.byteLength)
   new DataView(frame.buffer).setUint32(0, body.byteLength)
   frame[4] = code
   frame.set(body, PEER_FRAME_HEADER_BYTES)
   return frame
+}
+
+/**
+ * The body of one binary frame.
+ * @param payload - the payload a caller passed for a binary code.
+ * @returns the bytes.
+ */
+function binaryBody(payload: unknown): Uint8Array {
+  if (!(payload instanceof Uint8Array)) throw new PeerFrameError('binary frame body must be a Uint8Array')
+  if (payload.byteLength === 0) throw new PeerFrameError('binary frame body must not be empty')
+  return payload
 }
 
 /**
@@ -139,16 +188,43 @@ export function parsePeerFrameHeader(header: Uint8Array): { length: number; code
 }
 
 /**
- * Parse one frame body as JSON.
+ * Parse one frame body: a binary code yields its bytes, every other code the
+ * decoded JSON.
+ * @param code - wire code the body belongs to.
  * @param bytes - the body of exactly the header's declared length.
- * @returns the decoded JSON value.
+ * @returns the decoded payload.
  */
-export function parsePeerFramePayload(bytes: Uint8Array): unknown {
+export function parsePeerFramePayload(code: number, bytes: Uint8Array): unknown {
+  if (isBinaryFrameCode(code)) {
+    if (bytes.byteLength === 0) throw new PeerFrameError('binary frame body must not be empty')
+    if (isJsonContainer(bytes)) throw new PeerFrameError('binary frame body must not be JSON')
+    return bytes
+  }
   const text = new TextDecoder().decode(bytes)
   try {
     return JSON.parse(text)
   } catch {
     throw new PeerFrameError('frame body is not JSON')
+  }
+}
+
+/**
+ * Whether bytes decode as a JSON object or array, which a sender of a
+ * version 1 build produced for the binary codes.
+ * @param bytes - a frame body.
+ * @returns true when the whole body is a JSON object or array.
+ */
+function isJsonContainer(bytes: Uint8Array): boolean {
+  const first = bytes[0]
+  // Only `{` and `[` can open a container; the parse below then needs the
+  // whole body to be valid JSON, which update bytes practically never are.
+  if (first !== 0x7b && first !== 0x5b) return false
+  try {
+    const value: unknown = JSON.parse(new TextDecoder().decode(bytes))
+    return typeof value === 'object' && value !== null
+  } catch {
+    // Bytes that only start like JSON are ordinary binary content.
+    return false
   }
 }
 
@@ -199,7 +275,9 @@ export function parseHelloPayload(payload: unknown): PeerHelloPayload {
   for (const key of Object.keys(source)) {
     if (!HELLO_FIELDS.includes(key)) throw new PeerFrameError(`hello carries unknown field ${JSON.stringify(key)}`)
   }
-  if (source.v !== 1) throw new PeerFrameError('hello version must be 1')
+  if (source.v !== PEER_PROTOCOL_VERSION) {
+    throw new PeerFrameError(`hello version must be ${String(PEER_PROTOCOL_VERSION)}`)
+  }
   if (typeof source.selfId !== 'string' || source.selfId.length === 0 || source.selfId.length > PEER_NAME_MAX) {
     throw new PeerFrameError('hello selfId must be a non-empty string of at most 64 characters')
   }
@@ -218,7 +296,7 @@ export function parseHelloPayload(payload: unknown): PeerHelloPayload {
     throw new PeerFrameError('hello invite must be a non-empty string when present')
   }
   return {
-    v: 1,
+    v: PEER_PROTOCOL_VERSION,
     selfId: brandString<OwnerId>(source.selfId),
     name: source.name,
     color: source.color,

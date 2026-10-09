@@ -7,6 +7,7 @@
  * template label is derived at render time from the window's ordinal, so it
  * follows the active locale instead of freezing the locale the window opened in.
  */
+import type { BoardWindowRecord } from '@ketos/board-doc/types'
 import type { BoardWindowState, WindowKind } from './contract/slots.ts'
 import type { BoardTranslate } from './locale.ts'
 
@@ -41,4 +42,20 @@ export function windowTitle(
   const chat = sessionTitle?.trim() ?? ''
   if (chat !== '') return chat
   return t(TEMPLATE_KEYS[window.kind], { n: String(window.ordinal) })
+}
+
+/**
+ * Name a foreign window record renders: the title its host published, or the
+ * template label of the record's kind and ordinal in the receiving locale.
+ * @param t - locale seat of the board namespace.
+ * @param record - the published record.
+ * @returns the resolved window name.
+ */
+export function foreignWindowTitle(
+  t: BoardTranslate,
+  record: Pick<BoardWindowRecord, 'title' | 'kind' | 'ordinal'>,
+): string {
+  const published = record.title?.trim() ?? ''
+  if (published !== '') return published
+  return t(TEMPLATE_KEYS[record.kind], { n: String(record.ordinal) })
 }

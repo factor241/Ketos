@@ -12,7 +12,7 @@ import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type {
   BeadsIssueId, BoardElementData, BoardElementKind, BoardLimits, BoardParticipantRecord,
   ElementId, NoteData, NoteFont, NoteSize, OwnerId, StrokeBounds, StrokeBox, StrokeData,
-  StrokePathPoint, StrokePoint, StrokeWidth, TodoData, TodoItem, TodoStatus,
+  StrokePathPoint, StrokePoint, StrokeWidth, StrokeWorldBox, TodoData, TodoItem, TodoStatus,
 } from './types.ts'
 
 /** UUID shape every opaque identifier carries. */
@@ -369,6 +369,70 @@ export function eraseStroke(
   }
   flush()
   return parts
+}
+
+/**
+ * Cheap test before {@link eraseStroke}: whether an eraser path of the given
+ * radius can reach a stroke element. Every stroke point lies inside the
+ * element box, so a path farther than `radius` from the box leaves the stroke
+ * whole and the per-point erasure can be skipped. The answer is conservative:
+ * `true` means the stroke needs the full erasure, never that it is cut.
+ * @param path - eraser path points in world units; an empty path reaches nothing.
+ * @param radius - eraser radius in world units.
+ * @param box - world rectangle of the stroke element.
+ * @returns false only when the path stays more than `radius` away from the box.
+ */
+export function eraserPathReachesBox(
+  path: readonly StrokePathPoint[],
+  radius: number,
+  box: StrokeWorldBox,
+): boolean {
+  if (path.length === 0) return false
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const [x, y] of path) {
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  if (maxX < box.x - radius || minX > box.x + box.w + radius) return false
+  if (maxY < box.y - radius || minY > box.y + box.h + radius) return false
+  for (let i = 0; i < path.length; i += 1) {
+    const from = path[Math.max(0, i - 1)] as StrokePathPoint
+    const to = path[i] as StrokePathPoint
+    if (segmentBoxDistance(from, to, box) <= radius) return true
+  }
+  return false
+}
+
+/**
+ * Closest distance between one segment and a rectangle.
+ * @param start - segment start point.
+ * @param end - segment end point.
+ * @param box - world rectangle.
+ * @returns `0` when an end lies inside the rectangle or the segment crosses an edge.
+ */
+function segmentBoxDistance(start: StrokePathPoint, end: StrokePathPoint, box: StrokeWorldBox): number {
+  const right = box.x + box.w
+  const bottom = box.y + box.h
+  const inside = (point: StrokePathPoint): boolean =>
+    point[0] >= box.x && point[0] <= right && point[1] >= box.y && point[1] <= bottom
+  if (inside(start) || inside(end)) return 0
+  const edges: ReadonlyArray<readonly [number, number, number, number]> = [
+    [box.x, box.y, right, box.y],
+    [right, box.y, right, bottom],
+    [right, bottom, box.x, bottom],
+    [box.x, bottom, box.x, box.y],
+  ]
+  let closest = Infinity
+  for (const [ax, ay, bx, by] of edges) {
+    const distance = segmentSegmentDistance(start[0], start[1], end[0], end[1], ax, ay, bx, by)
+    if (distance < closest) closest = distance
+  }
+  return closest
 }
 
 /**

@@ -64,6 +64,12 @@ sudo ufw enable
    KETOS_SYNCTHING_RELAY=relay://<SERVER-IP>:22067/?id=<ID>&token=<STRELAY_TOKEN>
    ```
 
+## 访问与密钥
+
+- `iroh-relay` 默认接受任何端点：知道主机名的人都可以使用该中继。把它限制为 Ketos 端点是 VPS 上的改动（`iroh-relay` 配置的 `access` 设置，见 iroh-relay 文档），由运维人员完成，而不是由 stand 完成。
+- `strelaysrv` 的令牌以命令行参数传入，因此 VPS 上的 `docker inspect` 与 `ps` 会显示它，只有 VPS 管理员能读取。
+- `iroh-relay.toml` 由 `render-config.sh` 根据 `.env` 渲染，已被 git 忽略；请修改模板，而不是渲染后的文件。
+
 ## 备用模式
 
 1. 如果 Let's Encrypt 拒绝 `sslip.io`：在 `.env` 中改用 `<IP>.nip.io`，重新运行 `render-config.sh` 并执行 `docker compose up -d`。

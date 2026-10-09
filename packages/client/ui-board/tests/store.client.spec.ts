@@ -24,6 +24,7 @@ function adoptSelf(actions: BoardStoreInstance['actions']): void {
     revision: brandNumber<BoardRevision>(1),
     elements: [],
     participants: [{ id: SELF, name: 'Kirill', color: 1, updatedAt: 1 }],
+    windows: [],
     limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
   })
 }
@@ -799,6 +800,41 @@ describe('window owner and access', () => {
     actions.transferWindow('w1' as WindowId, brandString<OwnerId>('demo-legal'))
     actions.setWindowAccess('w1' as WindowId, { mode: 'all', people: [] })
     expect(store.getSnapshot()).toStrictEqual(foreign)
+  })
+})
+
+describe('claiming a window of an unknown owner', () => {
+  const stranger = brandString<OwnerId>('previous-self')
+
+  it('makes the acting participant the owner of an unknown owner\'s window and drops them from the list', () => {
+    const { store, actions } = createBoardStore().create()
+    adoptSelf(actions)
+    actions.openWindow({ id: 'w1' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 400, height: 480, ownerId: stranger, access: { mode: 'selected', people: [SELF] } })
+    actions.claimWindow('w1' as WindowId)
+    const claimed = store.getSnapshot().windows['w1'] as BoardWindowState
+    expect(claimed.ownerId).toBe(SELF)
+    expect(claimed.access).toEqual({ mode: 'selected', people: [] })
+    expect(canManageWindow(store.getSnapshot(), claimed)).toBe(true)
+  })
+
+  it('leaves a window of a known owner, a missing window, and an unknown identity alone', () => {
+    const { store, actions } = createBoardStore().create()
+    actions.openWindow({ id: 'w0' as WindowId, kind: 'agent', bodyKind: 'conversation', ordinal: 1, width: 400, height: 480, ownerId: stranger })
+    const beforeIdentity = store.getSnapshot()
+    actions.claimWindow('w0' as WindowId)
+    expect(store.getSnapshot()).toStrictEqual(beforeIdentity)
+
+    adoptSelf(actions)
+    actions.applyBoardPatch({
+      revision: brandNumber<BoardRevision>(2),
+      upserts: [],
+      removes: [],
+      participants: { upserts: [{ id: stranger, name: 'Legal', color: 3, updatedAt: 1 }], removes: [] },
+    })
+    const known = store.getSnapshot()
+    actions.claimWindow('w0' as WindowId)
+    actions.claimWindow('missing' as WindowId)
+    expect(store.getSnapshot()).toStrictEqual(known)
   })
 })
 

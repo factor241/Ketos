@@ -45,6 +45,11 @@
   cursor: default;
 }
 
+/* A read-only bezel (a foreign window) has no background drag. */
+.bezel[data-board-bezel-interactive='false'] {
+  cursor: default;
+}
+
 /* The managing participant's mark and indicator are menu triggers. The
    negative margins offset the hover fill's padding, so the caption keeps the
    informational form's position while the fill extends past it. */
@@ -93,6 +98,18 @@
   font-size: var(--board-font-hint);
   font-weight: 500;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Stale-data badge of a foreign window whose host has no channel. */
+.stale {
+  padding: 1px 6px;
+  border-radius: 999px;
+  corner-shape: round;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  line-height: 14px;
   white-space: nowrap;
 }
 
@@ -159,4 +176,24 @@
   border-radius: 50%;
   corner-shape: round;
   background: var(--board-owner-edge);
+}
+
+/* Take-over control of a window whose owner nobody knows. */
+.claim {
+  padding: 1px 6px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.claim:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
 }

@@ -377,6 +377,78 @@ describe('board dock', () => {
       .toBe(t('element.todo.error.unavailable'))
   })
 
+  it('names the host refusals of a todo creation: list limit and invalid title', async () => {
+    const { runtime, panel } = await bench()
+    const cases = [
+      { code: 'ketos/limit', key: 'element.todo.error.limit' },
+      { code: 'ketos/invalid', key: 'element.todo.error.invalid' },
+    ] as const
+    for (const { code, key } of cases) {
+      todoApi.createTodoList.mockResolvedValue({ ok: false, code })
+      openDockMenu(panel)
+      fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+      fireEvent.change(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { target: { value: 'Покупки' } })
+      fireEvent.click(screen.getByRole('button', { name: t('element.todo.create.action') }))
+      await runtime.flush()
+      expect(panel.container.querySelector('[data-board-dock-notice]')?.textContent, code).toBe(t(key))
+      fireEvent.keyDown(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { key: 'Escape' })
+      await runtime.flush()
+    }
+  })
+
+  it('switches to the select tool and returns the focus to the plus control after a creation', async () => {
+    const { runtime, panel, store } = await bench()
+    act(() => { store.actions.setTool('brush') })
+    todoApi.createTodoList.mockResolvedValue({
+      ok: true,
+      elementId: '00000000-0000-4000-8000-0000000000d1',
+      revision: 1,
+    })
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+    fireEvent.change(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { target: { value: 'Покупки' } })
+    fireEvent.click(screen.getByRole('button', { name: t('element.todo.create.action') }))
+    await runtime.flush()
+
+    expect(store.store.getSnapshot().tool).toBe('select')
+    expect(document.activeElement).toBe(panel.container.querySelector('[data-board-action="dock-add"]'))
+  })
+
+  it('leaves the focus where the user moved it when a creation settles after an outside click closed the popover', async () => {
+    const { runtime, panel } = await bench()
+    let settle: (outcome: unknown) => void = () => {}
+    todoApi.createTodoList.mockReturnValue(new Promise((resolve) => { settle = resolve }))
+    const elsewhere = document.createElement('input')
+    document.body.append(elsewhere)
+    try {
+      openDockMenu(panel)
+      fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+      fireEvent.change(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { target: { value: 'Покупки' } })
+      fireEvent.click(screen.getByRole('button', { name: t('element.todo.create.action') }))
+      fireEvent.pointerDown(elsewhere)
+      // The browser's default action of the press focuses the clicked field.
+      elsewhere.focus()
+      await runtime.flush()
+      expect(screen.queryByRole('dialog', { name: t('element.todo.create.title') })).toBeNull()
+      expect(document.activeElement).toBe(elsewhere)
+
+      settle({ ok: true, elementId: '00000000-0000-4000-8000-0000000000d1', revision: 1 })
+      await runtime.flush()
+      expect(document.activeElement).toBe(elsewhere)
+    } finally {
+      elsewhere.remove()
+    }
+  })
+
+  it('returns the focus to the plus control when Escape closes the title popover', async () => {
+    const { runtime, panel } = await bench()
+    openDockMenu(panel)
+    fireEvent.click(screen.getByRole('menuitem', { name: t('menu.create.todo') }))
+    fireEvent.keyDown(screen.getByPlaceholderText(t('element.todo.create.placeholder')), { key: 'Escape' })
+    await runtime.flush()
+    expect(document.activeElement).toBe(panel.container.querySelector('[data-board-action="dock-add"]'))
+  })
+
   it('states the dashboard is unavailable without opening a window', async () => {
     const { runtime, panel, store } = await bench()
     openDockMenu(panel)

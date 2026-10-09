@@ -9,7 +9,7 @@
   box-sizing: border-box;
   border-radius: var(--dsw-radius-xs);
   background: var(--board-owner-fill, var(--dsw-alias-bg-layer-2));
-  color: var(--dsw-alias-text-2);
+  color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   overflow: hidden;
 }

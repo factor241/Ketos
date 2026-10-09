@@ -11,5 +11,5 @@
   box-sizing: border-box;
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-2);
-  box-shadow: var(--dsw-elevation-shadow-l2);
+  box-shadow: var(--dsw-elevation-prominent);
 }

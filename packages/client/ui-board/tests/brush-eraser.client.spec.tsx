@@ -4,13 +4,26 @@
  * remaining parts), middle erase splitting a stroke in two, edge erase
  * shortening it, foreign strokes untouched, and pointercancel sending nothing.
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type { BoardDocId, BoardElement, BoardRevision, BoardSnapshot, ElementId, OwnerId } from '@ketos/board-doc/types'
 import { createBoardStore } from '../src/client/store.ts'
 import { createBoardBench, type BoardBench } from './fixtures.client.ts'
 import type { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+
+/** Point counts of every stroke `eraseStroke` was asked to cut. */
+const eraseCalls = vi.hoisted(() => ({ pointCounts: [] as number[] }))
+vi.mock('@ketos/board-doc/data', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@ketos/board-doc/data')>()
+  return {
+    ...original,
+    eraseStroke: (...args: Parameters<typeof original.eraseStroke>) => {
+      eraseCalls.pointCounts.push(args[0].length)
+      return original.eraseStroke(...args)
+    },
+  }
+})
 
 beforeAll(() => {
   // jsdom implements no pointer capture; the gesture only needs its deltas.
@@ -62,6 +75,7 @@ function snapshot(elements: readonly BoardElement[]): BoardSnapshot {
     revision: brandNumber<BoardRevision>(1),
     elements,
     participants: [],
+    windows: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }
@@ -161,6 +175,28 @@ describe('eraser pass', () => {
     await runtime.flush()
     expect(boardDoc.ops).toHaveLength(0)
     expect(Object.values(instance.getSnapshot().boardElements)).toHaveLength(2)
+  })
+
+  it('never erases point by point a stroke the pass stays away from', async () => {
+    const farPoints = [[0, 5, 0.5], [30, 5, 0.5], [60, 5, 0.5], [90, 5, 0.5], [120, 5, 0.5], [150, 5, 0.5], [180, 5, 0.5]]
+    const { runtime, canvas } = await eraserBench([
+      stroke(),
+      stroke({
+        id: brandString<ElementId>('00000000-0000-4000-8000-0000000000c9'),
+        x: 5000,
+        y: 5000,
+        w: 188,
+        h: 18,
+        data: { points: farPoints, width: 'm', pen: false },
+      }),
+    ])
+    eraseCalls.pointCounts.length = 0
+    fireEvent.pointerDown(canvas, sample(200, 80))
+    fireEvent.pointerMove(canvas, sample(200, 220))
+    fireEvent.pointerUp(canvas, { pointerId: 1 })
+    await runtime.flush()
+    expect(eraseCalls.pointCounts.length).toBeGreaterThan(0)
+    expect(eraseCalls.pointCounts).not.toContain(farPoints.length)
   })
 
   it('previews the remaining parts and hides the originals while the pass runs', async () => {

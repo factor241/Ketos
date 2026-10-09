@@ -15,7 +15,7 @@ import type { WorkspaceDirectoryEntry } from '@deepseek-ai/dsh-api-workspace-fil
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { BoardElement, BoardElementKind, ElementId } from '@ketos/board-doc/types'
+import type { BoardElement, BoardElementKind, BoardWindowRecord, ElementId } from '@ketos/board-doc/types'
 import type { PeerErrorCode, KetosPeerId } from '@ketos/peer/types'
 import type { BoardWindowAccessMode, WindowBodyKind, WindowKind } from '../../board-settings.ts'
 import type { OwnerId } from '../owners.ts'
@@ -928,6 +928,14 @@ export interface BoardWindowBodyOwnerProps {
 }
 
 /**
+ * Owner props of one keyed `board.foreign.window.body` slot instance.
+ */
+export interface BoardForeignWindowBodyOwnerProps {
+  /** The published record whose window the body renders. */
+  readonly record: BoardWindowRecord
+}
+
+/**
  * Owner props of one keyed `board.element.body` or `board.element.toolbar`
  * slot instance.
  */
@@ -1014,12 +1022,17 @@ export interface BoardElementInjected {
    * @param patch - fields to replace; absent fields keep their stored value.
    * @param options - `keepalive` posts the batch as a page-lifetime request,
    * for a flush during `pagehide` or a hidden tab.
+   * @returns a promise that resolves after the host answered the operation:
+   * `true` when the host accepted the patch, `false` when it refused it or the
+   * request failed (the optimistic value is already being replaced by a fresh
+   * snapshot). It never rejects. A caller that holds unsaved text keeps it
+   * after `false` and sends it again at its next flush.
    */
   patchElement: (
     id: ElementId,
     patch: BoardElementPatch,
     options?: { readonly keepalive?: boolean },
-  ) => void
+  ) => Promise<boolean>
   /**
    * Replace parts of the owner's strokes in one atomic batch: the removals and
    * the new parts apply locally first, then one operation batch posts; a
@@ -1057,6 +1070,23 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'board.windows': { kind: 'single'; scope: 'root' }
     /** Element layer inside the canvas transform, below the windows. */
     'board.elements': { kind: 'single'; scope: 'root' }
+    /**
+     * Foreign-window layer inside the canvas transform: renders the published
+     * records of other Ketos instances between the elements and the windows.
+     */
+    'board.foreign.windows': { kind: 'single'; scope: 'root' }
+    /**
+     * Body of one foreign window, declared by the foreign-window layer. The
+     * owner share is the same for every kind; the keyed table closes the
+     * dispatch domain to `WindowKind`. Kind without an occupant falls back to
+     * the layer's shared placeholder body.
+     */
+    'board.foreign.window.body': {
+      kind: 'keyed'
+      scope: 'root'
+      owner: BoardForeignWindowBodyOwnerProps
+      keyProps: { [Key in WindowKind]: BoardForeignWindowBodyOwnerProps }
+    }
     /**
      * Element body inside one element box, declared by the element layer. The
      * owner share is the same for every kind; the keyed table closes the

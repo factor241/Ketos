@@ -13,11 +13,12 @@
 
 import type { BiStream, Connection, Endpoint, EndpointBuilder } from '@number0/iroh'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { PeerConnection, PeerStream, PeerTransport } from './transport.ts'
+import { PEER_PROTOCOL_VERSION } from './frame.ts'
+import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from './transport.ts'
 import type { KetosPeerId } from './types.ts'
 
-/** The ALPN every Ketos peer connection negotiates. */
-export const PEER_ALPN = 'ketos/peer/1'
+/** The ALPN every Ketos peer connection negotiates; it carries the protocol version. */
+export const PEER_ALPN = `ketos/peer/${String(PEER_PROTOCOL_VERSION)}`
 
 /** The loaded native module surface. */
 type IrohModule = typeof import('@number0/iroh')
@@ -102,7 +103,15 @@ class IrohTransport implements PeerTransport {
   /** {@inheritDoc PeerTransport.bind} */
   async bind(): Promise<void> {
     if (this.closed) throw new Error('iroh transport is closed')
-    this.endpoint ??= await this.builder.bind()
+    if (this.endpoint !== undefined) return
+    const endpoint = await this.builder.bind()
+    // `close()` may have run while the native bind was pending; it saw no
+    // endpoint to close, so this call releases the one just bound.
+    if (this.isClosed()) {
+      await endpoint.close()
+      throw new Error('iroh transport is closed')
+    }
+    this.endpoint = endpoint
   }
 
   /** {@inheritDoc PeerTransport.online} */
@@ -131,12 +140,15 @@ class IrohTransport implements PeerTransport {
   }
 
   /** {@inheritDoc PeerTransport.accept} */
-  async accept(): Promise<PeerConnection> {
+  async accept(): Promise<PeerIncoming> {
     const incoming = await this.endpointHandle().acceptNext()
     if (incoming === null) throw new Error('iroh endpoint is closed')
-    const accepting = await incoming.accept()
-    const connection = await accepting.connect()
-    return wrapConnection(connection)
+    return {
+      complete: async () => {
+        const accepting = await incoming.accept()
+        return wrapConnection(await accepting.connect())
+      },
+    }
   }
 
   /** {@inheritDoc PeerTransport.close} */
@@ -144,6 +156,15 @@ class IrohTransport implements PeerTransport {
     if (this.closed) return
     this.closed = true
     await this.endpoint?.close()
+  }
+
+  /**
+   * Whether {@link IrohTransport.close} ran; the read stops control-flow
+   * narrowing from treating the flag as unchanged across an `await`.
+   * @returns true after close.
+   */
+  private isClosed(): boolean {
+    return this.closed
   }
 
   private endpointHandle(): Endpoint {

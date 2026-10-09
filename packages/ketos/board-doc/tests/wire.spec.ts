@@ -9,6 +9,7 @@ describe('board wire answers', () => {
     expect(statusOf('ketos/element-not-found')).toBe(404)
     expect(statusOf('ketos/element-foreign')).toBe(409)
     expect(statusOf('ketos/element-exists')).toBe(409)
+    expect(statusOf('ketos/element-host-data')).toBe(403)
     expect(statusOf('ketos/limit')).toBe(409)
   })
 

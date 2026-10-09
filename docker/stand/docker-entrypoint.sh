@@ -9,13 +9,15 @@ export DSH_HOME KETOS_PORT
 
 mkdir -p "$DSH_HOME" /data/syncthing /workspace/shared
 
-# First start on an empty Syncthing volume: generate the key and stock config,
-# then pin it to the team's private relay before Syncthing ever runs, so no
-# public announce server or relay is contacted for this identity.
+# Generate the key and stock config on an empty Syncthing volume, then pin the
+# config to the team's private relay on EVERY start before Syncthing runs: a
+# failed first start can no longer leave a stock config.xml (public discovery
+# and relays) behind. A failed bootstrap stops the container (set -e) without
+# starting Syncthing.
 if [ ! -f /data/syncthing/config.xml ]; then
   syncthing generate --home=/data/syncthing
-  node /usr/local/share/ketos-stand/syncthing-bootstrap.mjs
 fi
+node /usr/local/share/ketos-stand/syncthing-bootstrap.mjs
 
 syncthing serve \
   --home=/data/syncthing \

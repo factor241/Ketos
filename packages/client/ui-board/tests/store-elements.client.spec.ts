@@ -57,6 +57,7 @@ function snapshot(overrides: Partial<BoardSnapshot> = {}): BoardSnapshot {
     revision: brandNumber<BoardRevision>(1),
     elements: [element()],
     participants: [],
+    windows: [],
     limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2000, todoItemsMax: 200 },
     ...overrides,
   }
@@ -181,6 +182,47 @@ describe('optimistic element operations', () => {
     instance.actions.endBoardElementOp(ID_A)
     instance.actions.applyBoardPatch(patch({ revision: brandNumber<BoardRevision>(3), upserts: [element()] }))
     expect(instance.getSnapshot().boardElements[ID_A]).toEqual(element())
+  })
+
+  it('suppresses the echo of a second overlapping request after the first one settles', () => {
+    const instance = store()
+    instance.actions.applyBoardSnapshot(snapshot())
+    instance.actions.beginBoardElementOp(ID_A)
+    instance.actions.beginBoardElementOp(ID_A)
+    instance.actions.moveBoardElement(ID_A, 100, 50)
+    instance.actions.endBoardElementOp(ID_A)
+    expect(instance.getSnapshot().pendingBoardElementOps).toEqual([ID_A])
+    instance.actions.applyBoardPatch(patch({ revision: brandNumber<BoardRevision>(2), upserts: [element()] }))
+    expect(instance.getSnapshot().boardElements[ID_A]).toMatchObject({ x: 100, y: 50 })
+
+    instance.actions.endBoardElementOp(ID_A)
+    expect(instance.getSnapshot().pendingBoardElementOps).toEqual([])
+    instance.actions.applyBoardPatch(patch({
+      revision: brandNumber<BoardRevision>(3),
+      upserts: [element({ x: 7, y: 8 })],
+    }))
+    expect(instance.getSnapshot().boardElements[ID_A]).toMatchObject({ x: 7, y: 8 })
+  })
+
+  it('keeps the mark of a request that began after a snapshot when an earlier request settles', () => {
+    const instance = store()
+    instance.actions.applyBoardSnapshot(snapshot())
+    instance.actions.beginBoardElementOp(ID_A)
+    instance.actions.applyBoardSnapshot(snapshot())
+    instance.actions.beginBoardElementOp(ID_A)
+    instance.actions.moveBoardElement(ID_A, 100, 50)
+    instance.actions.endBoardElementOp(ID_A)
+    instance.actions.applyBoardPatch(patch({ revision: brandNumber<BoardRevision>(2), upserts: [element()] }))
+    expect(instance.getSnapshot().boardElements[ID_A]).toMatchObject({ x: 100, y: 50 })
+
+    instance.actions.endBoardElementOp(ID_A)
+    expect(instance.getSnapshot().pendingBoardElementOps).toEqual([])
+  })
+
+  it('ignores a settle for an element with no request in flight', () => {
+    const instance = store()
+    instance.actions.endBoardElementOp(ID_A)
+    expect(instance.getSnapshot().pendingBoardElementOps).toEqual([])
   })
 
   it('inserts, moves, resizes, and removes elements locally', () => {

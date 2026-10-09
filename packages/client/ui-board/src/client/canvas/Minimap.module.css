@@ -50,6 +50,16 @@
   opacity: 0.8;
 }
 
+/* Foreign windows paint in their owner's edge color, like the elements, so a
+   hole in the local layout reads as someone else's window. */
+.foreign {
+  fill: var(--board-owner-edge, var(--dsw-alias-label-caption));
+  stroke: var(--dsw-alias-bg-layer-2);
+  stroke-width: 1;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .frustum {
   fill: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
   stroke: var(--dsw-alias-state-business-primary);

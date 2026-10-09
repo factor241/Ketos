@@ -11,11 +11,11 @@ import type { OwnerId } from '@ketos/board-doc/types'
 import { formatInvite } from '../src/invite.ts'
 import { createMemoryTransports } from '../src/memory-transport.ts'
 import {
-  PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, handlePeerConnect, handlePeerInvite,
-  handlePeerState, registerPeerRoutes,
+  PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, handlePeerConnect, handlePeerForget,
+  handlePeerInvite, handlePeerState, registerPeerRoutes,
 } from '../src/routes.ts'
 import { KetosPeerService, type KetosPeerOptions } from '../src/service.ts'
-import type { PeerConnection, PeerTransport } from '../src/transport.ts'
+import type { PeerConnection, PeerIncoming, PeerTransport } from '../src/transport.ts'
 import type { KetosPeerId } from '../src/types.ts'
 
 /** Board-document stand-in the peer service reads and writes. */
@@ -80,7 +80,7 @@ class FailingTransport implements PeerTransport {
   /** {@inheritDoc PeerTransport.dial} */
   dial(): Promise<PeerConnection> { return Promise.reject(new Error('stub dial')) }
   /** {@inheritDoc PeerTransport.accept} */
-  accept(): Promise<PeerConnection> { return Promise.reject(new Error('stub accept')) }
+  accept(): Promise<PeerIncoming> { return Promise.reject(new Error('stub accept')) }
   /** {@inheritDoc PeerTransport.close} */
   async close(): Promise<void> {}
 }
@@ -309,9 +309,66 @@ describe('peer connect route', () => {
     expect(await response.text()).toBe('')
   })
 
-  it('registers all three routes on the connection surface', async () => {
+  it('registers every route on the connection surface', async () => {
     const harness = await createRouteHarness()
     expect([...harness.rightRoutes.keys()].sort())
-      .toEqual([PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH].sort())
+      .toEqual([PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH].sort())
+    expect(harness.rightRoutes.get(PEER_FORGET_PATH)?.methods).toEqual(['POST'])
+  })
+})
+
+describe('peer forget route', () => {
+  /**
+   * A forget request.
+   * @param body - the raw request body.
+   * @returns the request.
+   */
+  function forgetRequest(body: string): Request {
+    return new Request('http://localhost', { method: 'POST', body })
+  }
+
+  it('forgets a lost peer and answers ok', async () => {
+    const harness = await createRouteHarness()
+    const code = await harness.left.invite()
+    await harness.right.connect(code)
+    await vi.waitFor(() => { expect(harness.right.peers()[0]?.link).toBe('online') })
+    const peerId = harness.right.peers()[0]?.peerId as KetosPeerId
+
+    const online = await callRoute(harness.rightRoutes, PEER_FORGET_PATH, forgetRequest(JSON.stringify({ peerId })))
+    expect(online.status).toBe(409)
+    await expect(online.json()).resolves.toEqual({ ok: false, error: 'ketos/peer-online' })
+
+    await harness.left.close()
+    await vi.waitFor(() => { expect(harness.right.peers()[0]?.link).not.toBe('online') })
+    const response = await callRoute(harness.rightRoutes, PEER_FORGET_PATH, forgetRequest(JSON.stringify({ peerId })))
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    expect(harness.right.peers()).toEqual([])
+  })
+
+  it('answers 404 for an unknown peer', async () => {
+    const harness = await createRouteHarness()
+    const response = await handlePeerForget(forgetRequest(JSON.stringify({ peerId: 'nobody' })), harness.right)
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toEqual({ ok: false, error: 'ketos/peer-unknown' })
+  })
+
+  it('refuses malformed bodies with 400', async () => {
+    const harness = await createRouteHarness()
+    const cases = ['not json', JSON.stringify([1]), JSON.stringify({}), JSON.stringify({ peerId: '' }),
+      JSON.stringify({ peerId: 7 }), JSON.stringify({ peerId: 'x', extra: 1 })]
+    for (const body of cases) {
+      const response = await handlePeerForget(forgetRequest(body), harness.right)
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toEqual({ ok: false, error: 'ketos/invalid' })
+    }
+  })
+
+  it('answers 500 for an unexpected service failure', async () => {
+    const harness = await createRouteHarness()
+    vi.spyOn(harness.right, 'forget').mockRejectedValue(new Error('boom'))
+    const response = await handlePeerForget(forgetRequest(JSON.stringify({ peerId: 'x' })), harness.right)
+    expect(response.status).toBe(500)
+    expect(await response.text()).toBe('')
   })
 })

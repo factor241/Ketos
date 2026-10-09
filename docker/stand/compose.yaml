@@ -31,7 +31,7 @@ services:
       KETOS_PARTICIPANT_NAME: ${KETOS_PARTICIPANT_NAME:-}
     ports:
       - "3080:3080"
-      - "8384:8384"
+      - "127.0.0.1:8384:8384"
     volumes:
       - ketos-a-home:/data/ketos
       - ketos-a-syncthing:/data/syncthing
@@ -42,10 +42,10 @@ services:
     environment:
       KETOS_PORT: "3081"
       KETOS_TRUSTED_HOSTS: localhost
-      KETOS_PARTICIPANT_NAME: ${KETOS_PARTICIPANT_NAME:-}
+      KETOS_PARTICIPANT_NAME: ${KETOS_B_PARTICIPANT_NAME:-${KETOS_PARTICIPANT_NAME:-}}
     ports:
       - "3081:3081"
-      - "8385:8384"
+      - "127.0.0.1:8385:8384"
     volumes:
       - ketos-b-home:/data/ketos
       - ketos-b-syncthing:/data/syncthing

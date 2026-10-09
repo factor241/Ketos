@@ -25,6 +25,7 @@ const ID_A = brandString<ElementId>('00000000-0000-4000-8000-000000000001')
 const LIMITS = {
   maxOpsPerRequest: 64,
   maxElements: 2000,
+  maxWindowRecords: 100,
   elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
 } as const
 
@@ -41,6 +42,22 @@ function createOp(id: ElementId): BoardCreateOp {
     op: 'create', id, kind: 'note', x: 0, y: 0, w: 10, h: 10,
     data: { text: '', font: 'sans', size: 'm', scale: 1 },
   }
+}
+
+/**
+ * Store notes with long text, so the snapshot outgrows a small queue bound.
+ * @param service - the service to write through.
+ * @param count - number of notes.
+ * @returns the element ids in creation order.
+ */
+async function seedNotes(service: KetosBoardDocService, count: number): Promise<ElementId[]> {
+  const ids: ElementId[] = []
+  for (let index = 0; index < count; index++) {
+    const id = brandString<ElementId>(`00000000-0000-4000-8000-${String(100 + index).padStart(12, '0')}`)
+    ids.push(id)
+    await service.apply([{ ...createOp(id), data: { text: 'x'.repeat(200), font: 'sans', size: 'm', scale: 1 } }], 'host')
+  }
+  return ids
 }
 
 /** Fresh temporary directory that the running test owns. */
@@ -142,7 +159,10 @@ describe('board event stream', () => {
   })
 
   it('sends a heartbeat while the stream stays open', async () => {
-    const { open } = await fixture({ events: { heartbeatMs: 5 } })
+    const { service, open } = await fixture({ events: { heartbeatMs: 5 } })
+    // The first call opens board.db; done here, it cannot outlast the 5 ms
+    // heartbeat that the stream starts before its snapshot.
+    await service.snapshot()
     const controller = new AbortController()
     const reader = (await open(controller.signal)).body!.getReader()
     cleanups.push(() => reader.cancel().catch(() => {}))
@@ -152,20 +172,60 @@ describe('board event stream', () => {
     await readChunk(reader)
   })
 
-  it('closes a stream whose buffered backlog passes the queue bound', async () => {
-    const { service, open } = await fixture({ events: { maxStreamQueueBytes: 10 } })
+  it('does not count the snapshot toward the queue bound, however large it is', async () => {
+    const { service, open } = await fixture({ events: { maxStreamQueueBytes: 300 } })
+    const ids = await seedNotes(service, 3)
     const controller = new AbortController()
     const reader = (await open(controller.signal)).body!.getReader()
     cleanups.push(() => reader.cancel().catch(() => {}))
-    // No reader consumes while the snapshot lands: the backlog passes the
-    // bound and the stream closes itself, still delivering what it buffered.
+    // No reader consumes while the snapshot lands; it is larger than the bound.
     await new Promise(resolve => setTimeout(resolve, 50))
-    expect(await readChunk(reader)).toContain('event: snapshot')
-    expect(await readChunk(reader)).toBe('')
-    // The stream is gone; the service keeps committing batches.
-    await service.apply([createOp(ID_A)], 'browser')
-    expect((await service.snapshot()).revision).toBe(1)
+    const snapshot = await readChunk(reader)
+    expect(snapshot).toContain('event: snapshot')
+    expect(snapshot.length).toBeGreaterThan(300)
+
+    await service.apply([{ op: 'remove', id: ids[0]! }], 'browser')
+    const patch = await readChunk(reader)
+    expect(patch).toContain('event: patch')
+    expect(patch).not.toContain('event: overflow')
     controller.abort()
+  })
+
+  it('sends an overflow event and closes when the patch backlog passes the queue bound', async () => {
+    const lines: string[] = []
+    const { service, open } = await fixture({
+      events: { maxStreamQueueBytes: 250, logger: (message) => { lines.push(message) } },
+    })
+    const ids = await seedNotes(service, 4)
+    const controller = new AbortController()
+    const reader = (await open(controller.signal)).body!.getReader()
+    cleanups.push(() => reader.cancel().catch(() => {}))
+    // The consumer reads nothing while three patches pile up behind the snapshot.
+    await new Promise(resolve => setTimeout(resolve, 50))
+    for (const id of ids.slice(0, 3)) await service.apply([{ op: 'remove', id }], 'browser')
+
+    let received = ''
+    for (let chunk = await readChunk(reader); chunk !== ''; chunk = await readChunk(reader)) received += chunk
+    expect(received.startsWith('event: snapshot')).toBe(true)
+    expect(received.endsWith('event: overflow\ndata: {"reason":"queue"}\n\n')).toBe(true)
+    expect(received.match(/event: overflow/gu)).toHaveLength(1)
+    expect(lines).toEqual([expect.stringMatching(/event stream overflow: .*250 bytes/u)])
+
+    // The stream is gone; the service keeps committing batches.
+    await service.apply([{ op: 'remove', id: ids[3]! }], 'browser')
+    expect((await service.snapshot()).elements).toEqual([])
+    controller.abort()
+  })
+
+  it('closes an overflowing stream silently when no logger is configured', async () => {
+    const { service, open } = await fixture({ events: { maxStreamQueueBytes: 20, heartbeatMs: 5 } })
+    await service.snapshot()
+    const reader = (await open()).body!.getReader()
+    cleanups.push(() => reader.cancel().catch(() => {}))
+    await new Promise(resolve => setTimeout(resolve, 80))
+    let received = ''
+    for (let chunk = await readChunk(reader); chunk !== ''; chunk = await readChunk(reader)) received += chunk
+    expect(received.endsWith('event: overflow\ndata: {"reason":"queue"}\n\n')).toBe(true)
   })
 
   it('closes a stream aborted while its snapshot is still pending', async () => {

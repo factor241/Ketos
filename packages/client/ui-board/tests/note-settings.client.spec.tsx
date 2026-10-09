@@ -17,7 +17,13 @@ afterEach(() => { cleanup() })
 const ID = brandString<ElementId>('00000000-0000-4000-8000-0000000000a1')
 
 /** English-bound locale seat for the direct renders. */
-const t: BoardTranslate = key => en[key as BoardKey]
+const t: BoardTranslate = (key, params) => en[key as BoardKey].replace(
+  /\{(\w+)\}/gu,
+  (_match, name: string) => {
+    const value = params?.[name]
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+  },
+)
 
 /** One valid note element with test overrides. */
 function element(overrides: Partial<BoardElement> = {}): BoardElement {
@@ -42,9 +48,15 @@ function element(overrides: Partial<BoardElement> = {}): BoardElement {
  * @param note - element to configure.
  * @param editable - whether the acting participant owns it.
  * @param patchElement - injected patch verb stub.
+ * @param translate - locale seat.
  * @returns the props.
  */
-function props(note: BoardElement, editable: boolean, patchElement: ReturnType<typeof vi.fn>): never {
+function props(
+  note: BoardElement,
+  editable: boolean,
+  patchElement: ReturnType<typeof vi.fn>,
+  translate: BoardTranslate = t,
+): never {
   return {
     element: note,
     editable,
@@ -52,7 +64,7 @@ function props(note: BoardElement, editable: boolean, patchElement: ReturnType<t
       boardLimits: { elementBytesMax: 262_144, noteTextMax: 20_000 },
       selfId: null,
     }),
-    t,
+    t: translate,
     patchElement,
   } as never
 }
@@ -105,6 +117,44 @@ describe('note settings menu', () => {
     expect(screen.getByRole('menu')).not.toBeNull()
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('names the popup on the trigger and closes the menu from the trigger itself', () => {
+    render(createElement(NoteSettingsButton, props(element(), true, vi.fn())))
+    const trigger = screen.getByRole('button', { name: t('note.settings') })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).not.toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+    // A real click is a pointerdown followed by a click; the trigger belongs
+    // to the menu, so the press does not dismiss it just for the click to reopen it.
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('hands the keyboard back to the trigger when Escape closes the menu', () => {
+    render(createElement(NoteSettingsButton, props(element(), true, vi.fn())))
+    const trigger = screen.getByRole('button', { name: t('note.settings') })
+    trigger.focus()
+    fireEvent.click(trigger)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('labels the scale steps with the interface language, not the browser locale', () => {
+    const translate: BoardTranslate = (key, params) => key === 'note.scale.percent'
+      ? `${String(params?.['percent'])} pct`
+      : t(key, params)
+    render(createElement(NoteSettingsButton, props(element(), true, vi.fn(), translate)))
+    openMenu()
+    expect(screen.getByRole('menuitem', { name: '200 pct' })).not.toBeNull()
+    expect(screen.getByRole('menuitem', { name: '50 pct' })).not.toBeNull()
   })
 
   it('offers no button for a foreign note', () => {

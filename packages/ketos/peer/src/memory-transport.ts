@@ -8,7 +8,7 @@
  */
 
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { PeerConnection, PeerStream, PeerTransport } from './transport.ts'
+import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from './transport.ts'
 import type { KetosPeerId } from './types.ts'
 
 /** A byte channel with a reader that waits for the writer. */
@@ -182,6 +182,16 @@ class MemoryConnection implements PeerConnection {
   }
 }
 
+/**
+ * An incoming connection whose transport handshake already finished: the
+ * in-memory transport has none.
+ * @param connection - the paired connection.
+ * @returns the incoming connection resolving to it.
+ */
+function completedIncoming(connection: MemoryConnection): PeerIncoming {
+  return { complete: () => Promise.resolve(connection) }
+}
+
 /** One in-memory endpoint. */
 class MemoryEndpoint implements PeerTransport {
   private bound = false
@@ -254,11 +264,13 @@ class MemoryEndpoint implements PeerTransport {
   }
 
   /** {@inheritDoc PeerTransport.accept} */
-  accept(): Promise<PeerConnection> {
+  accept(): Promise<PeerIncoming> {
     const connection = this.accepts.shift()
-    if (connection !== undefined) return Promise.resolve(connection)
+    if (connection !== undefined) return Promise.resolve(completedIncoming(connection))
     if (this.closed) return Promise.reject(new Error('memory transport is closed'))
-    return new Promise((resolve, reject) => { this.acceptWaiters.add({ resolve, reject }) })
+    return new Promise((resolve, reject) => {
+      this.acceptWaiters.add({ resolve: (accepted) => { resolve(completedIncoming(accepted)) }, reject })
+    })
   }
 
   /** {@inheritDoc PeerTransport.close} */

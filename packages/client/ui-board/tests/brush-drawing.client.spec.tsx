@@ -39,6 +39,7 @@ function snapshot(): BoardSnapshot {
     revision: brandNumber<BoardRevision>(1),
     elements: [] as readonly BoardElement[],
     participants: [],
+    windows: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }

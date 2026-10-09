@@ -3,6 +3,7 @@
 // transport and a connection, and the close paths that release waiters.
 import { describe, expect, it } from 'vitest'
 import { createMemoryStreamPair, createMemoryTransports } from '../src/memory-transport.ts'
+import type { PeerConnection, PeerTransport } from '../src/transport.ts'
 
 /**
  * Encode text for a stream assertion.
@@ -11,6 +12,15 @@ import { createMemoryStreamPair, createMemoryTransports } from '../src/memory-tr
  */
 function bytes(text: string): Uint8Array {
   return new TextEncoder().encode(text)
+}
+
+/**
+ * Accept the next incoming connection and complete its handshake.
+ * @param transport - the receiving endpoint.
+ * @returns the open connection.
+ */
+async function acceptConnection(transport: PeerTransport): Promise<PeerConnection> {
+  return (await transport.accept()).complete()
 }
 
 describe('memory stream pair', () => {
@@ -109,12 +119,12 @@ describe('memory endpoint lifecycle', () => {
 
     const waiting = pair.b.accept()
     const dialer = await pair.a.dial(pair.b.invitationTicket())
-    const accepted = await waiting
+    const accepted = await (await waiting).complete()
     expect(accepted.peerId).toBe(pair.a.selfId())
     expect(dialer.peerId).toBe(pair.b.selfId())
 
     const second = await pair.a.dial(pair.b.invitationTicket())
-    const queued = await pair.b.accept()
+    const queued = await acceptConnection(pair.b)
     expect(queued.peerId).toBe(pair.a.selfId())
 
     second.close(0n, 'done')
@@ -130,7 +140,7 @@ describe('memory endpoint lifecycle', () => {
     await pair.a.bind()
     await pair.b.bind()
     const connectionA = await pair.a.dial(pair.b.invitationTicket())
-    const connectionB = await pair.b.accept()
+    const connectionB = await acceptConnection(pair.b)
 
     pair.dropConnections()
     await expect(connectionA.closed()).resolves.toBe('transport closed')
@@ -148,7 +158,7 @@ describe('memory endpoint lifecycle', () => {
     await pair.a.bind()
     await pair.b.bind()
     const connectionA = await pair.a.dial(pair.b.invitationTicket())
-    const connectionB = await pair.b.accept()
+    const connectionB = await acceptConnection(pair.b)
 
     await pair.b.close()
     await expect(connectionB.closed()).resolves.toBe('transport closed')
@@ -163,7 +173,7 @@ describe('memory connection streams', () => {
     await pair.a.bind()
     await pair.b.bind()
     const dialer = await pair.a.dial(pair.b.invitationTicket())
-    const acceptor = await pair.b.accept()
+    const acceptor = await acceptConnection(pair.b)
 
     const first = await dialer.openStream()
     const acceptedFirst = await acceptor.acceptStream()
@@ -183,7 +193,7 @@ describe('memory connection streams', () => {
     await pair.a.bind()
     await pair.b.bind()
     const dialer = await pair.a.dial(pair.b.invitationTicket())
-    const acceptor = await pair.b.accept()
+    const acceptor = await acceptConnection(pair.b)
 
     const streamWait = acceptor.acceptStream()
     const closed = acceptor.closed()

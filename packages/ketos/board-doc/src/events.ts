@@ -4,15 +4,19 @@
  * heartbeat while the connection lives.
  *
  * Every stream closes when the request aborts or the consumer cancels, when
- * its buffered backlog passes the queue bound (the browser reconnects and
- * re-reads the snapshot), and when the plugin disposes; a request over the
- * stream budget answers 503 before a stream exists.
+ * the unread patches and heartbeats passed the queue bound, and when the
+ * plugin disposes; a request over the stream budget answers 503 before a
+ * stream exists. The snapshot is the baseline the browser needs and is not
+ * counted against the bound. A stream that overflows sends one `overflow`
+ * event ({@link BoardOverflowEvent}) before it closes, so the browser can tell
+ * the bound from a transport failure and re-read the snapshot after a pause.
  * @module @ketos/board-doc/events
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { KetosBoardDocService } from './service.ts'
+import type { BoardOverflowEvent } from './types.ts'
 import { NO_STORE } from './wire.ts'
 
 /** Path of the event-stream route. */
@@ -22,10 +26,12 @@ export const BOARD_EVENTS_PATH = '/api/ketos.board.events'
 export interface BoardEventsConfig {
   /** Heartbeat interval, in milliseconds. */
   readonly heartbeatMs: number
-  /** Largest buffered backlog before the stream closes itself. */
+  /** Largest buffered backlog of patches and heartbeats before the stream closes itself. */
   readonly maxStreamQueueBytes: number
   /** Largest number of concurrent streams. */
   readonly maxStreams: number
+  /** Receives one line per stream closed for overflow. */
+  readonly logger?: (message: string) => void
 }
 
 /** Headers of every event stream. */
@@ -116,12 +122,20 @@ function openBoardEvents(
     close()
   }
 
-  function write(event: string): void {
+  function write(event: string, counted = true): void {
     if (closed) return
     const bytes = encoder.encode(event)
-    queuedBytes += bytes.length
     controller.enqueue(bytes)
-    if (queuedBytes > config.maxStreamQueueBytes) close()
+    if (!counted) return
+    queuedBytes += bytes.length
+    if (queuedBytes > config.maxStreamQueueBytes) overflow()
+  }
+
+  function overflow(): void {
+    const payload: BoardOverflowEvent = { reason: 'queue' }
+    controller.enqueue(encoder.encode(`event: overflow\ndata: ${JSON.stringify(payload)}\n\n`))
+    config.logger?.(`board event stream overflow: unread events passed ${String(config.maxStreamQueueBytes)} bytes; the browser must re-read the snapshot`)
+    close()
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -134,7 +148,7 @@ function openBoardEvents(
       timer = setInterval(() => { write(': ping\n\n') }, config.heartbeatMs)
       timer.unref()
       void service.snapshot().then(
-        (snapshot) => { write(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`) },
+        (snapshot) => { write(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`, false) },
         (error: unknown) => {
           cleanup()
           controller.error(error)

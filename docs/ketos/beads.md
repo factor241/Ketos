@@ -4,9 +4,9 @@ Beads (`bd`, gastownhall/beads) — распределённый граф-тре
 
 ## Расположение и режим
 
-- БД: `.beads/` в основном рабочем дереве (`/Volumes/Projects/Ketos bot`), backend — embedded Dolt.
+- БД: `.beads/` в основном рабочем дереве (`<корень репозитория>`), backend — embedded Dolt.
 - Каталог исключён из git локально (`.git/info/exclude`: `.beads/`, `**/RECOVERY*.md`, `**/SESSION*.md`) — upstream-синхронизация не затрагивается; при желании режим переключается на tracked (см. доки bd).
-- Все git-worktree этапов автоматически используют **одну и ту же БД** из main-репо (проверено: `bd` из `/Volumes/Projects/Ketos bot.worktrees/stage-NN` видит общие задачи); конкурентный доступ защищён блокировками Dolt.
+- Все git-worktree этапов автоматически используют **одну и ту же БД** из main-репо (проверено: `bd` из `<корень репозитория>.worktrees/stage-NN` видит общие задачи); конкурентный доступ защищён блокировками Dolt.
 - Роль репозитория: `maintainer` (`git config beads.role maintainer`). Без этого bd определяет HTTPS-fork как «contributor» и уводит записи в `~/.beads-planning`, а локальная БД становится read-only.
 - Префикс issues: `ketos-<hash>`. Dolt remote: `origin` → `github.com/factor241/Ketos.git` (для `bd dolt push/pull`).
 
@@ -15,8 +15,8 @@ Beads (`bd`, gastownhall/beads) — распределённый граф-тре
 - Умбрелла-эпик «Ketos v7 MVP» (сейчас `ketos-5v2`); под ним 23 эпика этапов 0–22 «Этап NN. …» (`ketos-5v2.(NN+1)`, `--acceptance` = критерии приёмки этапа); под каждым эпиком — задачи подэтапов `ketos-5v2.(NN+1).M` (NN.M) с чек-листом задач в описании и критериями в `--acceptance`.
 - История этапа 0 импортирована закрытой: эпик `ketos-5v2.1` и его 7 задач `[x]` — историческая запись, работать по ним не нужно.
 - Зависимости: эпик этапа N+1 заблокирован эпиком этапа N; первая задача этапа N+1 — за последней задачей этапа N; подэтапы внутри этапа — последовательная цепочка («порядок подэтапов обязателен»). Поэтому `bd ready` показывает только первый незакрытый элемент цепочки этапа (обычно это подэтап; бывает и блокирующий sibling-bug, как `ketos-5v2.2.4`); эпики в `ready` — открытые «контейнеры», работать по задачам.
-- Статус: текущая линия — умбрелла-эпик `ketos-qzb` «Новый Кетос: показ 16 октября»; этап 26 (`ketos-qzb.1`, установка: референсные проекты, граф и стенд Docker) принят; этап 27 (`ketos-qzb.2`, «Подложка окна и цвета владельцев») выполняется в ветке `stage-27-window-bezel`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-27`. Планы — `stage-NN-*.md` в `/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/`.
-- Источник: `/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/` (ревизия 18; `stage-NN-*.md`, чек-листы — источник задач).
+- Статус: текущая линия — умбрелла-эпик `ketos-qzb` «Новый Кетос: показ 16 октября»; этап 26 (`ketos-qzb.1`, установка: референсные проекты, граф и стенд Docker) принят; этап 27 (`ketos-qzb.2`, «Подложка окна и цвета владельцев») выполняется в ветке `stage-27-window-bezel`, worktree `<корень репозитория>.worktrees/stage-27`. Планы — `stage-NN-*.md` в `~/Downloads/ketos_v7_master_plan/`.
+- Источник: `~/Downloads/ketos_v7_master_plan/` (ревизия 18; `stage-NN-*.md`, чек-листы — источник задач).
 
 ## Рабочий цикл агента (в worktree этапа)
 
@@ -52,7 +52,7 @@ bd graph --all                            # граф зависимостей
 
 ## Обслуживание
 
-- Бэкап: `bd backup sync` (назначение — `file:///Volumes/Projects/Ketos bot.beads-backup`, настроено), статус — `bd backup status`; офф-машинный вариант — `bd dolt push` (в `origin`, только по явной команде).
+- Бэкап: `bd backup sync` (назначение — `file://<корень репозитория>.beads-backup`, настроено), статус — `bd backup status`; офф-машинный вариант — `bd dolt push` (в `origin`, только по явной команде).
 - Автобэкап bd (throttled, раз в 15 мин при записях) пишет во внутренний `.beads/backup`; внешний каталог обновляется **только** явным `bd backup sync` — вызывать на границах этапов (см. «Переход к следующему этапу»).
 - Рост истории: `dolt.auto-commit=on` создаёт коммит на каждую запись; на границах этапов полезно `bd compact --days 30 --force`. `bd prune`/`gc` не запускать без необходимости — они удаляют историю закрытых issues.
 - Диагностика: `bd status`, `bd config show`, `bd memories`; `bd doctor` в embedded-режиме не поддерживается; `bd hooks list` показывает «installed» для pre-commit/pre-push ошибочно (это проверка существования файлов, а git использует `core.hooksPath`).

@@ -98,7 +98,7 @@ class FakeBeads implements TodoBeads {
 async function seedElement(path: string, id: ElementId, kind: string, ownerId: string, data: Record<string, unknown>): Promise<void> {
   const db = await openDatabase(path)
   const doc = new Y.Doc()
-  const journal = new BoardJournal(db, doc, 500)
+  const journal = new BoardJournal(db, doc, 500, () => {})
   await journal.load()
   doc.transact(() => {
     const map = new Y.Map<unknown>()
@@ -147,6 +147,7 @@ async function fixture(options: { todoItemsMax?: number; titleMaxChars?: number 
     limits: {
       maxOpsPerRequest: 64,
       maxElements: 2000,
+      maxWindowRecords: 100,
       elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: options.todoItemsMax ?? 200 },
     },
     journalCompactRows: 500,

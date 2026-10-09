@@ -10,11 +10,11 @@ Status: implemented
 
 ## Decision
 
-**每个 Ketos 一个 iroh 节点，位于 `ctx.ketosPeer` 之后。** `@ketos/peer` 用存放在 `$DSH_HOME/peer.key` 的 32 字节密钥（仅属主可读，`EndpointId` 跨重启稳定）、对等 ALPN `ketos/peer/1` 以及面向团队私有中继的 `RelayMode.customFromUrls` 绑定 iroh 端点。绝不使用 n0 公共中继与发现；部署在 `docker/relay/` 中运行自己的 `iroh-relay`（通过 `<带连字符的-ip>.sslip.io` 使用 Let's Encrypt，备用 `nip.io` 或 `--dev`）。节点按需启动——首次路由调用时，或插件启动时 `peers.json` 已记有节点——因此从不组装演示环境的开发机永远不会加载原生模块。
+**每个 Ketos 一个 iroh 节点，位于 `ctx.ketosPeer` 之后。** `@ketos/peer` 用存放在 `$DSH_HOME/peer.key` 的 32 字节密钥（仅属主可读，`EndpointId` 跨重启稳定）、对等 ALPN `ketos/peer/2`（协议版本 2：其他版本的节点无法连接） 以及面向团队私有中继的 `RelayMode.customFromUrls` 绑定 iroh 端点。绝不使用 n0 公共中继与发现；部署在 `docker/relay/` 中运行自己的 `iroh-relay`（通过 `<带连字符的-ip>.sslip.io` 使用 Let's Encrypt，备用 `nip.io` 或 `--dev`）。节点按需启动——首次路由调用时，或插件启动时 `peers.json` 已记有节点——因此从不组装演示环境的开发机永远不会加载原生模块。
 
 **分帧与扩展属于通道，载荷属于消费者。** 一条连接承载一个双向 QUIC 流；每条消息为 `[u32 BE 长度][u8 类型码][JSON 体]`。类型码表保留 `1 hello`、`2 bye`、`3 board.sv`、`4 board.update`、`5 chat.transcript.request`、`6 chat.transcript.response` 与 `7 syncthing.device`；阶段 33–35 通过声明合并把各自的载荷并入 `PeerFrameTypeMap`，并用 `ctx.effect` 注册处理器。超过 `maxFrameBytes` 的帧、非 JSON 帧体、未知类型码或被截断的帧会以 `2n` 关闭连接，且不会让异常越过读取循环。请求与应答共用一个信封（`{ requestId, request }` / `{ requestId, response | error }`），超时由提问方负责。
 
-**邀请码只接纳一个未知节点。** `invite()` 等待中继地址并生成 `ketos1.<endpoint ticket>.<base32 密钥>`；16 字节密钥一次性使用、仅存内存、在 `inviteTtlMs` 内有效。拨号方先写 `hello`（接收方的 `acceptBi` 只在这些字节之后才解决），携带自己的参与者记录，对未知节点还携带密钥。已存入 `peers.json` 的节点无需密钥即可接纳；密钥错误或缺失的未知节点会以 `1n` 关闭，并记录一行 `peer.refused` 日志。拨号方保存对等方的 ticket 并负责重连（暂停从 `reconnectMinMs` 到 `reconnectMaxMs`，按 ±20% 抖动翻倍）；接收方存储不带 ticket 的记录并等待重拨。
+**邀请码只接纳一个未知节点。** `invite()` 等待中继地址并生成 `ketos1.<endpoint ticket>.<base32 密钥>`；16 字节密钥一次性使用、仅存内存、在 `inviteTtlMs` 内有效。拨号方先写 `hello`（接收方的 `acceptBi` 只在这些字节之后才解决），携带自己的参与者记录，对未知节点还携带密钥。已存入 `peers.json` 的节点无需密钥即可接纳；密钥错误或缺失的未知节点会以 `1n` 关闭，并记录一行 `peer.refused` 日志。任一方的首帧限制为 4096 字节，未知节点的密钥以恒定时间比较，五次错误密钥会使邀请码失效。拨号方保存对等方的 ticket 并负责重连（暂停从 `reconnectMinMs` 到 `reconnectMaxMs`，按 ±20% 抖动翻倍，且不超过 `reconnectMaxMs`）；存活时间短于 `reconnectMaxMs` 的连接算作一次失败尝试，因此握手后立刻不断关闭的连接会退避，而不是每秒重拨。接收方存储不带 ticket 的记录并等待重拨；已知节点经过认证的新连接会替换其旧连接（关闭码 `5n`），因此半死的连接不会阻塞重拨。双方同时拨号时（双方都粘贴过邀请码，各自持有 ticket），两边都保留端点 id 较小的节点拨出的连接，因此同时拨号不会让两条链路都丢失。离线的已知节点可以用 `POST /api/ketos.peer.forget` 忘记。
 
 **参与者是文档记录，每个写入者只写自己的一条。** `@ketos/board-doc` 新增了以 `OwnerId` 为键的 `participants` `Y.Map`；`putOwnParticipant` 只写以自己 `selfId` 为键的记录，因此阶段 33 的同步不会让两个实例互相覆盖。颜色取文档参与者与已知节点中的第一个空闲调色板编号；发生冲突时，看板 `selfId` 较大（字符串比较）的参与者把自己的记录改写为下一个空闲颜色并宣告新的 `hello`，另一侧保持其记录不变。浏览器名册把文档记录与对等通道状态合并，因此两块看板在文档同步存在之前就显示两名真实参与者。
 
@@ -34,7 +34,7 @@ Status: implemented
 
 ## Consequences
 
-通道只能通过团队中继到达：VPS 宕机时不存在对等连接，`invite()` 在中继地址出现之前一直回答 503 `ketos/peer-offline`。`peers.json` 是除密钥之外唯一的持久状态，因此删除该文件会丢失已知节点并需要新的邀请码。接收方无法重拨，因此双方都重启后，由原先拨号的一侧凭 ticket 重连。原生模块不提供 `darwin-x64` 构建，因此 Intel Mac 只能在 Docker 演示环境内运行该通道。帧表在消费者出现之前就保留了类型码；没有处理器的保留帧只记一行日志后被忽略，从而避免混合版本的一对节点崩溃。
+连接通过团队中继建立（之后链路可能转为直连）：VPS 宕机时无法建立新的对等连接，`invite()` 在中继地址出现之前一直回答 503 `ketos/peer-offline`。`peers.json` 是除密钥之外唯一的持久状态，因此删除该文件会丢失已知节点并需要新的邀请码。单个入站连接的握手失败不会停止接受循环。接收方无法重拨，因此双方都重启后，由原先拨号的一侧凭 ticket 重连。原生模块不提供 `darwin-x64` 构建，因此 Intel Mac 只能在 Docker 演示环境内运行该通道。帧表在消费者出现之前就保留了类型码；没有处理器的保留帧只记一行日志后被忽略，从而避免混合版本的一对节点崩溃。
 
 ## Testing
 

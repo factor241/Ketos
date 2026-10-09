@@ -44,6 +44,7 @@ function store(): BoardStoreInstance {
     revision: brandNumber<BoardRevision>(1),
     elements: [],
     participants: [],
+    windows: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   })
   return instance
@@ -127,7 +128,7 @@ describe('canvas tool routing', () => {
       moveElement: vi.fn(),
       resizeElement: vi.fn(),
       removeElement: vi.fn(),
-      patchElement: vi.fn(),
+      patchElement: vi.fn(() => Promise.resolve(true)),
       eraseStrokes: vi.fn(),
     }
   }
@@ -224,6 +225,36 @@ describe('tool mode through the assembled board', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: t('tool.width.s') }))
     await runtime.flush()
     expect(instance.getSnapshot().brushWidth).toBe('s')
+  })
+
+  it('closes the thickness menu from its own trigger and names the popup state on the trigger', async () => {
+    const { runtime, panel } = await bench()
+    const trigger = panel.container.querySelector('[data-board-action="dock-brush-width"]') as HTMLButtonElement
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(trigger)
+    await runtime.flush()
+    expect(screen.queryByRole('menu')).not.toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+    // A real click is a pointerdown followed by a click; the trigger belongs
+    // to the menu, so the press is not an outside dismissal that the click
+    // would reopen.
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+    await runtime.flush()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    // Escape hands the keyboard back to the trigger.
+    trigger.focus()
+    fireEvent.click(trigger)
+    await runtime.flush()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await runtime.flush()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('turns the inspector off when the brush is enabled', async () => {

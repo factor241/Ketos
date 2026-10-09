@@ -55,7 +55,7 @@ async function seedParticipants(
 ): Promise<void> {
   const db = await openDatabase(path)
   const doc = new Y.Doc()
-  const journal = new BoardJournal(db, doc, 500)
+  const journal = new BoardJournal(db, doc, 500, () => {})
   await journal.load()
   doc.transact(() => {
     const participants = doc.getMap<Y.Map<unknown>>('participants')
@@ -83,6 +83,7 @@ function mount(path: string): { service: KetosBoardDocService; changes: BoardCha
     limits: {
       maxOpsPerRequest: 64,
       maxElements: 2000,
+      maxWindowRecords: 100,
       elements: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     },
     journalCompactRows: 500,

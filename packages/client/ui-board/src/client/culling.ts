@@ -16,6 +16,35 @@ import { windowPanelOpen, windowPanelWidth } from './panel-geometry.ts'
 export const CULL_MARGIN = 480
 
 /**
+ * One world rectangle for culling.
+ */
+export interface CullRect {
+  /** World x of the box. */
+  readonly x: number
+  /** World y of the box. */
+  readonly y: number
+  /** World width of the box. */
+  readonly w: number
+  /** World height of the box. */
+  readonly h: number
+}
+
+/**
+ * Whether one world rectangle intersects the visible canvas (plus the culling
+ * margin). Shared by the local window frames and the foreign-window layer.
+ * @param state - board state holding the pan, zoom, and viewport box.
+ * @param rect - the world rectangle.
+ * @returns true when the rectangle should stay rendered.
+ */
+export function isRectVisible(state: BoardState, rect: CullRect): boolean {
+  const visible = visibleWorldRect(state, CULL_MARGIN)
+  return rect.x + rect.w >= visible.left
+    && rect.x <= visible.right
+    && rect.y + rect.h >= visible.top
+    && rect.y <= visible.bottom
+}
+
+/**
  * Whether one window intersects the visible canvas (plus the culling margin).
  * @param state - board state holding the pan, zoom, and viewport box.
  * @param window - the window rectangle in world units.

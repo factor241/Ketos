@@ -25,9 +25,6 @@ export type NoteSettingsButtonProps =
   & PropsLocale<'board'>
   & BoardElementInjected
 
-/** Percent label of one scale step, shaped by the runtime's locale. */
-const PERCENT_FORMAT = new Intl.NumberFormat(undefined, { style: 'percent' })
-
 export function NoteSettingsButton({ element, editable, useStore, t, patchElement }: NoteSettingsButtonProps) {
   const limits = useStore(s => s.boardLimits)
   const [open, setOpen] = useState(false)
@@ -45,7 +42,7 @@ export function NoteSettingsButton({ element, editable, useStore, t, patchElemen
     { type: 'label', id: 'label.note.scale', text: t('note.scale') },
     ...NOTE_SCALE_STEPS.map(scale => ({
       id: `scale:${String(scale)}`,
-      label: PERCENT_FORMAT.format(scale),
+      label: t('note.scale.percent', { percent: Math.round(scale * 100) }),
     })),
   ]
 
@@ -54,49 +51,50 @@ export function NoteSettingsButton({ element, editable, useStore, t, patchElemen
     setOpen(false)
     if (id.startsWith('font:')) {
       const font = id.slice('font:'.length) as NoteFont
-      if (NOTE_FONTS.includes(font)) patchElement(element.id, { data: { font } })
+      if (NOTE_FONTS.includes(font)) void patchElement(element.id, { data: { font } })
       return
     }
     if (id.startsWith('size:')) {
       const size = id.slice('size:'.length) as NoteSize
-      if (NOTE_SIZES.includes(size)) patchElement(element.id, { data: { size } })
+      if (NOTE_SIZES.includes(size)) void patchElement(element.id, { data: { size } })
       return
     }
     if (id.startsWith('scale:')) {
       const scale = Number(id.slice('scale:'.length))
       if (!NOTE_SCALE_STEPS.includes(scale) || scale === note.scale) return
       const factor = scale / note.scale
-      patchElement(element.id, { w: element.w * factor, h: element.h * factor, data: { scale } })
+      void patchElement(element.id, { w: element.w * factor, h: element.h * factor, data: { scale } })
     }
   }
 
   return (
-    <>
-      <Tooltip label={t('note.settings')} side="bottom" delayMs={300}>
-        <button
-          ref={buttonRef}
-          type="button"
-          data-board-action="note-settings"
-          aria-label={t('note.settings')}
-          className={css.button}
-          onClick={() => { setOpen(current => !current) }}
-        >
-          <IconSettingsOutlineRegular size={12} />
-        </button>
-      </Tooltip>
-      <Menu
-        portal
-        open={open}
-        side="bottom"
-        align="start"
-        selection="check"
-        anchor={<span />}
-        getAnchorRect={() => buttonRef.current?.getBoundingClientRect() ?? null}
-        items={items}
-        selectedIds={[`font:${note.font}`, `size:${note.size}`, `scale:${String(note.scale)}`]}
-        onSelect={apply}
-        onClose={() => { setOpen(false) }}
-      />
-    </>
+    <Menu
+      portal
+      open={open}
+      side="bottom"
+      align="start"
+      selection="check"
+      anchor={(
+        <Tooltip label={t('note.settings')} side="bottom" delayMs={300} disabled={open}>
+          <button
+            ref={buttonRef}
+            type="button"
+            data-board-action="note-settings"
+            aria-label={t('note.settings')}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            className={css.button}
+            onClick={() => { setOpen(current => !current) }}
+          >
+            <IconSettingsOutlineRegular size={12} />
+          </button>
+        </Tooltip>
+      )}
+      getAnchorRect={() => buttonRef.current?.getBoundingClientRect() ?? null}
+      items={items}
+      selectedIds={[`font:${note.font}`, `size:${note.size}`, `scale:${String(note.scale)}`]}
+      onSelect={apply}
+      onClose={() => { setOpen(false) }}
+    />
   )
 }

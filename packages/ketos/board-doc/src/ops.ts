@@ -6,21 +6,24 @@
  * The whole batch is resolved against a simulated state before anything
  * mutates, so an error in the last operation leaves the document untouched;
  * a browser batch may only create elements under `selfId` and patch or remove
- * elements it owns, while a host batch bypasses that check.
+ * elements it owns, and may not create elements of a host-data kind or patch
+ * their data, while a host batch bypasses those checks.
  * @module @ketos/board-doc/ops
  */
 
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { isElementData, isElementId, validateElementData } from './data.ts'
 import type { BoardDocument } from './doc.ts'
-import { BOARD_ELEMENT_COORDINATE_LIMIT, isBoardElementKind } from './kinds.ts'
+import { BOARD_ELEMENT_COORDINATE_LIMIT, isBoardElementKind, isBoardHostDataKind } from './kinds.ts'
 import type {
   BoardCreateOp, BoardElement, BoardElementData, BoardLimits, BoardOp, BoardOrigin,
-  BoardPatchOp, BoardRemoveOp, ElementId, OwnerId,
+  BoardPatchOp, BoardRemoveOp, BoardWindowPutOp, BoardWindowRecord, BoardWindowRemoveOp,
+  ElementId, OwnerId, WindowId,
 } from './types.ts'
 import {
   BoardError, finiteNumber, rejectUnknownFields, record, optionalFiniteNumber,
 } from './wire.ts'
+import { isSameBoardWindowContent, isWindowId, parseBoardWindowInput } from './windows.ts'
 
 /** Deployment limits the operation parser and resolver enforce. */
 export interface BoardOpLimits {
@@ -28,16 +31,22 @@ export interface BoardOpLimits {
   readonly maxOpsPerRequest: number
   /** Largest number of elements the document may hold. */
   readonly maxElements: number
+  /** Largest number of window records the document may hold. */
+  readonly maxWindowRecords: number
   /** Element limits published in the snapshot. */
   readonly elements: BoardLimits
 }
 
-/** Result of one applied batch: which elements changed and which left. */
+/** Result of one applied batch: which elements and window records changed. */
 export interface BoardOpResult {
   /** Elements created or changed by the batch, in element order. */
   readonly upserts: readonly BoardElement[]
   /** Elements the batch removed. */
   readonly removes: readonly ElementId[]
+  /** Window records published or changed by the batch, in window order. */
+  readonly windowUpserts: readonly BoardWindowRecord[]
+  /** Window records the batch removed. */
+  readonly windowRemoves: readonly WindowId[]
 }
 
 /** State a create resolves against while the batch is simulated. */
@@ -56,6 +65,10 @@ const CREATE_FIELDS = ['op', 'id', 'kind', 'x', 'y', 'w', 'h', 'data'] as const
 const PATCH_FIELDS = ['op', 'id', 'x', 'y', 'w', 'h', 'z', 'data'] as const
 /** Fields a remove operation accepts. */
 const REMOVE_FIELDS = ['op', 'id'] as const
+/** Fields a window-put operation accepts. */
+const WINDOW_PUT_FIELDS = ['op', 'record'] as const
+/** Fields a window-remove operation accepts. */
+const WINDOW_REMOVE_FIELDS = ['op', 'id'] as const
 
 /**
  * Parse one operation-request body. Unknown fields, missing fields, and values
@@ -132,12 +145,19 @@ export function applyBoardOps(
 ): BoardOpResult {
   const state: { ids: Set<string>; maxZ: number } = { ids: new Set(doc.ids()), maxZ: doc.maxZ() }
   let count = doc.count()
+  let windowCount = doc.windowCount()
   const overlay = new Map<string, BoardElement | null>()
+  const windowOverlay = new Map<string, BoardWindowRecord | null>()
   const mutations: Array<() => void> = []
 
   const current = (id: ElementId): BoardElement | undefined => {
     if (overlay.has(id)) return overlay.get(id) ?? undefined
     return doc.readElement(id)
+  }
+
+  const currentWindow = (id: WindowId): BoardWindowRecord | undefined => {
+    if (windowOverlay.has(id)) return windowOverlay.get(id) ?? undefined
+    return doc.readWindow(id)
   }
 
   for (const op of ops) {
@@ -146,6 +166,7 @@ export function applyBoardOps(
         if (count >= limits.maxElements) {
           throw new BoardError('ketos/limit', `the document already holds ${String(limits.maxElements)} elements`)
         }
+        assertBrowserMayCreate(op, origin)
         const element = resolveCreate(op, state, selfId, now)
         assertValidElement(element, limits.elements)
         mutations.push(() => { doc.create(element) })
@@ -161,6 +182,7 @@ export function applyBoardOps(
           throw new BoardError('ketos/element-not-found', `element ${op.id} does not exist`)
         }
         assertOwned(existing, origin, selfId)
+        assertBrowserMayPatch(existing, op, origin)
         const merged = mergePatch(existing, op, now)
         assertValidElement(merged, limits.elements)
         mutations.push(() => { doc.patch(op.id, merged) })
@@ -179,6 +201,57 @@ export function applyBoardOps(
         count -= 1
         break
       }
+      case 'window.put': {
+        const id = op.record.id
+        const existing = currentWindow(id)
+        // The simulation's occupancy, not the raw map's: a record removed
+        // earlier in this batch frees its key for a later put.
+        const occupied = windowOverlay.has(id) ? windowOverlay.get(id) !== null : doc.hasWindow(id)
+        if (origin === 'browser') {
+          if (op.record.hostId !== undefined && op.record.hostId !== selfId) {
+            throw new BoardError('ketos/window-foreign', `window ${id} was published by another Ketos`)
+          }
+          if (existing !== undefined && existing.hostId !== selfId) {
+            throw new BoardError('ketos/window-foreign', `window ${id} lives on another Ketos`)
+          }
+          // A key holding a record this build cannot decode is not ours to
+          // overwrite from the browser.
+          if (existing === undefined && occupied) {
+            throw new BoardError('ketos/window-foreign', `window ${id} is not readable by this build`)
+          }
+        }
+        if (!occupied) {
+          if (windowCount >= limits.maxWindowRecords) {
+            throw new BoardError('ketos/limit', `the document already holds ${String(limits.maxWindowRecords)} window records`)
+          }
+          windowCount += 1
+        }
+        const stored: BoardWindowRecord = { ...op.record, hostId: selfId, updatedAt: now }
+        // A publish that repeats the stored content writes no field, so it
+        // adds no journal row and no patch.
+        if (existing !== undefined && isSameBoardWindowContent(existing, stored)) break
+        mutations.push(() => { doc.writeWindow(stored) })
+        windowOverlay.set(id, stored)
+        break
+      }
+      case 'window.remove': {
+        const id = op.id
+        const existing = currentWindow(id)
+        if (existing === undefined) {
+          // Nothing readable to remove: a record already removed in this
+          // batch, an absent key, or a key holding another version's record.
+          if (windowOverlay.has(id) || !doc.hasWindow(id)) break
+          if (origin === 'browser') {
+            throw new BoardError('ketos/window-foreign', `window ${id} is not readable by this build`)
+          }
+        } else if (origin === 'browser' && existing.hostId !== selfId) {
+          throw new BoardError('ketos/window-foreign', `window ${id} lives on another Ketos`)
+        }
+        mutations.push(() => { doc.removeWindow(id) })
+        windowOverlay.set(id, null)
+        windowCount -= 1
+        break
+      }
       default:
         return assertNever(op)
     }
@@ -194,7 +267,13 @@ export function applyBoardOps(
     if (element === null) removes.push(id as ElementId)
     else upserts.push(element)
   }
-  return { upserts, removes }
+  const windowUpserts: BoardWindowRecord[] = []
+  const windowRemoves: WindowId[] = []
+  for (const [id, window] of windowOverlay) {
+    if (window === null) windowRemoves.push(id as WindowId)
+    else windowUpserts.push(window)
+  }
+  return { upserts, removes, windowUpserts, windowRemoves }
 }
 
 /**
@@ -211,9 +290,36 @@ function parseOp(value: unknown): BoardOp {
       return parsePatch(op)
     case 'remove':
       return parseRemove(op)
+    case 'window.put':
+      return parseWindowPut(op)
+    case 'window.remove':
+      return parseWindowRemove(op)
     default:
       throw new BoardError('ketos/invalid', `unknown operation ${JSON.stringify(op.op)}`)
   }
+}
+
+/**
+ * Parse one window-put operation.
+ * @param op - decoded operation object.
+ * @returns the parsed operation.
+ */
+function parseWindowPut(op: Record<string, unknown>): BoardWindowPutOp {
+  rejectUnknownFields(op, WINDOW_PUT_FIELDS)
+  const record = parseBoardWindowInput(op.record)
+  if (record === null) throw new BoardError('ketos/invalid', 'record must be a complete window record')
+  return { op: 'window.put', record }
+}
+
+/**
+ * Parse one window-remove operation.
+ * @param op - decoded operation object.
+ * @returns the parsed operation.
+ */
+function parseWindowRemove(op: Record<string, unknown>): BoardWindowRemoveOp {
+  rejectUnknownFields(op, WINDOW_REMOVE_FIELDS)
+  if (!isWindowId(op.id)) throw new BoardError('ketos/invalid', 'id must be a window id')
+  return { op: 'window.remove', id: op.id }
 }
 
 /**
@@ -351,6 +457,30 @@ function mergeData(existing: BoardElementData, patch: BoardElementData): BoardEl
 function assertOwned(element: BoardElement, origin: BoardOrigin, selfId: OwnerId): void {
   if (origin === 'browser' && element.ownerId !== selfId) {
     throw new BoardError('ketos/element-foreign', `element ${element.id} belongs to another participant`)
+  }
+}
+
+/**
+ * Refuse a browser create of a kind whose data only the host writes.
+ * @param op - parsed create.
+ * @param origin - who sent the batch.
+ */
+function assertBrowserMayCreate(op: BoardCreateOp, origin: BoardOrigin): void {
+  if (origin === 'browser' && isBoardHostDataKind(op.kind)) {
+    throw new BoardError('ketos/element-host-data', `${op.kind} elements are created by the host`)
+  }
+}
+
+/**
+ * Refuse a browser patch that carries `data` for a kind whose data only the
+ * host writes; geometry and `z` stay patchable.
+ * @param element - stored element.
+ * @param op - parsed patch.
+ * @param origin - who sent the batch.
+ */
+function assertBrowserMayPatch(element: BoardElement, op: BoardPatchOp, origin: BoardOrigin): void {
+  if (origin === 'browser' && op.data !== undefined && isBoardHostDataKind(element.kind)) {
+    throw new BoardError('ketos/element-host-data', `data of ${element.kind} element ${element.id} is written by the host`)
   }
 }
 

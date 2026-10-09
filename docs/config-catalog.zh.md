@@ -4351,6 +4351,8 @@ export interface Config {
   todoItemsMax?: number
   /** Largest number of elements the document holds (1–100000). */
   maxElements?: number
+  /** Largest number of window records the document holds (1–10000). */
+  maxWindowRecords?: number
   /** Largest number of operations one request may batch (1–1024). */
   maxOpsPerRequest?: number
   /** Largest accepted operation-request body, in bytes (1 KiB–64 MiB). */
@@ -4359,7 +4361,7 @@ export interface Config {
   journalCompactRows?: number
   /** Event-stream heartbeat interval, in milliseconds (1000–300000). */
   heartbeatMs?: number
-  /** Largest buffered event-stream backlog, in bytes (16 KiB–256 MiB). */
+  /** Largest buffered backlog of patches and heartbeats per event stream, in bytes (16 KiB–256 MiB); the snapshot is not counted. */
   maxStreamQueueBytes?: number
   /** Largest number of concurrent event streams (1–1024). */
   maxStreams?: number
@@ -4440,14 +4442,14 @@ export interface Config {
 ## `@ketos/peer`
 
 - `inject`: `connection` · `ketosBoardDoc`
-- `source`: [`packages/ketos/peer/src/index.ts:27`](../packages/ketos/peer/src/index.ts)
+- `source`: [`packages/ketos/peer/src/index.ts:29`](../packages/ketos/peer/src/index.ts)
 
 ```ts config-catalog
 /** Deployment configuration of the peer node. */
 export interface Config {
   /** Participant name this Ketos publishes to the other side. */
   name: string
-  /** Relay URLs of the team's private iroh relay; at least one is required. */
+  /** Relay URLs of the team's private iroh relay, the node's only relay map; at least one is required. */
   relayUrls: string[]
   /** Path of the stored 32-byte node key; the parent directory is created owner-only. */
   keyPath: string
@@ -4455,13 +4457,22 @@ export interface Config {
   peersPath: string
   /** Largest accepted frame body, in bytes (1 KiB–64 MiB). */
   maxFrameBytes?: number
+  /**
+   * Largest board synchronization update this Ketos sends, in bytes
+   * (1 KiB–64 MiB); must be less than `maxFrameBytes`.
+   */
+  maxSyncUpdateBytes?: number
   /** How long `invite()` waits for a relay address, in milliseconds (1000–120000). */
   onlineTimeoutMs?: number
   /** How long a dial or handshake step may take, in milliseconds (1000–120000). */
   connectTimeoutMs?: number
-  /** First reconnection pause, in milliseconds (100–60000). */
+  /** First reconnection and board resynchronization pause, in milliseconds (100–60000); must not exceed `reconnectMaxMs`. */
   reconnectMinMs?: number
-  /** Reconnection pause ceiling, in milliseconds (100–600000). */
+  /**
+   * Reconnection pause ceiling, in milliseconds (100–600000, default 20000);
+   * a jittered pause never exceeds it, and a link that lived for less than
+   * this long counts as a failed attempt. Must be at least `reconnectMinMs`.
+   */
   reconnectMaxMs?: number
   /** Lifetime of one invitation secret, in milliseconds (60000–86400000). */
   inviteTtlMs?: number

@@ -8,7 +8,8 @@
   "files": [
     "src/data.ts",
     "src/kinds.ts",
-    "src/types.ts"
+    "src/types.ts",
+    "src/windows.ts"
   ],
   "references": [
     {

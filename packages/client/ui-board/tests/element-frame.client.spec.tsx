@@ -5,6 +5,8 @@
  * the foreign element without handles or movement, the Delete guards, and the
  * screen-space selection bar above the element at any zoom.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { createElement } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
@@ -12,6 +14,7 @@ import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
   BoardDocId, BoardElement, BoardRevision, BoardSnapshot, ElementId, OwnerId,
 } from '@ketos/board-doc/types'
+import type { KetosPeerId } from '@ketos/peer/types'
 import { ElementSelectionBar } from '../src/client/ElementSelectionBar.tsx'
 import { BoardElementLayer } from '../src/client/elements/BoardElementLayer.tsx'
 import { createBoardStore, type BoardState } from '../src/client/store.ts'
@@ -67,6 +70,7 @@ function snapshot(elements: readonly BoardElement[], selfId: OwnerId = SELF): Bo
     revision: brandNumber<BoardRevision>(1),
     elements,
     participants: [],
+    windows: [],
     limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
   }
 }
@@ -90,17 +94,55 @@ function instanceWith(elements: readonly BoardElement[]): BoardInstance {
 function layerProps(instance: BoardInstance, overrides: Partial<{
   moveElement: (id: ElementId, x: number, y: number) => void
   resizeElement: (id: ElementId, width: number, height: number) => void
+  renderSlot: (name: string, owner: unknown, opts: { fallback?: unknown } | undefined) => unknown
 }> = {}): never {
   return {
     useStore: (selector: (value: BoardState) => unknown): unknown => selector(instance.getSnapshot()),
     actions: instance.actions,
-    renderSlot: (_name: string, _owner: unknown, opts: { fallback?: unknown } | undefined) => opts?.fallback ?? null,
+    renderSlot: overrides.renderSlot
+      ?? ((_name: string, _owner: unknown, opts: { fallback?: unknown } | undefined) => opts?.fallback ?? null),
     t,
     moveElement: overrides.moveElement ?? vi.fn(),
     resizeElement: overrides.resizeElement ?? vi.fn(),
     removeElement: vi.fn(),
   } as never
 }
+
+describe('element stale marks', () => {
+  it('marks a foreign element whose owner lost its channel and leaves others alone', () => {
+    const instance = instanceWith([element(ID_A, { ownerId: OTHER }), element(ID_B)])
+    const peerState = (link: 'online' | 'lost'): never => ({
+      self: { selfId: SELF, name: 'Kirill', color: 1 },
+      peers: [{ peerId: 'peer-1' as KetosPeerId, selfId: OTHER, name: 'Юрист', color: 2, link }],
+      refreshMs: 1000,
+    }) as never
+
+    instance.actions.applyPeerState(peerState('lost'))
+    const lost = render(createElement(BoardElementLayer, layerProps(instance)))
+    const marked = [...lost.container.querySelectorAll('[data-board-element-id]')]
+      .filter(frame => frame.querySelector('[data-board-stale]') !== null)
+    expect(marked.map(frame => frame.getAttribute('data-board-element-id'))).toEqual([ID_A])
+    cleanup()
+
+    instance.actions.applyPeerState(peerState('online'))
+    const online = render(createElement(BoardElementLayer, layerProps(instance)))
+    expect(online.container.querySelector('[data-board-stale]')).toBeNull()
+    cleanup()
+
+    // A deployment without peer networking knows no peer: no marks.
+    const alone = instanceWith([element(ID_A, { ownerId: OTHER })])
+    const unknown = render(createElement(BoardElementLayer, layerProps(alone)))
+    expect(unknown.container.querySelector('[data-board-stale]')).toBeNull()
+  })
+})
+
+describe('element stale badge reachability', () => {
+  it('takes pointer events so its tooltip opens on hover', () => {
+    const css = readFileSync(resolve('packages/client/ui-board/src/client/elements/ElementFrame.module.css'), 'utf8')
+    const rule = /\.stale\s*\{([^}]*)\}/.exec(css)
+    expect(rule?.[1]).toMatch(/pointer-events:\s*auto/)
+  })
+})
 
 describe('element frame selection and drag', () => {
   it('selects one element at a time', () => {
@@ -161,6 +203,87 @@ describe('element frame selection and drag', () => {
     expect(resizeElement).toHaveBeenCalledWith(ID_A, 120, 80)
   })
 
+  it('starts a resize only from the left button', () => {
+    const resizeElement = vi.fn()
+    const instance = instanceWith([element(ID_A, { w: 240, h: 160 })])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance, { resizeElement })))
+    const handle = container.querySelector(`[data-board-element-id="${ID_A}"] [data-board-element-handle="se"]`)!
+    // A secondary press opens the context menu, which swallows its pointerup.
+    fireEvent.pointerDown(handle, { pointerId: 1, clientX: 100, clientY: 100, button: 2 })
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 300, clientY: 300 })
+    fireEvent.pointerUp(handle, { pointerId: 1, button: 0 })
+    expect(resizeElement).not.toHaveBeenCalled()
+  })
+
+  it('cancels a resize without an operation when the pointer capture is lost or the pointer is cancelled', () => {
+    const resizeElement = vi.fn()
+    const instance = instanceWith([element(ID_A, { w: 240, h: 160 })])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance, { resizeElement })))
+    const frame = container.querySelector(`[data-board-element-id="${ID_A}"]`) as HTMLElement
+    const handle = frame.querySelector('[data-board-element-handle="se"]')!
+    for (const end of ['lostPointerCapture', 'pointerCancel'] as const) {
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: 100, clientY: 100, button: 0 })
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 196, clientY: 196 })
+      expect(frame.style.width, end).toBe('336px')
+      fireEvent[end](frame, { pointerId: 1 })
+      expect(frame.style.width, end).toBe('240px')
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 300, clientY: 300 })
+      fireEvent.pointerUp(handle, { pointerId: 1 })
+      expect(frame.style.width, end).toBe('240px')
+    }
+    expect(resizeElement).not.toHaveBeenCalled()
+  })
+
+  it('measures the 5 px drag threshold in screen pixels at any zoom', () => {
+    const moveElement = vi.fn()
+    const instance = instanceWith([element(ID_A)])
+    instance.actions.setZoom(0.25)
+    const { container, rerender } = render(createElement(BoardElementLayer, layerProps(instance, { moveElement })))
+    const frame = container.querySelector(`[data-board-element-id="${ID_A}"]`)!
+    // 3 screen pixels at zoom 0.25 are 12 world units: still a click.
+    fireEvent.pointerDown(frame, { pointerId: 1, clientX: 0, clientY: 0, button: 0 })
+    fireEvent.pointerMove(frame, { pointerId: 1, clientX: 3, clientY: 0, altKey: true })
+    fireEvent.pointerUp(frame, { pointerId: 1 })
+    expect(moveElement).not.toHaveBeenCalled()
+
+    // 6 screen pixels at zoom 2 are 3 world units: a drag.
+    instance.actions.setZoom(2)
+    rerender(createElement(BoardElementLayer, layerProps(instance, { moveElement })))
+    fireEvent.pointerDown(frame, { pointerId: 2, clientX: 0, clientY: 0, button: 0 })
+    fireEvent.pointerMove(frame, { pointerId: 2, clientX: 6, clientY: 0, altKey: true })
+    fireEvent.pointerUp(frame, { pointerId: 2 })
+    expect(moveElement).toHaveBeenCalledTimes(1)
+    expect(moveElement).toHaveBeenCalledWith(ID_A, 3, 0)
+  })
+
+  it('starts a move only from the left button', () => {
+    const moveElement = vi.fn()
+    const instance = instanceWith([element(ID_A)])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance, { moveElement })))
+    const frame = container.querySelector(`[data-board-element-id="${ID_A}"]`)!
+    for (const button of [1, 2]) {
+      fireEvent.pointerDown(frame, { pointerId: button, clientX: 0, clientY: 0, button })
+      fireEvent.pointerMove(frame, { pointerId: button, clientX: 100, clientY: 100 })
+      fireEvent.pointerUp(frame, { pointerId: button })
+    }
+    expect(moveElement).not.toHaveBeenCalled()
+  })
+
+  it('does not drag the element while the press lands in a text editor inside it', () => {
+    const moveElement = vi.fn()
+    const instance = instanceWith([element(ID_A)])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance, {
+      moveElement,
+      renderSlot: () => createElement('textarea', { 'data-testid': 'inner-editor' }),
+    })))
+    const editor = container.querySelector('[data-testid="inner-editor"]')!
+    fireEvent.pointerDown(editor, { pointerId: 1, clientX: 0, clientY: 0, button: 0 })
+    fireEvent.pointerMove(editor, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(editor, { pointerId: 1 })
+    expect(moveElement).not.toHaveBeenCalled()
+    expect(instance.getSnapshot().selectedBoardElementId).toBe(ID_A)
+  })
+
   it('selects a foreign element but offers no handle and no move', () => {
     const moveElement = vi.fn()
     const instance = instanceWith([element(ID_A, { ownerId: OTHER })])
@@ -173,6 +296,41 @@ describe('element frame selection and drag', () => {
     fireEvent.pointerUp(frame, { pointerId: 1 })
     expect(moveElement).not.toHaveBeenCalled()
     expect(instance.getSnapshot().selectedBoardElementId).toBe(ID_A)
+  })
+})
+
+describe('element frame keyboard access', () => {
+  it('puts the frame and its resize corner in the tab order and selects the element on frame focus', () => {
+    const instance = instanceWith([element(ID_A), element(ID_B, { x: 300, ownerId: OTHER })])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance)))
+    const own = container.querySelector(`[data-board-element-id="${ID_A}"]`) as HTMLElement
+    const foreign = container.querySelector(`[data-board-element-id="${ID_B}"]`) as HTMLElement
+    expect(own.getAttribute('tabindex')).toBe('0')
+    expect(foreign.getAttribute('tabindex')).toBe('0')
+    expect(own.querySelector('[data-board-element-handle]')?.getAttribute('tabindex')).toBe('0')
+
+    fireEvent.focus(foreign)
+    expect(instance.getSnapshot().selectedBoardElementId).toBe(ID_B)
+    fireEvent.focus(own)
+    expect(instance.getSnapshot().selectedBoardElementId).toBe(ID_A)
+  })
+
+  it('resizes from the focused corner by one grid step per arrow key down to the kind minimum', () => {
+    const resizeElement = vi.fn()
+    const instance = instanceWith([element(ID_A, { w: 144, h: 96 })])
+    const { container } = render(createElement(BoardElementLayer, layerProps(instance, { resizeElement })))
+    const handle = container.querySelector(`[data-board-element-id="${ID_A}"] [data-board-element-handle="se"]`)!
+    fireEvent.keyDown(handle, { key: 'ArrowRight' })
+    expect(resizeElement).toHaveBeenLastCalledWith(ID_A, 168, 96)
+    fireEvent.keyDown(handle, { key: 'ArrowDown' })
+    expect(resizeElement).toHaveBeenLastCalledWith(ID_A, 144, 120)
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' })
+    fireEvent.keyDown(handle, { key: 'ArrowUp' })
+    // 144 − 24 = 120 and 96 − 24 = 72 → the note floor of 120×80 clamps the height.
+    expect(resizeElement).toHaveBeenNthCalledWith(3, ID_A, 120, 96)
+    expect(resizeElement).toHaveBeenNthCalledWith(4, ID_A, 144, 80)
+    fireEvent.keyDown(handle, { key: 'Enter' })
+    expect(resizeElement).toHaveBeenCalledTimes(4)
   })
 })
 
@@ -266,6 +424,31 @@ describe('element delete guards', () => {
     fireEvent.keyDown(windowSurface, { key: 'Delete' })
     fireEvent.keyDown(menuItem, { key: 'Delete' })
     expect(store.getSnapshot().boardElements[ID_A]).toBeDefined()
+  })
+
+  it('keeps the element when a button or a button role holds focus', async () => {
+    const { panel, store } = await mounted()
+    const button = document.createElement('button')
+    const roleButton = document.createElement('div')
+    roleButton.setAttribute('role', 'button')
+    const nested = document.createElement('span')
+    button.append(nested)
+    panel.container.append(button, roleButton)
+
+    for (const target of [button, nested, roleButton]) {
+      fireEvent.keyDown(target, { key: 'Delete' })
+      fireEvent.keyDown(target, { key: 'Backspace' })
+    }
+    expect(store.getSnapshot().boardElements[ID_A]).toBeDefined()
+  })
+
+  it('leaves Space to a focused button so the keyboard still opens its menu', async () => {
+    const { panel } = await mounted()
+    const button = document.createElement('button')
+    panel.container.append(button)
+    // fireEvent returns false when a listener called preventDefault.
+    expect(fireEvent.keyDown(button, { key: ' ', code: 'Space' })).toBe(true)
+    expect(fireEvent.keyDown(document.body, { key: ' ', code: 'Space' })).toBe(false)
   })
 
   it('keeps a foreign element and stands down while the inspector selects', async () => {

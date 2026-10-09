@@ -1,0 +1,91 @@
+/* Foreign window placeholder: the published record drawn in world coordinates
+ * with the owner's edge and bezel fill, a read-only header, and the shared
+ * placeholder body. The frame never receives pointer events, so a click falls
+ * through to the canvas and the board stays pannable over it. */
+
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  border-radius: var(--dsw-radius-xl);
+  background: transparent;
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* The theme's floating-panel fill, above the bezel and below the content. */
+.window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dsw-alias-bg-layer-2);
+  pointer-events: none;
+}
+
+/* Owner edge: the 2px ring of the publishing owner's color. */
+.window::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--board-owner-edge);
+  border-radius: calc(var(--dsw-radius-xl) + 2px);
+  pointer-events: none;
+}
+
+/* The no-connection badge is the one part of the frame that takes pointer
+ * events, so its tooltip opens on hover; the focus path needs no pointer. */
+.window [data-board-stale] {
+  pointer-events: auto;
+}
+
+/* Unlike a local window, the foreign bezel stays revealed: the owner fill and
+ * mark are what tell the receiver whose placeholder this is. */
+.window > [data-board-bezel] {
+  opacity: 1;
+  transform: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--board-font-hint);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+  text-align: center;
+}

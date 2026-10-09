@@ -17,17 +17,20 @@ import type { KetosBoardDocService } from '@ketos/board-doc/src/service.ts'
 import type { BoardParticipantRecord } from '@ketos/board-doc/types'
 import { firstFreeColor, nextFreeColor } from './color.ts'
 import {
-  PEER_FRAME_CODES, PeerFrameError, frameCodeFor, parseHelloPayload, type PeerFrameType,
+  PEER_FRAME_CODES, PEER_HELLO_MAX_BYTES, PEER_PROTOCOL_VERSION, PeerFrameError, frameCodeFor, parseHelloPayload, type PeerFrameType,
   type PeerFrameTypeMap, type PeerHelloPayload,
 } from './frame.ts'
-import { formatInvite, encodeBase32, mintInviteSecret, parseInvite } from './invite.ts'
+import {
+  INVITE_MAX_FAILED_ATTEMPTS, encodeBase32, formatInvite, inviteSecretMatches, mintInviteSecret, parseInvite,
+} from './invite.ts'
 import {
   PeerLink, PEER_LINK_DUPLICATE_CLOSE_CODE, PEER_LINK_PROTOCOL_CLOSE_CODE,
-  PEER_LINK_REFUSED_CLOSE_CODE, PEER_UNHANDLED, readPeerFrame, writePeerFrame, type PeerFrameContext,
+  PEER_LINK_REFUSED_CLOSE_CODE, PEER_LINK_REPLACED_CLOSE_CODE, PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE,
+  PEER_UNHANDLED, readPeerFrame, writePeerFrame, type PeerFrameContext,
 } from './link.ts'
 import { loadOrCreateSecretKey } from './key-file.ts'
 import { loadKnownPeers, saveKnownPeers, type KnownPeer } from './peers-file.ts'
-import type { PeerConnection, PeerStream, PeerTransport } from './transport.ts'
+import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from './transport.ts'
 import type {
   PeerErrorCode, KetosPeerId, PeerLinkState, PeerSelfState, PeerState, PeerStateResponse,
 } from './types.ts'
@@ -73,7 +76,11 @@ declare module '@deepseek-ai/cordis' {
 export interface KetosPeerOptions {
   /** Participant name this Ketos publishes. */
   readonly name: string
-  /** Relay URLs of the team's private iroh relay; the node's only transport. */
+  /**
+   * Relay URLs of the team's private iroh relay, the node's only relay map. A
+   * connection starts through the relay and moves to a direct path once iroh
+   * establishes one.
+   */
   readonly relayUrls: readonly string[]
   /** Path of the stored 32-byte node key. */
   readonly keyPath: string
@@ -125,7 +132,15 @@ interface PendingInvite {
   readonly secret: string
   /** When the secret stops admitting an unknown node. */
   readonly expiresAt: number
+  /** Wrong secrets presented so far; the invitation burns at the limit. */
+  failedAttempts: number
 }
+
+/** Abort reason of a reconnect loop whose peer got a link: a dial in flight still finishes. */
+const LINK_ATTACHED = 'link attached'
+
+/** Abort reason of a reconnect loop stopped by disposal or by forgetting the peer. */
+const RECONNECT_CANCELLED = 'reconnect cancelled'
 
 /**
  * The peer node. Every method that needs the channel awaits
@@ -139,6 +154,14 @@ export class KetosPeerService extends Service {
   private readonly peerStates = new Map<string, PeerState>()
   private readonly handlers = new Map<number, Set<RegisteredPeerHandler>>()
   private readonly reconnects = new Map<string, AbortController>()
+  /** Nominal pause before the latest redial of each peer; cleared by a long-lived link. */
+  private readonly backoff = new Map<string, number>()
+  /** Endpoint that dialed each live link: this node for an outgoing one, the peer for an incoming one. */
+  private readonly dialers = new WeakMap<PeerLink, KetosPeerId>()
+  /** Times each peer was forgotten; a handshake that began before a forget must not bring the peer back. */
+  private readonly forgets = new Map<string, number>()
+  /** Tail of the known-peer file writes; each write snapshots the records when it runs. */
+  private persisting: Promise<void> = Promise.resolve()
   private participants: readonly BoardParticipantRecord[] = []
   private transport: PeerTransport | undefined
   private self: PeerSelfState | undefined
@@ -219,7 +242,7 @@ export class KetosPeerService extends Service {
       throw new PeerServiceError('ketos/peer-offline', String(error))
     }
     const secret = encodeBase32(mintInviteSecret())
-    this.pendingInvite = { secret, expiresAt: Date.now() + this.options.inviteTtlMs }
+    this.pendingInvite = { secret, expiresAt: Date.now() + this.options.inviteTtlMs, failedAttempts: 0 }
     return formatInvite(ticket, secret)
   }
 
@@ -244,14 +267,17 @@ export class KetosPeerService extends Service {
     if (this.links.has(peerId)) throw new PeerServiceError('ketos/invite-used', 'a channel to this peer is already open')
     const connection = await this.dial(parsed.ticket)
     try {
+      this.throwIfDisposed()
       const stream = await connection.openStream()
       const hello = await this.exchangeHello(stream, { ...this.ownHello(), invite: parsed.secret })
+      this.throwIfDisposed()
       await this.recordHello(peerId, hello, parsed.ticket)
-      this.attachLink(connection, stream)
+      this.attachLink(connection, stream, 'outgoing')
       this.applyPeerHello(hello)
       return { peerId }
     } catch (error: unknown) {
       connection.close(PEER_LINK_REFUSED_CLOSE_CODE, 'connect failed')
+      if (this.disposed) throw new PeerServiceError('ketos/peer-offline', 'ketos peer: already closed')
       throw new PeerServiceError('ketos/invite-used', String(error))
     }
   }
@@ -303,8 +329,9 @@ export class KetosPeerService extends Service {
 
   /**
    * Register a handler for one frame type. The caller owns the unsubscribe
-   * through `ctx.effect`. Every registered handler of a type runs; the first
-   * one's resolved value answers a request.
+   * through `ctx.effect`. Every registered handler of a type runs, even when
+   * an earlier one throws; the first one's resolved value answers a request,
+   * and a failure of any later one is logged.
    * @param type - frame type name.
    * @param handler - receives the payload and the sending peer.
    * @returns the unsubscribe function.
@@ -326,6 +353,55 @@ export class KetosPeerService extends Service {
   }
 
   /**
+   * Close the channel to one peer because an outgoing synchronization update
+   * exceeded the sender's bound. The peer stays known and may redial; a later
+   * `ketos-peer/disconnected` event reports the regular end.
+   * @param peerId - the peer whose channel closes.
+   */
+  closeSyncTooLarge(peerId: KetosPeerId): void {
+    const link = this.links.get(peerId)
+    if (link === undefined) return
+    void link.close('board.sync.too-large', PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE)
+  }
+
+  /**
+   * Forget one known peer that has no open channel: remove it from the
+   * known-peer file and the peer list, and cancel its redials, including one
+   * in flight. The peer is known again only after a new invitation. When the
+   * file cannot be written the peer stays known and its redials continue.
+   * @param peerId - the peer to forget.
+   * @throws PeerServiceError `ketos/peer-unknown` for an unknown peer and
+   * `ketos/peer-online` while a channel to it is open.
+   */
+  async forget(peerId: KetosPeerId): Promise<void> {
+    await this.ensureStarted()
+    const record = this.records.get(peerId)
+    const state = this.peerStates.get(peerId)
+    if (record === undefined || state === undefined) {
+      throw new PeerServiceError('ketos/peer-unknown', `peer ${shortId(peerId)} is not known`)
+    }
+    if (this.links.has(peerId)) {
+      throw new PeerServiceError('ketos/peer-online', `a channel to peer ${shortId(peerId)} is open`)
+    }
+    this.cancelReconnect(peerId)
+    this.forgets.set(peerId, (this.forgets.get(peerId) ?? 0) + 1)
+    this.backoff.delete(peerId)
+    this.records.delete(peerId)
+    this.peerStates.delete(peerId)
+    try {
+      await this.persistPeers()
+    } catch (error: unknown) {
+      // The file still lists the peer: keep it known and redialing rather than
+      // let it reappear at the next start.
+      this.records.set(peerId, record)
+      this.peerStates.set(peerId, state)
+      if (record.ticket !== undefined) this.scheduleReconnect(peerId, record.ticket, this.options.reconnectMinMs)
+      throw error
+    }
+    this.options.logger(`ketos-peer: peer.forgotten ${shortId(peerId)}`)
+  }
+
+  /**
    * Close the node, its connections, and every reconnect attempt. Safe before
    * the first start and safe to call more than once.
    * @returns a promise settling when the transport is closed.
@@ -336,17 +412,24 @@ export class KetosPeerService extends Service {
   }
 
   private async start(): Promise<void> {
-    const transport = this.options.transport ?? await this.createDefaultTransport()
-    this.transport = transport
+    // A failed attempt keeps the transport it created: the retry binds the same
+    // node instead of leaving one bound iroh node per attempt behind.
+    this.transport ??= this.options.transport ?? await this.createDefaultTransport()
+    this.throwIfDisposed()
+    const transport = this.transport
     await transport.bind()
+    this.throwIfDisposed()
     const known = await loadKnownPeers(this.options.peersPath)
+    this.throwIfDisposed()
     for (const record of known) {
       this.records.set(record.peerId, record)
       this.peerStates.set(record.peerId, { ...toState(record), link: 'lost' })
     }
     const board: KetosBoardDocService = this.ctx.ketosBoardDoc
     const selfId = await board.selfId()
+    this.throwIfDisposed()
     const stored = await board.participants()
+    this.throwIfDisposed()
     const color = firstFreeColor([
       ...stored.filter(participant => participant.id !== selfId).map(participant => participant.color),
       ...known.map(record => record.color),
@@ -357,9 +440,10 @@ export class KetosPeerService extends Service {
       { id: selfId, name: this.options.name, color, updatedAt: Date.now() },
     ]
     await board.putOwnParticipant({ name: this.options.name, color })
-    void this.acceptLoop()
+    this.throwIfDisposed()
+    void this.acceptLoop(transport)
     for (const record of known) {
-      if (record.ticket !== undefined) this.scheduleReconnect(record.peerId, record.ticket)
+      if (record.ticket !== undefined) this.scheduleReconnect(record.peerId, record.ticket, this.options.reconnectMinMs)
     }
   }
 
@@ -374,18 +458,19 @@ export class KetosPeerService extends Service {
     return createIrohTransport(options)
   }
 
-  private async acceptLoop(): Promise<void> {
+  private async acceptLoop(transport: PeerTransport): Promise<void> {
     for (;;) {
-      let connection: PeerConnection
+      let incoming: PeerIncoming
       try {
-        connection = await (this.transport as PeerTransport).accept()
+        incoming = await transport.accept()
       } catch (error: unknown) {
-        // Disposal closes the transport, which is the expected end of this
-        // loop; any other rejection is worth a line.
+        // The transport rejects `accept()` only when it is closed, which is
+        // the expected end of this loop after disposal; a handshake failure
+        // of one incoming connection surfaces in `acceptConnection` instead.
         if (!this.isDisposed()) this.options.logger(`ketos-peer: accept stopped: ${String(error)}`)
         return
       }
-      void this.acceptConnection(connection)
+      void this.acceptConnection(incoming)
     }
   }
 
@@ -398,7 +483,23 @@ export class KetosPeerService extends Service {
     return this.disposed
   }
 
-  private async acceptConnection(connection: PeerConnection): Promise<void> {
+  /**
+   * Stop an asynchronous operation that resumed after disposal. Called after
+   * every `await` that precedes a state change.
+   * @throws when {@link KetosPeerService.close} ran.
+   */
+  private throwIfDisposed(): void {
+    if (this.disposed) throw new Error('ketos peer: already closed')
+  }
+
+  private async acceptConnection(incoming: PeerIncoming): Promise<void> {
+    let connection: PeerConnection
+    try {
+      connection = await incoming.complete()
+    } catch (error: unknown) {
+      this.options.logger(`ketos-peer: incoming connection failed: ${String(error)}`)
+      return
+    }
     const peerId = connection.peerId
     try {
       const stream = await withTimeout(
@@ -407,30 +508,63 @@ export class KetosPeerService extends Service {
         'stream did not open',
       )
       const frame = await withTimeout(
-        readPeerFrame(stream, this.options.maxFrameBytes),
+        readPeerFrame(stream, this.helloMaxBytes()),
         this.options.connectTimeoutMs,
         'hello did not arrive',
       )
       if (frame.code !== PEER_FRAME_CODES.hello) throw new PeerFrameError('first frame must be hello')
       const hello = parseHelloPayload(frame.payload)
       const known = this.records.get(peerId)
+      const forgetsBefore = this.forgets.get(peerId) ?? 0
       if (known === undefined && !this.consumeInvite(hello.invite)) {
         connection.close(PEER_LINK_REFUSED_CLOSE_CODE, 'refused')
         this.options.logger(`ketos-peer: peer.refused ${shortId(peerId)}`)
         return
       }
-      if (this.links.has(peerId)) {
-        connection.close(PEER_LINK_DUPLICATE_CLOSE_CODE, 'duplicate')
+      this.throwIfDisposed()
+      await this.recordHello(peerId, hello, known?.ticket)
+      this.throwIfDisposed()
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, this.ownHello())
+      this.throwIfDisposed()
+      if ((this.forgets.get(peerId) ?? 0) !== forgetsBefore) {
+        // forget() ran while this handshake awaited: the record it removed
+        // must not come back through this connection.
+        connection.close(PEER_LINK_REFUSED_CLOSE_CODE, 'forgotten')
+        await this.dropForgottenRecord(peerId)
         return
       }
-      await this.recordHello(peerId, hello, known?.ticket)
-      await writePeerFrame(stream, PEER_FRAME_CODES.hello, this.ownHello())
-      this.attachLink(connection, stream)
+      this.attachLink(connection, stream, 'incoming')
       this.applyPeerHello(hello)
     } catch (error: unknown) {
+      if (this.disposed) {
+        connection.close(0n, 'shutdown')
+        return
+      }
       connection.close(PEER_LINK_PROTOCOL_CLOSE_CODE, 'handshake')
       this.options.logger(`ketos-peer: handshake from ${shortId(peerId)} failed: ${String(error)}`)
     }
+  }
+
+  /**
+   * Remove the record a handshake wrote for a peer that was forgotten while
+   * the handshake ran.
+   * @param peerId - the forgotten peer.
+   * @returns a promise settling when the known-peer file no longer lists it, or the write failed.
+   */
+  private async dropForgottenRecord(peerId: KetosPeerId): Promise<void> {
+    this.records.delete(peerId)
+    this.peerStates.delete(peerId)
+    await this.persistPeersLogged()
+  }
+
+  /**
+   * The body bound of a handshake frame: a `hello` of a node that has not
+   * proven itself is read under {@link PEER_HELLO_MAX_BYTES}, never under the
+   * large bound of established channels.
+   * @returns the bound, in bytes.
+   */
+  private helloMaxBytes(): number {
+    return Math.min(this.options.maxFrameBytes, PEER_HELLO_MAX_BYTES)
   }
 
   private async dial(ticket: string): Promise<PeerConnection> {
@@ -449,7 +583,7 @@ export class KetosPeerService extends Service {
   private async exchangeHello(stream: PeerStream, hello: PeerHelloPayload): Promise<PeerHelloPayload> {
     await writePeerFrame(stream, PEER_FRAME_CODES.hello, hello)
     const frame = await withTimeout(
-      readPeerFrame(stream, this.options.maxFrameBytes),
+      readPeerFrame(stream, this.helloMaxBytes()),
       this.options.connectTimeoutMs,
       'hello did not arrive',
     )
@@ -457,18 +591,35 @@ export class KetosPeerService extends Service {
     return parseHelloPayload(frame.payload)
   }
 
-  private async dialKnown(peerId: KetosPeerId, ticket: string): Promise<void> {
+  private async dialKnown(peerId: KetosPeerId, ticket: string, signal: AbortSignal): Promise<void> {
     const connection = await this.dial(ticket)
     try {
+      this.throwIfRedialCancelled(signal)
       const stream = await withTimeout(connection.openStream(), this.options.connectTimeoutMs, 'stream did not open')
       const hello = await this.exchangeHello(stream, this.ownHello())
+      this.throwIfRedialCancelled(signal)
       await this.recordHello(peerId, hello, ticket)
-      this.attachLink(connection, stream)
+      this.throwIfRedialCancelled(signal)
+      this.attachLink(connection, stream, 'outgoing')
       this.applyPeerHello(hello)
     } catch (error: unknown) {
       connection.close(PEER_LINK_PROTOCOL_CLOSE_CODE, 'handshake')
       throw error
     }
+  }
+
+  /**
+   * Stop a redial whose loop was cancelled — by disposal or by forgetting the
+   * peer — before it records or attaches anything.
+   * @param signal - the loop's cancellation signal.
+   * @throws when the service closed or the loop was cancelled.
+   */
+  private throwIfRedialCancelled(signal: AbortSignal): void {
+    this.throwIfDisposed()
+    // A loop stopped because a link to the peer attached lets its dial in
+    // flight finish: attachLink then keeps whichever connection the shared
+    // rule prefers, so the two sides never drop the one the other kept.
+    if (signal.aborted && signal.reason !== LINK_ATTACHED) throw new Error('reconnect cancelled')
   }
 
   /**
@@ -480,14 +631,31 @@ export class KetosPeerService extends Service {
     link.trySend(PEER_FRAME_CODES.hello, this.ownHello())
   }
 
-  private attachLink(connection: PeerConnection, stream: PeerStream): void {
+  /**
+   * Install the link of a completed handshake.
+   *
+   * An `outgoing` connection is one this node dialed, an `incoming` one was
+   * dialed by the peer. When the peer already has a live link,
+   * {@link newLinkWins} decides which connection stays, by the same rule on
+   * both sides; the losing connection closes as a duplicate (code 3) or, when
+   * it was the live link, as replaced (code 5). A replaced link is retired at
+   * once instead of waiting for the transport's idle timeout.
+   * @param connection - the handshaken connection.
+   * @param stream - its single stream, past the handshake.
+   * @param origin - which side opened the connection.
+   */
+  private attachLink(connection: PeerConnection, stream: PeerStream, origin: 'incoming' | 'outgoing'): void {
+    this.throwIfDisposed()
     const peerId = connection.peerId
-    // A racing dial — the browser's connect() against the reconnect loop, or
-    // two handshakes admitted at once — must not replace the live channel.
-    // The first link keeps its place; the duplicate closes with its own code.
-    if (this.links.has(peerId)) {
-      connection.close(PEER_LINK_DUPLICATE_CLOSE_CODE, 'duplicate')
-      return
+    const transport = this.transport as PeerTransport
+    const dialer = origin === 'outgoing' ? transport.selfId() : peerId
+    const existing = this.links.get(peerId)
+    if (existing !== undefined) {
+      if (!this.newLinkWins(dialer, this.dialers.get(existing) as KetosPeerId)) {
+        connection.close(PEER_LINK_DUPLICATE_CLOSE_CODE, 'duplicate')
+        return
+      }
+      this.replaceLink(peerId, existing)
     }
     const link = new PeerLink(connection, stream, {
       peerId,
@@ -502,7 +670,8 @@ export class KetosPeerService extends Service {
     link.onFrame((code, payload, context) => this.dispatchFrame(peerId, code, payload, context))
     link.start()
     this.links.set(peerId, link)
-    this.cancelReconnect(peerId)
+    this.dialers.set(link, dialer)
+    this.cancelReconnect(peerId, LINK_ATTACHED)
     this.setLinkState(peerId, 'online')
     const state = this.peerStates.get(peerId) as PeerState
     this.options.logger(`ketos-peer: peer.connected ${shortId(peerId)}`)
@@ -515,20 +684,89 @@ export class KetosPeerService extends Service {
     // Announce the current record once more now that the link exists, so a
     // color the collision rule just changed reaches the peer.
     this.announceHello(link)
-    void link.closed().then((reason) => { this.onLinkClosed(peerId, link, reason) })
+    const openedAt = Date.now()
+    void link.closed().then((reason) => { this.onLinkClosed(peerId, link, reason, Date.now() - openedAt) })
   }
 
-  private onLinkClosed(peerId: KetosPeerId, link: PeerLink, reason: string): void {
+  /**
+   * Whether a new connection to a peer with a live link replaces that link.
+   * Both sides apply the same rule to the same pair of connections, so they
+   * keep the same one: of two connections with different dialers, the one
+   * dialed by the node with the smaller endpoint id stays. Of two connections
+   * with the same dialer, the newer one replaces the older on both sides: the
+   * accepting side sees a redial only when the dialer's own link is dead, and
+   * two dials of one node that race (a pasted code against the reconnect
+   * loop) complete in the same order on both ends.
+   * @param dialer - endpoint that dialed the new connection.
+   * @param existingDialer - endpoint that dialed the live link.
+   * @returns true when the new connection replaces the live link.
+   */
+  private newLinkWins(dialer: KetosPeerId, existingDialer: KetosPeerId): boolean {
+    return dialer === existingDialer || dialer < existingDialer
+  }
+
+  /**
+   * Retire a link that a newer connection of the same peer replaces. The old
+   * link leaves the map first, so its close callback reports nothing and
+   * schedules no reconnection; the disconnected event keeps every consumer's
+   * connected/disconnected pairs balanced before the new link's event.
+   * @param peerId - the peer whose link is replaced.
+   * @param existing - the link being retired.
+   */
+  private replaceLink(peerId: KetosPeerId, existing: PeerLink): void {
+    this.links.delete(peerId)
+    this.options.logger(`ketos-peer: peer.replaced ${shortId(peerId)}`)
+    void existing.close('replaced', PEER_LINK_REPLACED_CLOSE_CODE)
+    this.setLinkState(peerId, 'lost')
+    this.ctx.emit('ketos-peer/disconnected', { peerId })
+  }
+
+  /**
+   * Report an ended link and schedule the dialing side's redial.
+   * @param peerId - the peer whose link ended.
+   * @param link - the ended link; a link replaced or unknown is ignored.
+   * @param reason - the transport's close reason.
+   * @param lifetimeMs - how long the link was open.
+   */
+  private onLinkClosed(peerId: KetosPeerId, link: PeerLink, reason: string, lifetimeMs: number): void {
     if (this.links.get(peerId) !== link) return
     this.links.delete(peerId)
     this.options.logger(`ketos-peer: peer.disconnected ${shortId(peerId)}: ${reason}`)
     this.setLinkState(peerId, 'lost')
     this.ctx.emit('ketos-peer/disconnected', { peerId })
     const record = this.records.get(peerId)
-    if (record?.ticket !== undefined && !this.disposed) this.scheduleReconnect(peerId, record.ticket)
+    if (record?.ticket !== undefined && !this.disposed) {
+      this.scheduleReconnect(peerId, record.ticket, this.pauseAfterLink(peerId, lifetimeMs))
+    }
   }
 
-  private scheduleReconnect(peerId: KetosPeerId, ticket: string): void {
+  /**
+   * The first redial pause after a link ended. A link that lived for less
+   * than `reconnectMaxMs` counts as a failed attempt, so the pause doubles
+   * from the previous redial's pause and the successful handshake of that
+   * redial did not reset it; a repeating exchange that closes the link — an
+   * update over the size bound, say — then slows down instead of redialing
+   * once per `reconnectMinMs`. Only a link that lived at least
+   * `reconnectMaxMs` starts over from `reconnectMinMs`.
+   * @param peerId - the peer whose link ended.
+   * @param lifetimeMs - how long the link was open.
+   * @returns the nominal pause before the first redial.
+   */
+  private pauseAfterLink(peerId: KetosPeerId, lifetimeMs: number): number {
+    const { reconnectMinMs, reconnectMaxMs } = this.options
+    if (lifetimeMs >= reconnectMaxMs) {
+      this.backoff.delete(peerId)
+      return reconnectMinMs
+    }
+    const previous = this.backoff.get(peerId)
+    const next = previous === undefined ? reconnectMinMs : Math.min(previous * 2, reconnectMaxMs)
+    this.options.logger(
+      `ketos-peer: peer.flapping ${shortId(peerId)}: link lived ${String(lifetimeMs)} ms, next pause ${String(next)} ms`,
+    )
+    return next
+  }
+
+  private scheduleReconnect(peerId: KetosPeerId, ticket: string, firstPause: number): void {
     // Callers reach here only from start() and onLinkClosed, where no loop is
     // pending for the peer and no link exists; the guard is the invariant.
     /* v8 ignore next -- duplicate-schedule guard, by construction unreached. */
@@ -536,11 +774,12 @@ export class KetosPeerService extends Service {
     const controller = new AbortController()
     this.reconnects.set(peerId, controller)
     void (async () => {
-      let delay = this.options.reconnectMinMs
+      let delay = firstPause
       while (!controller.signal.aborted && !this.disposed) {
+        this.backoff.set(peerId, delay)
         this.setLinkState(peerId, 'lost')
         try {
-          await sleep(jitter(delay), controller.signal)
+          await sleep(jitter(delay, this.options.reconnectMaxMs), controller.signal)
         } catch {
           return
         }
@@ -548,9 +787,10 @@ export class KetosPeerService extends Service {
         if (this.isReconnectCancelled(controller)) return
         this.setLinkState(peerId, 'connecting')
         try {
-          await this.dialKnown(peerId, ticket)
+          await this.dialKnown(peerId, ticket, controller.signal)
           return
         } catch (error: unknown) {
+          if (this.isReconnectCancelled(controller)) return
           this.options.logger(`ketos-peer: reconnect to ${shortId(peerId)} failed: ${String(error)}`)
         }
         delay = Math.min(delay * 2, this.options.reconnectMaxMs)
@@ -573,10 +813,10 @@ export class KetosPeerService extends Service {
     return this.disposed || controller.signal.aborted
   }
 
-  private cancelReconnect(peerId: KetosPeerId): void {
+  private cancelReconnect(peerId: KetosPeerId, reason: string = RECONNECT_CANCELLED): void {
     const controller = this.reconnects.get(peerId)
     if (controller !== undefined) {
-      controller.abort()
+      controller.abort(reason)
       this.reconnects.delete(peerId)
     }
   }
@@ -589,8 +829,17 @@ export class KetosPeerService extends Service {
   ): unknown {
     const handlers = this.handlers.get(code)
     if (handlers === undefined || handlers.size === 0) return PEER_UNHANDLED
-    const results = [...handlers].map(handler => handler(payload, peerId, context))
-    return results[0]
+    const [first, ...rest] = [...handlers].map(handler => invokeHandler(handler, payload, peerId, context))
+    // The link answers a request with the first outcome and logs its failure;
+    // a later handler's failure is only logged here.
+    void Promise.allSettled(rest).then((outcomes) => {
+      for (const outcome of outcomes) {
+        if (outcome.status === 'rejected') {
+          this.options.logger(`ketos-peer: frame handler for ${shortId(peerId)} failed: ${String(outcome.reason)}`)
+        }
+      }
+    })
+    return first
   }
 
   private async recordHello(peerId: KetosPeerId, hello: PeerHelloPayload, ticket: string | undefined): Promise<void> {
@@ -607,11 +856,32 @@ export class KetosPeerService extends Service {
     this.records.set(peerId, record)
     const state = this.peerStates.get(peerId)
     this.peerStates.set(peerId, { ...toState(record), link: state?.link ?? 'lost' })
+    await this.persistPeersLogged()
+  }
+
+  /**
+   * Write the known-peer file and log a failed write instead of throwing; the
+   * records in memory stay as they are.
+   * @returns a promise settling when the write finished or failed.
+   */
+  private async persistPeersLogged(): Promise<void> {
     try {
-      await saveKnownPeers(this.options.peersPath, [...this.records.values()])
+      await this.persistPeers()
     } catch (error: unknown) {
       this.options.logger(`ketos-peer: known-peer file write failed: ${String(error)}`)
     }
+  }
+
+  /**
+   * Write the known-peer file. Writes run one after another and each takes
+   * its snapshot when it starts, so an older snapshot never replaces a newer
+   * one — which would bring a forgotten peer back.
+   * @returns a promise settling when this write finished or failed.
+   */
+  private persistPeers(): Promise<void> {
+    const write = this.persisting.then(() => saveKnownPeers(this.options.peersPath, [...this.records.values()]))
+    this.persisting = write.catch(() => undefined)
+    return write
   }
 
   private applyPeerHello(hello: PeerHelloPayload): void {
@@ -660,7 +930,7 @@ export class KetosPeerService extends Service {
     // accept loop or any link exists.
     /* v8 ignore next -- unstarted-node guard, by construction unreached. */
     if (self === undefined) throw new Error('ketos peer: node has not started')
-    return { v: 1, selfId: self.selfId, name: self.name, color: self.color }
+    return { v: PEER_PROTOCOL_VERSION, selfId: self.selfId, name: self.name, color: self.color }
   }
 
   private consumeInvite(secret: string | undefined): boolean {
@@ -670,7 +940,14 @@ export class KetosPeerService extends Service {
       this.pendingInvite = undefined
       return false
     }
-    if (secret !== invite.secret) return false
+    if (!inviteSecretMatches(secret, invite.secret)) {
+      invite.failedAttempts += 1
+      if (invite.failedAttempts >= INVITE_MAX_FAILED_ATTEMPTS) {
+        this.pendingInvite = undefined
+        this.options.logger('ketos-peer: peer.invite-burned after repeated wrong secrets')
+      }
+      return false
+    }
     this.pendingInvite = undefined
     return true
   }
@@ -688,6 +965,7 @@ export class KetosPeerService extends Service {
     this.disposed = true
     for (const controller of [...this.reconnects.values()]) controller.abort()
     this.reconnects.clear()
+    await this.settleStart()
     // The map empties before the links close, so the close callbacks of a
     // shutdown see no link to report.
     const links = [...this.links.values()]
@@ -697,6 +975,20 @@ export class KetosPeerService extends Service {
     this.pendingInvite = undefined
     await this.transport?.close()
     this.transport = undefined
+  }
+
+  /**
+   * Wait until a start in flight stopped touching state. The start observes
+   * the disposed flag after each `await` and ends with an error, so the
+   * transport it created is closed by the caller afterwards.
+   */
+  private async settleStart(): Promise<void> {
+    try {
+      await this.starting
+    } catch {
+      // The start failure was already reported to the caller of
+      // ensureStarted; disposal only needs the start to have stopped.
+    }
   }
 }
 
@@ -719,12 +1011,40 @@ function shortId(peerId: KetosPeerId): string {
 }
 
 /**
- * A reconnection pause with ±20% jitter.
+ * Run one frame handler so that a synchronous throw becomes a rejected
+ * outcome instead of stopping the handlers after it.
+ * @param handler - the registered handler.
+ * @param payload - the decoded payload.
+ * @param from - the sending peer.
+ * @param context - the frame context.
+ * @returns the handler's value, or a rejected promise when it threw.
+ */
+function invokeHandler(
+  handler: RegisteredPeerHandler,
+  payload: unknown,
+  from: KetosPeerId,
+  context: PeerFrameContext,
+): unknown {
+  try {
+    return handler(payload, from, context)
+  } catch (error: unknown) {
+    return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+  }
+}
+
+/**
+ * A reconnection pause drawn uniformly from ±20% around the nominal pause and
+ * never above the ceiling. At the ceiling the draw spreads over the lower 20%
+ * instead of piling up on the ceiling itself, so two sides that both redial
+ * rarely start at the same moment.
  * @param delay - nominal pause in milliseconds.
+ * @param ceiling - longest pause, in milliseconds.
  * @returns the jittered pause.
  */
-function jitter(delay: number): number {
-  return Math.round(delay * (0.8 + Math.random() * 0.4))
+function jitter(delay: number, ceiling: number): number {
+  const low = Math.min(delay, ceiling) * 0.8
+  const high = Math.min(delay * 1.2, ceiling)
+  return Math.round(low + Math.random() * (high - low))
 }
 
 /**

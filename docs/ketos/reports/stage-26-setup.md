@@ -1,6 +1,6 @@
 # Этап 26. Установка: референсные проекты, граф и стенд Docker — отчёт
 
-> План: [stage-26-setup.md](/Users/kirillustuzanin/Downloads/ketos_v7_master_plan/stage-26-setup.md). Эпик Beads: `ketos-qzb.1` в умбрелле-эпике `ketos-qzb` «Новый Кетос: показ 16 октября». Ветка: `stage-26-setup`, worktree `/Volumes/Projects/Ketos bot.worktrees/stage-26` (создан от `main`). Референсные проекты и граф — в основной папке `/Volumes/Projects/Ketos bot`; `~/.ketos` не трогали.
+> План: stage-26-setup.md (`~/Downloads/ketos_v7_master_plan/stage-26-setup.md`). Эпик Beads: `ketos-qzb.1` в умбрелле-эпике `ketos-qzb` «Новый Кетос: показ 16 октября». Ветка: `stage-26-setup`, worktree `<корень репозитория>.worktrees/stage-26` (создан от `main`). Референсные проекты и граф — в основной папке `<корень репозитория>`; `~/.ketos` не трогали.
 
 ## 1. Итог этапа
 
@@ -18,7 +18,7 @@
 
 ## 3. 26.1. Референсные проекты
 
-Неглубокие копии (`git clone --depth 1`, ветка по умолчанию) в `/Volumes/Projects/Ketos bot/references/`; папка исключена строкой `references/` в `.git/info/exclude` (основная папка), поэтому `git status --short` её не показывает. Размеры — `du -sh` после клонирования.
+Неглубокие копии (`git clone --depth 1`, ветка по умолчанию) в `<корень репозитория>/references/`; папка исключена строкой `references/` в `.git/info/exclude` (основная папка), поэтому `git status --short` её не показывает. Размеры — `du -sh` после клонирования.
 
 | Папка | Репозиторий | Коммит | Размер | Лицензия |
 |---|---|---|---|---|

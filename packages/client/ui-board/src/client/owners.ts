@@ -67,10 +67,11 @@ export type OwnerColorAttr = `${OwnerColorIndex}` | 'unknown'
 /**
  * The board state owner identity reads: the acting identity plus the two
  * roster sources — the document's participant records and the connected
- * peers.
+ * peers. `windows` is read only while the identity is unknown (see
+ * {@link boardParticipants}).
  */
 export type OwnerIdentityState =
-  Pick<BoardState, 'selfId' | 'boardParticipants' | 'peerStates' | 'peerSelf'>
+  Pick<BoardState, 'selfId' | 'boardParticipants' | 'peerStates' | 'peerSelf'> & Partial<Pick<BoardState, 'windows'>>
 
 /** The palette slot of a decoded color number, or undefined outside the palette. */
 function colorOf(value: number): OwnerColorIndex | undefined {
@@ -105,29 +106,124 @@ export function currentOwnerId(state: Pick<BoardState, 'selfId'>): OwnerId | nul
 }
 
 /**
+ * Whether one owner's board data may be stale: the peer roster holds at least
+ * one entry with this board identity and none of them has a live channel
+ * (`lost` or still `connecting`). One identity can hold two entries, an old
+ * peer key that lost its channel and a new one that is online; the online
+ * entry carries the changes, so the owner is not marked. A participant the
+ * peer roster does not know — a document-only record, or a deployment without
+ * peer networking — carries no link state and is never marked.
+ * @param state - state carrying the known peers and their link states.
+ * @param ownerId - board identity of the data's owner.
+ * @returns whether the owner is a known peer none of whose entries is online.
+ */
+export function ownerLinkLost(state: Pick<BoardState, 'peerStates'>, ownerId: OwnerId): boolean {
+  let known = false
+  for (const peer of state.peerStates) {
+    if (peer.selfId !== ownerId) continue
+    if (peer.link === 'online') return false
+    known = true
+  }
+  return known
+}
+
+/**
+ * Whether no roster source names one owner: no document record, no known
+ * peer, and not the acting participant. An unknown owner is typically an
+ * earlier identity of this Ketos or a placeholder id; its windows can be taken
+ * over by the acting participant. Reads the sources directly instead of
+ * {@link boardParticipants}, so it is safe on a store draft.
+ * @param state - state carrying the acting identity and both roster sources.
+ * @param ownerId - owner identity to test.
+ * @returns whether the acting identity is known and nothing names the owner.
+ */
+export function ownerIsUnknown(
+  state: Pick<OwnerIdentityState, 'selfId' | 'boardParticipants' | 'peerStates'>,
+  ownerId: OwnerId,
+): boolean {
+  return state.selfId !== null
+    && ownerId !== state.selfId
+    && !state.boardParticipants.some(record => record.id === ownerId)
+    && !state.peerStates.some(peer => peer.selfId === ownerId)
+}
+
+/**
  * Whether the acting owner manages one window: the window belongs to the
- * current participant. Before the first snapshot the acting identity is
- * unknown, so no window is manageable. Stage 33 adds the condition that the
- * window lives on this machine.
+ * current participant and lives in this Ketos's layout. Before the first
+ * snapshot the acting identity is unknown, so no window is manageable; a
+ * foreign record — a window published by another Ketos — is not in
+ * {@link BoardState.windows} and is never manageable, even when the record
+ * names the acting participant as its owner.
  * @param state - current board state.
  * @param window - window to test.
  * @returns whether the current participant may transfer the window or change its access.
  */
 export function canManageWindow(state: BoardState, window: BoardWindowState): boolean {
   const owner = currentOwnerId(state)
-  return owner !== null && window.ownerId === owner
+  if (owner === null || window.ownerId !== owner) return false
+  return state.windows[window.id as string] !== undefined
 }
+
+/** Source slices and result of the last {@link boardParticipants} computation. */
+interface RosterCache {
+  readonly records: OwnerIdentityState['boardParticipants']
+  readonly peers: OwnerIdentityState['peerStates']
+  readonly peerSelf: OwnerIdentityState['peerSelf']
+  readonly selfId: OwnerIdentityState['selfId']
+  /** The local layout, kept only while the identity is unknown. */
+  readonly windows: OwnerIdentityState['windows']
+  readonly roster: readonly BoardParticipant[]
+}
+
+/** The last roster; a store snapshot keeps its slices by reference until they change. */
+let rosterCache: RosterCache | undefined
 
 /**
  * Every participant of the board, in display order: the document's records
  * first, then connected peers the document does not know yet, and always the
  * acting participant — from its document record, its peer self, or as the
  * unnamed "Я" entry on the first palette slot. Duplicate identities collapse
- * by `selfId`; the document record wins over a peer record.
+ * by `selfId`; the document record wins over a peer record. The result is
+ * cached by the references of the four source slices, so a selector that
+ * returns it keeps one array identity until a source changes.
+ *
+ * Until the first snapshot the acting identity is unknown, so the owners the
+ * local layout's windows name (a restored layout, or the legacy placeholder)
+ * appear as the neutral "Я" entry without a color: the browser's own windows
+ * never flash as an unknown participant's before the document answers. The
+ * entry disappears with the first snapshot, which supplies the real roster.
  * @param state - state carrying the local participant and both roster sources.
  * @returns the participant roster, ordered by name.
  */
 export function boardParticipants(state: OwnerIdentityState): readonly BoardParticipant[] {
+  const cached = rosterCache
+  const pendingWindows = state.selfId === null ? state.windows : undefined
+  if (
+    cached !== undefined
+    && cached.records === state.boardParticipants
+    && cached.peers === state.peerStates
+    && cached.peerSelf === state.peerSelf
+    && cached.selfId === state.selfId
+    && cached.windows === pendingWindows
+  ) return cached.roster
+  const roster = computeRoster(state)
+  rosterCache = {
+    records: state.boardParticipants,
+    peers: state.peerStates,
+    peerSelf: state.peerSelf,
+    selfId: state.selfId,
+    windows: pendingWindows,
+    roster,
+  }
+  return roster
+}
+
+/**
+ * Merge the roster sources without caching.
+ * @param state - state carrying the local participant and both roster sources.
+ * @returns the participant roster, ordered by name.
+ */
+function computeRoster(state: OwnerIdentityState): readonly BoardParticipant[] {
   const roster = new Map<OwnerId, BoardParticipant>()
   for (const record of state.boardParticipants) {
     const color = colorOf(record.color)
@@ -139,7 +235,11 @@ export function boardParticipants(state: OwnerIdentityState): readonly BoardPart
     roster.set(peer.selfId, { id: peer.selfId, name: peer.name, ...(color === undefined ? {} : { color }) })
   }
   const selfId = state.selfId
-  if (selfId !== null && !roster.has(selfId)) {
+  if (selfId === null) {
+    for (const window of Object.values(state.windows ?? {})) {
+      if (!roster.has(window.ownerId)) roster.set(window.ownerId, { id: window.ownerId, nameKey: 'owner.self' })
+    }
+  } else if (!roster.has(selfId)) {
     const self = state.peerSelf !== null && state.peerSelf.selfId === selfId ? state.peerSelf : null
     // Without a document record or a peer self — a plain deployment running
     // without the peer plugin — the acting participant paints the first slot,

@@ -21,6 +21,25 @@ export const LOAD_ORIGIN = 'load'
 /** Origin of the single row a compaction writes. */
 export const COMPACT_ORIGIN = 'compact'
 
+/** Origin of an update applied from another Ketos over the peer channel. */
+export const PEER_ORIGIN = 'peer'
+
+/**
+ * A document update that could not be appended to the journal. The update is
+ * in the in-memory document but not in `board.db`, so the owner discards that
+ * document and reloads the stored state.
+ */
+export class BoardJournalError extends Error {
+  /**
+   * @param reason - what the database reported.
+   * @param cause - the database error.
+   */
+  constructor(reason: string, cause: unknown) {
+    super(`board journal: cannot append the update: ${reason}`, { cause })
+    this.name = 'BoardJournalError'
+  }
+}
+
 /** The Yjs module surface the journal uses, loaded lazily on the first open. */
 type YjsModule = typeof import('yjs')
 
@@ -29,24 +48,33 @@ type YjsModule = typeof import('yjs')
  * constructor detaches nothing and writes nothing; {@link BoardJournal.load}
  * applies the stored updates, and every committed document update after that
  * appends one row before the caller's transaction returns.
+ *
+ * A failed append throws {@link BoardJournalError} out of the transaction and
+ * sets {@link BoardJournal.broken}: Yjs 13.6.33 stops dispatching `update`
+ * events of a document whose `update` listener threw, so the document no
+ * longer reaches the journal and its owner must reopen it from the database.
  */
 export class BoardJournal {
   private readonly db: DatabaseSync
   private readonly doc: Y.Doc
   private readonly compactRows: number
+  private readonly logger: (message: string) => void
   private y!: YjsModule
   private rows = 0
+  private brokenValue = false
   private revisionValue: BoardRevision = brandNumber<BoardRevision>(0)
 
   /**
    * @param db - open database handle carrying the `updates` table.
    * @param doc - the live document the journal keeps.
    * @param compactRows - row count that triggers a compaction.
+   * @param logger - receives one line per failed compaction.
    */
-  constructor(db: DatabaseSync, doc: Y.Doc, compactRows: number) {
+  constructor(db: DatabaseSync, doc: Y.Doc, compactRows: number, logger: (message: string) => void) {
     this.db = db
     this.doc = doc
     this.compactRows = compactRows
+    this.logger = logger
   }
 
   /**
@@ -79,6 +107,16 @@ export class BoardJournal {
   }
 
   /**
+   * Whether an append failed. The document stops dispatching updates after
+   * that failure, so a broken journal never recovers; the owner reopens the
+   * document from the database.
+   * @returns true after the first failed append.
+   */
+  get broken(): boolean {
+    return this.brokenValue
+  }
+
+  /**
    * Stop following the document. The database handle stays owned by its owner;
    * the caller must not mutate the document after this call.
    */
@@ -86,14 +124,43 @@ export class BoardJournal {
     this.doc.off('update', this.onUpdate)
   }
 
+  /**
+   * Append one update as a journal row, then compact when the journal passed
+   * its budget. The document's `update` listener appends every committed
+   * transaction this way; the owner also appends an update the event does not
+   * carry in full, such as a remote update whose part Yjs keeps waiting for a
+   * missing update. A stored update that the document already integrated
+   * changes nothing when a load applies it again.
+   * @param update - the encoded update.
+   * @param origin - the origin recorded with the row.
+   * @throws {BoardJournalError} when the row cannot be inserted; the journal is
+   * {@link BoardJournal.broken} from then on.
+   */
+  append(update: Uint8Array, origin: string): void {
+    try {
+      const result = this.db
+        .prepare('INSERT INTO updates ("update", origin, at) VALUES (?, ?, ?)')
+        .run(update, origin, new Date().toISOString())
+      this.revisionValue = brandNumber<BoardRevision>(Number(result.lastInsertRowid))
+      this.rows += 1
+    } catch (error: unknown) {
+      this.brokenValue = true
+      throw new BoardJournalError(String(error), error)
+    }
+    if (this.rows > this.compactRows) {
+      try {
+        this.compact()
+      } catch (error: unknown) {
+        // The appended row is committed and the failed compaction rolled back,
+        // so the journal is whole; the next append retries the compaction.
+        this.logger(`board journal compaction failed: ${String(error)}`)
+      }
+    }
+  }
+
   private readonly onUpdate = (update: Uint8Array, origin: unknown): void => {
     if (origin === LOAD_ORIGIN) return
-    const result = this.db
-      .prepare('INSERT INTO updates ("update", origin, at) VALUES (?, ?, ?)')
-      .run(update, typeof origin === 'string' ? origin : 'local', new Date().toISOString())
-    this.revisionValue = brandNumber<BoardRevision>(Number(result.lastInsertRowid))
-    this.rows += 1
-    if (this.rows > this.compactRows) this.compact()
+    this.append(update, typeof origin === 'string' ? origin : 'local')
   }
 
   /**

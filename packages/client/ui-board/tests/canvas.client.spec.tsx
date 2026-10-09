@@ -8,7 +8,7 @@ import { Minimap, type MinimapProps } from '../src/client/canvas/Minimap.tsx'
 import { DashboardCanvas, type DashboardCanvasProps } from '../src/client/canvas/DashboardCanvas.tsx'
 import minimapCss from '../src/client/canvas/Minimap.module.css'
 import canvasCss from '../src/client/canvas/DashboardCanvas.module.css'
-import type { BoardState } from '../src/client/store.ts'
+import { createBoardStore, type BoardState } from '../src/client/store.ts'
 import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { en, type BoardKey, type BoardTranslate } from '../src/client/locale.ts'
@@ -47,7 +47,7 @@ function canvasProps(
     moveElement: vi.fn(),
     resizeElement: vi.fn(),
     removeElement: vi.fn(),
-    patchElement: vi.fn(),
+    patchElement: vi.fn(() => Promise.resolve(true)),
     eraseStrokes: vi.fn(),
   }
 }
@@ -94,11 +94,13 @@ const baseState: BoardState = {
   boardLimits: null,
   selfId: null,
   boardParticipants: [],
+  windowRecords: {},
   peerSelf: null,
   peerStates: [],
   peerAvailable: false,
   peerMissing: false,
   boardMounted: false,
+  layoutSource: null,
   selectedBoardElementId: null,
   editingBoardElementId: null,
   pendingBoardElementOps: [],
@@ -424,6 +426,30 @@ describe('DashboardCanvas Component', () => {
     fireEvent.pointerDown(canvas, { pointerId: 8, clientX: 10, clientY: 10, button: 0 })
     fireEvent.pointerMove(window, { pointerId: 8, clientX: 20, clientY: 20 })
     expect(setPan).toHaveBeenCalledWith(40, -10)
+  })
+
+  it('drops the element selection and the active window on a click without a drag', () => {
+    const instance = createBoardStore().create()
+    const clearActiveWindow = vi.spyOn(instance.actions, 'clearActiveWindow')
+    const selectBoardElement = vi.spyOn(instance.actions, 'selectBoardElement')
+    const actions = instance.actions
+    const { container } = render(
+      <DashboardCanvas {...canvasProps(baseState, actions, vi.fn(() => null))} />,
+    )
+    const surface = container.querySelector('[data-surface="canvas-layer"]') as HTMLElement
+
+    fireEvent.pointerDown(surface, { pointerId: 9, clientX: 100, clientY: 100, button: 0 })
+    fireEvent.pointerUp(window, { pointerId: 9, clientX: 100, clientY: 100 })
+    expect(clearActiveWindow).toHaveBeenCalledTimes(1)
+    expect(selectBoardElement).toHaveBeenCalledTimes(1)
+    expect(selectBoardElement).toHaveBeenCalledWith(null)
+
+    // A drag pans and leaves the selection alone.
+    selectBoardElement.mockClear()
+    fireEvent.pointerDown(surface, { pointerId: 10, clientX: 100, clientY: 100, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 10, clientX: 160, clientY: 100 })
+    fireEvent.pointerUp(window, { pointerId: 10, clientX: 160, clientY: 100 })
+    expect(selectBoardElement).not.toHaveBeenCalled()
   })
 
 

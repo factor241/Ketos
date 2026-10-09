@@ -7,8 +7,11 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
-import { Context, FiberState, Service } from '@deepseek-ai/cordis'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Context, FiberState, Service, type Message } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { OwnerId } from '@ketos/board-doc/types'
+import type { KetosPeerId } from '../src/types.ts'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
@@ -63,9 +66,16 @@ interface Booted {
  * @param directory - root to create the configuration and files in.
  * @param keyPath - key file the peer row must use.
  * @param extraPeer - further peer row config lines, already YAML-formatted.
+ * @param expectActive - whether every entry must activate; false lets a bad
+ * configuration be inspected through its failed fiber.
  * @returns the booted context and recorded routes.
  */
-async function boot(directory: string, keyPath: string, extraPeer: readonly string[] = []): Promise<Booted> {
+async function boot(
+  directory: string,
+  keyPath: string,
+  extraPeer: readonly string[] = [],
+  expectActive = true,
+): Promise<Booted> {
   const configPath = join(directory, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@ketos/board-doc'",
@@ -100,9 +110,11 @@ async function boot(directory: string, keyPath: string, extraPeer: readonly stri
   } as never
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  for (const name of ['@ketos/board-doc', '@ketos/peer']) {
-    const entry = [...ctx.loader.entries()].find(row => row.options.name === name)
-    expect(entry?.fiber?.state).toBe(FiberState.ACTIVE)
+  if (expectActive) {
+    for (const name of ['@ketos/board-doc', '@ketos/peer']) {
+      const entry = [...ctx.loader.entries()].find(row => row.options.name === name)
+      expect(entry?.fiber?.state).toBe(FiberState.ACTIVE)
+    }
   }
   return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, keyPath }
 }
@@ -175,6 +187,63 @@ describe('peer package real Loader composition', () => {
     await expect(ctx.ketosPeer.startIfKnownPeers()).resolves.toBeUndefined()
     await new Promise((resolve) => { setTimeout(resolve, 450) })
     expect(ctx.ketosPeer.peers()[0]?.link).toBe('lost')
+  })
+
+  it('refuses a synchronization bound that does not fit the frame bound', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath, ['    maxFrameBytes: 1024', '    maxSyncUpdateBytes: 1024'], false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(/maxSyncUpdateBytes/u)
+  })
+
+  it('refuses a reconnection floor above the ceiling', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath, ['    reconnectMinMs: 5000', '    reconnectMaxMs: 4000'], false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(/reconnectMinMs/u)
+  })
+
+  it('defaults the reconnection ceiling to 20 seconds', () => {
+    const config = Peer.Config({
+      name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'peer.key', peersPath: 'peers.json',
+    })
+    expect(config.reconnectMinMs).toBe(1000)
+    expect(config.reconnectMaxMs).toBe(20_000)
+  })
+
+  it('routes board synchronization failures through the plugin logger', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath)
+    // This exporter passes every severity; the built-in buffer keeps INFO and
+    // above only, so a warning would not land in it.
+    const messages: Message[] = []
+    ctx.logger.exporter({
+      levels: { default: 100 },
+      export: (message) => { messages.push(message) },
+    })
+    // A connected event for a peer with no channel makes the announcement
+    // fail; the line must reach the plugin logger named for this package. The
+    // event dispatches on the entry's own scope, where the service emits it.
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.ctx).toBeDefined()
+    entry?.fiber?.ctx.emit('ketos-peer/connected', {
+      peerId: brandString<KetosPeerId>('peer-missing'),
+      selfId: brandString<OwnerId>('owner-x'),
+      name: 'X',
+      color: 1,
+    })
+    await vi.waitFor(() => {
+      expect(messages.some(message =>
+        message.name === 'ketos-peer'
+        && message.type === 'warn'
+        && message.args.some(argument => String(argument).includes('board sync announce failed')),
+      )).toBe(true)
+    })
   })
 
   it('ships the web profile row disabled so a developer machine never loads iroh', async () => {

@@ -380,6 +380,78 @@ describe('board layout adoption from the mirror', () => {
   })
 })
 
+describe('layoutSource', () => {
+  it('stays null until the mirror answers, and the first-frame cache does not set it', () => {
+    seedCache(2, layout())
+    const { instance, persistence, settings } = bench()
+    settings.setView(undefined)
+    persistence.hydrateFromCache()
+    persistence.start()
+    expect(instance.getSnapshot().windows['agent-1']).toBeDefined()
+    expect(instance.getSnapshot().layoutSource).toBeNull()
+
+    settings.setView(describeValue([namespaceView({ revision: 3, user: layout() })]))
+    expect(instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is server after the server document was hydrated', () => {
+    const { instance, persistence } = bench(describeValue([namespaceView({ revision: 3, user: layout() })]))
+    persistence.start()
+    expect(instance.getSnapshot().windows['agent-1']).toBeDefined()
+    expect(instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is server when the server holds no user document', () => {
+    const { instance, persistence } = bench(describeValue([namespaceView({ revision: 0 })]))
+    persistence.start()
+    expect(instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is server when the cache is ahead of the server and when it ties', () => {
+    seedCache(5, layout())
+    const ahead = bench(describeValue([namespaceView({ revision: 2, user: layout({ zoom: 0.5 }) })]))
+    ahead.persistence.hydrateFromCache()
+    ahead.persistence.start()
+    expect(ahead.instance.getSnapshot().layoutSource).toBe('server')
+
+    const tie = bench(describeValue([namespaceView({ revision: 5, user: layout() })]))
+    tie.persistence.hydrateFromCache()
+    tie.persistence.start()
+    expect(tie.instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is server when the server document cannot be adopted', () => {
+    const { instance, persistence } = bench(describeValue([
+      namespaceView({ revision: 3, user: { ...layout() as object, version: 9 } }),
+    ]))
+    persistence.start()
+    expect(instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is server when the mirror answered without the board namespace', () => {
+    const { instance, persistence } = bench(describeValue([]))
+    persistence.start()
+    expect(instance.getSnapshot().layoutSource).toBe('server')
+  })
+
+  it('is memory when the mirror is terminally unavailable: the layout lives only in this page', () => {
+    const { instance, persistence, settings } = bench()
+    settings.setUnavailable()
+    persistence.start()
+    expect(instance.getSnapshot().layoutSource).toBe('memory')
+  })
+
+  it('is memory when the mirror becomes unavailable after start', () => {
+    const { instance, persistence, settings } = bench()
+    settings.setView(undefined)
+    persistence.start()
+    expect(instance.getSnapshot().layoutSource).toBeNull()
+
+    settings.setUnavailable()
+    expect(instance.getSnapshot().layoutSource).toBe('memory')
+  })
+})
+
 describe('board layout writes', () => {
   it('coalesces two changes within 100ms into one write of the final document', async () => {
     const { instance, persistence, replace } = bench()
@@ -470,6 +542,7 @@ describe('board layout writes', () => {
       revision: brandNumber<BoardRevision>(1),
       elements: [],
       participants: [{ id: self, name: 'Kirill', color: 1, updatedAt: 1 }],
+      windows: [],
       limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
     })
     instance.actions.openWindow({

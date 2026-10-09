@@ -167,7 +167,10 @@ describe('window bezel content', () => {
     // The unknown id keeps the neutral slot; the rest take their palette slot.
     expect(circles.map(circle => circle.getAttribute('data-board-owner-color'))).toEqual(['unknown', '2', '3'])
     expect(bezel.textContent).toContain('+2')
-    expect(bezel.querySelector('[aria-label="Access: Selected people"]')).not.toBeNull()
+    // The accessible name lists every selected person, not only the three circles.
+    const named = bezel.querySelector('[aria-label^="Access: Selected people: "]')
+    expect(named).not.toBeNull()
+    expect(named?.getAttribute('aria-label')?.split(': ')[2]?.split(', ')).toHaveLength(5)
   })
 
   it('names the mode when the selected list is empty and shows the all-participants mode', async () => {
@@ -269,6 +272,24 @@ describe('window bezel management', () => {
       .toEqual({ mode: 'selected', people: ['demo-finance', 'demo-legal'] })
   })
 
+  it('lists a selected person the roster does not know and lets the owner remove them', async () => {
+    const { prepared, panel, store } = await bench()
+    const stranger = brandString<OwnerId>('demo-stranger')
+    act(() => {
+      store.actions.openWindow(windowSpec('a1'))
+      store.actions.setWindowAccess('a1' as WindowId, { mode: 'selected', people: [stranger] })
+    })
+    await prepared.runtime.flush()
+
+    fireEvent.click(frameOf(panel, 'a1').querySelector('[data-board-action="bezel-access"]') as HTMLElement)
+    await prepared.runtime.flush()
+    fireEvent.click(menuRow('Selected people'))
+    await prepared.runtime.flush()
+    fireEvent.click(menuRow('Unknown participant'))
+    await prepared.runtime.flush()
+    expect(store.store.getSnapshot().windows['a1']?.access).toEqual({ mode: 'selected', people: [] })
+  })
+
   it('keeps the captions menu-free on a window the acting owner does not manage', async () => {
     const { prepared, panel, store } = await bench()
     act(() => { store.actions.openWindow(windowSpec('a1', { ownerId: brandString<OwnerId>('demo-legal') })) })
@@ -287,6 +308,28 @@ describe('window bezel management', () => {
     fireEvent.click(bezel.querySelector('[data-board-bezel-item]') as Element)
     await prepared.runtime.flush()
     expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
+
+  it('offers a window of an owner nobody knows to the acting participant, on this Ketos only', async () => {
+    const { prepared, panel, store } = await bench()
+    act(() => {
+      // A previous identity or a demo id: no record and no peer names it.
+      store.actions.openWindow(windowSpec('a1', { ownerId: brandString<OwnerId>('demo-stranger') }))
+      store.actions.openWindow(windowSpec('a2', { ownerId: brandString<OwnerId>('demo-legal') }))
+    })
+    await prepared.runtime.flush()
+
+    expect(bezelOf(panel, 'a1').textContent).toContain('Unknown participant')
+    expect(bezelOf(panel, 'a2').querySelector('[data-board-action="bezel-claim"]')).toBeNull()
+    const claim = bezelOf(panel, 'a1').querySelector('[data-board-action="bezel-claim"]') as HTMLElement
+    expect(claim.textContent).toBe('Take over')
+
+    fireEvent.click(claim)
+    await prepared.runtime.flush()
+    const selfId = store.store.getSnapshot().selfId
+    expect(store.store.getSnapshot().windows['a1']?.ownerId).toBe(selfId)
+    expect(frameOf(panel, 'a1').hasAttribute('data-board-manageable')).toBe(true)
+    expect(bezelOf(panel, 'a1').querySelector('[data-board-action="bezel-claim"]')).toBeNull()
   })
 
   it('closes only the access menu on Escape while the window panel stays open', async () => {

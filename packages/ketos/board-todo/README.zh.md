@@ -80,7 +80,7 @@ BEADS_DIR="$DSH_HOME/beads/.beads" BD_DISABLE_METRICS=1 bd list --parent <epic> 
 
 ### bd 包装
 
-`BeadsCli` 只解析一次可执行文件，以仅属主可访问的权限创建 Beads 目录，并通过队列串行化每次调用，因为内嵌 Dolt 引擎拒绝并发写入者。每个子进程获得固定环境（`BEADS_DIR`、`BD_JSON_ENVELOPE`、`BD_DISABLE_METRICS`、`DO_NOT_TRACK`、`BD_NON_INTERACTIVE`、`NO_COLOR`、`beads.role` git 身份与 `GIT_TERMINAL_PROMPT=0`），且从不经过 shell：标题作为 `--title=<text>` 参数传递，因此以 `-` 开头的标题不会变成标志。参数会被清洗（移除控制字符、截断长度），id 会按 Beads 形状校验。当 stderr 报告 Dolt `exclusive lock` 时，调用最多重试三次。首次操作前 `bd version --json` 必须报告受支持的 1.x 版本且不低于 1.2.2，`bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` 创建数据库而不触碰任何 git 仓库。只有退出码 0 且 `schema_version: 1` 的封装才会被解析；其余情况变为 `BeadsUnavailableError`、`BeadsCommandError`（携带 stderr 尾部）或 `BeadsProtocolError`。
+`BeadsCli` 只解析一次可执行文件，以仅属主可访问的权限创建 Beads 目录，并通过队列串行化每次调用，因为内嵌 Dolt 引擎拒绝并发写入者。每个子进程获得固定环境（`BEADS_DIR`、`BD_JSON_ENVELOPE`、`BD_DISABLE_METRICS`、`DO_NOT_TRACK`、`BD_NON_INTERACTIVE`、`NO_COLOR`、`beads.role` git 身份与 `GIT_TERMINAL_PROMPT=0`），宿主进程中所有的 `BEADS_*` 与 `BD_*` 环境变量（例如 `BEADS_DB`、`BEADS_DOLT_SERVER_*`）都会被置空，使包装器无法被重定向到其他数据库。插件卸载时运行 `dispose()`：中止正在运行的调用，以 `BeadsUnavailableError` 拒绝排队中和之后的调用，并等待队列结束。子进程从不经过 shell：标题作为 `--title=<text>` 参数传递，因此以 `-` 开头的标题不会变成标志。参数会被清洗（移除控制字符、截断长度），id 会按 Beads 形状校验。当 stderr 报告 Dolt `exclusive lock` 时，调用最多重试三次。首次操作前 `bd version --json` 必须报告受支持的 1.x 版本且不低于 1.2.2，`bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` 创建数据库而不触碰任何 git 仓库。只有退出码 0 且 `schema_version: 1` 的封装才会被解析；其余情况变为 `BeadsUnavailableError`、`BeadsCommandError`（携带 stderr 尾部）或 `BeadsProtocolError`。
 
 ### 快照及其标志
 

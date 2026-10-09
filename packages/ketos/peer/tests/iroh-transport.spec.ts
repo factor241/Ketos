@@ -2,7 +2,7 @@
 // identity, the ticket, one dial/accept round trip with a bidirectional
 // stream, and the refusal paths around a node that is not bound, has no relay
 // address, or is already closed.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PEER_FRAME_CODES } from '../src/frame.ts'
 import { createIrohTransport, generateSecretKey, PEER_ALPN, type IrohTransportOptions } from '../src/iroh-transport.ts'
 import { readPeerFrame, writePeerFrame } from '../src/link.ts'
@@ -13,6 +13,7 @@ const transports: PeerTransport[] = []
 afterEach(async () => {
   for (const transport of transports.reverse()) await transport.close()
   transports.length = 0
+  vi.restoreAllMocks()
 })
 
 /**
@@ -45,6 +46,17 @@ describe('iroh transport', () => {
 
     const generated = await generateSecretKey()
     expect(generated.byteLength).toBe(32)
+  })
+
+  it('closes an endpoint that finishes binding after the transport closed', async () => {
+    const iroh = await import('@number0/iroh')
+    const closeEndpoint = vi.spyOn(iroh.Endpoint.prototype, 'close')
+    const transport = await loopback({ key: new Uint8Array(32).fill(13) })
+    const binding = transport.bind()
+    binding.catch(() => undefined)
+    await transport.close()
+    await expect(binding).rejects.toThrow(/closed/u)
+    expect(closeEndpoint).toHaveBeenCalledTimes(1)
   })
 
   it('binds every interface when no bind address is configured', async () => {
@@ -87,30 +99,67 @@ describe('iroh transport', () => {
     expect(['pending', 'failed']).toContain(outcome)
   })
 
+  it('negotiates the version 2 protocol name and refuses the version 1 name', async () => {
+    expect(PEER_ALPN).toBe('ketos/peer/2')
+    const server = await loopback({ key: new Uint8Array(32).fill(14) })
+    const old = await loopback({ key: new Uint8Array(32).fill(15), alpn: 'ketos/peer/1' })
+    await server.bind()
+    await old.bind()
+    const incoming = server.accept().then(next => next.complete())
+    incoming.catch(() => undefined)
+    await expect(old.dial(server.invitationTicket())).rejects.toThrow()
+    await expect(incoming).rejects.toThrow()
+  })
+
   it('dials and accepts one connection with a bidirectional stream', async () => {
     const server = await loopback({ key: new Uint8Array(32).fill(4) })
     const client = await loopback({ key: new Uint8Array(32).fill(5), alpn: PEER_ALPN })
     await server.bind()
     await client.bind()
 
-    const accepted = server.accept()
+    // The dialer's connect resolves only once the server completes its
+    // handshake, so the server side runs concurrently.
+    const accepted = server.accept().then(incoming => incoming.complete())
     const clientConnection = await client.dial(server.invitationTicket())
     const serverConnection = await accepted
     expect(serverConnection.peerId).toBe(client.selfId())
     expect(clientConnection.peerId).toBe(server.selfId())
 
     const clientStream = await clientConnection.openStream()
-    const hello = { v: 1 as const, selfId: 'owner-a', name: 'Кирилл', color: 1 }
+    const hello = { v: 2 as const, selfId: 'owner-a', name: 'Кирилл', color: 1 }
     await writePeerFrame(clientStream, PEER_FRAME_CODES.hello, hello)
     const serverStream = await serverConnection.acceptStream()
     await expect(readPeerFrame(serverStream, 1024)).resolves.toEqual({ code: PEER_FRAME_CODES.hello, payload: hello })
 
-    const reply = { v: 1 as const, selfId: 'owner-b', name: 'Юрист', color: 2 }
+    const reply = { v: 2 as const, selfId: 'owner-b', name: 'Юрист', color: 2 }
     await writePeerFrame(serverStream, PEER_FRAME_CODES.hello, reply)
     await expect(readPeerFrame(clientStream, 1024)).resolves.toEqual({ code: PEER_FRAME_CODES.hello, payload: reply })
     await serverStream.finish()
 
     clientConnection.close(0n, 'done')
     await expect(serverConnection.closed()).resolves.toContain('done')
+  })
+
+  it('keeps accepting after one incoming connection fails its handshake', async () => {
+    const server = await loopback({ key: new Uint8Array(32).fill(8) })
+    const stranger = await loopback({ key: new Uint8Array(32).fill(9), alpn: 'not-ketos/peer' })
+    const client = await loopback({ key: new Uint8Array(32).fill(10) })
+    await server.bind()
+    await stranger.bind()
+    await client.bind()
+
+    const first = server.accept()
+    const strangerDial = stranger.dial(server.invitationTicket())
+    strangerDial.catch(() => undefined)
+    const incoming = await first
+    await expect(incoming.complete()).rejects.toThrow()
+    await expect(strangerDial).rejects.toThrow()
+
+    const second = server.accept().then(next => next.complete())
+    const clientConnection = await client.dial(server.invitationTicket())
+    const serverConnection = await second
+    expect(serverConnection.peerId).toBe(client.selfId())
+    clientConnection.close(0n, 'done')
+    await serverConnection.closed()
   })
 })

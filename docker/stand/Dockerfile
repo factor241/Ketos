@@ -5,13 +5,19 @@
 # Model credentials arrive only as environment variables (compose env_file);
 # they are never copied into an image layer.
 
-FROM node:24-bookworm AS build
+# Base images are pinned by digest; refresh both with `docker pull` and the
+# new `RepoDigests` value when the Node 24 line moves.
+FROM node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4 AS build
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ git ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@11.7.0
 WORKDIR /app
 COPY . .
+# The ignore file keeps every .env out of the context; fail the build if one slips in.
+RUN test ! -e /app/docker/stand/.env \
+ && leaked="$(find /app -path /app/node_modules -prune -o \( -name '.env' -o -name '.env.*' -o -name '*.env' -o -name '.envrc' \) ! -name '*.example' -print)" \
+ && test -z "$leaked" || { echo "secret files in the build context: $leaked" >&2; exit 1; }
 # CI=true makes the postinstall lefthook installer a no-op; the client build
 # still needs a Git HEAD, so snapshot the copied tree as one local commit.
 ENV CI=true
@@ -24,7 +30,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm run build \
  && rm -rf /app/.git
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS runtime
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*

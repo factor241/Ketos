@@ -20,6 +20,8 @@ const STATUS: Readonly<Record<BoardErrorCode, number>> = {
   'ketos/element-not-found': 404,
   'ketos/element-foreign': 409,
   'ketos/element-exists': 409,
+  'ketos/element-host-data': 403,
+  'ketos/window-foreign': 409,
   'ketos/limit': 409,
 }
 

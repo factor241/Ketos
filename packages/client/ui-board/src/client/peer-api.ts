@@ -1,6 +1,6 @@
 /**
  * Browser client of the peer routes: the polling state read, the invitation
- * mint, and the connect post.
+ * mint, the connect post, and the forget post.
  *
  * The state read answers `{ self, peers, refreshMs }` while the peer plugin is
  * enabled and 404 when the deployment runs without it; the caller maps a
@@ -27,6 +27,14 @@ export const PEER_INVITE_PATH = '/api/ketos.peer.invite'
 
 /** Path of the connect route on the host. */
 export const PEER_CONNECT_PATH = '/api/ketos.peer.connect'
+
+/** Path of the forget route on the host. */
+export const PEER_FORGET_PATH = '/api/ketos.peer.forget'
+
+/** Outcome of asking the host to forget one known peer. */
+export type BoardPeerForgetOutcome =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly code: BoardPeerFailureCode }
 
 /** Outcome of one state poll. */
 export type PeerStateOutcome =
@@ -90,6 +98,8 @@ function isPeerErrorCode(value: unknown): value is PeerErrorCode {
     || value === 'ketos/invite-used'
     || value === 'ketos/peer-unreachable'
     || value === 'ketos/peer-offline'
+    || value === 'ketos/peer-online'
+    || value === 'ketos/peer-unknown'
 }
 
 /**
@@ -158,6 +168,30 @@ export async function connectPeer(invite: string): Promise<BoardPeerConnectOutco
     const payload: unknown = await response.json().catch(() => undefined)
     if (!isPeerConnectResponse(payload)) return { ok: false, code: 'ketos/unreachable' }
     return { ok: true, peerId: brandString<KetosPeerId>(payload.peerId) }
+  } catch {
+    return { ok: false, code: 'ketos/unreachable' }
+  }
+}
+
+/**
+ * Ask the host to forget one known peer: it stops redialing it and drops it
+ * from the peer list. The host refuses while a channel to the peer is open
+ * (`ketos/peer-online`) and for a peer it does not know (`ketos/peer-unknown`).
+ * Any successful answer is a success; its body is not read.
+ * @param peerId - the peer to forget.
+ * @returns success, or the stable failure code; a missing route is `ketos/peer-unavailable`.
+ */
+export async function forgetPeer(peerId: KetosPeerId): Promise<BoardPeerForgetOutcome> {
+  try {
+    const response = await fetch(ketosRoute(PEER_FORGET_PATH.slice(1)), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ peerId }),
+    })
+    if (response.ok) return { ok: true }
+    const code = await failureCode(response)
+    if (code === 'ketos/unreachable' && response.status === 404) return { ok: false, code: 'ketos/peer-unavailable' }
+    return { ok: false, code }
   } catch {
     return { ok: false, code: 'ketos/unreachable' }
   }

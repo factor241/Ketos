@@ -9,8 +9,8 @@
 
 import {
   PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, PeerFrameError, classifyPeerPayload, encodePeerFrame,
-  frameNameFor, parseByePayload, parseHelloPayload, parsePeerFrameHeader, parsePeerFramePayload,
-  type PeerEnvelope, type PeerHelloPayload,
+  frameNameFor, isBinaryFrameCode, parseByePayload, parseHelloPayload, parsePeerFrameHeader,
+  parsePeerFramePayload, type PeerEnvelope, type PeerHelloPayload, type PeerFrameName,
 } from './frame.ts'
 import type { PeerConnection, PeerStream } from './transport.ts'
 import type { KetosPeerId } from './types.ts'
@@ -23,6 +23,18 @@ export const PEER_LINK_REFUSED_CLOSE_CODE = 1n
 
 /** The close code a duplicate connection carries. */
 export const PEER_LINK_DUPLICATE_CLOSE_CODE = 3n
+
+/** The close code a sender carries when a synchronization update is too large. */
+export const PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE = 4n
+
+/** The close code of a link a newer authenticated connection of the same peer replaced. */
+export const PEER_LINK_REPLACED_CLOSE_CODE = 5n
+
+/**
+ * Longest wait, in milliseconds, for the transport to accept a closing link's
+ * `bye` before the connection closes regardless.
+ */
+export const PEER_LINK_BYE_GRACE_MS = 250
 
 /** What one frame listener receives beside the payload. */
 export interface PeerFrameContext {
@@ -83,14 +95,14 @@ export async function readPeerFrame(stream: PeerStream, maxFrameBytes: number): 
     throw new PeerFrameError(`frame length ${String(length)} exceeds ${String(maxFrameBytes)} bytes`)
   }
   const body = length === 0 ? new Uint8Array(0) : await stream.readExact(length)
-  return { code, payload: parsePeerFramePayload(body) }
+  return { code, payload: parsePeerFramePayload(code, body) }
 }
 
 /**
  * Write one frame to a stream.
  * @param stream - the stream to write.
  * @param code - frame code.
- * @param payload - JSON-serializable payload.
+ * @param payload - the typed payload of the code.
  */
 export async function writePeerFrame(stream: PeerStream, code: number, payload: unknown): Promise<void> {
   await stream.write(encodePeerFrame(code, payload))
@@ -146,9 +158,12 @@ export class PeerLink {
   }
 
   /**
-   * Queue one frame for writing.
+   * Queue one frame for writing. The frame is encoded and measured before it
+   * reaches the queue, so a payload the vocabulary refuses and a body over the
+   * link's frame bound both fail at the sender instead of breaking the
+   * receiving side.
    * @param code - frame code.
-   * @param payload - JSON-serializable payload.
+   * @param payload - the typed payload of the code.
    * @returns a promise settling when the transport accepted the bytes.
    */
   send(code: number, payload: unknown): Promise<void> {
@@ -156,6 +171,9 @@ export class PeerLink {
     let frame: Uint8Array
     try {
       frame = encodePeerFrame(code, payload)
+      if (frame.byteLength > PEER_FRAME_HEADER_BYTES + this.options.maxFrameBytes) {
+        throw new PeerFrameError(`frame body exceeds ${String(this.options.maxFrameBytes)} bytes`)
+      }
     } catch (error: unknown) {
       return Promise.reject(error instanceof Error ? error : new Error(String(error)))
     }
@@ -213,17 +231,23 @@ export class PeerLink {
   }
 
   /**
-   * Close the link regularly: send `bye`, then close the connection.
+   * Close the link regularly: queue `bye`, wait at most
+   * {@link PEER_LINK_BYE_GRACE_MS} for the transport to accept it, then close
+   * the connection. The `bye` is a courtesy that may not arrive: a write queue
+   * stalled behind a peer that stopped reading never delays the close past the
+   * grace, and the connection close is the act both sides rely on.
    * @param reason - short reason text.
+   * @param code - application close code; defaults to a regular close.
    */
-  async close(reason: string): Promise<void> {
+  async close(reason: string, code: bigint = 0n): Promise<void> {
     if (this.closedReason !== undefined) return
-    try {
-      await this.send(PEER_FRAME_CODES.bye, { reason })
-    } catch {
-      // The peer is already gone; the connection close below is the real act.
-    }
-    this.fail(0n, reason)
+    let timer: NodeJS.Timeout | undefined
+    const grace = new Promise<void>((resolve) => { timer = setTimeout(resolve, PEER_LINK_BYE_GRACE_MS) })
+    // A failed bye means the peer is already gone; the connection close below is the real act.
+    const bye = this.send(PEER_FRAME_CODES.bye, { reason }).catch(() => undefined)
+    await Promise.race([bye, grace])
+    clearTimeout(timer)
+    this.fail(code, reason)
   }
 
   private async readLoop(): Promise<void> {
@@ -262,21 +286,20 @@ export class PeerLink {
     }
     const name = frameNameFor(code)
     if (name === undefined) throw new PeerFrameError(`unknown frame code ${String(code)}`)
-    const envelope = classifyPeerPayload(payload)
+    // A binary frame is always a plain message; the request/response envelope
+    // exists only on JSON codes.
+    const envelope = isBinaryFrameCode(code) ? { kind: 'message' } as const : classifyPeerPayload(payload)
     if (envelope.kind === 'response' || envelope.kind === 'error') {
       this.settleResponse(code, envelope)
       return
     }
-    const listeners = [...this.listeners]
-    if (listeners.length === 0) {
-      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
+    if (envelope.kind === 'message') {
+      await this.notifyListeners(name, code, payload, {})
       return
     }
-    if (envelope.kind === 'message') {
-      const results = await Promise.all(listeners.map(listener => listener(code, payload, {})))
-      if (results[0] === PEER_UNHANDLED) {
-        this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
-      }
+    const listeners = [...this.listeners]
+    if (listeners.length === 0) {
+      this.logUnhandled(name)
       return
     }
     let body: unknown
@@ -285,7 +308,7 @@ export class PeerLink {
         listeners.map(listener => listener(code, envelope.body, { requestId: envelope.requestId })),
       )
       if (results[0] === PEER_UNHANDLED) {
-        this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
+        this.logUnhandled(name)
         return
       }
       // JSON drops an undefined field, which would leave the envelope without
@@ -296,6 +319,62 @@ export class PeerLink {
       return
     }
     await this.send(code, { requestId: envelope.requestId, response: body === undefined ? null : body })
+  }
+
+  /**
+   * Run every listener for one plain message. A listener that throws is logged
+   * and does not close the channel: one consumer's failure — a document update
+   * it cannot read, say — must not cost the connection.
+   * @param name - frame type name for the log.
+   * @param code - wire code.
+   * @param payload - decoded payload.
+   * @param context - the frame context, empty for a plain message.
+   */
+  private async notifyListeners(
+    name: PeerFrameName,
+    code: number,
+    payload: unknown,
+    context: PeerFrameContext,
+  ): Promise<void> {
+    const listeners = [...this.listeners]
+    if (listeners.length === 0) {
+      this.logUnhandled(name)
+      return
+    }
+    const results = await Promise.all(listeners.map(listener => this.runListener(name, listener, code, payload, context)))
+    if (results[0] === PEER_UNHANDLED) this.logUnhandled(name)
+  }
+
+  /**
+   * One listener invocation whose failure is contained.
+   * @param name - frame type name for the log.
+   * @param listener - the listener to run.
+   * @param code - wire code.
+   * @param payload - decoded payload.
+   * @param context - the frame context.
+   * @returns the listener's value, or undefined when it threw.
+   */
+  private async runListener(
+    name: PeerFrameName,
+    listener: PeerFrameListener,
+    code: number,
+    payload: unknown,
+    context: PeerFrameContext,
+  ): Promise<unknown> {
+    try {
+      return await listener(code, payload, context)
+    } catch (error: unknown) {
+      this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} handler failed: ${String(error)}`)
+      return undefined
+    }
+  }
+
+  /**
+   * Record one frame no listener handled.
+   * @param name - frame type name.
+   */
+  private logUnhandled(name: PeerFrameName): void {
+    this.options.logger(`peer ${String(this.options.peerId).slice(0, 12)}: frame ${name} has no handler`)
   }
 
   private settleResponse(code: number, envelope: Extract<PeerEnvelope, { kind: 'response' | 'error' }>): void {

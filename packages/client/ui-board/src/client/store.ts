@@ -10,8 +10,9 @@ import type { BoardKey } from './locale.ts'
 import { brandNumber } from '@deepseek-ai/dsh-brand'
 import type {
   BoardDocId, BoardElement, BoardLimits, BoardParticipantRecord, BoardPatch, BoardRevision, BoardSnapshot,
-  ElementId, StrokeWidth,
+  BoardWindowRecord, ElementId, StrokeWidth,
 } from '@ketos/board-doc/types'
+import { clampWindowTitle } from '@ketos/board-doc/windows'
 import type { PeerSelfState, PeerState, PeerStateResponse } from '@ketos/peer/types'
 import type { BoardTool, BoardEraserPreview } from './board-tool.ts'
 import type { CloneEdit } from './clone-draft.ts'
@@ -26,7 +27,7 @@ import type {
   WindowBodyKind, WindowId, WindowKind,
 } from './contract/slots.ts'
 import {
-  adoptSelfId, canManageWindow, currentOwnerId, DEMO_SELF_ID, isOwnerIdFormat, sanitizeWindowAccess, type OwnerId,
+  adoptSelfId, canManageWindow, currentOwnerId, DEMO_SELF_ID, isOwnerIdFormat, ownerIsUnknown, sanitizeWindowAccess, type OwnerId,
 } from './owners.ts'
 import { isWindowOnScreen } from './window-screen.ts'
 import { type ChromeEdge, type ChromeInsetContribution } from './chrome-insets.ts'
@@ -162,6 +163,14 @@ type BoardActions = {
    */
   transferWindow: (draft: BoardState, id: WindowId, ownerId: OwnerId) => void
   /**
+   * Take over a window of this layout whose owner nobody on the board knows
+   * (an earlier identity of this Ketos, or a placeholder id): the acting
+   * participant becomes its owner and leaves its selected-people list. A
+   * window of a known owner, a window not in this layout, and an unknown
+   * acting identity change nothing.
+   */
+  claimWindow: (draft: BoardState, id: WindowId) => void
+  /**
    * Replace one window's access. Only the current owner may change it; the
    * people list is repaired like a stored one and kept across mode switches.
    */
@@ -267,10 +276,24 @@ type BoardActions = {
   setEditingBoardElement: (draft: BoardState, id: ElementId | null) => void
   /** Remove one element locally; the gesture sends the operation. */
   removeBoardElement: (draft: BoardState, id: ElementId) => void
-  /** Mark one element's operation in flight, so stream echoes do not roll it back. */
+  /**
+   * Mark one element's operation in flight, so stream echoes do not roll it
+   * back. Each call adds one entry: two overlapping requests for one element
+   * hold two entries.
+   */
   beginBoardElementOp: (draft: BoardState, id: ElementId) => void
-  /** Mark one element's operation settled; later patches apply again. */
+  /**
+   * Mark one operation settled by removing one entry of its element; stream
+   * patches apply again once the last overlapping request settled.
+   */
   endBoardElementOp: (draft: BoardState, id: ElementId) => void
+  /**
+   * Record where the layout this browser paints comes from: `server` once the
+   * settings server answered, `memory` when the settings mirror reported that
+   * this page keeps preferences in memory. The window publisher reconciles
+   * shared records against the layout only after this.
+   */
+  markLayoutAdopted: (draft: BoardState, source: BoardLayoutSource) => void
   /** Show one board notice, or clear it with `null`; the same key shows afresh. */
   setElementNotice: (draft: BoardState, key: BoardKey | null) => void
   /**
@@ -314,6 +337,15 @@ type BoardActions = {
   clearReturnWindow: (draft: BoardState) => void
   setHighlightWindow: (draft: BoardState, id: WindowId | null) => void
 }
+
+/**
+ * Origin of the adopted board layout. `server`: the settings server answered,
+ * so the layout holds every window this Ketos keeps open, and a record of this
+ * Ketos without a local window belongs to a closed window. `memory`: the page
+ * keeps preferences in memory (a non-loopback address), so another page of
+ * this Ketos may hold windows this layout never had.
+ */
+export type BoardLayoutSource = 'server' | 'memory'
 
 /** Pan, zoom, window, and selection state of the board canvas. */
 export interface BoardState {
@@ -385,6 +417,14 @@ export interface BoardState {
    * the list, a patch upserts and removes.
    */
   boardParticipants: BoardParticipantRecord[]
+  /**
+   * Window records the document stores, keyed by window id. The slice is a
+   * projection of the host document like `boardElements`; own records mirror
+   * the local layout, and a record whose `hostId` is another Ketos is what the
+   * foreign-windows layer renders. Records never enter `windows` or
+   * `windowOrder`, so the layout, dock, and overview stay local.
+   */
+  windowRecords: Record<string, BoardWindowRecord>
   /** Local node's participant record as the peer state reports it; null before the first answer. */
   peerSelf: PeerSelfState | null
   /** Known peers as the last peer state answer reported them. */
@@ -399,8 +439,21 @@ export interface BoardState {
   selectedBoardElementId: ElementId | null
   /** The one element open for in-place editing, or null. */
   editingBoardElementId: ElementId | null
-  /** Elements with an operation in flight; their stream echoes are skipped. */
+  /**
+   * One entry per element operation in flight; their stream echoes are
+   * skipped while any entry of the element remains. Duplicates are legal: two
+   * overlapping requests for one element hold two entries, so the first
+   * response does not release the second request's echo.
+   */
   pendingBoardElementOps: ElementId[]
+  /**
+   * Where the layout this browser paints was adopted from (see
+   * {@link BoardLayoutSource}). Null from the first frame until the settings
+   * mirror answers, because a layout restored only from the first-frame cache
+   * may lack windows the server holds, and a shared window record without a
+   * local window must not be read as closed.
+   */
+  layoutSource: BoardLayoutSource | null
   /**
    * Board-level notice the root shows as a transient toast, or null. `seq`
    * makes the same message show again as a fresh banner.
@@ -478,8 +531,8 @@ export const BOARD_WINDOW_TEMPLATES = {
  */
 export const MIN_WINDOW_SIZE = { width: 408, height: 480 } as const
 
-/** Grid step the snap rounds to while dragging without Alt. */
-const GRID_STEP = 24
+/** Grid step the snap rounds to while dragging without Alt, and the step of a keyboard resize. */
+export const GRID_STEP = 24
 
 /**
  * Bottom of the window z-index band. Windows paint above the canvas grid and
@@ -836,6 +889,7 @@ export function createBoardStore(): BoardStoreHandle {
       boardLimits: null,
       selfId: null,
       boardParticipants: [],
+      windowRecords: {},
       peerSelf: null,
       peerStates: [],
       peerAvailable: false,
@@ -844,6 +898,7 @@ export function createBoardStore(): BoardStoreHandle {
       selectedBoardElementId: null,
       editingBoardElementId: null,
       pendingBoardElementOps: [],
+      layoutSource: null,
       elementNotice: null,
       expandedWindowId: null,
       composerIntents: [],
@@ -967,7 +1022,7 @@ export function createBoardStore(): BoardStoreHandle {
       setWindowCustomTitle: (draft, id, title) => {
         const win = draft.windows[id as string]
         if (!win) return
-        const trimmed = title?.trim() ?? ''
+        const trimmed = clampWindowTitle(title?.trim() ?? '').trim()
         if (trimmed === '') delete win.customTitle
         else win.customTitle = trimmed
       },
@@ -977,6 +1032,13 @@ export function createBoardStore(): BoardStoreHandle {
         if (win.ownerId === ownerId || !isOwnerIdFormat(ownerId)) return
         win.ownerId = ownerId
         win.access = { mode: win.access.mode, people: win.access.people.filter(person => person !== ownerId) }
+      },
+      claimWindow: (draft, id) => {
+        const win = draft.windows[id as string]
+        const self = draft.selfId
+        if (win === undefined || self === null || !ownerIsUnknown(draft, win.ownerId)) return
+        win.ownerId = self
+        win.access = { mode: win.access.mode, people: win.access.people.filter(person => person !== self) }
       },
       setWindowAccess: (draft, id, access) => {
         const win = draft.windows[id as string]
@@ -1182,9 +1244,12 @@ export function createBoardStore(): BoardStoreHandle {
         draft.boardDocId = snapshot.docId
         draft.boardLimits = snapshot.limits
         draft.boardParticipants = [...snapshot.participants]
-        // A full snapshot is authoritative: operations in flight are settled by
-        // it, and an element it no longer holds cannot stay selected.
-        draft.pendingBoardElementOps = []
+        draft.windowRecords = Object.fromEntries(snapshot.windows.map(record => [record.id as string, record]))
+        // A full snapshot replaces every element, but the operations in flight
+        // keep their entries: each request settles its own entry when it is
+        // answered, and clearing them here would let an earlier request's
+        // answer release the entry of a later request for the same element.
+        // An element the snapshot no longer holds cannot stay selected.
         if (draft.selfId !== snapshot.selfId) adoptSelfId(draft, snapshot.selfId)
         if (draft.selectedBoardElementId !== null
           && draft.boardElements[draft.selectedBoardElementId as string] === undefined) {
@@ -1207,6 +1272,15 @@ export function createBoardStore(): BoardStoreHandle {
           if (patch.participants.removes.length > 0) {
             const removed = new Set(patch.participants.removes)
             draft.boardParticipants = draft.boardParticipants.filter(held => !removed.has(held.id))
+          }
+        }
+        if (patch.windows !== undefined) {
+          for (const record of patch.windows.upserts) {
+            draft.windowRecords[record.id as string] = record
+          }
+          for (const id of patch.windows.removes) {
+            // Immer draft: the opaque window id is the record key.
+            Reflect.deleteProperty(draft.windowRecords, id)
           }
         }
         for (const element of patch.upserts) {
@@ -1314,10 +1388,14 @@ export function createBoardStore(): BoardStoreHandle {
         if (draft.editingBoardElementId === id) draft.editingBoardElementId = null
       },
       beginBoardElementOp: (draft, id) => {
-        if (!draft.pendingBoardElementOps.includes(id)) draft.pendingBoardElementOps.push(id)
+        draft.pendingBoardElementOps.push(id)
       },
       endBoardElementOp: (draft, id) => {
-        draft.pendingBoardElementOps = draft.pendingBoardElementOps.filter(pending => pending !== id)
+        const index = draft.pendingBoardElementOps.indexOf(id)
+        if (index >= 0) draft.pendingBoardElementOps.splice(index, 1)
+      },
+      markLayoutAdopted: (draft, source) => {
+        draft.layoutSource = source
       },
       setElementNotice: (draft, key) => {
         if (key === null) {

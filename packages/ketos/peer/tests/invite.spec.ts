@@ -2,7 +2,8 @@
 // that refuse anything this build did not mint.
 import { describe, expect, it } from 'vitest'
 import {
-  INVITE_SECRET_BYTES, INVITE_SECRET_LENGTH, encodeBase32, formatInvite, mintInviteSecret, parseInvite,
+  INVITE_MAX_FAILED_ATTEMPTS, INVITE_SECRET_BYTES, INVITE_SECRET_LENGTH, encodeBase32, formatInvite,
+  inviteSecretMatches, mintInviteSecret, parseInvite,
 } from '../src/invite.ts'
 
 describe('base32 encoding', () => {
@@ -47,5 +48,23 @@ describe('invitation parsing', () => {
     ]
     for (const code of cases) expect(parseInvite(code)).toBeUndefined()
     expect(parseInvite('x'.repeat(600))).toBeUndefined()
+  })
+})
+
+describe('secret comparison', () => {
+  const secret = 'abcdefghijklmnopqrstuvwxyz'
+
+  it('accepts only the exact secret', () => {
+    expect(inviteSecretMatches(secret, secret)).toBe(true)
+    expect(inviteSecretMatches('abcdefghijklmnopqrstuvwxy2', secret)).toBe(false)
+  })
+
+  it('refuses a secret of another length without throwing', () => {
+    expect(inviteSecretMatches('abc', secret)).toBe(false)
+    expect(inviteSecretMatches(`${secret}a`, secret)).toBe(false)
+  })
+
+  it('counts five wrong secrets before an invitation burns', () => {
+    expect(INVITE_MAX_FAILED_ATTEMPTS).toBe(5)
   })
 })

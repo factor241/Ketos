@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Peer API: the state poll, the invitation mint, and the connect post — every
+ * Peer API: the state poll, the invitation mint, the connect post, and the forget post — every
  * decoded field with its refusal, and every failure collapsing to a stable
  * code the participants surface names.
  */
@@ -9,8 +9,8 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { OwnerId } from '@ketos/board-doc/types'
 import type { KetosPeerId } from '@ketos/peer/types'
 import {
-  connectPeer, createInvite, fetchPeerState, isPeerStateResponse,
-  PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH,
+  connectPeer, createInvite, fetchPeerState, forgetPeer, isPeerStateResponse,
+  PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH,
 } from '../src/client/peer-api.ts'
 
 afterEach(() => {
@@ -144,5 +144,41 @@ describe('connectPeer', () => {
 
     stubFetch(() => Response.json({ peerId: '' }))
     expect(await connectPeer('ketos1.abc')).toEqual({ ok: false, code: 'ketos/unreachable' })
+  })
+})
+
+describe('forgetPeer', () => {
+  it('posts the peer id and succeeds on any successful answer', async () => {
+    const requests = stubFetch(() => Response.json({ ok: true }))
+    expect(await forgetPeer(PEER)).toEqual({ ok: true })
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe(PEER_FORGET_PATH)
+    expect(requests[0]?.method).toBe('POST')
+    expect(await requests[0]?.json()).toEqual({ peerId: PEER })
+
+    stubFetch(() => Response.json({ peerId: PEER }))
+    expect(await forgetPeer(PEER)).toEqual({ ok: true })
+  })
+
+  it('keeps the stable refusal codes, including the two the forget route adds', async () => {
+    const refusals: ReadonlyArray<{ status: number; error: string }> = [
+      { status: 400, error: 'ketos/invalid' },
+      { status: 409, error: 'ketos/peer-online' },
+      { status: 404, error: 'ketos/peer-unknown' },
+    ]
+    for (const refusal of refusals) {
+      stubFetch(() => Response.json({ ok: false, error: refusal.error }, { status: refusal.status }))
+      expect(await forgetPeer(PEER)).toEqual({ ok: false, code: refusal.error })
+    }
+  })
+
+  it('reports a missing route as unavailable and other failures as unreachable', async () => {
+    stubFetch(() => new Response(null, { status: 404 }))
+    expect(await forgetPeer(PEER)).toEqual({ ok: false, code: 'ketos/peer-unavailable' })
+
+    stubFetch(() => new Response('not json', { status: 500 }))
+    expect(await forgetPeer(PEER)).toEqual({ ok: false, code: 'ketos/unreachable' })
+
+    stubFetch(() => { throw new Error('offline') })
+    expect(await forgetPeer(PEER)).toEqual({ ok: false, code: 'ketos/unreachable' })
   })
 })

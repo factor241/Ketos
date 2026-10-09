@@ -18,6 +18,7 @@
     "src/schema.ts",
     "src/service.ts",
     "src/types.ts",
+    "src/windows.ts",
     "src/wire.ts"
   ],
   "references": [

@@ -19,8 +19,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib/index.js",
-    "lib/iroh-transport.js",
+    "lib/*.js",
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ],

@@ -68,20 +68,22 @@ export const Config: z<Config> = z.object({
 export function apply(ctx: Context, config: Config): void {
   const logger = (message: string): void => { ctx.logger('ketos-board-todo').warn(message) }
   const doc: KetosBoardDocService = ctx.ketosBoardDoc
+  const beads = new BeadsCli(ctx.subprocess, {
+    beadsDir: config.beadsDir,
+    bdCommand: config.bdCommand as string,
+    beadsPrefix: config.beadsPrefix as string,
+    bdTimeoutMs: config.bdTimeoutMs as number,
+    bdOutputMaxBytes: config.bdOutputMaxBytes as number,
+    todoTitleMaxChars: config.todoTitleMaxChars as number,
+    logger,
+  })
   const routeConfig: TodoRouteConfig = {
     doc,
-    beads: new BeadsCli(ctx.subprocess, {
-      beadsDir: config.beadsDir,
-      bdCommand: config.bdCommand as string,
-      beadsPrefix: config.beadsPrefix as string,
-      bdTimeoutMs: config.bdTimeoutMs as number,
-      bdOutputMaxBytes: config.bdOutputMaxBytes as number,
-      todoTitleMaxChars: config.todoTitleMaxChars as number,
-      logger,
-    }),
+    beads,
     titleMaxChars: config.todoTitleMaxChars as number,
     logger,
   }
+  ctx.effect(() => () => beads.dispose(), 'ketos-board-todo: bd queue')
   registerTodoRoutes(ctx, routeConfig)
   ctx.effect(() => ctx.commands.register(todoCommand(routeConfig)), 'ketos-board-todo: command')
 }

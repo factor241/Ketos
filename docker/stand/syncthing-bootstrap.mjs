@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// First-start Syncthing configuration for the Ketos stand.
+// Syncthing configuration for the Ketos stand, applied on every container start.
 //
 // `syncthing generate` writes a stock config.xml that discovers peers through
 // public global/local announce servers, NAT traversal, and public relays; the
 // demonstration must use only the team's private relay. This script edits the
-// generated file before Syncthing ever runs, so no public node is contacted on
-// first start. Every expected element must exist: a template drift fails loud
-// instead of silently shipping a partly configured stand.
+// file before Syncthing ever runs and is idempotent, so a restart after a failed
+// first start never serves the stock config and contacts no public node. Every
+// expected element must exist: a template drift fails loud instead of silently
+// shipping a partly configured stand.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const home = process.env['SYNCTHING_HOME'] ?? '/data/syncthing'
@@ -43,13 +44,18 @@ setElement('stunKeepaliveStartS', '0')
 setElement('announceLANAddresses', 'false')
 setElement('apikey', apiKey)
 
-const listen = '<listenAddress>default</listenAddress>'
-if (!xml.includes(listen)) throw new Error('Syncthing config.xml has no default <listenAddress>; template drift?')
+// Replace every <listenAddress> so a rerun (or a changed relay value) ends with
+// exactly the relay and the direct TCP address, never the stock `default`.
+const listenPattern = /[ \t]*<listenAddress>[^<]*<\/listenAddress>\n?/g
+const listenMatches = xml.match(listenPattern)
+if (listenMatches === null) throw new Error('Syncthing config.xml has no <listenAddress> element; template drift?')
 const escapedRelay = escapeXml(relay)
-xml = xml.replace(
-  listen,
-  () => `<listenAddress>${escapedRelay}</listenAddress>\n        <listenAddress>tcp://0.0.0.0:22000</listenAddress>`,
-)
+let first = true
+xml = xml.replace(listenPattern, () => {
+  if (!first) return ''
+  first = false
+  return `        <listenAddress>${escapedRelay}</listenAddress>\n        <listenAddress>tcp://0.0.0.0:22000</listenAddress>\n`
+})
 
 writeFileSync(path, xml)
 console.log(`syncthing-bootstrap: pinned ${path} to the private relay without public discovery`)

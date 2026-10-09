@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 import { BoardDatabase, ensureIdentity, openDatabase } from '../src/db.ts'
-import { BoardJournal, COMPACT_ORIGIN, LOAD_ORIGIN } from '../src/journal.ts'
+import { BoardJournal, BoardJournalError, COMPACT_ORIGIN, LOAD_ORIGIN } from '../src/journal.ts'
 import {
   BOARD_DOC_APPLICATION_ID, BOARD_DOC_SCHEMA_VERSION, runMigrations,
 } from '../src/schema.ts'
@@ -34,6 +34,7 @@ class Fixture {
     readonly db: Awaited<ReturnType<typeof openDatabase>>,
     readonly doc: Y.Doc,
     readonly journal: BoardJournal,
+    readonly logs: string[],
   ) {}
 
   /**
@@ -45,7 +46,8 @@ class Fixture {
   static async open(path: string, compactRows = 500): Promise<Fixture> {
     const db = await openDatabase(path)
     const doc = new Y.Doc()
-    const fixture = new Fixture(db, doc, new BoardJournal(db, doc, compactRows))
+    const logs: string[] = []
+    const fixture = new Fixture(db, doc, new BoardJournal(db, doc, compactRows, (message) => { logs.push(message) }), logs)
     cleanups.push(() => { fixture.close() })
     return fixture
   }
@@ -162,6 +164,69 @@ describe('board.db identity and file policy', () => {
     newer.close()
     await expect(openDatabase(newerPath)).rejects.toThrow(/newer than this build/u)
   })
+
+  it('refuses a non-empty database that has no application id and no board schema', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'unstamped.db')
+    const { DatabaseSync } = await import('node:sqlite')
+    const foreign = new DatabaseSync(path)
+    foreign.exec('CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT)')
+    foreign.close()
+    await expect(openDatabase(path)).rejects.toThrow(/is not a Ketos board database/u)
+
+    const check = new DatabaseSync(path)
+    const { application_id: applicationId } = check.prepare('PRAGMA application_id').get() as { application_id: number }
+    const tables = check.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(row => row.name)
+    check.close()
+    expect({ applicationId, tables }).toEqual({ applicationId: 0, tables: ['notes'] })
+  })
+
+  it('adopts a database of the board schema whose application id was never stamped', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'unstamped.db')
+    const first = await openDatabase(path)
+    const identity = ensureIdentity(first)
+    first.exec('PRAGMA application_id = 0')
+    first.close()
+
+    const second = await openDatabase(path)
+    const { application_id: applicationId } = second.prepare('PRAGMA application_id').get() as { application_id: number }
+    expect(ensureIdentity(second)).toEqual(identity)
+    second.close()
+    expect(applicationId).toBe(BOARD_DOC_APPLICATION_ID)
+  })
+
+  it('holds the file against a second connection until the first one closes', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'board.db')
+    const first = await openDatabase(path)
+    const { locking_mode: lockingMode } = first.prepare('PRAGMA locking_mode').get() as { locking_mode: string }
+    expect(lockingMode).toBe('exclusive')
+
+    // The holder keeps its lock for its whole life, so the second opener
+    // refuses at once instead of blocking the process on a busy wait.
+    const started = performance.now()
+    await expect(openDatabase(path)).rejects.toThrow(/board database .*board\.db is open in another Ketos process/u)
+    expect(performance.now() - started).toBeLessThan(500)
+    first.close()
+
+    const second = await openDatabase(path)
+    second.close()
+  })
+
+  it('reports a database that is locked at the first read as held by another Ketos process', async () => {
+    const root = await temporaryDirectory()
+    const path = join(root, 'board.db')
+    const { DatabaseSync } = await import('node:sqlite')
+    const holder = new DatabaseSync(path)
+    holder.exec('PRAGMA locking_mode = EXCLUSIVE')
+    holder.exec('BEGIN EXCLUSIVE')
+    holder.exec('COMMIT')
+    cleanups.push(() => { holder.close() })
+    const started = performance.now()
+    await expect(openDatabase(path)).rejects.toThrow(/is open in another Ketos process/u)
+    expect(performance.now() - started).toBeLessThan(500)
+  })
 })
 
 describe('board journal', () => {
@@ -228,7 +293,7 @@ describe('board journal', () => {
     expect(encoded).not.toContain(docId)
   })
 
-  it('rolls the compaction back when its insert fails, keeping the journal whole', async () => {
+  it('logs a failed compaction, keeps the journal whole, and keeps accepting writes', async () => {
     const root = await temporaryDirectory()
     const fixture = await loaded(join(root, 'board.db'), 1)
     writeElement(fixture.doc, 'note-1', 1, 'host')
@@ -236,14 +301,22 @@ describe('board journal', () => {
       CREATE TRIGGER refuse_compact BEFORE INSERT ON updates WHEN NEW.origin = 'compact'
       BEGIN SELECT RAISE(ABORT, 'compact refused'); END
     `)
-    expect(() => { writeElement(fixture.doc, 'note-2', 2, 'host') }).toThrow(/compact refused/u)
+    expect(() => { writeElement(fixture.doc, 'note-2', 2, 'host') }).not.toThrow()
+    expect(fixture.journal.broken).toBe(false)
     expect(fixture.journal.revision()).toBe(2)
+    expect(fixture.logs).toHaveLength(1)
+    expect(fixture.logs[0]).toMatch(/board journal compaction failed: .*compact refused/u)
     const { rows } = fixture.db.prepare('SELECT COUNT(*) AS rows FROM updates').get() as { rows: number }
     expect(rows).toBe(2)
     expect(elementsOf(fixture.doc)).toEqual({ 'note-1': { x: 1 }, 'note-2': { x: 2 } })
+
+    fixture.db.exec('DROP TRIGGER refuse_compact')
+    writeElement(fixture.doc, 'note-3', 3, 'host')
+    const compacted = fixture.db.prepare('SELECT origin FROM updates ORDER BY seq').all()
+    expect(compacted.map(row => row.origin)).toEqual([COMPACT_ORIGIN])
   })
 
-  it('keeps the journal whole when the database rolled its transaction back on its own', async () => {
+  it('keeps the journal whole when the database rolled its compaction back on its own', async () => {
     const root = await temporaryDirectory()
     const fixture = await loaded(join(root, 'board.db'), 1)
     writeElement(fixture.doc, 'note-1', 1, 'host')
@@ -251,10 +324,51 @@ describe('board journal', () => {
       CREATE TRIGGER rollback_compact BEFORE INSERT ON updates WHEN NEW.origin = 'compact'
       BEGIN SELECT RAISE(ROLLBACK, 'compact rolled back'); END
     `)
-    expect(() => { writeElement(fixture.doc, 'note-2', 2, 'host') }).toThrow(/compact rolled back/u)
+    expect(() => { writeElement(fixture.doc, 'note-2', 2, 'host') }).not.toThrow()
+    expect(fixture.logs[0]).toMatch(/compact rolled back/u)
     expect(fixture.journal.revision()).toBe(2)
     const { rows } = fixture.db.prepare('SELECT COUNT(*) AS rows FROM updates').get() as { rows: number }
     expect(rows).toBe(2)
+  })
+
+  it('raises BoardJournalError when the append fails and marks the journal broken', async () => {
+    const root = await temporaryDirectory()
+    const fixture = await loaded(join(root, 'board.db'))
+    writeElement(fixture.doc, 'note-1', 1, 'host')
+    fixture.db.exec(`
+      CREATE TRIGGER refuse_append BEFORE INSERT ON updates
+      BEGIN SELECT RAISE(ABORT, 'append refused'); END
+    `)
+    expect(fixture.journal.broken).toBe(false)
+    let thrown: unknown
+    try {
+      writeElement(fixture.doc, 'note-2', 2, 'host')
+    } catch (error: unknown) {
+      thrown = error
+    }
+    expect(thrown).toBeInstanceOf(BoardJournalError)
+    expect((thrown as BoardJournalError).message).toMatch(/append refused/u)
+    expect((thrown as BoardJournalError).cause).toBeInstanceOf(Error)
+    expect(fixture.journal.broken).toBe(true)
+    expect(fixture.journal.revision()).toBe(1)
+    const { rows } = fixture.db.prepare('SELECT COUNT(*) AS rows FROM updates').get() as { rows: number }
+    expect(rows).toBe(1)
+  })
+
+  it('observes that Yjs stops dispatching updates after a listener threw, which is why a broken journal is reloaded', async () => {
+    const root = await temporaryDirectory()
+    const fixture = await loaded(join(root, 'board.db'))
+    const heard: number[] = []
+    fixture.doc.on('update', () => { heard.push(1) })
+    fixture.db.exec(`
+      CREATE TRIGGER refuse_append BEFORE INSERT ON updates
+      BEGIN SELECT RAISE(ABORT, 'append refused'); END
+    `)
+    expect(() => { writeElement(fixture.doc, 'note-1', 1, 'host') }).toThrow(BoardJournalError)
+    fixture.db.exec('DROP TRIGGER refuse_append')
+    writeElement(fixture.doc, 'note-2', 2, 'host')
+    const { rows } = fixture.db.prepare('SELECT COUNT(*) AS rows FROM updates').get() as { rows: number }
+    expect({ heard: heard.length, rows }).toEqual({ heard: 0, rows: 0 })
   })
 })
 

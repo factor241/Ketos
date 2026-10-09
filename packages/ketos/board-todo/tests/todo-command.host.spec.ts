@@ -31,6 +31,7 @@ class RecordingDoc implements TodoDoc {
       revision: brandNumber<BoardRevision>(this.revision),
       elements: [],
       participants: [],
+      windows: [],
       limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
     })
   }

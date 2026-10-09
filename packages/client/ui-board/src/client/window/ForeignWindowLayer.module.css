@@ -1,0 +1,10 @@
+/* Foreign-window layer of the board canvas: one absolute container inside the
+ * canvas transform, above the elements (z-index 1) and below the local
+ * windows (z-index 10). The frames inside never receive pointer events. */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}

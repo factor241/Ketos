@@ -1,8 +1,15 @@
 # Build context for docker/stand/Dockerfile (Dockerfile-scoped ignore file).
-# Keep secrets, VCS data, local graph outputs and the untracked reference
+# Keep secrets (any .env at any depth, the rendered relay config), VCS data, local graph outputs and the untracked reference
 # checkouts out of the image entirely.
 .git
-.env
+**/.env
+**/.env.*
+**/*.env
+**/.envrc
+!**/.env.example
+docker/relay/iroh-relay.toml
+CLAUDE.local.md
+.claude
 .beads
 .beads*
 .dsh-build

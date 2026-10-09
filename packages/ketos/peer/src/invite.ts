@@ -5,6 +5,8 @@
  * @module @ketos/peer/invite
  */
 
+import { timingSafeEqual } from 'node:crypto'
+
 /** Prefix of every invitation code this build mints. */
 export const INVITE_PREFIX = 'ketos1'
 
@@ -17,6 +19,9 @@ const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
 /** Length of the encoded 16-byte secret. */
 export const INVITE_SECRET_LENGTH = 26
 
+/** Wrong secrets that burn one invitation: it survives four, and the fifth ends it. */
+export const INVITE_MAX_FAILED_ATTEMPTS = 5
+
 /** Largest accepted invitation code length, in characters. */
 const INVITE_CODE_MAX = 512
 
@@ -26,6 +31,21 @@ export interface ParsedInvite {
   readonly ticket: string
   /** The one-time base32 secret. */
   readonly secret: string
+}
+
+/**
+ * Compare a presented secret with the pending one in constant time. The
+ * length check comes first because `timingSafeEqual` throws on unequal
+ * lengths; the secret length is public (26 characters), so it is no leak.
+ * @param presented - the secret a connecting node sent.
+ * @param expected - the pending invitation's secret.
+ * @returns true when both are the same string.
+ */
+export function inviteSecretMatches(presented: string, expected: string): boolean {
+  const presentedBytes = Buffer.from(presented, 'utf8')
+  const expectedBytes = Buffer.from(expected, 'utf8')
+  if (presentedBytes.byteLength !== expectedBytes.byteLength) return false
+  return timingSafeEqual(presentedBytes, expectedBytes)
 }
 
 /**

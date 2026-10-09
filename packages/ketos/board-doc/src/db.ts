@@ -75,14 +75,18 @@ export function ensureIdentity(db: DatabaseSync): BoardIdentity {
 /* jscpd:ignore-start -- deliberately mirrors the clone-core open sequence.
    Each package owns a distinct database identity, schema, and version policy,
    so a shared medium helper would couple independently released packages. */
+/** SQLite primary result code `SQLITE_BUSY`; extended codes carry it in the low byte. */
+const SQLITE_BUSY = 5
+
 /**
- * Lock wait, in milliseconds, of every connection this module opens. The wait
- * is set before the migration runs and stays on the connection for every later
- * statement, so a second process that opens the same fresh file waits for the
- * first instead of failing with `SQLITE_BUSY` on the header pragmas or the
- * migration's `BEGIN IMMEDIATE`.
+ * Whether a `node:sqlite` error reports that another connection holds the file.
+ * @param error - the caught value.
+ * @returns true for `SQLITE_BUSY` and its extended codes.
  */
-export const LOCK_WAIT_MS = 5000
+function isBusyError(error: unknown): boolean {
+  const code = (error as { errcode?: unknown }).errcode
+  return typeof code === 'number' && (code & 0xff) === SQLITE_BUSY
+}
 
 /**
  * Exclusively create a missing database file with owner-only permissions.
@@ -102,9 +106,16 @@ async function createDatabaseFile(path: string): Promise<void> {
  * Open the board database, creating its directory (`0700`) and file (`0600`)
  * when they are missing, and bring it to the current schema version. A foreign
  * application id or a newer schema version is refused, so an unrelated SQLite
- * file is never written to. The connection waits up to {@link LOCK_WAIT_MS}
- * for another process's lock, both during the migration and for every later
- * statement it runs.
+ * file is never written to.
+ *
+ * The connection takes the file's exclusive lock before it enables WAL and
+ * keeps it until it closes (`locking_mode = EXCLUSIVE`), so a second Ketos
+ * process on the same file cannot delete journal rows the first process
+ * still depends on. Because the holder keeps the lock for its whole life, the
+ * second opener does not wait (`busy_timeout = 0`): it fails at once with an
+ * error naming the file instead of blocking its event loop on every attempt.
+ * Every other reader of the file, `sqlite3` included, is locked out as well
+ * while the Ketos process runs.
  * @param path - database path from the profile config, or `:memory:`.
  * @returns the open handle with the journal mode, schema, and identity applied.
  */
@@ -117,13 +128,20 @@ export async function openDatabase(path: string): Promise<DatabaseSync> {
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(actual)
   try {
-    db.exec(`PRAGMA busy_timeout = ${String(LOCK_WAIT_MS)}`)
+    db.exec('PRAGMA busy_timeout = 0')
+    db.exec('PRAGMA locking_mode = EXCLUSIVE')
+    // The first read takes the lock; with EXCLUSIVE locking it is kept after
+    // the commit, before any journal mode change.
+    db.exec('BEGIN EXCLUSIVE; COMMIT')
     migrate(db)
     db.exec('PRAGMA journal_mode = WAL')
     ensureIdentity(db)
     return db
   } catch (error: unknown) {
     db.close()
+    if (isBusyError(error)) {
+      throw new Error(`board database ${actual} is open in another Ketos process`, { cause: error })
+    }
     throw error
   }
 }

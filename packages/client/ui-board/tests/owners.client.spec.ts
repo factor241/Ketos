@@ -11,6 +11,8 @@ import {
   currentOwnerId,
   isOwnerIdFormat,
   ownerColorAttr,
+  ownerIsUnknown,
+  ownerLinkLost,
   participantColorAttr,
   participantInitial,
   participantLabel,
@@ -105,6 +107,106 @@ describe('boardParticipants', () => {
   })
 })
 
+describe('boardParticipants: cached roster', () => {
+  it('returns the same array while the source slices keep their references', () => {
+    const state = identity({
+      selfId: SELF,
+      boardParticipants: [record(ANNA, 'Anna', 2)],
+      peerStates: [peer(ZETA, 'Zeta', 3)],
+    })
+    const first = boardParticipants(state)
+    expect(boardParticipants({ ...state })).toBe(first)
+  })
+
+  it('recomputes when any one source slice changes its reference', () => {
+    const state = identity({ selfId: SELF, boardParticipants: [record(ANNA, 'Anna', 2)] })
+    const first = boardParticipants(state)
+    const documentChanged = boardParticipants({ ...state, boardParticipants: [record(ANNA, 'Anna', 2)] })
+    expect(documentChanged).not.toBe(first)
+    expect(documentChanged).toEqual(first)
+    const peersChanged = boardParticipants({ ...state, peerStates: [peer(ZETA, 'Zeta', 3)] })
+    expect(peersChanged.map(participant => participant.id)).toContain(ZETA)
+    const selfChanged = boardParticipants({ ...state, selfId: ZETA })
+    expect(selfChanged.map(participant => participant.id)).toContain(ZETA)
+    const peerSelf = { selfId: SELF, name: 'Kirill', color: 4 }
+    expect(boardParticipants({ ...state, peerSelf }).find(participant => participant.id === SELF)?.name).toBe('Kirill')
+  })
+})
+
+describe('boardParticipants: before the first snapshot', () => {
+  const windows: BoardState['windows'] = {
+    'agent-1': {
+      id: 'agent-1' as WindowId,
+      kind: 'agent',
+      bodyKind: 'conversation',
+      ordinal: 1,
+      ownerId: ANNA,
+      access: { mode: 'owner', people: [] },
+      x: 0,
+      y: 0,
+      width: 552,
+      height: 648,
+      zIndex: 10,
+    },
+  }
+
+  it('names the owners of the local windows as the neutral "Я" entry', () => {
+    const roster = boardParticipants(identity({ windows }))
+    expect(roster).toEqual([{ id: ANNA, nameKey: 'owner.self' }])
+  })
+
+  it('leaves an owner a source already names alone, and ignores windows once the identity is known', () => {
+    const named = boardParticipants(identity({ windows, boardParticipants: [record(ANNA, 'Anna', 2)] }))
+    expect(named).toEqual([{ id: ANNA, name: 'Anna', color: 2 }])
+    expect(boardParticipants(identity({ selfId: SELF, windows })).map(participant => participant.id)).toEqual([SELF])
+  })
+
+  it('keeps one array identity for the same slices', () => {
+    const state = identity({ windows })
+    expect(boardParticipants(state)).toBe(boardParticipants({ ...state }))
+  })
+})
+
+describe('ownerIsUnknown', () => {
+  it('names an owner no source knows once the acting identity is known', () => {
+    const state = identity({ selfId: SELF, boardParticipants: [record(ANNA, 'Anna', 2)], peerStates: [peer(ZETA, 'Zeta', 3)] })
+    expect(ownerIsUnknown(state, brandString<OwnerId>('previous-self'))).toBe(true)
+    expect(ownerIsUnknown(state, ANNA)).toBe(false)
+    expect(ownerIsUnknown(state, ZETA)).toBe(false)
+    expect(ownerIsUnknown(state, SELF)).toBe(false)
+  })
+
+  it('names nobody before the first snapshot', () => {
+    expect(ownerIsUnknown(identity(), ANNA)).toBe(false)
+  })
+})
+
+describe('ownerLinkLost', () => {
+  const withLink = (link: 'online' | 'connecting' | 'lost'): Pick<BoardState, 'peerStates'> => ({
+    peerStates: [{ ...peer(ANNA, 'Anna', 2), link }],
+  })
+
+  it('marks a known peer owner whose link is anything but online', () => {
+    expect(ownerLinkLost(withLink('lost'), ANNA)).toBe(true)
+    expect(ownerLinkLost(withLink('connecting'), ANNA)).toBe(true)
+    expect(ownerLinkLost(withLink('online'), ANNA)).toBe(false)
+  })
+
+  it('does not mark an owner one of whose peer entries is online', () => {
+    const lost = { ...peer(ANNA, 'Anna', 2), link: 'lost' as const }
+    const online = { ...peer(ANNA, 'Anna', 2), peerId: brandString<KetosPeerId>('peer-anna-new') }
+    expect(ownerLinkLost({ peerStates: [lost, online] }, ANNA)).toBe(false)
+    expect(ownerLinkLost({ peerStates: [online, lost] }, ANNA)).toBe(false)
+    expect(ownerLinkLost({ peerStates: [lost, { ...lost, peerId: brandString<KetosPeerId>('peer-anna-new') }] }, ANNA))
+      .toBe(true)
+  })
+
+  it('never marks an owner the peer roster does not know', () => {
+    expect(ownerLinkLost(withLink('lost'), ZETA)).toBe(false)
+    expect(ownerLinkLost({ peerStates: [] }, ANNA)).toBe(false)
+  })
+})
+
 describe('currentOwnerId and canManageWindow', () => {
   it('is null before the first snapshot', () => {
     expect(currentOwnerId(identity())).toBeNull()
@@ -132,6 +234,7 @@ describe('currentOwnerId and canManageWindow', () => {
       revision: before.boardElementsRevision,
       elements: [],
       participants: [],
+      windows: [],
       limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
     })
     const after = instance.getSnapshot()
@@ -203,6 +306,7 @@ describe('adoptSelfId', () => {
       revision: state.boardElementsRevision,
       elements: [],
       participants: [record(SELF, 'Kirill', 1)],
+      windows: [],
       limits: { elementBytesMax: 1024, noteTextMax: 1024, strokePointsMax: 2, todoItemsMax: 1 },
     })
     const adopted = instance.getSnapshot()

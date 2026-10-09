@@ -217,12 +217,25 @@ export class BeadsCli {
   private executable: Promise<string> | undefined
   private ready: Promise<void> | undefined
   private queue: Promise<unknown> = Promise.resolve()
+  private readonly lifetime = new AbortController()
 
+  /**
+   * @param subprocess - runtime that spawns `bd`.
+   * @param options - deployment's Beads directory and call bounds.
+   * @param ambientEnv - the host environment whose `BEADS_*` and `BD_*` entries are blanked for the child; defaults to `process.env`.
+   */
   constructor(
     private readonly subprocess: SubprocessRuntime,
     private readonly options: BeadsCliOptions,
+    ambientEnv: Readonly<NodeJS.ProcessEnv> = process.env,
   ) {
+    // An empty value reads as unset in `bd`, so an ambient BEADS_DB or
+    // BEADS_DOLT_SERVER_* cannot redirect the wrapper to another database.
+    const blanked = Object.fromEntries(
+      Object.keys(ambientEnv).filter(key => /^(?:BEADS|BD)_/iu.test(key)).map(key => [key, '']),
+    )
     this.env = {
+      ...blanked,
       BEADS_DIR: join(options.beadsDir, '.beads'),
       BD_JSON_ENVELOPE: '1',
       BD_DISABLE_METRICS: '1',
@@ -234,6 +247,16 @@ export class BeadsCli {
       GIT_CONFIG_VALUE_0: 'maintainer',
       GIT_TERMINAL_PROMPT: '0',
     }
+  }
+
+  /**
+   * Stop the wrapper: abort the running `bd` call, reject queued and later
+   * calls, and wait until the queue has settled.
+   * @returns when no `bd` call is running.
+   */
+  async dispose(): Promise<void> {
+    this.lifetime.abort()
+    await this.queue
   }
 
   /**
@@ -346,8 +369,11 @@ export class BeadsCli {
    * @param task - operation to run.
    * @returns the operation's result.
    */
-  private operate<T>(signal: AbortSignal, task: () => Promise<T>): Promise<T> {
+  private operate<T>(callerSignal: AbortSignal, task: () => Promise<T>): Promise<T> {
+    if (this.lifetime.signal.aborted) return Promise.reject(new BeadsUnavailableError('bd wrapper was disposed'))
+    const signal = AbortSignal.any([callerSignal, this.lifetime.signal])
     return this.enqueue(() => this.withRetries(signal, async () => {
+      if (this.lifetime.signal.aborted) throw new BeadsUnavailableError('bd wrapper was disposed')
       await this.ensureReady(signal)
       return task()
     }))

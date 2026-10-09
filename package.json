@@ -144,6 +144,7 @@
     "verify-npm-install-layout": "tsx scripts/verify-npm-install-layout.ts",
     "verify-client-packages": "tsx scripts/verify-client-packages.ts",
     "verify-client-ui-i18n": "tsx scripts/verify-client-ui-i18n.ts",
+    "verify-client-css-tokens": "tsx scripts/verify-client-css-tokens.ts",
     "verify-client-route-resolution": "tsx scripts/verify-client-route-resolution.ts",
     "verify-no-bare-dispatcher": "tsx scripts/verify-no-bare-dispatcher.ts",
     "verify-cordis-config": "tsx scripts/verify-cordis-config.ts",

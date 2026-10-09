@@ -6,14 +6,19 @@
  * batch and a `: ping` heartbeat; a dropped connection reconnects with a
  * growing pause and a fresh snapshot, and a tab hidden longer than its budget
  * closes the stream until it returns (HTTP/1.1 keeps six connections per
- * origin). Every decoded value is validated before it reaches the store.
+ * origin). The pause returns to its shortest value only after a decoded
+ * snapshot arrived; a stream the host closes after an `overflow` event
+ * (unread patches passed the queue bound) lengthens the pause instead, so a
+ * browser that cannot keep up does not reconnect in a tight loop. Every
+ * decoded value is validated before it reaches the store.
  */
 import { brandNumber } from '@deepseek-ai/dsh-brand'
 import { UUID_PATTERN, isElementData, isElementId, parseBoardParticipant } from '@ketos/board-doc/data'
 import { isBoardElementKind } from '@ketos/board-doc/kinds'
 import type {
-  BoardElement, BoardErrorCode, BoardOp, BoardPatch, BoardRevision, BoardSnapshot,
+  BoardElement, BoardErrorCode, BoardOp, BoardOverflowEvent, BoardPatch, BoardRevision, BoardSnapshot,
 } from '@ketos/board-doc/types'
+import { isBoardWindowRecord, isWindowId } from '@ketos/board-doc/windows'
 import { ketosRoute } from './ketos-route.ts'
 import { isOwnerIdFormat } from './owners.ts'
 
@@ -105,6 +110,20 @@ function isBoardParticipantPatch(value: unknown): boolean {
 }
 
 /**
+ * Whether a decoded value is one window-record change set: every upsert is a
+ * complete record and every removal a well-formed window id.
+ * @param value - decoded JSON value.
+ * @returns whether the value is a complete window patch.
+ */
+function isBoardWindowPatch(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  return Array.isArray(value['upserts'])
+    && value['upserts'].every(isBoardWindowRecord)
+    && Array.isArray(value['removes'])
+    && value['removes'].every(isWindowId)
+}
+
+/**
  * Decode one full document snapshot.
  * @param value - decoded JSON value.
  * @returns whether the value is a complete snapshot.
@@ -118,6 +137,7 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && Array.isArray(value['elements']) && value['elements'].every(isBoardElement)
     && Array.isArray(value['participants'])
     && value['participants'].every(participant => parseBoardParticipant(participant) !== null)
+    && Array.isArray(value['windows']) && value['windows'].every(isBoardWindowRecord)
     && isRecord(limits) && isFiniteNumber(limits['elementBytesMax']) && limits['elementBytesMax'] > 0
     && isFiniteNumber(limits['noteTextMax']) && limits['noteTextMax'] > 0
     && isFiniteNumber(limits['strokePointsMax']) && limits['strokePointsMax'] >= 2
@@ -132,10 +152,21 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
 export function isBoardPatch(value: unknown): value is BoardPatch {
   if (!isRecord(value)) return false
   const participants = value['participants']
+  const windows = value['windows']
   return isFiniteNumber(value['revision']) && value['revision'] >= 0
     && Array.isArray(value['upserts']) && value['upserts'].every(isBoardElement)
     && Array.isArray(value['removes']) && value['removes'].every(isElementId)
     && (participants === undefined || isBoardParticipantPatch(participants))
+    && (windows === undefined || isBoardWindowPatch(windows))
+}
+
+/**
+ * Whether a decoded value is the payload of the host's `overflow` event.
+ * @param value - decoded JSON value.
+ * @returns whether the value names the queue bound as the reason.
+ */
+function isBoardOverflow(value: unknown): value is BoardOverflowEvent {
+  return isRecord(value) && value['reason'] === 'queue'
 }
 
 /** Whether a decoded value is one of the host's stable board codes. */
@@ -144,6 +175,8 @@ function isBoardErrorCode(value: unknown): value is BoardErrorCode {
     || value === 'ketos/element-not-found'
     || value === 'ketos/element-foreign'
     || value === 'ketos/element-exists'
+    || value === 'ketos/element-host-data'
+    || value === 'ketos/window-foreign'
     || value === 'ketos/limit'
 }
 
@@ -213,7 +246,10 @@ export function openBoardEvents(
   onEvent: (event: BoardStreamEvent) => void,
   options: BoardStreamOptions,
 ): void {
-  let attempt = 0
+  /** Connections since the last decoded snapshot that ended without delivering one. */
+  let failures = 0
+  /** Consecutive connections that the host closed after an `overflow` event. */
+  let overflows = 0
   let connection: AbortController | undefined
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let hiddenTimer: ReturnType<typeof setTimeout> | undefined
@@ -231,8 +267,8 @@ export function openBoardEvents(
 
   function scheduleRetry(): void {
     if (isStopped()) return
-    const delay = Math.min(options.retryMaxMs, options.retryMinMs * 2 ** attempt)
-    attempt += 1
+    const delay = Math.min(options.retryMaxMs, options.retryMinMs * 2 ** (failures + overflows))
+    failures += 1
     retryTimer = setTimeout(() => {
       retryTimer = undefined
       void connect()
@@ -245,15 +281,21 @@ export function openBoardEvents(
     connection = controller
     const abortOnOuter = (): void => { controller.abort() }
     signal.addEventListener('abort', abortOnOuter)
+    const outcome = { snapshot: false, overflow: false }
     try {
       const response = await fetch(ketosRoute(BOARD_DOC_EVENTS_PATH.slice(1)), { signal: controller.signal })
       const body = response.body
       if (!response.ok || body === null) throw new Error(`board events: status ${String(response.status)}`)
-      // A connected stream reconnects from the short pause: the snapshot event
-      // of the next connection is the full state, so a closed backlog stream
-      // recovers without an immediate reconnect loop.
-      attempt = 0
-      await readBoardEvents(body, onEvent)
+      await readBoardEvents(body, (event) => {
+        // Only a decoded snapshot proves the stream works end to end: a
+        // connection that opens and then closes without one is a failure, so
+        // its pause keeps growing.
+        if (event.type === 'snapshot') {
+          outcome.snapshot = true
+          failures = 0
+        }
+        onEvent(event)
+      }, () => { outcome.overflow = true })
     } catch {
       // Offline, refused, aborted, or a stream the host closed: reconnect below
       // unless this connection was stopped on purpose.
@@ -263,6 +305,8 @@ export function openBoardEvents(
       // belongs to this attempt until it settles.
       connection = undefined
     }
+    if (outcome.overflow) overflows += 1
+    else if (outcome.snapshot) overflows = 0
     if (isStopped()) return
     if (signal.aborted) return
     scheduleRetry()
@@ -301,11 +345,13 @@ export function openBoardEvents(
 /**
  * Read one event stream to its end, dispatching every complete frame.
  * @param body - the streaming response body.
- * @param onEvent - receives each decoded event.
+ * @param onEvent - receives each decoded snapshot and patch.
+ * @param onOverflow - called when the host announces it is closing the stream for overflow.
  */
 async function readBoardEvents(
   body: ReadableStream<Uint8Array>,
   onEvent: (event: BoardStreamEvent) => void,
+  onOverflow: () => void,
 ): Promise<void> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -319,7 +365,7 @@ async function readBoardEvents(
       while (boundary !== null) {
         const frame = buffer.slice(0, boundary.index)
         buffer = buffer.slice(boundary.index + boundary[0].length)
-        dispatchFrame(frame, onEvent)
+        dispatchFrame(frame, onEvent, onOverflow)
         boundary = /\r?\n\r?\n/.exec(buffer)
       }
     }
@@ -333,9 +379,14 @@ async function readBoardEvents(
  * events are ignored, multi-line `data:` joins with newlines, and a payload
  * that fails its decoder is dropped.
  * @param frame - one complete frame without its blank-line terminator.
- * @param onEvent - receives the decoded event.
+ * @param onEvent - receives the decoded snapshot or patch.
+ * @param onOverflow - called for a well-formed `overflow` event.
  */
-function dispatchFrame(frame: string, onEvent: (event: BoardStreamEvent) => void): void {
+function dispatchFrame(
+  frame: string,
+  onEvent: (event: BoardStreamEvent) => void,
+  onOverflow: () => void,
+): void {
   let name = ''
   const data: string[] = []
   for (const line of frame.split(/\r?\n/)) {
@@ -358,5 +409,7 @@ function dispatchFrame(frame: string, onEvent: (event: BoardStreamEvent) => void
     onEvent({ type: 'snapshot', snapshot: payload })
   } else if (name === 'patch' && isBoardPatch(payload)) {
     onEvent({ type: 'patch', patch: payload })
+  } else if (name === 'overflow' && isBoardOverflow(payload)) {
+    onOverflow()
   }
 }

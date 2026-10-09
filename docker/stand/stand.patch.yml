@@ -52,3 +52,16 @@
     relayUrls: !!js (process.env.KETOS_RELAY_URLS ?? '').split(',').filter(Boolean)
     keyPath: !!js dshHomePath('peer.key')
     peersPath: !!js dshHomePath('peers.json')
+
+# Host log: the web profile ships no console exporter, so `ketos-peer`
+# warnings (peer.connected, board.sync.too-large, bd errors) would stay
+# invisible. The vendored exporter is loaded by path because it is not a
+# dependency of any bundle; `docker compose logs` shows its lines.
+- insert:
+    - id: logger-console
+      name: /app/vendor/logger-console/lib/index.js
+      config:
+        colors: false
+        levels:
+          default: 2
+        showTime: 'yyyy-MM-dd hh:mm:ss '

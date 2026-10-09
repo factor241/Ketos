@@ -1,6 +1,8 @@
 /**
  * Access menu of one window bezel: the indicator opens a menu with the three
- * access modes and, under «Selected people», the participant checklist.
+ * access modes and, under «Selected people», the participant checklist. A
+ * selected person outside the roster is listed as an unknown participant, so
+ * the owner can remove them.
  *
  * The menu mounts only for the participant who manages the window; everyone
  * else sees the plain {@link AccessIndicator} caption. Mode switches keep the
@@ -14,7 +16,7 @@ import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardWindowState } from '../contract/slots.ts'
 import type { BoardTranslate } from '../locale.ts'
-import { boardParticipants, type OwnerId } from '../owners.ts'
+import { boardParticipants, type BoardParticipant, type OwnerId } from '../owners.ts'
 import { useBoardMenuDismiss } from '../board-popover.tsx'
 import { accessPeople, AccessIndicator } from './AccessIndicator.tsx'
 import { PersonOption } from './PersonOption.tsx'
@@ -48,12 +50,18 @@ export function AccessMenu({ window: cardWindow, t, useStore, actions }: AccessM
   // Moving, resizing, culling, or closing the window takes its menu with it.
   useBoardMenuDismiss(close)
 
-  const peopleRows: readonly MenuItem[] = participants
-    .filter(participant => participant.id !== cardWindow.ownerId)
-    .map((participant): MenuItem => ({
-      id: `${PERSON_PREFIX}${participant.id}`,
-      label: <PersonOption participant={participant} t={t} />,
-    }))
+  // A selected person the roster does not name (a peer that left, an earlier
+  // identity) still gets a row, so the owner can take them off the list.
+  const unlisted: readonly BoardParticipant[] = cardWindow.access.people
+    .filter(person => !participants.some(participant => participant.id === person))
+    .map(person => ({ id: person }))
+  const peopleRows: readonly MenuItem[] = [
+    ...participants.filter(participant => participant.id !== cardWindow.ownerId),
+    ...unlisted,
+  ].map((participant): MenuItem => ({
+    id: `${PERSON_PREFIX}${participant.id}`,
+    label: <PersonOption participant={participant} t={t} />,
+  }))
   // A submenu parent needs at least one row to open; the empty roster shows
   // the same caption the transfer menu uses instead of a dead card.
   const peopleSubmenu: readonly MenuItem[] = peopleRows.length === 0

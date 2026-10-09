@@ -91,11 +91,27 @@ export function runMigrations(
 }
 
 /**
+ * Whether the database holds tables but none of this package's: an unrelated
+ * SQLite file that happens to carry no application id.
+ * @param db - open database handle.
+ * @returns true when a user table exists and the journal tables do not.
+ */
+function isForeignUnstamped(db: DatabaseSync): boolean {
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .all().map(row => row.name)
+  if (tables.length === 0) return false
+  return !(tables.includes('updates') && tables.includes('meta'))
+}
+
+/**
  * Adopt an open database as `board.db`: refuse a file stamped for another
- * application or written by a newer build, apply every missing migration step,
- * and stamp the adopted file with this build's identity. The identity stamp is
- * written only after the migrations committed, so a step that fails on a
- * foreign file leaves the file unlabelled instead of mislabelled.
+ * application or written by a newer build, refuse an unstamped file that holds
+ * other tables, apply every missing migration step, and stamp the adopted file
+ * with this build's identity. An unstamped file is adopted only when it is
+ * empty or already carries the `updates` and `meta` tables, which is what a
+ * crash between the migration commit and the stamp leaves behind. The identity
+ * stamp is written only after the migrations committed, so a step that fails
+ * on a foreign file leaves the file unlabelled instead of mislabelled.
  * @param db - open database handle.
  */
 export function migrate(db: DatabaseSync): void {
@@ -103,6 +119,9 @@ export function migrate(db: DatabaseSync): void {
   const { user_version: onDisk } = db.prepare('PRAGMA user_version').get() as { user_version: number }
   if (applicationId !== 0 && applicationId !== BOARD_DOC_APPLICATION_ID) {
     throw new Error(`board database: application id ${String(applicationId)} belongs to another application`)
+  }
+  if (applicationId === 0 && isForeignUnstamped(db)) {
+    throw new Error('board database: the file has tables but is not a Ketos board database (application id 0)')
   }
   if (onDisk > BOARD_DOC_SCHEMA_VERSION) {
     throw new Error(`board database: schema version ${String(onDisk)} is newer than this build (${String(BOARD_DOC_SCHEMA_VERSION)})`)

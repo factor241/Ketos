@@ -16,7 +16,7 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { BoardElement, BoardElementKind, BoardWindowRecord, ElementId } from '@ketos/board-doc/types'
-import type { PeerErrorCode, KetosPeerId } from '@ketos/peer/types'
+import type { PeerErrorCode, KetosPeerId, TranscriptMessage } from '@ketos/peer/types'
 import type { BoardWindowAccessMode, WindowBodyKind, WindowKind } from '../../board-settings.ts'
 import type { OwnerId } from '../owners.ts'
 
@@ -265,7 +265,10 @@ export type BoardTaskOutcome =
  * not-configured code (the route answered 404), or the client's unreachable
  * code (transport failure or an answer outside the protocol).
  */
-export type BoardPeerFailureCode = PeerErrorCode | 'ketos/peer-unavailable' | 'ketos/unreachable'
+export type BoardPeerFailureCode =
+  | Exclude<PeerErrorCode, 'ketos/transcript-closed' | 'ketos/window-not-found' | 'ketos/peer-timeout'>
+  | 'ketos/peer-unavailable'
+  | 'ketos/unreachable'
 
 /** Outcome of asking the host for an invitation code. */
 export type BoardPeerInviteOutcome =
@@ -276,6 +279,20 @@ export type BoardPeerInviteOutcome =
 export type BoardPeerConnectOutcome =
   | { readonly ok: true; readonly peerId: KetosPeerId }
   | { readonly ok: false; readonly code: BoardPeerFailureCode }
+
+/**
+ * Stable failure code of one foreign-transcript read: the host's transcript
+ * codes, or the client's unreachable code (transport failure, an unmapped
+ * status, or an answer outside the protocol).
+ */
+export type BoardTranscriptFailureCode =
+  | Extract<PeerErrorCode, 'ketos/transcript-closed' | 'ketos/window-not-found' | 'ketos/peer-offline' | 'ketos/peer-timeout'>
+  | 'ketos/unreachable'
+
+/** Outcome of reading one foreign chat window's transcript. */
+export type BoardTranscriptOutcome =
+  | { readonly ok: true; readonly messages: readonly TranscriptMessage[] }
+  | { readonly ok: false; readonly code: BoardTranscriptFailureCode }
 
 /** Round progress of one running task's goal. */
 export interface BoardTaskProgress {
@@ -1060,6 +1077,17 @@ export interface BoardPeerInjected {
   connectPeerByInvite: (invite: string) => Promise<BoardPeerConnectOutcome>
 }
 
+/** Transcript verb the foreign chat card calls: the host relays the read to the owning Ketos. */
+export interface BoardForeignInjected {
+  /**
+   * Read the latest messages of one foreign chat window.
+   * @param windowId - the foreign window whose transcript is read.
+   * @param signal - aborts the request and its response read.
+   * @returns the messages, oldest first, or the stable failure code.
+   */
+  fetchTranscript: (windowId: string, signal?: AbortSignal) => Promise<BoardTranscriptOutcome>
+}
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Root container of the spatial board canvas; renders the floating layers. */
@@ -1079,7 +1107,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * Body of one foreign window, declared by the foreign-window layer. The
      * owner share is the same for every kind; the keyed table closes the
      * dispatch domain to `WindowKind`. Kind without an occupant falls back to
-     * the layer's shared placeholder body.
+     * the frame's general `ForeignWindowCard`; the `agent` kind is occupied by
+     * `ForeignChatCard`.
      */
     'board.foreign.window.body': {
       kind: 'keyed'

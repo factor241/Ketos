@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/peer/README.md
 /:
-  en: a1109a0ce6ad757b
-  zh: 7a95da04ad0fc954
+  en: ec714d31a59be1ff
+  zh: 562bea2a6afc6ad5
 /ketos-peer:
   en: 765e09a4e29fe234
   zh: ca71814d06b1ac4f
 /ketos-peer/summary:
-  en: 6e9da63b177115a2
-  zh: 8c55cb61ab25e76f
+  en: 7cecca2ae70b0bb9
+  zh: 0d39e1d48f1d7153
 /ketos-peer/table-of-contents:
   en: d152484eb41ac6b4
   zh: 63fd4fdd874e939c
 /ketos-peer/use-this-package:
-  en: 90def5101f3137d3
-  zh: de3c3b89c59fef27
+  en: acba80334a358387
+  zh: 8d9be03aaa851dc0
 /ketos-peer/understand-the-implementation:
   en: 42b15ac6321706aa
   zh: c5500056b41ce570
@@ -24,8 +24,8 @@
   en: 2bb50ddb1dea5ddb
   zh: 754480e9d6cb0ea1
 /ketos-peer/understand-the-implementation/frames:
-  en: 2b9dd8d519429630
-  zh: 050eec29929da9b2
+  en: 61eb862028052c0d
+  zh: b20fe5083c9bb3c2
 /ketos-peer/understand-the-implementation/handshake-and-known-peers:
   en: 285b530d54ae8212
   zh: 6c8899565cde998e
@@ -38,6 +38,9 @@
 /ketos-peer/understand-the-implementation/board-synchronization:
   en: 0ed3815a1a966f2b
   zh: e64886ed390ecffe
+/ketos-peer/understand-the-implementation/foreign-chat-transcripts:
+  en: 5db09f495f76d458
+  zh: d75165de3ffe5ce7
 /ketos-peer/understand-the-implementation/reconnection:
   en: 2e2c2961f9ac845c
   zh: 91b41fafaa572b22
@@ -45,20 +48,20 @@
   en: 83c50c1280294810
   zh: 852c7d01cc3abaa9
 /ketos-peer/understand-the-implementation/source-map:
-  en: ff0806a6c18eb82f
-  zh: 1b0d1e9050aafd00
+  en: 01cfc792db510eed
+  zh: 60c8654bc7dcfcf2
 /ketos-peer/further-exploration:
   en: 2f8887fd6e391e67
   zh: c047c12e63059f21
 /ketos-peer/model-experience:
-  en: ddd92c1ad9dcac9d
-  zh: dfa978f7f959fae3
+  en: f977efe9a5f38c11
+  zh: 5b0b4f8b68e61626
 /ketos-peer/model-experience/kv-cache-effect:
   en: 70c415e5db6ffd57
   zh: e08baced58f575cf
 /ketos-peer/known-limitations-and-deferred-work:
-  en: c4d7382a35adb5e9
-  zh: afaf933538ae7ac1
+  en: 5384a2f615567979
+  zh: c90bde2608445435
 /ketos-peer/known-limitations-and-deferred-work/dev-note:
   en: a46b4cabc29b3cae
   zh: f0f65cf660db73c0

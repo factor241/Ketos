@@ -15,6 +15,17 @@ import {
 import type { PeerConnection, PeerStream } from './transport.ts'
 import type { KetosPeerId } from './types.ts'
 
+/** The failure of a request the peer did not answer within its timeout. */
+export class PeerRequestTimeoutError extends Error {
+  /**
+   * @param timeoutMs - the timeout that elapsed, in milliseconds.
+   */
+  constructor(timeoutMs: number) {
+    super(`peer request timed out after ${String(timeoutMs)} ms`)
+    this.name = 'PeerRequestTimeoutError'
+  }
+}
+
 /** The close code an application frame error closes a connection with. */
 export const PEER_LINK_PROTOCOL_CLOSE_CODE = 2n
 
@@ -200,7 +211,7 @@ export class PeerLink {
    * @param code - frame code.
    * @param payload - request body.
    * @param timeoutMs - how long to wait for the answer.
-   * @returns the response body.
+   * @returns the response body; rejects with {@link PeerRequestTimeoutError} when the peer does not answer in time.
    */
   request(code: number, payload: unknown, timeoutMs: number): Promise<unknown> {
     if (this.closedReason !== undefined) return Promise.reject(new Error('peer link is closed'))
@@ -209,7 +220,7 @@ export class PeerLink {
     return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(requestId)
-        reject(new Error(`peer request timed out after ${String(timeoutMs)} ms`))
+        reject(new PeerRequestTimeoutError(timeoutMs))
       }, timeoutMs)
       timer.unref()
       this.pending.set(requestId, { code, resolve, reject, timer })

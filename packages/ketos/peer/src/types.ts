@@ -60,6 +60,9 @@ export type PeerErrorCode =
   | 'ketos/peer-offline'
   | 'ketos/peer-online'
   | 'ketos/peer-unknown'
+  | 'ketos/transcript-closed'
+  | 'ketos/window-not-found'
+  | 'ketos/peer-timeout'
 
 /** Answer of a successful `POST /api/ketos.peer.connect`. */
 export interface PeerConnectResponse {
@@ -77,4 +80,20 @@ export interface PeerInviteResponse {
 export interface PeerForgetResponse {
   /** Always true; a refusal answers `{ ok: false, error }` instead. */
   readonly ok: true
+}
+
+/** One message of a foreign chat window's read-only transcript. */
+export interface TranscriptMessage {
+  /** Who wrote the message: the human user or the agent. */
+  readonly role: 'user' | 'agent'
+  /** The message text, already cut to the owner's `transcriptMaxMessageChars`. */
+  readonly text: string
+  /** ISO-8601 UTC time the session log recorded the message. */
+  readonly at: string
+}
+
+/** Answer of a successful `POST /api/ketos.peer.transcript`: oldest message first. */
+export interface TranscriptResponse {
+  /** The window's latest messages within the owner's limits. */
+  readonly messages: readonly TranscriptMessage[]
 }

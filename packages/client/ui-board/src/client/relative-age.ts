@@ -9,11 +9,11 @@ import type { BoardTranslate } from './locale.ts'
 
 /**
  * Localized age of one dated row, in the board's short units.
- * @param at - ISO-8601 UTC time of the row's last update.
+ * @param at - ISO-8601 UTC time of the row's last update, or the same instant as epoch milliseconds.
  * @param t - the board translator.
  * @returns the age text, for example "1d" or "now".
  */
-export function relativeAge(at: string, t: BoardTranslate): string {
-  const { unit, n } = relativeTime(Date.parse(at), Date.now())
+export function relativeAge(at: string | number, t: BoardTranslate): string {
+  const { unit, n } = relativeTime(typeof at === 'number' ? at : Date.parse(at), Date.now())
   return unit === 'now' ? t('time.now') : t(`time.${unit}`, { n })
 }

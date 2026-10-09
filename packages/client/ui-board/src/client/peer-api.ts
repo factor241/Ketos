@@ -92,7 +92,7 @@ function isPeerConnectResponse(value: unknown): value is PeerConnectResponse {
 }
 
 /** Whether a decoded value is one of the host's stable peer codes. */
-function isPeerErrorCode(value: unknown): value is PeerErrorCode {
+function isPeerErrorCode(value: unknown): value is Extract<BoardPeerFailureCode, PeerErrorCode> {
   return value === 'ketos/invalid'
     || value === 'ketos/peer-self'
     || value === 'ketos/invite-used'

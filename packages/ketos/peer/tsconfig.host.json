@@ -18,6 +18,8 @@
     "src/peers-file.ts",
     "src/routes.ts",
     "src/service.ts",
+    "src/transcript-read.ts",
+    "src/transcript.ts",
     "src/transport.ts",
     "src/types.ts"
   ],
@@ -32,7 +34,16 @@
       "path": "../../client/connection/tsconfig.host.json"
     },
     {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session/session-persistence"
+    },
+    {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/values"
     },
     {
       "path": "../board-doc/tsconfig.host.json"

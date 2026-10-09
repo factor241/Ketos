@@ -1,0 +1,113 @@
+/* Foreign chat card: owner and age facts, the transcript controls, and the
+ * scrolling read-only message list. The frame passes no pointer events and the
+ * property inherits, so only the buttons, the live region, and the list opt
+ * back in; blank space in the card stays click-through to the canvas. */
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--board-gap-row);
+  min-height: 0;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+  text-align: start;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.fact {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actions > button {
+  pointer-events: auto;
+}
+
+.actions > button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.actions > button[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.status {
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.transcript {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.empty {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: calc(var(--board-control) * 3);
+  margin: 0;
+  pointer-events: auto;
+  user-select: text;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  list-style: none;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.role {
+  font-weight: 500;
+}
+
+.text {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

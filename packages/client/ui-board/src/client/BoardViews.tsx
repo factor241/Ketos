@@ -22,7 +22,7 @@ import clsx from 'clsx'
 import { BOARD_POPOVER_Z, type BoardStoreHandle } from './store.ts'
 import { BoardPopoverSurfaceContext, type BoardPopoverSurface } from './board-popover.tsx'
 import { BOARD_PANEL_ID, type BoardElementInjected } from './contract/slots.ts'
-import { isBoardEditingTarget, isBoardInteractiveTarget } from './editing-target.ts'
+import { isBoardEditingTarget, isBoardForeignWindowTarget, isBoardInteractiveTarget, isBoardWindowTarget } from './editing-target.ts'
 import { useBoardPointerGesture } from './pointer-gesture.ts'
 import { startBoardPanGesture } from './pan-gesture.ts'
 import { describeElement } from './element-capture.ts'
@@ -248,7 +248,8 @@ export function BoardRoot({
 
   // Space arms panning while the pointer is over the board — including over a
   // window, whose own gesture then stands down for the capture phase — and a
-  // focused editor or button keeps the key. Cmd/Ctrl+0, +=, and − are board view
+  // focused editor, a focused button, or a focused element inside a foreign
+  // window (its transcript list scrolls with Space) keeps the key. Cmd/Ctrl+0, +=, and − are board view
   // commands only while the pointer or focus is inside the board; everywhere
   // else the browser keeps its page zoom.
   useEffect(() => {
@@ -273,8 +274,7 @@ export function BoardRoot({
         if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
         if (selfId === null || selectedElement.ownerId !== selfId) return
         if (selecting || isBoardEditingTarget(target) || isBoardInteractiveTarget(target)) return
-        if (target instanceof Element
-          && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return
+        if (isBoardWindowTarget(target) || (target instanceof Element && target.closest('[role="menu"]') !== null)) return
         event.preventDefault()
         removeElement(selectedElementId)
         return
@@ -287,8 +287,7 @@ export function BoardRoot({
         if (selectedElementId === null || selectedElement === undefined || !insideBoard) return
         if (selectedElement.kind !== 'note' || selfId === null || selectedElement.ownerId !== selfId) return
         if (selecting || isBoardEditingTarget(target) || isBoardInteractiveTarget(target)) return
-        if (target instanceof Element
-          && (target.closest('[data-board-window]') !== null || target.closest('[role="menu"]') !== null)) return
+        if (isBoardWindowTarget(target) || (target instanceof Element && target.closest('[role="menu"]') !== null)) return
         event.preventDefault()
         actions.setEditingBoardElement(selectedElementId)
         return
@@ -305,7 +304,7 @@ export function BoardRoot({
         return
       }
       if (event.code !== 'Space' || event.repeat || !pointerInsideRef.current) return
-      if (isBoardEditingTarget(event.target) || isBoardInteractiveTarget(event.target)) return
+      if (isBoardEditingTarget(event.target) || isBoardInteractiveTarget(event.target) || isBoardForeignWindowTarget(event.target)) return
       spaceRef.current = true
       setPanArmed(true)
       event.preventDefault()

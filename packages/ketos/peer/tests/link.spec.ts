@@ -9,7 +9,7 @@ import {
 } from '../src/frame.ts'
 import {
   PEER_LINK_BYE_GRACE_MS, PEER_LINK_PROTOCOL_CLOSE_CODE, PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE, PEER_UNHANDLED, PeerLink,
-  readPeerFrame, writePeerFrame,
+  PeerRequestTimeoutError, readPeerFrame, writePeerFrame,
 } from '../src/link.ts'
 import { createMemoryStreamPair, createMemoryTransports, type MemoryTransportPair } from '../src/memory-transport.ts'
 import type { PeerConnection, PeerStream } from '../src/transport.ts'
@@ -242,6 +242,7 @@ describe('peer link lifecycle', () => {
     const pending = harness.link.request(5, { n: 1 }, 1000)
     connection.settle('dropped')
     await expect(pending).rejects.toThrow(/closed before the response: dropped/u)
+    await expect(pending).rejects.not.toBeInstanceOf(PeerRequestTimeoutError)
   })
 
   it('carries an application close code when one is given', async () => {
@@ -478,7 +479,9 @@ describe('peer link over a dialed memory connection', () => {
     const { a, b } = await createLinkPair()
     a.link.start()
     b.link.start()
-    await expect(a.link.request(6, { n: 1 }, 30)).rejects.toThrow(/timed out after 30 ms/u)
+    const outcome = a.link.request(6, { n: 1 }, 30)
+    await expect(outcome).rejects.toThrow(/timed out after 30 ms/u)
+    await expect(outcome).rejects.toBeInstanceOf(PeerRequestTimeoutError)
   })
 
   it('ignores a response for an unknown request and one on the wrong frame type', async () => {

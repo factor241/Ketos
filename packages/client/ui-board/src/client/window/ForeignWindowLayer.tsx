@@ -2,8 +2,10 @@
  * Foreign-window layer: renders every shared window record whose host is
  * another Ketos, in paint order by z and culled to the visible canvas. The
  * layer owns the keyed `board.foreign.window.body` declaration and hands each
- * frame the dispatcher's body for its kind, so a later stage registers the
- * chat card without touching the frame.
+ * frame the dispatcher's body for its kind; a kind without an occupant gets the
+ * frame's general `ForeignWindowCard`, and `agent` registers `ForeignChatCard`.
+ * A frame outside the visible canvas is unmounted, so an open transcript
+ * collapses when its window is panned out of view.
  *
  * Own records stay out: the local layout renders them, and the record slice
  * exists so a receiver sees the other Ketos's windows without letting them

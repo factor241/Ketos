@@ -7,16 +7,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import type { OwnerId } from '@ketos/board-doc/types'
+import type { BoardWindowRecord, OwnerId } from '@ketos/board-doc/types'
 import { formatInvite } from '../src/invite.ts'
 import { createMemoryTransports } from '../src/memory-transport.ts'
 import {
-  PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, handlePeerConnect, handlePeerForget,
-  handlePeerInvite, handlePeerState, registerPeerRoutes,
+  PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, PEER_TRANSCRIPT_PATH, handlePeerConnect,
+  handlePeerForget, handlePeerInvite, handlePeerState, handlePeerTranscript, registerPeerRoutes,
 } from '../src/routes.ts'
 import { KetosPeerService, type KetosPeerOptions } from '../src/service.ts'
+import { registerTranscript } from '../src/transcript.ts'
 import type { PeerConnection, PeerIncoming, PeerTransport } from '../src/transport.ts'
 import type { KetosPeerId } from '../src/types.ts'
+import {
+  FakePersistence, accessOf, assistantEvent, handleOf, userEvent, windowRecord,
+} from './transcript-fixture.ts'
 
 /** Board-document stand-in the peer service reads and writes. */
 class FakeBoardDoc extends Service {
@@ -92,7 +96,23 @@ interface RouteHarness {
   readonly rightRoutes: Map<string, ConnectionFetchRoute>
   readonly leftTransport: PeerTransport
   readonly rightTransport: PeerTransport
+  /** Window records both stand-in boards serve; edit to change what either side sees. */
+  readonly windows: BoardWindowRecord[]
+  /** The right side's board snapshot failure, when set. */
+  boardFailure: Error | undefined
+  /** The persistence stand-in of the left (owning) side. */
+  readonly persistence: FakePersistence
   close(): Promise<void>
+}
+
+/** Options of {@link createRouteHarness}. */
+interface RouteHarnessOptions {
+  /** Window records both boards serve. */
+  readonly windows?: readonly BoardWindowRecord[]
+  /** Whether the left side answers transcript requests; false leaves them unanswered. */
+  readonly ownerAnswers?: boolean
+  /** The right side's transcript request timeout, in milliseconds. */
+  readonly timeoutMs?: number
 }
 
 let cleanups: (() => Promise<void>)[] = []
@@ -114,7 +134,7 @@ async function createService(
   transport: PeerTransport,
   self: string,
   name: string,
-): Promise<{ service: KetosPeerService; close(): Promise<void> }> {
+): Promise<{ service: KetosPeerService; ctx: Context; close(): Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-peer-routes-'))
   const ctx = new Context()
   new FakeBoardDoc(ctx, self)
@@ -139,7 +159,7 @@ async function createService(
     await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 })
   }
   cleanups.push(close)
-  return { service, close }
+  return { service, ctx, close }
 }
 
 /**
@@ -147,27 +167,57 @@ async function createService(
  * right side.
  * @returns the harness.
  */
-async function createRouteHarness(): Promise<RouteHarness> {
+async function createRouteHarness(options: RouteHarnessOptions = {}): Promise<RouteHarness> {
   const pair = createMemoryTransports()
   const left = await createService(pair.a, 'owner-a', 'Кирилл')
   const right = await createService(pair.b, 'owner-b', 'Юрист')
   const rightCtx = new Context()
   const connection = new RecordingConnection(rightCtx)
-  registerPeerRoutes(rightCtx, right.service)
-  const close = async (): Promise<void> => {
-    await rightCtx.fiber.dispose()
-    await left.close()
-    await right.close()
+  const windows = [...options.windows ?? []]
+  const persistence = new FakePersistence(left.ctx, handleOf([
+    userEvent(1, 1000, 'вопрос'), assistantEvent(2, 2000, 'ответ'),
+  ]))
+  if (options.ownerAnswers !== false) {
+    registerTranscript(left.ctx, left.service, {
+      snapshot: async () => ({ selfId: brandString<OwnerId>('owner-a'), windows }),
+    }, { maxMessages: 20, maxMessageChars: 4000, maxBytes: 65_536, logger: () => undefined })
   }
-  cleanups.push(close)
-  return {
+  const harness: RouteHarness = {
     left: left.service,
     right: right.service,
     rightRoutes: connection.routes,
     leftTransport: pair.a,
     rightTransport: pair.b,
-    close,
+    windows,
+    boardFailure: undefined,
+    persistence,
+    close: async () => {
+      await rightCtx.fiber.dispose()
+      await left.close()
+      await right.close()
+    },
   }
+  registerPeerRoutes(rightCtx, right.service, {
+    board: {
+      snapshot: async () => {
+        if (harness.boardFailure !== undefined) throw harness.boardFailure
+        return { selfId: brandString<OwnerId>('owner-b'), windows }
+      },
+    },
+    timeoutMs: options.timeoutMs ?? 1000,
+  })
+  cleanups.push(() => harness.close())
+  return harness
+}
+
+/**
+ * Connect the harness's two services and wait for both links.
+ * @param harness - the harness to connect.
+ */
+async function connectHarness(harness: RouteHarness): Promise<void> {
+  await harness.right.connect(await harness.left.invite())
+  await vi.waitFor(() => { expect(harness.left.peers()[0]?.link).toBe('online') })
+  await vi.waitFor(() => { expect(harness.right.peers()[0]?.link).toBe('online') })
 }
 
 /**
@@ -312,8 +362,9 @@ describe('peer connect route', () => {
   it('registers every route on the connection surface', async () => {
     const harness = await createRouteHarness()
     expect([...harness.rightRoutes.keys()].sort())
-      .toEqual([PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH].sort())
+      .toEqual([PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, PEER_TRANSCRIPT_PATH].sort())
     expect(harness.rightRoutes.get(PEER_FORGET_PATH)?.methods).toEqual(['POST'])
+    expect(harness.rightRoutes.get(PEER_TRANSCRIPT_PATH)?.methods).toEqual(['POST'])
   })
 })
 
@@ -370,5 +421,172 @@ describe('peer forget route', () => {
     const response = await handlePeerForget(forgetRequest(JSON.stringify({ peerId: 'x' })), harness.right)
     expect(response.status).toBe(500)
     expect(await response.text()).toBe('')
+  })
+})
+
+describe('peer transcript route', () => {
+  /**
+   * A window the left Ketos hosts, as the right Ketos sees it.
+   * @param id - window id.
+   * @param overrides - fields to change.
+   * @returns the record.
+   */
+  function hostedByLeft(id: string, overrides: Partial<BoardWindowRecord> = {}): BoardWindowRecord {
+    return windowRecord(id, {
+      hostId: brandString<OwnerId>('owner-a'), ownerId: brandString<OwnerId>('owner-a'), ...overrides,
+    })
+  }
+
+  /**
+   * A transcript request.
+   * @param body - the raw request body.
+   * @returns the request.
+   */
+  function transcriptRequest(body: string): Request {
+    return new Request('http://localhost', { method: 'POST', body })
+  }
+
+  /**
+   * Call the registered route for one window.
+   * @param harness - the harness.
+   * @param windowId - the window to read.
+   * @returns the status and the JSON body.
+   */
+  async function ask(harness: RouteHarness, windowId: string): Promise<{ status: number; body: unknown; headers: Headers }> {
+    const response = await callRoute(harness.rightRoutes, PEER_TRANSCRIPT_PATH, transcriptRequest(JSON.stringify({ windowId })))
+    return { status: response.status, body: await response.json(), headers: response.headers }
+  }
+
+  it('answers the messages of a foreign chat window the owner opens to everyone', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1', { access: accessOf('all') })] })
+    await connectHarness(harness)
+    const request = vi.spyOn(harness.right, 'request')
+    const answer = await ask(harness, 'w1')
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get('cache-control')).toBe('no-store')
+    expect(answer.body).toEqual({
+      messages: [
+        { role: 'user', text: 'вопрос', at: new Date(1000).toISOString() },
+        { role: 'agent', text: 'ответ', at: new Date(2000).toISOString() },
+      ],
+    })
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledWith(
+      harness.right.peers()[0]?.peerId, 'chat.transcript.request', { windowId: 'w1' }, { timeoutMs: 1000 },
+    )
+  })
+
+  it('refuses a malformed body with 400', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1')] })
+    await connectHarness(harness)
+    const bodies = ['not json', JSON.stringify([1]), JSON.stringify({}), JSON.stringify({ windowId: '' }),
+      JSON.stringify({ windowId: 7 }), JSON.stringify({ windowId: 'w1', selfId: 'owner-x' })]
+    for (const body of bodies) {
+      const response = await handlePeerTranscript(transcriptRequest(body), harness.right, {
+        board: { snapshot: async () => ({ selfId: brandString<OwnerId>('owner-b'), windows: harness.windows }) },
+        timeoutMs: 1000,
+      })
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toEqual({ ok: false, error: 'ketos/invalid' })
+      expect(response.headers.get('cache-control')).toBe('no-store')
+    }
+  })
+
+  it('answers 404 for a window the board does not hold or this Ketos hosts itself', async () => {
+    const harness = await createRouteHarness({
+      windows: [
+        hostedByLeft('own', { hostId: brandString<OwnerId>('owner-b') }),
+        hostedByLeft('settings', { kind: 'settings', bodyKind: 'settings' }),
+      ],
+    })
+    await connectHarness(harness)
+    for (const id of ['absent', 'own', 'settings']) {
+      await expect(ask(harness, id)).resolves.toMatchObject({
+        status: 404, body: { ok: false, error: 'ketos/window-not-found' },
+      })
+    }
+    expect(harness.persistence.opened).toEqual([])
+  })
+
+  it('maps the owner refusals: closed to 403, not-found to 404, unavailable to 503', async () => {
+    const harness = await createRouteHarness({
+      windows: [hostedByLeft('closed', { access: accessOf('owner') }), hostedByLeft('open')],
+    })
+    await connectHarness(harness)
+    await expect(ask(harness, 'closed')).resolves.toMatchObject({
+      status: 403, body: { ok: false, error: 'ketos/transcript-closed' },
+    })
+    // The owner no longer holds the window its peer still shows.
+    harness.windows.push(hostedByLeft('stale'))
+    const request = vi.spyOn(harness.right, 'request')
+    request.mockResolvedValueOnce({ ok: false, reason: 'not-found' })
+    await expect(ask(harness, 'stale')).resolves.toMatchObject({
+      status: 404, body: { ok: false, error: 'ketos/window-not-found' },
+    })
+    request.mockRestore()
+    harness.persistence.failure = new Error('EACCES: /Users/owner/.ketos/sessions/x.jsonl')
+    const unavailable = await ask(harness, 'open')
+    expect(unavailable).toMatchObject({ status: 503, body: { ok: false, error: 'ketos/peer-offline' } })
+    expect(JSON.stringify(unavailable.body)).not.toContain('/Users')
+  })
+
+  it('answers 503 while no online peer is the window owner', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1'), hostedByLeft('lone', { hostId: brandString<OwnerId>('owner-z') })] })
+    // No channel yet: the owner's peer is unknown to this Ketos.
+    await expect(ask(harness, 'w1')).resolves.toMatchObject({ status: 503, body: { ok: false, error: 'ketos/peer-offline' } })
+    await connectHarness(harness)
+    // A window of a host that is not a known peer.
+    await expect(ask(harness, 'lone')).resolves.toMatchObject({ status: 503, body: { ok: false, error: 'ketos/peer-offline' } })
+    await harness.left.close()
+    await vi.waitFor(() => { expect(harness.right.peers()[0]?.link).not.toBe('online') })
+    await expect(ask(harness, 'w1')).resolves.toMatchObject({ status: 503, body: { ok: false, error: 'ketos/peer-offline' } })
+  })
+
+  it('uses the online record when several peer records share the owner identity', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1')] })
+    await connectHarness(harness)
+    const live = harness.right.peers()[0]
+    if (live === undefined) throw new Error('no peer')
+    vi.spyOn(harness.right, 'peers').mockReturnValue([
+      { ...live, peerId: brandString<KetosPeerId>('stale-record'), link: 'lost' },
+      { ...live, peerId: brandString<KetosPeerId>('connecting-record'), link: 'connecting' },
+      live,
+    ])
+    await expect(ask(harness, 'w1')).resolves.toMatchObject({ status: 200 })
+  })
+
+  it('answers 504 when the owner does not answer in time', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1')], ownerAnswers: false, timeoutMs: 80 })
+    await connectHarness(harness)
+    await expect(ask(harness, 'w1')).resolves.toMatchObject({
+      status: 504, body: { ok: false, error: 'ketos/peer-timeout' },
+    })
+  })
+
+  it('answers 503 when the request fails for another reason or the answer is malformed', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1')] })
+    await connectHarness(harness)
+    const request = vi.spyOn(harness.right, 'request')
+    for (const outcome of [
+      () => request.mockRejectedValueOnce(new Error('peer link closed before the response: dropped')),
+      () => request.mockRejectedValueOnce('not an Error'),
+      () => request.mockResolvedValueOnce({ ok: true, messages: 'none' }),
+      () => request.mockResolvedValueOnce({ ok: true, messages: [{ role: 'system', text: 'x', at: 'now' }] }),
+      () => request.mockResolvedValueOnce(null),
+    ]) {
+      outcome()
+      await expect(ask(harness, 'w1')).resolves.toMatchObject({
+        status: 503, body: { ok: false, error: 'ketos/peer-offline' },
+      })
+    }
+  })
+
+  it('answers 500 without a body when the board cannot be read', async () => {
+    const harness = await createRouteHarness({ windows: [hostedByLeft('w1')] })
+    harness.boardFailure = new Error('board closed')
+    const response = await callRoute(harness.rightRoutes, PEER_TRANSCRIPT_PATH, transcriptRequest(JSON.stringify({ windowId: 'w1' })))
+    expect(response.status).toBe(500)
+    expect(await response.text()).toBe('')
+    expect(response.headers.get('cache-control')).toBe('no-store')
   })
 })

@@ -314,7 +314,9 @@ export class KetosPeerService extends Service {
    * @param type - frame type name.
    * @param payload - the typed request body.
    * @param options - per-request timeout; defaults to the connect timeout.
-   * @returns the typed response body.
+   * @returns the response body, which is data from the peer and still to be validated; rejects with
+   * `PeerRequestTimeoutError` when the peer does not answer in time, and with a plain error when the peer
+   * is not connected, the channel closes first, or the peer's handler fails.
    */
   async request<K extends PeerFrameType>(
     peerId: KetosPeerId,

@@ -2,8 +2,8 @@
  * Frame of one foreign window: the record another Ketos published, drawn in
  * world coordinates under its z. The owner bezel carries the publishing
  * participant's fill and mark without menus or drag, the header names the
- * window and its status, and the body is the shared read-only placeholder
- * until a kind registers its own card (stage 34 registers the chat card).
+ * window and its status once for every kind, and the body is the kind's card
+ * or the general {@link ForeignWindowCard}.
  */
 import { memo, useMemo } from 'react'
 import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -15,13 +15,14 @@ import type { BoardTranslate } from '../locale.ts'
 import { ownerColorAttr, ownerLinkLost, participantLabel, participantOf } from '../owners.ts'
 import { WINDOW_STATUS_DOT, WINDOW_STATUS_KEY } from '../window-status.ts'
 import { foreignWindowTitle } from '../window-title.ts'
+import { ForeignWindowCard } from './ForeignWindowCard.tsx'
 import { WindowBezel } from './WindowBezel.tsx'
 import css from './ForeignWindowFrame.module.css'
 
 export interface ForeignWindowFrameProps {
   /** The published record the frame renders. */
   readonly record: BoardWindowRecord
-  /** Slot renderer; the frame renders the kind's body card or the placeholder itself. */
+  /** Slot renderer; the frame renders the kind's body card or the general card itself. */
   readonly renderSlot: PropsRenderSlots<'board.foreign.window.body'>['renderSlot']
   /** Board namespace translator. */
   readonly t: BoardTranslate
@@ -32,28 +33,10 @@ export interface ForeignWindowFrameProps {
 }
 
 /**
- * Shared placeholder body of a foreign window: names the window and its
- * publishing owner until a kind registers its own card.
- * @param props - the record and the store seats.
- * @returns the placeholder content.
- */
-export function ForeignWindowPlaceholder({
-  record, t, useStore,
-}: Pick<ForeignWindowFrameProps, 'record' | 't' | 'useStore'>) {
-  const ownerName = useStore(s => participantLabel(t, participantOf(s, record.ownerId)))
-  const title = foreignWindowTitle(t, record)
-  return (
-    <span data-board-foreign-placeholder="">
-      {t('foreign.window.fallback', { kind: title, name: ownerName })}
-    </span>
-  )
-}
-
-/**
  * Render one foreign window. The body renders here, inside the memoized
  * frame, so an unchanged record does not call the slot dispatcher again.
  * @param props - the record, the slot renderer, and the store seats.
- * @returns the world-positioned placeholder frame.
+ * @returns the world-positioned frame.
  */
 export const ForeignWindowFrame = memo(function ForeignWindowFrame({
   record, renderSlot, t, useStore, actions,
@@ -61,7 +44,7 @@ export const ForeignWindowFrame = memo(function ForeignWindowFrame({
   const ownerColor = useStore(s => ownerColorAttr(s, record.ownerId))
   const ownerName = useStore(s => participantLabel(t, participantOf(s, record.ownerId)))
   // The record is as fresh as its host: a lost channel to the publishing
-  // Ketos marks the placeholder, a host the peer roster does not know (a
+  // Ketos marks the frame, a host the peer roster does not know (a
   // deployment without peer networking) does not.
   const stale = useStore(s => ownerLinkLost(s, record.hostId))
   const title = foreignWindowTitle(t, record)
@@ -115,7 +98,7 @@ export const ForeignWindowFrame = memo(function ForeignWindowFrame({
       <div className={css.body}>
         {renderSlot('board.foreign.window.body', { record }, {
           entryKey: record.kind,
-          fallback: <ForeignWindowPlaceholder record={record} t={t} useStore={useStore} />,
+          fallback: <ForeignWindowCard record={record} t={t} useStore={useStore} />,
         })}
       </div>
     </div>

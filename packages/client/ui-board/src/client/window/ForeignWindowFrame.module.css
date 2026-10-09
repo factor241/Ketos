@@ -1,7 +1,8 @@
-/* Foreign window placeholder: the published record drawn in world coordinates
- * with the owner's edge and bezel fill, a read-only header, and the shared
- * placeholder body. The frame never receives pointer events, so a click falls
- * through to the canvas and the board stays pannable over it. */
+/* Foreign window: the published record drawn in world coordinates with the
+ * owner's edge and bezel fill, a read-only header, and the kind's card as the
+ * body. The frame never receives pointer events, so a click falls through to
+ * the canvas and the board stays pannable over it; the card opts its controls
+ * back in. */
 
 .window {
   position: absolute;
@@ -45,7 +46,7 @@
 }
 
 /* Unlike a local window, the foreign bezel stays revealed: the owner fill and
- * mark are what tell the receiver whose placeholder this is. */
+ * mark are what tell the receiver whose window this is. */
 .window > [data-board-bezel] {
   opacity: 1;
   transform: none;
@@ -81,11 +82,8 @@
 .body {
   display: flex;
   flex: 1;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   min-height: 0;
   padding: 12px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: var(--board-font-hint);
-  text-align: center;
+  overflow: hidden;
 }

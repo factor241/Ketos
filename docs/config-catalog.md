@@ -4440,7 +4440,7 @@ export interface Config {
 ## `@ketos/peer`
 
 - `inject`: `connection` · `ketosBoardDoc`
-- `source`: [`packages/ketos/peer/src/index.ts:29`](../packages/ketos/peer/src/index.ts)
+- `source`: [`packages/ketos/peer/src/index.ts:35`](../packages/ketos/peer/src/index.ts)
 
 ```ts config-catalog
 /** Deployment configuration of the peer node. */
@@ -4453,7 +4453,11 @@ export interface Config {
   keyPath: string
   /** Path of the known-peer file. */
   peersPath: string
-  /** Largest accepted frame body, in bytes (1 KiB–64 MiB). */
+  /**
+   * Largest accepted frame body, in bytes (1 KiB–64 MiB). It must be at least
+   * `transcriptMaxBytes` plus 1 KiB, so with the default transcript bound it
+   * cannot be below 66560.
+   */
   maxFrameBytes?: number
   /**
    * Largest board synchronization update this Ketos sends, in bytes
@@ -4478,6 +4482,24 @@ export interface Config {
   stateRefreshMs?: number
   /** Local address the node binds, when the deployment pins one. */
   bindAddr?: string
+  /** Most messages this Ketos returns for a chat window it hosts; the latest ones are kept (1–200). */
+  transcriptMaxMessages?: number
+  /**
+   * Most UTF-16 code units of one returned message's text (1–100000).
+   * `transcriptMaxBytes` must be at least this value times 6 plus 256, so the
+   * longest message always fits.
+   */
+  transcriptMaxMessageChars?: number
+  /**
+   * Most bytes of one transcript response (1 KiB–1 MiB); the oldest messages
+   * drop first. At least `transcriptMaxMessageChars` times 6 plus 256 (6 bytes
+   * is the widest JSON escape of one UTF-16 unit). With the 1 KiB reserved for
+   * the request envelope it must fit this Ketos's `maxFrameBytes`. A receiving
+   * Ketos whose own `maxFrameBytes` is smaller than the response closes the link.
+   */
+  transcriptMaxBytes?: number
+  /** How long this Ketos waits for another Ketos to answer a transcript request, in milliseconds (500–60000). */
+  transcriptTimeoutMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@ketos/peer -->

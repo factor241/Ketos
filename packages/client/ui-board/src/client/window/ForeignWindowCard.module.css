@@ -1,0 +1,25 @@
+/* General foreign window card: a centered sentence, the optional kind label,
+ * and the age of the last change, all read-only text on the frame body. */
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+  text-align: center;
+}
+
+.lead {
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+.kind,
+.updated {
+  color: var(--dsw-alias-label-secondary);
+}

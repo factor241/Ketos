@@ -17,7 +17,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import * as BoardDoc from '@ketos/board-doc'
 import * as Peer from '@ketos/peer'
-import { PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH } from '../src/routes.ts'
+import { PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, PEER_TRANSCRIPT_PATH } from '../src/routes.ts'
 import { KetosPeerService } from '../src/service.ts'
 
 /** Stand-in for the authenticated Fetch surface the plugin registers onto. */
@@ -124,7 +124,10 @@ describe('peer package real Loader composition', () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
     const keyPath = join(root, 'peer.key')
     const { ctx, routes, withdrawn } = await boot(root, keyPath)
-    expect([...routes.keys()]).toEqual(expect.arrayContaining([PEER_STATE_PATH, PEER_INVITE_PATH, PEER_CONNECT_PATH]))
+    expect([...routes.keys()]).toEqual(expect.arrayContaining([
+      PEER_STATE_PATH, PEER_INVITE_PATH, PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_TRANSCRIPT_PATH,
+    ]))
+    expect(routes.get(PEER_TRANSCRIPT_PATH)?.methods).toEqual(['POST'])
     expect(routes.get(PEER_STATE_PATH)?.methods).toEqual(['GET'])
     expect(routes.get(PEER_INVITE_PATH)?.methods).toEqual(['GET'])
     expect(routes.get(PEER_CONNECT_PATH)?.methods).toEqual(['POST'])
@@ -132,7 +135,27 @@ describe('peer package real Loader composition', () => {
 
     await ctx.fiber.dispose()
     context = undefined
-    expect(withdrawn).toEqual(expect.arrayContaining([PEER_STATE_PATH, PEER_INVITE_PATH, PEER_CONNECT_PATH]))
+    expect(withdrawn).toEqual(expect.arrayContaining([
+      PEER_STATE_PATH, PEER_INVITE_PATH, PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_TRANSCRIPT_PATH,
+    ]))
+  })
+
+  it('mounts the transcript handler and withdraws it with the plugin, with no session service present', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const unsubscribe = vi.fn()
+    const handle = vi.spyOn(KetosPeerService.prototype, 'handle').mockReturnValue(unsubscribe)
+    try {
+      const { ctx } = await boot(root, keyPath)
+      expect(ctx.get('sessionPersistence')).toBeUndefined()
+      expect(handle.mock.calls.map(([type]) => type)).toContain('chat.transcript.request')
+      const withdrawnBefore = unsubscribe.mock.calls.length
+      await ctx.fiber.dispose()
+      context = undefined
+      expect(unsubscribe.mock.calls.length).toBeGreaterThan(withdrawnBefore)
+    } finally {
+      handle.mockRestore()
+    }
   })
 
   it('keeps the same node identity across restarts through the key file', async () => {
@@ -207,6 +230,67 @@ describe('peer package real Loader composition', () => {
     await expect(entry?.fiber?.await()).rejects.toThrow(/reconnectMinMs/u)
   })
 
+  it('refuses a transcript bound that leaves no room for the request envelope in a frame', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const refused = [
+      '    maxFrameBytes: 4096', '    maxSyncUpdateBytes: 2048', '    transcriptMaxBytes: 4096', '    transcriptMaxMessageChars: 100',
+    ]
+    const { ctx } = await boot(root, keyPath, refused, false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(/transcriptMaxBytes/u)
+  })
+
+  it('accepts the largest transcript bound the frame leaves room for', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    await boot(root, keyPath, [
+      '    maxFrameBytes: 4096', '    maxSyncUpdateBytes: 2048', '    transcriptMaxBytes: 3072', '    transcriptMaxMessageChars: 100',
+    ])
+  })
+
+  it('refuses a transcript byte bound below what the longest message can need', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    // 4000 units * 6 bytes of worst-case JSON escape + 256 bytes of wrapper, role, and time = 24256.
+    const { ctx } = await boot(root, keyPath, ['    transcriptMaxMessageChars: 4000', '    transcriptMaxBytes: 24255'], false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(/transcriptMaxMessageChars/u)
+  })
+
+  it('accepts the smallest transcript byte bound the longest message fits, and the defaults', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    await boot(root, keyPath, ['    transcriptMaxMessageChars: 4000', '    transcriptMaxBytes: 24256'])
+    const defaults = Peer.Config({ name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'k', peersPath: 'p' })
+    expect((defaults.transcriptMaxMessageChars as number) * 6 + 256).toBeLessThanOrEqual(defaults.transcriptMaxBytes as number)
+  })
+
+  it('defaults and bounds the transcript limits', () => {
+    const base = { name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'peer.key', peersPath: 'peers.json' }
+    const config = Peer.Config(base)
+    expect(config.transcriptMaxMessages).toBe(20)
+    expect(config.transcriptMaxMessageChars).toBe(4000)
+    expect(config.transcriptMaxBytes).toBe(65_536)
+    expect(config.transcriptTimeoutMs).toBe(5000)
+    const accepted: Array<Record<string, number>> = [
+      { transcriptMaxMessages: 1 }, { transcriptMaxMessages: 200 },
+      { transcriptMaxMessageChars: 1 }, { transcriptMaxMessageChars: 100_000 },
+      { transcriptMaxBytes: 1024 }, { transcriptMaxBytes: 1_048_576 },
+      { transcriptTimeoutMs: 500 }, { transcriptTimeoutMs: 60_000 },
+    ]
+    for (const override of accepted) expect(() => Peer.Config({ ...base, ...override })).not.toThrow()
+    const refused: Array<Record<string, number>> = [
+      { transcriptMaxMessages: 0 }, { transcriptMaxMessages: 201 }, { transcriptMaxMessages: 1.5 },
+      { transcriptMaxMessageChars: 0 }, { transcriptMaxMessageChars: 100_001 },
+      { transcriptMaxBytes: 1023 }, { transcriptMaxBytes: 1_048_577 },
+      { transcriptTimeoutMs: 499 }, { transcriptTimeoutMs: 60_001 },
+    ]
+    for (const override of refused) expect(() => Peer.Config({ ...base, ...override })).toThrow()
+  })
+
   it('defaults the reconnection ceiling to 20 seconds', () => {
     const config = Peer.Config({
       name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'peer.key', peersPath: 'peers.json',
@@ -244,6 +328,36 @@ describe('peer package real Loader composition', () => {
         && message.args.some(argument => String(argument).includes('board sync announce failed')),
       )).toBe(true)
     })
+  })
+
+  it('routes transcript failures through the plugin logger', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    let handler: ((payload: unknown, from: KetosPeerId) => unknown) | undefined
+    const handle = vi.spyOn(KetosPeerService.prototype, 'handle').mockImplementation((type, register) => {
+      if (type === 'chat.transcript.request') handler = (payload, from) => register(payload as never, from, {})
+      return () => undefined
+    })
+    try {
+      const { ctx } = await boot(root, keyPath)
+      const messages: Message[] = []
+      ctx.logger.exporter({
+        levels: { default: 100 },
+        export: (message) => { messages.push(message) },
+      })
+      // A closed board document makes the snapshot fail, which the handler
+      // reports as an unavailable owner and a warning line.
+      await ctx.ketosBoardDoc.close()
+      await expect(handler?.({ windowId: 'w1' }, brandString<KetosPeerId>('peer-x')))
+        .resolves.toEqual({ ok: false, reason: 'unavailable' })
+      expect(messages.some(message =>
+        message.name === 'ketos-peer'
+        && message.type === 'warn'
+        && message.args.some(argument => String(argument).includes('transcript of window w1 unavailable')),
+      )).toBe(true)
+    } finally {
+      handle.mockRestore()
+    }
   })
 
   it('ships the web profile row disabled so a developer machine never loads iroh', async () => {

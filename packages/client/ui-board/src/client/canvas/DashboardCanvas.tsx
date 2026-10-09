@@ -16,6 +16,7 @@ import { ERASER_RADIUS_PX, type BoardStrokeDraft } from '../board-tool.ts'
 import { startBoardBrushGesture } from '../brush-gesture.ts'
 import { startBoardEraserGesture } from '../eraser-gesture.ts'
 import type { BoardElementInjected } from '../contract/slots.ts'
+import { isBoardWindowTarget } from '../editing-target.ts'
 import { ownerColorAttr } from '../owners.ts'
 import { StrokeDraft } from './StrokeDraft.tsx'
 import css from './DashboardCanvas.module.css'
@@ -71,7 +72,7 @@ export function DashboardCanvas({ renderSlot, useStore, actions, createElement, 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (tool !== 'select') {
       if (e.button !== 0 || !e.isPrimary) return
-      if (e.target instanceof Element && e.target.closest('[data-board-window]') !== null) return
+      if (isBoardWindowTarget(e.target)) return
       const container = containerRef.current
       if (tool === 'brush' && limits !== null && container !== null) {
         startBoardBrushGesture({

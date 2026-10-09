@@ -1,5 +1,5 @@
 ---
-description: "Ketos 对等通道宿主包：带存储密钥的 iroh 节点、ctx.ketosPeer 背后的分帧消息通道、一次性邀请码与已知节点文件、每个 Ketos 发布的参与者记录，以及 /api/ketos.peer.* Fetch 路由。"
+description: "Ketos 对等通道宿主包：带存储密钥的 iroh 节点、ctx.ketosPeer 背后的分帧消息通道、一次性邀请码与已知节点文件、每个 Ketos 发布的参与者记录、外来聊天窗口的只读记录，以及 /api/ketos.peer.* Fetch 路由。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@ketos/peer` 拥有让不同计算机上的两个 Ketos 作为一个团队协同工作的通道。它绑定一个 iroh 节点，密钥存储在 `$DSH_HOME/peer.key`；在每条连接的一个双向流上承载分帧消息通道（`[u32 BE 长度][u8 类型码][数据]`）；通过一次性的 `ketos1.…` 邀请码接纳第二个 Ketos；把已接纳的节点记入 `$DSH_HOME/peers.json`，此后连接不再需要邀请码；并把每一侧的参与者记录发布到看板文档。其他 Ketos 包通过 `ctx.ketosPeer` 服务访问它；浏览器通过 `/api/ketos.peer.state`、`/api/ketos.peer.invite`、`/api/ketos.peer.connect` 和 `/api/ketos.peer.forget` 访问它。通道使用协议版本 2（`hello.v` 与 ALPN `ketos/peer/2`）；使用版本 1 的构建无法与之连接。
+`@ketos/peer` 拥有让不同计算机上的两个 Ketos 作为一个团队协同工作的通道。它绑定一个 iroh 节点，密钥存储在 `$DSH_HOME/peer.key`；在每条连接的一个双向流上承载分帧消息通道（`[u32 BE 长度][u8 类型码][数据]`）；通过一次性的 `ketos1.…` 邀请码接纳第二个 Ketos；把已接纳的节点记入 `$DSH_HOME/peers.json`，此后连接不再需要邀请码；把每一侧的参与者记录发布到看板文档；并提供对方 Ketos 聊天窗口的只读记录。其他 Ketos 包通过 `ctx.ketosPeer` 服务访问它；浏览器通过 `/api/ketos.peer.*` 访问它。
 
 节点按需启动——首次路由调用时启动，或插件启动时 `peers.json` 已记有节点则立即启动；随附的 web 配置默认关闭该行，因此从不组装演示环境的开发机永远不会加载原生 `@number0/iroh` 模块。
 
@@ -46,7 +46,7 @@ kind: "package-reference"
 | `relayUrls` | 必填 | 团队私有 iroh 中继的 URL 列表；至少一个。它是节点唯一的中继表：绝不使用 n0 公共中继。 |
 | `keyPath` | 必填 | 存储的 32 字节节点密钥；父目录以仅属主权限创建，文件为 `0600`。 |
 | `peersPath` | 必填 | 已知节点文件；以原子方式写入，权限 `0600`。 |
-| `maxFrameBytes` | `16777216` | 接受的最大帧体（1 KiB–64 MiB）。 |
+| `maxFrameBytes` | `16777216` | 接受的最大帧体（1 KiB–64 MiB）。它必须至少为 `transcriptMaxBytes` 加 1024，因此在 `transcriptMaxBytes` 保持默认值时不能低于 66560。 |
 | `maxSyncUpdateBytes` | `15728640` | 本 Ketos 发送的最大看板同步更新（1 KiB–64 MiB；必须小于 `maxFrameBytes`）。 |
 | `onlineTimeoutMs` | `15000` | `invite()` 等待中继地址的时长（1000–120000）。 |
 | `connectTimeoutMs` | `10000` | 拨号、流与握手的单步上限；也是请求的默认超时（1000–120000）。 |
@@ -55,6 +55,10 @@ kind: "package-reference"
 | `inviteTtlMs` | `3600000` | 一次性邀请密钥的有效期（60000–86400000）。 |
 | `stateRefreshMs` | `1000` | 状态路由发布的轮询间隔（250–60000）。 |
 | `bindAddr` | 无 | 本地绑定地址；缺省时在所有接口上绑定临时端口。 |
+| `transcriptMaxMessages` | `20` | 本 Ketos 为其托管的聊天窗口返回的最多消息数；保留最新的（1–200）。 |
+| `transcriptMaxMessageChars` | `4000` | 单条返回消息文本的最多 UTF-16 码元数（1–100000）。`transcriptMaxBytes` 必须至少为该值 × 6 + 256。 |
+| `transcriptMaxBytes` | `65536` | 一次记录应答的最大字节数；最旧的消息先被丢弃（1024–1048576）。它必须至少为 `transcriptMaxMessageChars` × 6 + 256，连同为请求信封预留的 1024 字节，还必须容纳于 `maxFrameBytes`；插件在加载时检查这两点。 |
+| `transcriptTimeoutMs` | `5000` | 本 Ketos 等待另一个 Ketos 应答记录请求的时长（500–60000）。 |
 
 服务是其他 Ketos 包使用的宿主侧接缝：
 
@@ -62,7 +66,7 @@ kind: "package-reference"
 |---|---|
 | `peers(): PeerState[]` | 每个已知节点及其 `peerId`、`selfId`、`name`、`color` 和 `link: 'online' \| 'connecting' \| 'lost'` |
 | `send(peerId, type, payload)` | 向已连接节点发送一帧；通道未打开时拒绝 |
-| `request(peerId, type, payload, { timeoutMs })` | 发送一个请求信封；应答时兑现，超时或远端错误时拒绝 |
+| `request(peerId, type, payload, { timeoutMs })` | 发送一个请求信封；应答时兑现，超时（`PeerRequestTimeoutError`）、通道关闭或远端错误时拒绝 |
 | `handle(type, handler): () => void` | 注册处理器；同一类型的每个处理器都会运行，第一个的返回值作为请求应答。消费者通过 `ctx.effect` 负责取消订阅 |
 | `invite(): Promise<string>` | 中继地址就绪后生成一个 `ketos1.<ticket>.<secret>` 码；此前未使用的密钥会被替换 |
 | `connect(code): Promise<{ peerId }>` | 拨打代码中的 ticket，完成握手并记录该节点 |
@@ -73,7 +77,7 @@ kind: "package-reference"
 | `close(): Promise<void>` | 等待进行中的启动结束，然后关闭节点、其通道及所有重连尝试 |
 | `closeSyncTooLarge(peerId)` | 因发出的同步更新超过上限而关闭一条通道；对方仍被记住并可重拨 |
 
-浏览器轮询一个路由，并通过三个路由写入：
+浏览器轮询一个路由，通过三个路由写入，并通过一个路由读取外来记录：
 
 | 路由 | 方法 | 请求体 | 应答 |
 |---|---|---|---|
@@ -81,8 +85,9 @@ kind: "package-reference"
 | `/api/ketos.peer.invite` | `GET` | — | `{ invite }` |
 | `/api/ketos.peer.connect` | `POST` | `{ invite }` | `{ peerId }` |
 | `/api/ketos.peer.forget` | `POST` | `{ peerId }` | `{ ok: true }` |
+| `/api/ketos.peer.transcript` | `POST` | `{ windowId }` | `{ messages: { role: 'user' \| 'agent', text, at }[] }`，最旧的在前 |
 
-拒绝时返回 `{ ok: false, error }`，其值为 `ketos/invalid`（400）、`ketos/peer-self`（409）、`ketos/invite-used`（409）、`ketos/peer-unreachable`（504）、`ketos/peer-offline`（503）、`ketos/peer-online`（409，遗忘通道在线的节点）或 `ketos/peer-unknown`（404，遗忘不在列表中的节点）；其他情况为空的 500。路由调用会启动节点，因此从不轮询它的进程永远不会绑定。
+拒绝时返回 `{ ok: false, error }`，其值为 `ketos/invalid`（400）、`ketos/peer-self`（409）、`ketos/invite-used`（409）、`ketos/peer-unreachable`（504）、`ketos/peer-offline`（503）、`ketos/peer-online`（409，遗忘通道在线的节点）、`ketos/peer-unknown`（404，遗忘不在列表中的节点）、`ketos/transcript-closed`（403，所有者的访问设置不接纳本 Ketos）、`ketos/window-not-found`（404，没有这个外来聊天窗口，或所有者已不再托管它）或 `ketos/peer-timeout`（504，所有者未在 `transcriptTimeoutMs` 内应答）；其他情况为空的 500。当所有者没有在线通道、无法读取其会话日志，或发来的应答不属于任何导线形式时，记录路由还会返回 `ketos/peer-offline`。路由调用会启动节点，因此从不轮询它的进程永远不会绑定。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -96,7 +101,7 @@ kind: "package-reference"
 
 ### 帧
 
-一条连接承载一个双向 QUIC 流；每条消息为 `[u32 BE 长度][u8 类型码][帧体]`。类型码表保留 `1 hello`、`2 bye`、`3 board.sv`、`4 board.update`、`5 chat.transcript.request`、`6 chat.transcript.response` 和 `7 syncthing.device`；阶段 34–35 通过声明合并把各自的载荷并入 `PeerFrameTypeMap` 并注册处理器，没有处理器的保留帧只记一行日志后被忽略。类型码 `3` 和 `4` 携带原始的、非空的 `Uint8Array` 帧体（Yjs 更新经 JSON 会膨胀且无法还原）；其余帧体为 JSON，请求/响应信封只存在于 JSON 类型码上。`send` 在入队前先编码并测量帧，因此词表拒绝的载荷和超过 `maxFrameBytes` 的帧体在发送方失败，而不会破坏接收方。二进制类型码的帧体若是 JSON 对象或数组也会被拒绝：版本 1 把这些帧编码为 JSON，接收方拒绝它们，而不是交给 Yjs。畸形帧体、未知类型码或被截断的帧会以 `2n` 关闭连接；处理器抛出的异常只记日志且通道继续存活，因为单个消费者的失败不应以连接为代价。
+一条连接承载一个双向 QUIC 流；每条消息为 `[u32 BE 长度][u8 类型码][帧体]`。类型码表保留 `1 hello`、`2 bye`、`3 board.sv`、`4 board.update`、`5 chat.transcript.request`、`6 chat.transcript.response` 和 `7 syncthing.device`；消费者通过声明合并把各自的载荷并入 `PeerFrameTypeMap` 并注册处理器，没有处理器的保留帧只记一行日志后被忽略。记录应答以响应信封的形式走类型码 `5`，因此类型码 `6` 不承载任何帧。类型码 `3` 和 `4` 携带原始的、非空的 `Uint8Array` 帧体（Yjs 更新经 JSON 会膨胀且无法还原）；其余帧体为 JSON，请求/响应信封只存在于 JSON 类型码上。`send` 在入队前先编码并测量帧，因此词表拒绝的载荷和超过 `maxFrameBytes` 的帧体在发送方失败，而不会破坏接收方。二进制类型码的帧体若是 JSON 对象或数组也会被拒绝：版本 1 把这些帧编码为 JSON，接收方拒绝它们，而不是交给 Yjs。畸形帧体、未知类型码或被截断的帧会以 `2n` 关闭连接；处理器抛出的异常只记日志且通道继续存活，因为单个消费者的失败不应以连接为代价。
 
 请求与应答共用同一帧类型：请求体为 `{ requestId, request }`，应答为 `{ requestId, response }` 或 `{ requestId, error }`。提问方拥有 `requestId` 及其超时；无人应答的请求在提问方超时。
 
@@ -121,6 +126,14 @@ kind: "package-reference"
 ### 看板同步
 
 `src/board-sync.ts` 把看板文档接入通道：每次 `ketos-peer/connected`——首次连接和每次重连——本 Ketos 都发送自己的状态向量（`board.sv`）；收到向量后以 `diffSince(vector)` 回答（`board.update`）；收到的更新经 `applyRemote` 应用，本 Ketos 产生的每个事务都会转发给每个已连接的对端。文档的 `peer` 来源保证已应用的更新不会回声，因此一次变更就是一帧。超过 `maxSyncUpdateBytes` 的更新永不发送：主机日志写入 `board.sync.too-large`，并以关闭码 `4n` 关闭通道；对端仍被记住并可重拨。当 `applyRemote` 抛出异常，或因 Yjs 把结构保留以等待更早的更新而返回 `{ pending: true }` 时，本 Ketos 会在一段暂停后再次发送状态向量，暂停从 `reconnectMinMs` 开始翻倍直至 `reconnectMaxMs`（日志行 `board.sync.resync`），由发送方补齐文档缺少的部分，而不是让缺口持续到下一次重连。干净的应用会结束仅为这类缺口安排的重新同步，失败的应用保留其重新同步，新通道则以完整的向量交换取代任何重新同步。
+
+### 外来聊天记录
+
+一个 Ketos 把另一个 Ketos 的聊天窗口显示为卡片，其用户可以请求该窗口的最新消息。提问的 Ketos 在自己的看板文档中找到窗口记录，把 `chat.transcript.request` 连同 `{ windowId }` 发给 `selfId` 等于记录 `hostId` 的在线对端（`POST /api/ketos.peer.transcript`）。它只接受由另一个 Ketos 托管、`kind: 'agent'` 的窗口。除超时之外的任何请求失败（例如通道已关闭或所有者抛出错误）都返回 `ketos/peer-offline`；所有者在 `transcriptTimeoutMs` 内未应答的请求返回 `ketos/peer-timeout`。应答按下述导线形式检查；畸形的应答视为所有者不可用，其中任何一条消息畸形都会使整个应答被拒绝。
+
+只有所属 Ketos 在 `src/transcript.ts` 中做决定。它从看板文档读取自己的窗口记录，除非记录的 `hostId` 等于本地 `selfId`、`kind` 为 `agent` 且带有 `sessionId`，否则应答 `{ ok: false, reason: 'not-found' }`。请求方是帧到达的那条通道背后的已知对端，其身份是该对端在 `hello` 中声明的 `selfId`；请求体只指明窗口，别无其他，出现任何其他字段即为畸形，应答 `not-found`。访问遵循记录：`all` 接纳每个已知对端，`owner` 接纳 `selfId` 等于记录 `ownerId` 的对端，`selected` 接纳记录的 `ownerId` 以及 `selfId` 出现在 `access.people` 中的对端（客户端不会把所有者写入该列表）；其余情况应答 `{ ok: false, reason: 'closed' }`。每次请求都会重新读取记录，因此关闭窗口会立即停止应答。
+
+`src/transcript-read.ts` 通过 `ctx.sessionPersistence` 以读取句柄读取会话，先刷新处于活动状态的会话，并以每 500 个事件为一片。分片只限制本包保留的记录文本，不限制后端内存：JSONL 后端每次读取都会解码整个日志，仅在文件修订号不变时才复用结果，每次请求都会刷新活动会话，并且不对已配对对端的并发请求限流。尚无已存储日志的会话（例如新窗口）应答 `{ ok: true, messages: [] }`。只有 `source.kind` 为 `user` 的 `user/message` 事件和 `assistant/message` 事件有贡献，且仅限追加到会话表面的事件（压缩写入的替换副本被跳过），只取其 `text` 块并以空行连接；推理、工具调用与结果、图片、文件、其他生产者注入的上下文，以及系统或开发者消息都不会离开所属 Ketos。应答最多包含 `transcriptMaxMessages` 条最新消息，每条文本按 `transcriptMaxMessageChars` 个码元截断且不拆分代理对，并且丢弃最旧的消息，直到 `{ ok: true, messages }` 的 JSON 不超过 `transcriptMaxBytes`；截断后文本为空的消息被跳过。加载时对 `transcriptMaxBytes` 的检查（6 字节是单个 UTF-16 码元最宽的 JSON 转义，256 字节涵盖包装、角色与时间）保证最长的消息放得下，因此过大的最新消息不会清空记录。在查找与刷新之间离开活动存储的会话按冷会话读取。会话服务未挂载、已有日志读取失败或看板读取失败时，应答 `{ ok: false, reason: 'unavailable' }`，不含错误中的任何文字；主机日志保留一行，记录窗口 id 与错误。可选的会话服务在每次请求时用 `ctx.get` 解析，因此随附的 web 配置在没有它们时也能加载该行。
 
 ### 重连
 
@@ -151,7 +164,9 @@ kind: "package-reference"
 | [`src/color.ts`](src/color.ts) | 调色板规则：首个空闲、下一个空闲、有效性 |
 | [`src/service.ts`](src/service.ts) | `ctx.ketosPeer` 服务、事件、已知节点、参与者与重连 |
 | [`src/board-sync.ts`](src/board-sync.ts) | 通道上的看板文档调度：状态向量、更新、超限边界与重新同步 |
-| [`src/routes.ts`](src/routes.ts) | 四个 Fetch 路由及其错误码 |
+| [`src/transcript.ts`](src/transcript.ts) | `chat.transcript.*` 帧类型、带访问决定的所有者侧处理器，以及双方共用的导线校验 |
+| [`src/transcript-read.ts`](src/transcript-read.ts) | 从已存储会话读取最新消息及其三项限制 |
+| [`src/routes.ts`](src/routes.ts) | 五个 Fetch 路由及其错误码 |
 | — | 不发布运行时不变量伴随包：状态、已知节点与分帧关系由使用内存传输的包规范覆盖，没有独立可观察的进程内关系可供发布。 |
 
 </details>
@@ -167,7 +182,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无：对等通道是传输状态——对等身份、邀请码、帧体与参与者颜色只到达浏览器和其他宿主包，绝不进入模型请求、提示词段落、工具 schema 或会话事件。阶段 33–35 拥有在其之上变为模型可见的一切。
+无：对等通道是传输状态——对等身份、邀请码、帧体、参与者颜色与外来聊天窗口的记录文本只到达浏览器和其他宿主包，绝不进入模型请求、提示词段落、工具 schema 或会话事件。建立在通道之上的包拥有变为模型可见的一切。
 
 #### KV Cache effect
 
@@ -180,7 +195,12 @@ kind: "package-reference"
 - 范围只覆盖两个 Ketos 实例；调色板规则与已知节点列表可以容纳更多，但没有阶段演练第三个节点。
 - 同一时间只挂起一个邀请密钥，且仅存内存：邀请方 Ketos 重启会使未使用的邀请码失效。
 - 接收方不存储 ticket，因此非对称重连依赖拨号方的重试；双方都重启后，原先拨号的一侧凭保存的 ticket 重连。
-- 没有按人权限：已知对等方的任何帧都被接受，这是在演示之前的有意选择。
+- 已知对端的任何帧都被接受；唯一按人的规则是聊天记录的访问，它依据对端在 `hello` 中声明的 `selfId` 决定。通道不认证这一声明，已配对节点也可以更改它，因此已知对端可以冒称另一位参与者的 id，记录路由也会接受任何声称拥有所有者 `selfId` 的在线对端的应答；演示之前，该通道信任其对端。
+- 记录决定所读取的窗口记录属于同步的看板文档，而该文档信任另一个 Ketos 的写入（`applyRemote` 不强制单一写入者），因此恶意的已配对 Ketos 可以改写另一个 Ketos 的窗口访问设置或 `sessionId` 并读取其记录。身份与记录归属的加固推迟到演示之后。
+- 记录只包含聊天最新的 `transcriptMaxMessages` 条文本消息。工具调用与结果、附件和推理一律不包含，超过 `transcriptMaxMessageChars` 的消息被截断且没有标记。
+- 所有者每次记录请求都从第一个事件起读取会话日志、不做缓存、每次刷新活动会话且不限流，因此对很长会话的请求每次都要付出遍历日志的代价；JSONL 后端自身的复用仅在文件修订号不变时有效。
+- `transcriptMaxBytes` 大于接收方 Ketos 的 `maxFrameBytes` 时，应答到达时接收方拒绝该帧并关闭链路；加载时只检查所有者自己的 `maxFrameBytes`。
+- 没有记录处理器的对端构建会让请求保持无应答直到 `transcriptTimeoutMs`，提问方将其报告为 `ketos/peer-timeout`；协议版本没有变化。
 - `@number0/iroh` 不提供 `darwin-x64` 构建，因此 Intel Mac 上的 Ketos 只能借助 Docker 演示环境使用对等通道。
 - `watch*` 禁令是 iroh-js `1.1.0` 的权宜之计；当锁定版本升级到崩溃修复之后，禁令随之解除并同步更新门禁。
 - 超过 `maxSyncUpdateBytes` 的同步更新不会发送：通道关闭、对端以越来越长的暂停重拨并重复交换。该上限远高于正常看板（阶段 30 已对笔迹取整），只有病态文档才会触及。

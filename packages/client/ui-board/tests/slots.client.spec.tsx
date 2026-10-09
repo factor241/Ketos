@@ -12,6 +12,9 @@ import { DEMO_SELF_ID } from '../src/client/owners.ts'
 import type { BoardWindowState, WindowId } from '../src/client/contract/slots.ts'
 import { BOARD_PANEL_ID } from '../src/client/contract/slots.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type {
+  BoardDocId, BoardRevision, OwnerId, WindowId as RecordWindowId, WindowSessionId,
+} from '@ketos/board-doc/types'
 import type { CloneId } from '@ketos/clone-core/types'
 import { chatSnapshot, createBoardBench } from './fixtures.client.ts'
 import railCss from '../src/client/dock/SessionRail.module.css'
@@ -174,6 +177,60 @@ describe('board slot composition', () => {
     await runtime.flush()
     const cloneFrame = panel.container.querySelector('[data-board-window="clone"]')
     expect(cloneFrame?.querySelector('button[aria-label="Open fullscreen"]')).toBeNull()
+  })
+
+  it('occupies the foreign body seat for agent windows and reads the transcript through the host route', async () => {
+    const requests: Array<{ url: string; body: unknown }> = []
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
+      requests.push({ url: String(input), body: JSON.parse(init?.body as string) })
+      return Response.json({ messages: [{ role: 'agent', text: 'Hello', at: '2026-10-09T10:00:00.000Z' }] })
+    }))
+    try {
+      const { runtime } = await bench()
+      expect(runtime.slots.entries('board.foreign.window.body').map(entry => entry.options.key)).toEqual(['agent'])
+      const panel = runtime.renderSlot('main', {}, { entryKey: 'board' })
+      const board = runtime.storeOf('board.dock') as BoardInstance
+      const other = 'owner-other' as OwnerId
+      act(() => {
+        board.actions.applyBoardSnapshot({
+          docId: 'doc-1' as BoardDocId,
+          selfId: 'owner-self' as OwnerId,
+          revision: 1 as BoardRevision,
+          elements: [],
+          participants: [
+            { id: 'owner-self' as OwnerId, name: 'Kirill', color: 1, updatedAt: 1 },
+            { id: other, name: 'Юрист', color: 3, updatedAt: 1 },
+          ],
+          windows: [],
+          limits: { elementBytesMax: 262_144, noteTextMax: 20_000, strokePointsMax: 2000, todoItemsMax: 200 },
+        })
+        board.actions.applyBoardPatch({
+          revision: 2 as BoardRevision,
+          upserts: [],
+          removes: [],
+          windows: {
+            upserts: [{
+              id: 'agent-9-remote' as RecordWindowId, hostId: other, ownerId: other, kind: 'agent', bodyKind: 'conversation',
+              title: null, ordinal: 9, x: 24, y: 24, w: 552, h: 648, z: 10,
+              access: { mode: 'owner', people: [] }, status: 'ready', updatedAt: Date.now(),
+              sessionId: 'session-9' as WindowSessionId,
+            }],
+            removes: [],
+          },
+        })
+      })
+      await runtime.flush()
+      expect(panel.container.querySelector('[data-board-foreign-card="agent"]')?.textContent).toContain('Owner: Юрист')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show transcript' }))
+      await runtime.flush()
+      expect(requests).toHaveLength(1)
+      expect(new URL(requests[0]?.url ?? '').pathname).toBe('/api/ketos.peer.transcript')
+      expect(requests[0]?.body).toEqual({ windowId: 'agent-9-remote' })
+      expect(panel.container.querySelector('[data-board-transcript-message="agent"]')?.textContent).toContain('Hello')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('swaps the body occupant when bodyKind changes', async () => {

@@ -28,6 +28,7 @@ import type { BoardOp, ElementId } from '@ketos/board-doc/types'
 import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardWindowDraftFile } from './store.ts'
 import { fetchBoardSnapshot, openBoardEvents, postBoardOps } from './board-doc-api.ts'
 import { connectPeer, createInvite, fetchPeerState } from './peer-api.ts'
+import { fetchTranscript } from './transcript-api.ts'
 import { placeTodoList } from './todo-api.ts'
 import { TodoPlacement } from './todo-placement.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
@@ -50,7 +51,7 @@ import {
 } from './tasks-api.ts'
 import { sessionArtifacts } from './window/artifacts-model.ts'
 import type {
-  BoardCloneRoster, BoardDraftImage, BoardElementInjected, BoardPeerInjected, BoardPresetRoster, BoardTaskOutcome,
+  BoardCloneRoster, BoardDraftImage, BoardElementInjected, BoardForeignInjected, BoardPeerInjected, BoardPresetRoster, BoardTaskOutcome,
   BoardTaskProgress, BoardTaskRoster, BoardWindowInjected, CloneModelOption, WindowId,
 } from './contract/slots.ts'
 import type { BoardKey } from './locale.ts'
@@ -59,6 +60,7 @@ import { ReturnToWindowAction, type ReturnToWindowActionInjected } from './Retur
 import type { BoardWheelMode } from './wheel-zoom.ts'
 import { DashboardCanvas } from './canvas/DashboardCanvas.tsx'
 import { BoardWindowLayer } from './canvas/BoardWindowLayer.tsx'
+import { ForeignChatCard } from './window/ForeignChatCard.tsx'
 import { ForeignWindowLayer } from './window/ForeignWindowLayer.tsx'
 import { BoardElementLayer } from './elements/BoardElementLayer.tsx'
 import { NoteElement } from './elements/NoteElement.tsx'
@@ -1182,8 +1184,8 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
 
   // 3c. Foreign-window layer: renders the shared records of other Ketoses in
   //     paint order, between the elements and the local windows. It declares
-  //     the keyed foreign-body seat; the shared placeholder covers kinds
-  //     without an occupant (stage 34 registers the chat card).
+  //     the keyed foreign-body seat; the general window card covers kinds
+  //     without an occupant.
   ctx.slots.inject('board.foreign.windows', () => ctx.slots.register({
     name: 'board.foreign.windows',
     store: boardStore,
@@ -1192,6 +1194,15 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
       'board.foreign.window.body': { kind: 'keyed', scope: 'root' },
     },
   }, ForeignWindowLayer))
+
+  // Foreign agent window: the read-only chat card with the on-demand transcript.
+  ctx.slots.inject('board.foreign.window.body', () => ctx.slots.register({
+    name: 'board.foreign.window.body',
+    key: 'agent',
+    store: boardStore,
+    locale: NS,
+    inject: (): BoardForeignInjected => ({ fetchTranscript }),
+  }, ForeignChatCard))
 
   // 3b. Element layer: declares the keyed element-body seat; its fallback
   //     neutral body covers kinds without a registered occupant.

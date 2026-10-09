@@ -171,12 +171,12 @@ describe('foreign window layer', () => {
     expect(frame?.getAttribute('aria-label')).toBe('Window of Kirill')
   })
 
-  it('falls back to the kind template name and the placeholder body', () => {
+  it('falls back to the kind template name and the general card body', () => {
     const instance = instanceWith([record({ title: 'Ревью' })])
     const view = render(createElement(ForeignWindowLayer, layerProps(instance)))
     expect(view.container.querySelector('[data-board-foreign-title]')?.textContent).toBe('Ревью')
-    expect(view.container.querySelector('[data-board-foreign-placeholder]')?.textContent)
-      .toBe('Юрист: Ревью')
+    expect(view.container.querySelector('[data-board-foreign-card="window"]')?.textContent)
+      .toContain('Window on computer Юрист')
 
     cleanup()
     const untitled = instanceWith([record({ title: null, ordinal: 2 })])
@@ -184,13 +184,13 @@ describe('foreign window layer', () => {
     expect(second.container.querySelector('[data-board-foreign-title]')?.textContent).toBe('Agent #2')
   })
 
-  it('renders a kind-registered body instead of the placeholder', () => {
+  it('renders a kind-registered body instead of the general card', () => {
     const instance = instanceWith([record()])
     const renderSlot = (name: string): unknown =>
       name === 'board.foreign.window.body' ? createElement('span', { 'data-testid': 'chat-card' }) : null
     const view = render(createElement(ForeignWindowLayer, layerProps(instance, renderSlot)))
     expect(view.container.querySelector('[data-testid="chat-card"]')).not.toBeNull()
-    expect(view.container.querySelector('[data-board-foreign-placeholder]')).toBeNull()
+    expect(view.container.querySelector('[data-board-foreign-card]')).toBeNull()
   })
 
   it('culls a record outside the visible canvas', () => {

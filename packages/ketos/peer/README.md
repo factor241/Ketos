@@ -1,5 +1,5 @@
 ---
-description: "The Ketos peer channel host package: the iroh node with a stored key, the framed message channel behind ctx.ketosPeer, the one-time invitation code and the known-peer file, the participant record each Ketos publishes, and the /api/ketos.peer.* Fetch routes."
+description: "The Ketos peer channel host package: the iroh node with a stored key, the framed message channel behind ctx.ketosPeer, the one-time invitation code and the known-peer file, the participant record each Ketos publishes, the read-only transcript of a foreign chat window, and the /api/ketos.peer.* Fetch routes."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@ketos/peer` owns the channel that lets two Ketos instances on different computers work as one team: an iroh node with a key at `$DSH_HOME/peer.key`, a framed message channel, a one-time `ketos1.…` invitation code, the known-peer file `$DSH_HOME/peers.json`, and each side's participant record in the board document. Other packages reach it through `ctx.ketosPeer`; the browser through `/api/ketos.peer.*`. The channel speaks protocol version 2 (`hello.v` and ALPN `ketos/peer/2`); a build that speaks version 1 cannot connect to it. The node starts lazily, and the shipped web profile keeps the row disabled, so a machine without the stand never loads the native module.
+`@ketos/peer` owns the channel that lets two Ketos instances on different computers work as one team: an iroh node with a key at `$DSH_HOME/peer.key`, a framed message channel, a one-time `ketos1.…` invitation code, the known-peer file `$DSH_HOME/peers.json`, each side's participant record in the board document, and the read-only transcript of the other Ketos's chat windows. Other packages reach it through `ctx.ketosPeer`; the browser through `/api/ketos.peer.*`. The node starts lazily, and the shipped web profile keeps the row disabled, so a machine without the stand never loads the native module.
 
 ## Table of Contents
 
@@ -44,7 +44,7 @@ The stand mounts the package through its own overlay (`docker/stand/stand.patch.
 | `relayUrls` | required | Relay URLs of the team's private iroh relay; at least one. It is the node's only relay map: public n0 relays are never used. |
 | `keyPath` | required | Stored 32-byte node key; the parent directory is created owner-only, the file `0600`. |
 | `peersPath` | required | Known-peer file; written atomically `0600`. |
-| `maxFrameBytes` | `16777216` | Largest accepted frame body (1 KiB–64 MiB). |
+| `maxFrameBytes` | `16777216` | Largest accepted frame body (1 KiB–64 MiB). It must be at least `transcriptMaxBytes` plus 1024, so it cannot be below 66560 while `transcriptMaxBytes` keeps its default. |
 | `maxSyncUpdateBytes` | `15728640` | Largest board synchronization update this Ketos sends (1 KiB–64 MiB; must be less than `maxFrameBytes`). |
 | `onlineTimeoutMs` | `15000` | How long `invite()` waits for a relay address (1000–120000). |
 | `connectTimeoutMs` | `10000` | Dial, stream, and handshake step bound; also the default request timeout (1000–120000). |
@@ -53,6 +53,10 @@ The stand mounts the package through its own overlay (`docker/stand/stand.patch.
 | `inviteTtlMs` | `3600000` | Lifetime of one invitation secret (60000–86400000). |
 | `stateRefreshMs` | `1000` | Poll interval the state route publishes (250–60000). |
 | `bindAddr` | absent | Local bind address; absent binds every interface on an ephemeral port. |
+| `transcriptMaxMessages` | `20` | Most messages this Ketos returns for a chat window it hosts; the latest ones are kept (1–200). |
+| `transcriptMaxMessageChars` | `4000` | Most UTF-16 code units of one returned message's text (1–100000). `transcriptMaxBytes` must be at least this value × 6 + 256. |
+| `transcriptMaxBytes` | `65536` | Most bytes of one transcript response; the oldest messages drop first (1024–1048576). It must be at least `transcriptMaxMessageChars` × 6 + 256, and with 1024 bytes reserved for the request envelope it must fit `maxFrameBytes`; the plugin checks both at load. |
+| `transcriptTimeoutMs` | `5000` | How long this Ketos waits for the other Ketos to answer a transcript request (500–60000). |
 
 The service is the host-side seam other Ketos packages use:
 
@@ -60,7 +64,7 @@ The service is the host-side seam other Ketos packages use:
 |---|---|
 | `peers(): PeerState[]` | Every known peer with `peerId`, `selfId`, `name`, `color`, and `link: 'online' \| 'connecting' \| 'lost'` |
 | `send(peerId, type, payload)` | One frame to a connected peer; rejects while no channel is open |
-| `request(peerId, type, payload, { timeoutMs })` | One request envelope; the answer resolves, a timeout or remote error rejects |
+| `request(peerId, type, payload, { timeoutMs })` | One request envelope; the answer resolves, a timeout (`PeerRequestTimeoutError`), a closed channel, or a remote error rejects |
 | `handle(type, handler): () => void` | Registers a handler; every handler of a type runs, the first one's value answers a request. Consumers own the unsubscribe through `ctx.effect` |
 | `invite(): Promise<string>` | One `ketos1.<ticket>.<secret>` code after the relay address exists; a previous unused secret is replaced |
 | `connect(code): Promise<{ peerId }>` | Dials the code's ticket, completes the handshake, and records the peer |
@@ -71,7 +75,7 @@ The service is the host-side seam other Ketos packages use:
 | `close(): Promise<void>` | Waits for a start in flight, then closes the node, its channels, and every reconnect attempt |
 | `closeSyncTooLarge(peerId)` | Closes one channel because an outgoing synchronization update exceeded the bound; the peer stays known and redials |
 
-The browser polls one route and writes through three:
+The browser polls one route, writes through three, and reads a foreign transcript through one:
 
 | Route | Method | Body | Answer |
 |---|---|---|---|
@@ -79,8 +83,9 @@ The browser polls one route and writes through three:
 | `/api/ketos.peer.invite` | `GET` | — | `{ invite }` |
 | `/api/ketos.peer.connect` | `POST` | `{ invite }` | `{ peerId }` |
 | `/api/ketos.peer.forget` | `POST` | `{ peerId }` | `{ ok: true }` |
+| `/api/ketos.peer.transcript` | `POST` | `{ windowId }` | `{ messages: { role: 'user' \| 'agent', text, at }[] }`, oldest first |
 
-A refusal answers `{ ok: false, error }` with `ketos/invalid` (400), `ketos/peer-self` (409), `ketos/invite-used` (409), `ketos/peer-unreachable` (504), `ketos/peer-offline` (503), `ketos/peer-online` (409, forget of a peer on a live channel), or `ketos/peer-unknown` (404, forget of a peer not in the list); anything else is an empty 500. The route call starts the node, so a process that never polls it never binds.
+A refusal answers `{ ok: false, error }` with `ketos/invalid` (400), `ketos/peer-self` (409), `ketos/invite-used` (409), `ketos/peer-unreachable` (504), `ketos/peer-offline` (503), `ketos/peer-online` (409, forget of a peer on a live channel), `ketos/peer-unknown` (404, forget of a peer not in the list), `ketos/transcript-closed` (403, the owner's access does not admit this Ketos), `ketos/window-not-found` (404, no such foreign chat window or the owner no longer hosts it), or `ketos/peer-timeout` (504, the owner did not answer within `transcriptTimeoutMs`); anything else is an empty 500. The transcript route also answers `ketos/peer-offline` when the owner has no online channel, could not read its session log, or sent an answer that is not one of the wire forms. The route call starts the node, so a process that never polls it never binds.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
@@ -94,7 +99,7 @@ The first start reads `keyPath`; a missing file is generated once with `SecretKe
 
 ### Frames
 
-One connection carries one bidirectional QUIC stream; every message is `[u32 BE length][u8 code][body]`. The code table reserves `1 hello`, `2 bye`, `3 board.sv`, `4 board.update`, `5 chat.transcript.request`, `6 chat.transcript.response`, and `7 syncthing.device`; stages 34–35 merge their payloads into `PeerFrameTypeMap` through declaration merging and register handlers, and a reserved frame without a handler is ignored with one log line. Codes `3` and `4` carry raw, non-empty `Uint8Array` bodies (the Yjs updates JSON would inflate and never restore); every other body is JSON, and the request/response envelope exists only on JSON codes. `send` encodes and measures a frame before queueing it, so a payload the vocabulary refuses and a body over `maxFrameBytes` fail at the sender instead of breaking the receiver. A binary code whose body is a JSON object or array is refused as well: version 1 sent those frames as JSON, and the receiver rejects them instead of feeding them to Yjs. A malformed body, an unknown code, or a truncated frame closes the connection with code `2n`; a frame handler that throws is logged and the channel stays alive, because one consumer's failure must not cost the connection.
+One connection carries one bidirectional QUIC stream; every message is `[u32 BE length][u8 code][body]`. The code table reserves `1 hello`, `2 bye`, `3 board.sv`, `4 board.update`, `5 chat.transcript.request`, `6 chat.transcript.response`, and `7 syncthing.device`; consumers merge their payloads into `PeerFrameTypeMap` through declaration merging and register handlers, and a reserved frame without a handler is ignored with one log line. A transcript answer travels in the response envelope on code `5`, so code `6` carries no frame. Codes `3` and `4` carry raw, non-empty `Uint8Array` bodies (the Yjs updates JSON would inflate and never restore); every other body is JSON, and the request/response envelope exists only on JSON codes. `send` encodes and measures a frame before queueing it, so a payload the vocabulary refuses and a body over `maxFrameBytes` fail at the sender instead of breaking the receiver. A binary code whose body is a JSON object or array is refused as well: version 1 sent those frames as JSON, and the receiver rejects them instead of feeding them to Yjs. A malformed body, an unknown code, or a truncated frame closes the connection with code `2n`; a frame handler that throws is logged and the channel stays alive, because one consumer's failure must not cost the connection.
 
 Requests and responses share the same frame type: a request body is `{ requestId, request }`, an answer `{ requestId, response }` or `{ requestId, error }`. The asking side owns the `requestId` and its timeout; an unanswered request times out on that side.
 
@@ -119,6 +124,14 @@ At start the node publishes its own record into the board document (`putOwnParti
 ### Board synchronization
 
 `src/board-sync.ts` wires the board document into the channel: on every `ketos-peer/connected` — the first connection and every reconnection — the local Ketos sends its state vector (`board.sv`); a received vector is answered with `diffSince(vector)` (`board.update`); a received update is applied through `applyRemote`, and each transaction this Ketos produces is relayed to every connected peer. The document's `peer` origin keeps an applied update from echoing back, so one change is one frame. An update over `maxSyncUpdateBytes` is never sent: the line `board.sync.too-large` goes to the host log and the channel closes with close code `4n`; the peer stays known and redials. When `applyRemote` throws, or returns `{ pending: true }` because Yjs kept structs waiting for an earlier update, this Ketos sends its state vector again after a pause that starts at `reconnectMinMs` and doubles up to `reconnectMaxMs` (log line `board.sync.resync`), so the sender supplies what the document misses instead of the gap lasting until the next reconnection. A clean apply ends a resync scheduled only for such a gap, a failed apply keeps its resync, and a new channel replaces any resync with the full vector exchange.
+
+### Foreign chat transcripts
+
+A Ketos shows another Ketos's chat window as a card, and its user can ask for the window's latest messages. The asking Ketos finds the window record in its board document and sends `chat.transcript.request` with `{ windowId }` to the online peer whose `selfId` equals the record's `hostId` (`POST /api/ketos.peer.transcript`). It accepts only a window of `kind: 'agent'` that another Ketos hosts. A request that fails for any reason except the timeout, such as a closed channel or an error the owner raised, answers `ketos/peer-offline`; a request the owner leaves unanswered for `transcriptTimeoutMs` answers `ketos/peer-timeout`. The answer is checked against the wire forms below; a malformed one counts as an unavailable owner, and a malformed message refuses the whole answer.
+
+The owning Ketos alone decides, in `src/transcript.ts`. It reads its own window record from the board document and answers `{ ok: false, reason: 'not-found' }` unless the record has `hostId` equal to the local `selfId`, `kind: 'agent'`, and a `sessionId`. The requester is the known peer behind the channel the frame arrived on, identified by the `selfId` that peer declared in its `hello`; the request body names the window and nothing else, and any other field makes it malformed, which answers `not-found`. Access follows the record: `all` admits every known peer, `owner` admits the peer whose `selfId` equals the record's `ownerId`, and `selected` admits the record's `ownerId` and the peers whose `selfId` appears in `access.people`, because the client omits the owner from that list; otherwise the answer is `{ ok: false, reason: 'closed' }`. The record is read again on every request, so closing a window stops the answers at once.
+
+`src/transcript-read.ts` reads the session through `ctx.sessionPersistence` with a read handle, flushing a live session first, in slices of 500 events. The slices bound the transcript text the package retains, not the backend's memory: the JSONL backend decodes the whole log for each read, memoised only while the file revision is unchanged, every request flushes a live session, and concurrent requests from a paired peer are not rate-limited. A session with no stored log yet, such as a new window, answers `{ ok: true, messages: [] }`. Only `user/message` events whose `source.kind` is `user` and `assistant/message` events contribute, and only those that appended to the surface (the replacement copies compaction writes are skipped), and only their `text` blocks, joined by a blank line; reasoning, tool calls and results, images, files, context other producers inject, and system or developer messages never leave the owning Ketos. The answer holds at most `transcriptMaxMessages` of the latest messages, each text cut to `transcriptMaxMessageChars` code units without splitting a surrogate pair, and the oldest messages drop until the JSON of `{ ok: true, messages }` fits `transcriptMaxBytes`; a message whose text is empty after the cut is skipped. The load check on `transcriptMaxBytes` (6 bytes is the widest JSON escape of one UTF-16 unit, 256 covers the wrapper, role, and time) guarantees the longest message fits, so an oversized newest message never empties the transcript. A session that left the live store between the lookup and the flush is read cold. A session service that is not mounted, a failed read of an existing log, or a failed board read answers `{ ok: false, reason: 'unavailable' }` with no text from the error; the host log keeps one line with the window id and the error. The optional session services are resolved with `ctx.get` on each request, so the shipped web profile loads the row without them.
 
 ### Reconnection
 
@@ -149,7 +162,9 @@ A start that fails keeps the transport it created, so the retry the next route c
 | [`src/color.ts`](src/color.ts) | The palette rules: first free, next free, validity |
 | [`src/service.ts`](src/service.ts) | The `ctx.ketosPeer` service, events, known peers, participants, and reconnection |
 | [`src/board-sync.ts`](src/board-sync.ts) | The board document schedule over the channel: state vectors, updates, the too-large bound, and resynchronization |
-| [`src/routes.ts`](src/routes.ts) | The four Fetch routes and their error codes |
+| [`src/transcript.ts`](src/transcript.ts) | The `chat.transcript.*` frame types, the owner-side handler with its access decision, and the wire validation both sides share |
+| [`src/transcript-read.ts`](src/transcript-read.ts) | Reading the latest messages out of a stored session and the three limits on them |
+| [`src/routes.ts`](src/routes.ts) | The five Fetch routes and their error codes |
 | — | No runtime invariant companion is published: the state, known-peer, and framing relations are covered by the package specs with the memory transport, and no independently observable in-process relation is left to publish. |
 
 </details>
@@ -165,7 +180,7 @@ A start that fails keeps the transport it created, so the retry the next route c
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the peer channel is transport state: peer identities, invitation codes, frame bodies, and participant colors reach the browser and other host packages, never a model request, prompt section, tool schema, or session event. Stages 33–35 own whatever becomes model-visible on top of the channel.
+None, as the peer channel is transport state: peer identities, invitation codes, frame bodies, participant colors, and the transcript text of a foreign chat window reach the browser and other host packages, never a model request, prompt section, tool schema, or session event. Packages built on the channel own whatever becomes model-visible.
 
 #### KV Cache effect
 
@@ -177,7 +192,12 @@ No effect; the package changes view and transport state rather than model contex
 - Only two Ketos instances are in scope; the palette rule and known-peer list carry more, but no stage exercises a third node.
 - One invitation secret is pending at a time, and it is memory-only: restarting the inviting Ketos invalidates an unused code.
 - The accepting side stores no ticket, so asymmetric reconnection relies on the dialing side's retry; after both sides restart, the side that dialed originally reconnects from its saved ticket.
-- There are no per-person rights: any known peer's frames are accepted, which is deliberate until after the demo.
+- Frames from any known peer are accepted; the only per-person rule is the chat transcript access, and it decides by the `selfId` the peer declared in its `hello`. The channel does not authenticate that declaration and a paired node can change it, so a known peer could claim another participant's id, and the transcript route accepts an answer from any online peer that claims the owner's `selfId`. The line trusts its peers until after the demo.
+- The window record the transcript decision reads belongs to the synchronized board document, which trusts the other Ketos to write it (`applyRemote` does not enforce a single writer), so a malicious paired Ketos could rewrite another Ketos's window access or `sessionId` and read its transcript. Hardening both identity and record ownership is deferred until after the demo.
+- A transcript holds only the latest `transcriptMaxMessages` text messages of a chat. Tool calls and results, attachments, and reasoning are never included, and a message longer than `transcriptMaxMessageChars` is cut without a marker.
+- The owner reads the session log from the first event on every transcript request, keeps no cache, flushes a live session each time, and applies no rate limit, so requests against a very long session cost a pass over its log each; the JSONL backend's own memoisation holds only while the file revision is unchanged.
+- A `transcriptMaxBytes` larger than the receiving Ketos's `maxFrameBytes` closes the link when the answer arrives, because the receiver refuses the frame; only the owner's own `maxFrameBytes` is checked at load.
+- A peer build without the transcript handler leaves the request unanswered until `transcriptTimeoutMs`, which the asking side reports as `ketos/peer-timeout`; the protocol version did not change.
 - `@number0/iroh` ships no `darwin-x64` build, so an Intel Mac runs Ketos with the peer channel only inside the Docker stand.
 - The `watch*` ban is a workaround for iroh-js `1.1.0`; it lifts when the pinned version is raised past the crash and the gate is updated with it.
 - A synchronization update over `maxSyncUpdateBytes` is not sent: the channel closes and the peer redials with growing pauses, repeating the exchange. The bound sits far above a normal board (strokes are rounded in stage 30), so only a pathological document reaches it.

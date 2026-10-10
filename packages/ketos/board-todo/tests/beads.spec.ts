@@ -1,7 +1,9 @@
 // The bd wrapper: title sanitizing, argv escaping, the fixed child
-// environment, the readiness gate, the one-call-at-a-time queue, the lock
-// retry, and the strict schema_version 1 parsing of both bd releases.
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+// environment, the readiness gate, the staged `bd init`, the
+// one-call-at-a-time queue, the lock retry, and the strict schema_version 1
+// parsing of both bd releases.
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,6 +33,11 @@ interface ScriptedRun {
   readonly dropReaders?: boolean
   /** Makes spawn itself fail, as a refused spawn does. */
   readonly spawnError?: Error
+  /**
+   * Writes the file `init-<spawn index>` into the spawn's `BEADS_DIR` before
+   * the child settles, as `bd init` creates its database directory first.
+   */
+  readonly createsDatabase?: boolean
 }
 
 /** Reader over one fixed scripted stream. */
@@ -100,6 +107,11 @@ class ScriptedSubprocess extends SubprocessRuntime {
     this.spawns.push(spec)
     const run = this.scripts.shift() ?? { exitCode: 0, stdout: '' }
     if (run.spawnError !== undefined) throw run.spawnError
+    const database = spec.env?.['BEADS_DIR']
+    if (run.createsDatabase === true && database !== undefined) {
+      mkdirSync(database, { recursive: true })
+      writeFileSync(join(database, `init-${String(this.spawns.length - 1)}`), '')
+    }
     return new FakeHandle(spec, run)
   }
 
@@ -144,8 +156,17 @@ function versionRun(version: string): ScriptedRun {
   return { stdout: envelope({ version, branch: 'v', build: 'b' }), exitCode: 0 }
 }
 
-/** The successful `bd init` answer. */
-const INIT: ScriptedRun = { exitCode: 0 }
+/** The successful `bd init` answer; it creates the database directory it was given. */
+const INIT: ScriptedRun = { exitCode: 0, createsDatabase: true }
+
+/**
+ * Whether one directory exists.
+ * @param path - directory to check.
+ * @returns true when the directory can be listed.
+ */
+async function directoryExists(path: string): Promise<boolean> {
+  return readdir(path).then(() => true, () => false)
+}
 
 /** One issue answer with the fields the wrapper reads. */
 function issueRun(id: string, title: string, status = 'open', createdAt = '2026-10-05T23:32:37Z'): ScriptedRun {
@@ -230,10 +251,12 @@ describe('BeadsCli', () => {
       const { cli, subprocess } = build([versionRun('1.3.1'), INIT, updateRun(ITEM, 'closed')])
       await cli.setDone(ITEM, true, new AbortController().signal)
       expect(subprocess.spawns).toHaveLength(3)
+      expect(subprocess.spawns.map(spec => spec.env?.['BEADS_DIR'])).toEqual([
+        join(dir, '.beads'), join(dir, '.beads-init'), join(dir, '.beads'),
+      ])
       for (const spec of subprocess.spawns) {
         expect(spec.cwd).toBe(dir)
         expect(spec.env).toMatchObject({
-          BEADS_DIR: join(dir, '.beads'),
           BD_JSON_ENVELOPE: '1',
           BD_DISABLE_METRICS: '1',
           DO_NOT_TRACK: '1',
@@ -268,11 +291,12 @@ describe('BeadsCli', () => {
       for (const spec of subprocess.spawns) {
         expect(spec.env).toMatchObject({
           BEADS_DB: '', BD_DB: '', BEADS_DOLT_SERVER_HOST: '', BEADS_DOLT_SERVER_PORT: '', BD_ACTOR: '',
-          BEADS_DIR: join(dir, '.beads'),
           BD_JSON_ENVELOPE: '1',
         })
         expect(spec.env).not.toHaveProperty('HOME')
       }
+      // The staged init differs from every other call in BEADS_DIR alone.
+      expect(subprocess.spawns[1]?.env).toEqual({ ...subprocess.spawns[0]?.env, BEADS_DIR: join(dir, '.beads-init') })
     })
 
     it('resolves the executable once and reuses it', async () => {
@@ -354,6 +378,84 @@ describe('BeadsCli', () => {
       const { cli, subprocess } = build([versionRun('1.3.1'), { stdout: '', stderr: 'init failed', exitCode: 1 }])
       await expect(cli.createEpic('x', new AbortController().signal)).rejects.toThrow(/bd init/u)
       expect(subprocess.spawns).toHaveLength(2)
+    })
+  })
+
+  describe('staged init', () => {
+    it('initializes a missing database in .beads-init and renames it to .beads', async () => {
+      const { cli, subprocess } = build([versionRun('1.3.1'), INIT, issueRun('kt-219', 'Список'), issueRun('kt-219.1', 'Молоко')])
+      await cli.createEpic('Список', new AbortController().signal)
+      expect(subprocess.spawns[1]?.argv).toEqual([
+        EXECUTABLE, 'init', '--prefix', 'kt', '--quiet', '--skip-hooks', '--skip-agents', '--non-interactive', '--init-if-missing',
+      ])
+      expect(subprocess.spawns[1]?.env?.['BEADS_DIR']).toBe(join(dir, '.beads-init'))
+      expect(await readdir(join(dir, '.beads'))).toEqual(['init-1'])
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
+      await cli.createItem(EPIC, 'Молоко', new AbortController().signal)
+      expect(subprocess.spawns[3]?.env?.['BEADS_DIR']).toBe(join(dir, '.beads'))
+    })
+
+    it('initializes an existing .beads in place without a staging directory', async () => {
+      await mkdir(join(dir, '.beads'))
+      await writeFile(join(dir, '.beads', 'existing'), '')
+      const { cli, subprocess } = build([versionRun('1.3.1'), INIT, issueRun('kt-219', 'Список')])
+      await cli.createEpic('Список', new AbortController().signal)
+      expect(subprocess.spawns.map(spec => spec.env?.['BEADS_DIR'])).toEqual([
+        join(dir, '.beads'), join(dir, '.beads'), join(dir, '.beads'),
+      ])
+      expect((await readdir(join(dir, '.beads'))).sort()).toEqual(['existing', 'init-1'])
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
+    })
+
+    it('leaves no .beads after an init the timeout cut short, and the next operation initializes again from a clean staging directory', async () => {
+      const never = deferred()
+      const { cli, subprocess } = build([
+        versionRun('1.3.1'),
+        { createsDatabase: true, gate: never.promise },
+        versionRun('1.3.1'),
+        INIT,
+        issueRun('kt-219', 'Список'),
+      ], { bdTimeoutMs: 20 })
+      const error = await cli.createEpic('Список', new AbortController().signal).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(BeadsCommandError)
+      expect((error as Error).message).toMatch(/bd init .* timed out after 20ms/u)
+      expect(await directoryExists(join(dir, '.beads'))).toBe(false)
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
+
+      await expect(cli.createEpic('Список', new AbortController().signal)).resolves.toMatchObject({ id: 'kt-219' })
+      expect(subprocess.spawns.map(spec => spec.argv[1])).toEqual(['version', 'init', 'version', 'init', 'create'])
+      expect(subprocess.spawns[3]?.env?.['BEADS_DIR']).toBe(join(dir, '.beads-init'))
+      expect(await readdir(join(dir, '.beads'))).toEqual(['init-3'])
+    })
+
+    it('leaves no .beads after an init the caller aborted', async () => {
+      const never = deferred()
+      const { cli, subprocess } = build([versionRun('1.3.1'), { createsDatabase: true, gate: never.promise }])
+      const controller = new AbortController()
+      const pending = cli.createEpic('Список', controller.signal).catch((caught: unknown) => caught)
+      await vi.waitFor(() => { expect(subprocess.spawns).toHaveLength(2) })
+      controller.abort()
+      expect(await pending).toBeInstanceOf(BeadsCommandError)
+      expect(await directoryExists(join(dir, '.beads'))).toBe(false)
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
+    })
+
+    it('removes the staging directory of a failed init and rethrows the init failure', async () => {
+      const { cli } = build([versionRun('1.3.1'), { createsDatabase: true, stderr: 'init failed', exitCode: 1 }])
+      const error = await cli.createEpic('Список', new AbortController().signal).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(BeadsCommandError)
+      expect(error).toMatchObject({ exitCode: 1, stderrTail: 'init failed' })
+      expect(await directoryExists(join(dir, '.beads'))).toBe(false)
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
+    })
+
+    it('removes a staging directory an earlier process left before it initializes', async () => {
+      await mkdir(join(dir, '.beads-init'))
+      await writeFile(join(dir, '.beads-init', 'stale'), '')
+      const { cli } = build([versionRun('1.3.1'), INIT, issueRun('kt-219', 'Список')])
+      await cli.createEpic('Список', new AbortController().signal)
+      expect(await readdir(join(dir, '.beads'))).toEqual(['init-1'])
+      expect(await directoryExists(join(dir, '.beads-init'))).toBe(false)
     })
   })
 

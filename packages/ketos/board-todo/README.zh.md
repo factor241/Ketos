@@ -41,7 +41,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `beadsDir` | 必填 | 存放 Ketos Beads 数据库的目录；`bd` 在其中 `<beadsDir>/.beads` 工作。首次调用前以仅属主可访问的权限创建。 |
+| `beadsDir` | 必填 | 存放 Ketos Beads 数据库的目录；`bd` 在其中 `<beadsDir>/.beads` 工作，缺失的数据库先在 `<beadsDir>/.beads-init` 中初始化。首次调用前以仅属主可访问的权限创建。 |
 | `bdCommand` | `bd` | Beads CLI 的可执行文件名或绝对路径。 |
 | `beadsPrefix` | `kt` | `bd init` 赋予 Ketos 数据库的议题前缀。 |
 | `bdTimeoutMs` | `15000` | 单次 `bd` 调用的最长运行时间，毫秒（1000–300000）。 |
@@ -80,7 +80,7 @@ BEADS_DIR="$DSH_HOME/beads/.beads" BD_DISABLE_METRICS=1 bd list --parent <epic> 
 
 ### bd 包装
 
-`BeadsCli` 只解析一次可执行文件，以仅属主可访问的权限创建 Beads 目录，并通过队列串行化每次调用，因为内嵌 Dolt 引擎拒绝并发写入者。每个子进程获得固定环境（`BEADS_DIR`、`BD_JSON_ENVELOPE`、`BD_DISABLE_METRICS`、`DO_NOT_TRACK`、`BD_NON_INTERACTIVE`、`NO_COLOR`、`beads.role` git 身份与 `GIT_TERMINAL_PROMPT=0`），宿主进程中所有的 `BEADS_*` 与 `BD_*` 环境变量（例如 `BEADS_DB`、`BEADS_DOLT_SERVER_*`）都会被置空，使包装器无法被重定向到其他数据库。插件卸载时运行 `dispose()`：中止正在运行的调用，以 `BeadsUnavailableError` 拒绝排队中和之后的调用，并等待队列结束。子进程从不经过 shell：标题作为 `--title=<text>` 参数传递，因此以 `-` 开头的标题不会变成标志。参数会被清洗（移除控制字符、截断长度），id 会按 Beads 形状校验。当 stderr 报告 Dolt `exclusive lock` 时，调用最多重试三次。首次操作前 `bd version --json` 必须报告受支持的 1.x 版本且不低于 1.2.2，`bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` 创建数据库而不触碰任何 git 仓库。只有退出码 0 且 `schema_version: 1` 的封装才会被解析；其余情况变为 `BeadsUnavailableError`、`BeadsCommandError`（携带 stderr 尾部）或 `BeadsProtocolError`。
+`BeadsCli` 只解析一次可执行文件，以仅属主可访问的权限创建 Beads 目录，并通过队列串行化每次调用，因为内嵌 Dolt 引擎拒绝并发写入者。每个子进程获得固定环境（`BEADS_DIR`、`BD_JSON_ENVELOPE`、`BD_DISABLE_METRICS`、`DO_NOT_TRACK`、`BD_NON_INTERACTIVE`、`NO_COLOR`、`beads.role` git 身份与 `GIT_TERMINAL_PROMPT=0`），宿主进程中所有的 `BEADS_*` 与 `BD_*` 环境变量（例如 `BEADS_DB`、`BEADS_DOLT_SERVER_*`）都会被置空，使包装器无法被重定向到其他数据库。插件卸载时运行 `dispose()`：中止正在运行的调用，以 `BeadsUnavailableError` 拒绝排队中和之后的调用，并等待队列结束。子进程从不经过 shell：标题作为 `--title=<text>` 参数传递，因此以 `-` 开头的标题不会变成标志。参数会被清洗（移除控制字符、截断长度），id 会按 Beads 形状校验。当 stderr 报告 Dolt `exclusive lock` 时，调用最多重试三次。首次操作前 `bd version --json` 必须报告受支持的 1.x 版本且不低于 1.2.2，`bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` 创建数据库而不触碰任何 git 仓库。缺失的 `.beads` 先在 `<beadsDir>/.beads-init` 中初始化，只有 `bd init` 以退出码 0 结束后才重命名为 `.beads`；失败、超时或被中止的初始化会删除该暂存目录，因此下一次操作会重新初始化，而不会打开写了一半的数据库。只有退出码 0 且 `schema_version: 1` 的封装才会被解析；其余情况变为 `BeadsUnavailableError`、`BeadsCommandError`（携带 stderr 尾部）或 `BeadsProtocolError`。
 
 ### 快照及其标志
 
@@ -127,6 +127,8 @@ No effect; creating a list changes board state rather than model context.
 - 只有属主宿主写入列表；第二个 Ketos 读取快照（阶段 33）。Beads 数据库不在两个 Ketos 之间同步。
 - 重命名、删除与重排条目、工作目录 Beads 任务、优先级、负责人以及条目间依赖不在本阶段范围内。
 - `bd` 以 CLI 方式调用，而非 `bd serve` 或 Go 绑定，因此每个操作都要付出一次进程启动成本（受支持版本上约 0.1–0.7 秒）。
+- 每个 `beadsDir` 只能有一个 Ketos 宿主：暂存目录 `.beads-init` 名称固定，两个宿主同时初始化同一目录时可能删除对方的暂存目录。
+- 没有暂存初始化的旧版本留下的初始化了一半的 `.beads` 会被原地打开且不会修复；这样的 stand 需要删除一次卷（`down -v`）。
 
 <a id="dev-note"></a>
 ### 开发备注

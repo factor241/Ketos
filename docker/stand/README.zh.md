@@ -2,7 +2,9 @@
 
 [English](README.md) | 中文
 
-Docker 中并排运行两个 Ketos：每个实例都有自己的 `DSH_HOME` 主目录、自己的工作目录 `/workspace`、自己的 Syncthing 主目录和自己的 Web 端口，全部位于各自独立的卷上。文件只通过 Syncthing 文件夹 `/workspace/shared` 到达另一方（见[工作目录](#working-directories)）。镜像由本分支的源码构建（`docker/stand/Dockerfile`），内含 `ketos web`、`bd`（Beads）与 `syncthing`。演示时两个实例运行在两台计算机上，每台从同一个预构建镜像启动一个服务（见[两台计算机](#two-computers)；Windows 11 计算机见 [Windows 11（计算机 B）](#windows-11-computer-b)）。
+Docker 中并排运行两个 Ketos：每个实例都有自己的 `DSH_HOME` 主目录、自己的工作目录 `/workspace`、自己的 Syncthing 主目录和自己的 Web 端口，全部位于各自独立的卷上。文件只通过 Syncthing 文件夹 `/workspace/shared` 到达另一方（见[工作目录](#working-directories)）。镜像由本分支的源码构建（`docker/stand/Dockerfile`），内含 `ketos web`、`bd`（Beads）与 `syncthing`。演示时两个实例运行在两台计算机上，每台从同一个预构建镜像启动一个服务（见[两台计算机](#two-computers)；Windows 11 计算机见 [Windows 11（计算机 B）](#windows-11-computer-b)；从空卷开始的演示顺序见[从零开始演示](#demonstration-from-scratch)）。
+
+<a id="preparation"></a>
 
 ## 准备
 
@@ -73,7 +75,7 @@ gzip -dc ~/ketos-stand-<arch>.tar.gz | docker load
 
 ## Windows 11（计算机 B）
 
-计算机 B 可以是搭载 Intel 处理器（x86-64）、使用 WSL2 后端 Docker Desktop 的 Windows 11 电脑。下面的步骤用于准备它；在真实 Windows 计算机上的检查属于阶段 36.1。
+计算机 B 可以是搭载 Intel 处理器（x86-64）、使用 WSL2 后端 Docker Desktop 的 Windows 11 电脑。下面的步骤用于准备它。
 
 1. 给 WSL2 至少 8 GiB 内存：创建 `%UserProfile%\.wslconfig`，内容如下，然后运行 `wsl --shutdown` 并重启 Docker Desktop。
 
@@ -116,6 +118,46 @@ docker compose -f docker/stand/compose.yaml logs ketos-b | Select-String "ketos 
 ```
 
 服务 `ketos-b` 在 3081 端口发布 Web 看板，在 `127.0.0.1:8385` 发布 Syncthing GUI（仅限环回）。
+
+<a id="demonstration-from-scratch"></a>
+
+## 从零开始演示
+
+从零开始的演示在两台计算机上都先执行 `docker compose -f docker/stand/compose.yaml down -v`。该命令删除本机的 stand 卷：Ketos 主目录（`DSH_HOME`），其中有看板、聊天、iroh 节点密钥 `peer.key`、已知对等节点 `peers.json` 与 Ketos 的 Beads 数据库；Syncthing 主目录及其配置；以及工作目录，它按[工作目录](#working-directories)的要求与 Syncthing 卷一起删除。因此每次演示都用新的邀请码连接两个 Ketos。
+
+下面的命令中，`<VPS>` 是 VPS 的地址，`<relay-host>` 是 `KETOS_RELAY_URLS` 中的主机名。
+
+1. 在 VPS 上检查 `iroh-relay` 与 `strelaysrv` 服务正在运行；`/opt/ketos-relay` 是[中继 README](../relay/README.zh.md) 中的部署目录：
+
+```sh
+ssh <user>@<VPS>
+cd /opt/ketos-relay && docker compose ps
+```
+
+2. 在计算机 A（macOS）上，发送[中继 README](../relay/README.zh.md)«获取演示环境所需的凭据»第 1 步的 HTTPS 请求，并把 `${IROH_RELAY_HOST}` 换成 `<relay-host>`（应答为 `200`），然后检查中继证书的 `notAfter` 日期尚未到来，以及 Syncthing 中继在 22067 端口接受 TCP 连接：
+
+```sh
+openssl s_client -connect <relay-host>:443 -servername <relay-host> </dev/null 2>/dev/null | openssl x509 -noout -enddate
+nc -vz <VPS> 22067
+```
+
+在计算机 B（Windows）上，PowerShell 用 `Test-NetConnection <VPS> -Port 22067` 检查该端口。以 TUN 模式运行的 VPN 或代理客户端会在执行检查的计算机本机完成 TCP 握手，因此即使服务器不可达，端口检查也会成功；在这样的计算机上，只有 HTTPS 应答才能表明 VPS 可达。在这样的客户端之后，空闲一段时间后与 VPS 的第一次连接可能超时或需要 5 到 10 秒，因此请重复该请求，直到返回 `200`。在 Windows 上由内置的 `curl.exe` 发送该请求（在 Windows PowerShell 中，`curl` 指向 `Invoke-WebRequest`），它打印状态码 `200` 与 TLS 握手时间；没有服务器应答时打印 `000 0.000000`：
+
+```powershell
+curl.exe -s -o NUL -w "%{http_code} %{time_appconnect}\n" https://<relay-host>/
+```
+
+3. 在计算机 A（macOS，zsh）上，从仓库根目录操作：`ketos-stand:local` 与计算机 B 的 `ketos-stand:amd64` 由同一提交构建，因为对等协议版本不同的构建无法互相连接（见 [peer README](../../packages/ketos/peer/README.zh.md#known-limitations-and-deferred-work)）；`docker/stand/.env` 含本机的值（见[两台计算机](#two-computers)第 1 步），模型密钥按[准备](#preparation)所述设置。重置 stand、启动服务 A 并读取看板地址：
+
+```sh
+docker compose -f docker/stand/compose.yaml down -v
+docker compose -f docker/stand/compose.yaml up -d ketos-a
+docker compose -f docker/stand/compose.yaml logs ketos-a | grep 'ketos web:'
+```
+
+4. 在计算机 B（Windows 11，PowerShell）上，在包含 `docker/` 的目录下运行 `docker compose -f docker/stand/compose.yaml down -v`，然后执行 [Windows 11（计算机 B）](#windows-11-computer-b)的第 6 步与第 7 步；镜像与 `docker/stand/.env` 沿用该节第 3 至 5 步的结果。
+5. 在每台计算机上打开看板地址，打开«Окно агента»并发送一条消息：聊天中出现回答，即确认该计算机的模型密钥可用。
+6. 按[两台计算机](#two-computers)第 4 步连接两个 Ketos：在计算机 A 上发出邀请，在计算机 B 上使用«Подключить Кетос»。如果 Syncthing 自动连接未完成，请按[手动连接 Syncthing](#manual-syncthing-linking)操作。
 
 ## 地址
 
@@ -188,7 +230,7 @@ docker compose -f docker/stand/compose.yaml exec ketos-a bd version
 
 - `Dockerfile`——多阶段构建：node:24-bookworm 构建本分支，运行时获得按校验和固定的 Syncthing 与 `bd`。
 - `Dockerfile.dockerignore`——不含 `.env`、`.git`、`references/`、`graphify-out*`、镜像归档（`*.tar.gz`）以及 stand 自身测试与夹具的构建上下文；`node --test docker/stand/tools/dockerignore.test.mjs` 检查测试、`.env` 文件与镜像归档不进入构建上下文（归档也不进入 git），运行时阶段复制的文件保留在构建上下文中。
-- `stand.patch.yml`——profile 覆盖层：`0.0.0.0` 绑定、来自 `KETOS_PORT` 的端口、受信主机、`opencode-go` 路由、默认模型，以及启用并带上本机身份、中继、重连暂停上限 5 秒（`reconnectMaxMs`，包默认值为 20 秒）、拨号超时 5 秒（`connectTimeoutMs`，包默认值为 10 秒），使网络恢复后即使长时间中断后的一次拨号超时，连接也能在 30 秒内恢复（最长 5 秒的暂停、可能在 5 秒时超时的一次拨号、又一次最长 5 秒的暂停，再拨号；在中继仍在重连时发起的拨号会白等整个超时，实测拨号耗时 0.5 至 1 秒）与 Syncthing 配置段的 `ketos-peer` 行（中继地址会去掉 `token` 参数）；`node --test docker/stand/tools/stand-patch.test.mjs` 检查该行。
+- `stand.patch.yml`——profile 覆盖层：`0.0.0.0` 绑定、来自 `KETOS_PORT` 的端口、受信主机、`opencode-go` 路由、默认模型，以及启用并带上本机身份、中继、重连暂停上限 5 秒（`reconnectMaxMs`，包默认值为 20 秒）、拨号超时 5 秒（`connectTimeoutMs`，包默认值为 10 秒），使网络恢复后即使长时间中断后的一次拨号超时，连接也能在 30 秒内恢复（最长 5 秒的暂停、可能在 5 秒时超时的一次拨号、又一次最长 5 秒的暂停，再拨号；在中继仍在重连时发起的拨号会白等整个超时，实测拨号耗时 0.5 至 1 秒）与 Syncthing 配置段的 `ketos-peer` 行（中继地址会去掉 `token` 参数），以及 `bdTimeoutMs` 为 60 秒（包默认值为 15 秒）的 `ketos-board-todo` 行，因为在演示负载下，全新 stand 上的首次 `bd init` 可能超过 15 秒；`node --test docker/stand/tools/stand-patch.test.mjs` 检查这两行。
 - `docker-entrypoint.sh`——先写入共享文件夹的 `.stignore`，再在同一个容器中启动 Syncthing（经由 `run-with-redacted-log.sh`）与 `ketos web`；`node --test docker/stand/tools/docker-entrypoint.test.mjs` 检查 Syncthing 的启动方式（经由包装脚本，包装脚本与 `ensure-stignore.mjs` 被复制到 entrypoint 调用它们的路径），以及 `.stignore` 的写入先于 Syncthing 启动。
 - `run-with-redacted-log.sh`——运行一个命令，把 `token=<值>` 改写为 `token=REDACTED` 后将其输出追加到日志文件；命令沿用该脚本的进程 ID；`node --test docker/stand/tools/run-with-redacted-log.test.mjs` 检查打码、逐行刷新与进程 ID。
 - `ensure-stignore.mjs`——在 `/workspace/shared/.stignore` 缺失时创建它，且绝不覆盖；`node --test docker/stand/tools/ensure-stignore.test.mjs` 检查创建、已有文件与重复运行。
@@ -197,4 +239,4 @@ docker compose -f docker/stand/compose.yaml exec ketos-a bd version
 - `tools/sync-latency.mjs`——看板同步延迟探针：一方 Ketos 上的 `send` 创建、修改并删除带时间戳的便签；另一方的 `receive` 只统计发送方的改动，并按类型报告中位数、最大值与丢失数（`--timeout`；`--offset-ms` 用于已测得的时钟偏差）。`node --test docker/stand/tools/sync-latency.test.mjs` 检查其计数逻辑。
 - `.env.example`——本机的参与者名称、中继 URL、Syncthing GUI 密钥与模型密钥（已注释掉，因为这里的空值会替换根目录 `.env` 中的密钥）；`node --test docker/stand/tools/env-example.test.mjs` 检查没有为空的有效赋值。
 - `compose.yaml`——`ketos-a` 与 `ketos-b` 服务，及其主目录卷、Syncthing 主目录卷、工作目录卷与端口。
-- `tools/readme.test.mjs`——`node --test docker/stand/tools/readme.test.mjs` 检查本 README 及其英文版中操作者依赖的表述：归档路径、架构标签、连接丢失的计时、PowerShell 密钥命令、服务 B 的端口、手动连接之后的看板行以及卷名。
+- `tools/readme.test.mjs`——`node --test docker/stand/tools/readme.test.mjs` 检查本 README 及其英文版中操作者依赖的表述：归档路径、架构标签、连接丢失的计时、PowerShell 密钥命令、服务 B 的端口、手动连接之后的看板行、卷名以及从零开始演示的步骤。

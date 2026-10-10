@@ -7,7 +7,7 @@
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { CommandDefinition, CommandDefinitionId } from '@deepseek-ai/dsh-commands'
-import { BeadsCommandError } from './beads.ts'
+import { BeadsCommandError, beadsCommandErrorText } from './beads.ts'
 import { createTodoList } from './routes.ts'
 import type { TodoRouteConfig } from './routes.ts'
 
@@ -32,7 +32,7 @@ export function todoCommand(config: TodoRouteConfig): CommandDefinition {
         await createTodoList(config, { title, x: 0, y: 0, pendingPlacement: true }, invocation.signal)
         return { kind: 'success', text: 'To-do list added to the board.' }
       } catch (error: unknown) {
-        config.logger(`/todo: ${error instanceof BeadsCommandError ? error.stderrTail.trim() : String(error)}`)
+        config.logger(`/todo: ${error instanceof BeadsCommandError ? beadsCommandErrorText(error) : String(error)}`)
         return { kind: 'error', text: 'The to-do list could not be created.' }
       }
     },

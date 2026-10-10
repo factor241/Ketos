@@ -17,7 +17,7 @@ import type {
   BoardSnapshot, ElementId, OwnerId, TodoData,
 } from '@ketos/board-doc/types'
 import type { BeadsIssue } from './beads.ts'
-import { BeadsCommandError, BeadsProtocolError, BeadsUnavailableError } from './beads.ts'
+import { BeadsCommandError, beadsCommandErrorText, BeadsProtocolError, BeadsUnavailableError } from './beads.ts'
 import type { TodoAnswer, TodoRequest } from './types.ts'
 import {
   boolean, coordinate, elementId, fail, issueId, NO_STORE, ok, record, rejectUnknownFields,
@@ -346,9 +346,7 @@ function todoFailure(error: unknown, config: TodoRouteConfig): Response {
   if (error instanceof TodoRouteError) return fail(error.code)
   if (error instanceof BeadsUnavailableError) return fail('ketos/beads-unavailable')
   if (error instanceof BeadsCommandError || error instanceof BeadsProtocolError) {
-    config.logger(error instanceof BeadsCommandError
-      ? `to-do list: bd exited with ${String(error.exitCode)}: ${error.stderrTail.trim()}`
-      : `to-do list: ${error.message}`)
+    config.logger(`to-do list: ${error instanceof BeadsCommandError ? beadsCommandErrorText(error) : error.message}`)
     return fail('ketos/beads-failed')
   }
   config.logger(`to-do list: unexpected failure: ${String(error)}`)

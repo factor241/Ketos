@@ -1,8 +1,9 @@
 // Run with `node --test docker/stand/tools/stand-patch.test.mjs`.
-// Checks the `ketos-peer` row of stand.patch.yml: the Syncthing section keeps
-// its fixed keys, and the `relayAddress` expression drops only the relay's
-// `token` parameter, so the secret never reaches the plugin config or the
-// address that is shared with the other Ketos.
+// Checks two rows of stand.patch.yml. In the `ketos-peer` row the Syncthing
+// section keeps its fixed keys, and the `relayAddress` expression drops only
+// the relay's `token` parameter, so the secret never reaches the plugin config
+// or the address that is shared with the other Ketos. The `ketos-board-todo`
+// row restates the web profile's row with only a longer `bd` call timeout.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -22,6 +23,11 @@ const schema = yaml.JSON_SCHEMA.extend(jsTag)
 
 const rows = yaml.load(readFileSync(join(here, '..', 'stand.patch.yml'), 'utf8'), { schema })
 const peer = rows.find((row) => row.id === 'ketos-peer')
+const todo = rows.find((row) => row.id === 'ketos-board-todo')
+
+// The web profile's own row sits inside the bundle patch's `insert` block.
+const bundleRows = yaml.load(readFileSync(join(here, '..', '..', '..', 'packages', 'bundle', 'web-app', 'cordis.patch.yml'), 'utf8'), { schema })
+const shippedTodo = bundleRows.flatMap((row) => row.insert ?? [row]).find((row) => row.id === 'ketos-board-todo')
 
 /** Evaluate one `!!js` node the way the Loader does: a direct eval inside `with (ctx)`. */
 const evaluate = (node, env) => new Function('ctx', 'expr', 'with (ctx) { return eval(expr) }')({ process: { env } }, node.__jsExpr)
@@ -89,4 +95,10 @@ test('relayAddress is empty for an unparsable value and no exception carries the
     assert.doesNotThrow(() => relayAddress(relay), relay)
     assert.equal(relayAddress(relay), '')
   }
+})
+
+test('the ketos-board-todo row restates the web profile row and raises only bdTimeoutMs to 60 seconds', () => {
+  assert.equal(todo.name, '@ketos/board-todo')
+  assert.equal(shippedTodo.config.bdTimeoutMs, 15000)
+  assert.deepEqual(todo.config, { ...shippedTodo.config, bdTimeoutMs: 60000 })
 })

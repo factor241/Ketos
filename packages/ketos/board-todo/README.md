@@ -41,7 +41,7 @@ The shipped `web` profile mounts the package through the `dsh-web-app` bundle pa
 
 | Field | Default | Meaning |
 |---|---|---|
-| `beadsDir` | required | Directory holding the Ketos Beads database; `bd` works in `<beadsDir>/.beads`. Created owner-only before the first call. |
+| `beadsDir` | required | Directory holding the Ketos Beads database; `bd` works in `<beadsDir>/.beads`, and a missing database is first initialized in `<beadsDir>/.beads-init`. Created owner-only before the first call. |
 | `bdCommand` | `bd` | Executable name or absolute path of the Beads CLI. |
 | `beadsPrefix` | `kt` | Issue prefix `bd init` gives the Ketos database. |
 | `bdTimeoutMs` | `15000` | Largest time one `bd` call may run, in milliseconds (1000–300000). |
@@ -80,7 +80,7 @@ Every operation checks the element's owner first: a `todo` element owned by anot
 
 ### The bd wrapper
 
-`BeadsCli` resolves the executable once, creates the Beads directory owner-only, and serializes every call through a queue, because the embedded Dolt engine refuses concurrent writers. Each child gets a fixed environment (`BEADS_DIR`, `BD_JSON_ENVELOPE`, `BD_DISABLE_METRICS`, `DO_NOT_TRACK`, `BD_NON_INTERACTIVE`, `NO_COLOR`, the `beads.role` git identity, and `GIT_TERMINAL_PROMPT=0`), and every ambient `BEADS_*` or `BD_*` variable the host process carries (such as `BEADS_DB` or `BEADS_DOLT_SERVER_*`) is blanked so the wrapper cannot be redirected to another database. Plugin unload runs `dispose()`: it aborts the running call, rejects queued and later calls with `BeadsUnavailableError`, and waits for the queue. The child never runs through a shell: titles travel as `--title=<text>` arguments, so a title beginning with `-` cannot become a flag. Arguments are sanitized (control characters removed, length clamped) and ids are validated against the Beads shape. A call retries up to three times when stderr reports the Dolt `exclusive lock`. Before the first operation `bd version --json` must report a supported 1.x release at or above 1.2.2, and `bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` creates the database without touching any git repository. Only exit code 0 with a `schema_version: 1` envelope parses; everything else becomes `BeadsUnavailableError`, `BeadsCommandError` (with the stderr tail), or `BeadsProtocolError`.
+`BeadsCli` resolves the executable once, creates the Beads directory owner-only, and serializes every call through a queue, because the embedded Dolt engine refuses concurrent writers. Each child gets a fixed environment (`BEADS_DIR`, `BD_JSON_ENVELOPE`, `BD_DISABLE_METRICS`, `DO_NOT_TRACK`, `BD_NON_INTERACTIVE`, `NO_COLOR`, the `beads.role` git identity, and `GIT_TERMINAL_PROMPT=0`), and every ambient `BEADS_*` or `BD_*` variable the host process carries (such as `BEADS_DB` or `BEADS_DOLT_SERVER_*`) is blanked so the wrapper cannot be redirected to another database. Plugin unload runs `dispose()`: it aborts the running call, rejects queued and later calls with `BeadsUnavailableError`, and waits for the queue. The child never runs through a shell: titles travel as `--title=<text>` arguments, so a title beginning with `-` cannot become a flag. Arguments are sanitized (control characters removed, length clamped) and ids are validated against the Beads shape. A call retries up to three times when stderr reports the Dolt `exclusive lock`. Before the first operation `bd version --json` must report a supported 1.x release at or above 1.2.2, and `bd init --prefix <prefix> --quiet --skip-hooks --skip-agents --non-interactive --init-if-missing` creates the database without touching any git repository. A missing `.beads` is initialized in `<beadsDir>/.beads-init` and renamed to `.beads` only after `bd init` exits 0; a failed, timed-out, or aborted init removes that staging directory, so the next operation initializes again instead of opening a half-written database. Only exit code 0 with a `schema_version: 1` envelope parses; everything else becomes `BeadsUnavailableError`, `BeadsCommandError` (with the stderr tail), or `BeadsProtocolError`.
 
 ### The snapshot and its flags
 
@@ -126,6 +126,8 @@ No effect; creating a list changes board state rather than model context.
 - Only the owner's host writes a list; the second Ketos reads the snapshot (stage 33). The Beads databases do not synchronize between Ketoses.
 - Renaming, deleting, and reordering items, working-folder Beads tasks, priorities, assignees, and dependencies between items are out of scope for this stage.
 - `bd` is invoked as a CLI rather than through `bd serve` or a Go binding, so each operation pays one process start (about 0.1–0.7 s on the supported releases).
+- One Ketos host per `beadsDir`: the staging directory `.beads-init` has a fixed name, so two hosts that initialize the same directory at the same time can remove each other's staging directory.
+- A `.beads` that a build without the staged initialization left half-initialized is opened in place and not repaired; such a stand needs its volumes removed (`down -v`) once.
 
 ### Dev Note
 

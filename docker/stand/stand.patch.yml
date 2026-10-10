@@ -71,6 +71,20 @@
       folderPath: /workspace/shared
       fsWatcherDelayS: 1
 
+# To-do lists: the same row as the web profile except `bdTimeoutMs`. The first
+# `/todo` on a fresh stand runs `bd init`, which under the load of a
+# demonstration (a model turn and screen recordings) can exceed the 15-second
+# package default.
+- id: ketos-board-todo
+  name: '@ketos/board-todo'
+  config:
+    beadsDir: !!js dshHomePath('beads')
+    bdCommand: bd
+    beadsPrefix: kt
+    bdTimeoutMs: 60000
+    bdOutputMaxBytes: 1048576
+    todoTitleMaxChars: 200
+
 # Host log: the web profile ships no console exporter, so `ketos-peer`
 # warnings (peer.connected, board.sync.too-large, bd errors) would stay
 # invisible. The vendored exporter is loaded by path because it is not a

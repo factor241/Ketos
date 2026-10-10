@@ -5,8 +5,9 @@
 // Windows, which ports service B publishes, what the board shows after manual
 // Syncthing linking, which volumes are removed together, how the model key is
 // enabled, where computer B finds the archive, and what the Contents list says
-// about the tests and the reconnection cap, and which Syncthing intervals the
-// bootstrap pins.
+// about the tests and the reconnection cap, which Syncthing intervals the
+// bootstrap pins, and how a demonstration from scratch resets the computers
+// and checks the VPS.
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -19,14 +20,14 @@ const readmes = [
     language: 'en',
     text: readFileSync(join(stand, 'README.md'), 'utf8'),
     portsLine: /^Service `ketos-b` /m,
-    headings: { manual: /^## Manual Syncthing linking$/m, windows: /^## Windows 11 \(computer B\)$/m, preparation: /^## Preparation$/m, contents: /^## Contents$/m },
+    headings: { manual: /^## Manual Syncthing linking$/m, windows: /^## Windows 11 \(computer B\)$/m, preparation: /^## Preparation$/m, contents: /^## Contents$/m, scratch: /^## Demonstration from scratch$/m },
     words: { uncomment: /uncomment/i, archives: /archive/i, seed: /\.stignore/, cap: /\b5-second cap\b/, staleCap: /\b10-second cap\b/, relayRedial: /1-minute relay redial interval/, dialTimeout: /5-second dial timeout \(`connectTimeoutMs`/, bound: /a dial that may time out at 5 s/, staleDial: /failed dial 10 s|after 10 seconds/ },
   },
   {
     language: 'zh',
     text: readFileSync(join(stand, 'README.zh.md'), 'utf8'),
     portsLine: /^服务 `ketos-b` /m,
-    headings: { manual: /^## 手动连接 Syncthing$/m, windows: /^## Windows 11（计算机 B）$/m, preparation: /^## 准备$/m, contents: /^## 组成$/m },
+    headings: { manual: /^## 手动连接 Syncthing$/m, windows: /^## Windows 11（计算机 B）$/m, preparation: /^## 准备$/m, contents: /^## 组成$/m, scratch: /^## 从零开始演示$/m },
     words: { uncomment: /取消注释/, archives: /归档/, seed: /\.stignore/, cap: /上限 5 秒/, staleCap: /上限 10 秒/, relayRedial: /中继重拨间隔 1 分钟/, dialTimeout: /拨号超时 5 秒（`connectTimeoutMs`/, bound: /可能在 5 秒时超时的一次拨号/, staleDial: /失败的拨号 10 秒|10 秒后超时/ },
   },
 ]
@@ -144,5 +145,18 @@ for (const { language, text, portsLine, headings, words } of readmes) {
     assert.ok(pinned.includes('`relayReconnectIntervalM`'), 'the list of pinned edits names the relay redial interval')
     const entry = section(text, headings.contents).split('\n').find((line) => line.includes('`syncthing-bootstrap.mjs`'))
     assert.match(entry, words.relayRedial)
+  })
+
+  test(`${language}: a demonstration from scratch resets both computers, checks the VPS by placeholders, and links the owning sections`, () => {
+    const steps = section(text, headings.scratch)
+    assert.ok(steps.includes('docker compose -f docker/stand/compose.yaml down -v'))
+    assert.ok(steps.includes('nc -vz <VPS> 22067'))
+    assert.ok(steps.includes('Test-NetConnection <VPS> -Port 22067'))
+    assert.match(steps, /curl\.exe -s -o NUL [^\n]*https:\/\/<relay-host>\//, 'PowerShell resolves bare `curl` to Invoke-WebRequest')
+    assert.doesNotMatch(steps, /\b\d{1,3}(?:[.-]\d{1,3}){3}\b|sslip\.io|nip\.io/, 'a real VPS address stays out of the README')
+    for (const anchor of ['#preparation', '#two-computers', '#windows-11-computer-b', '#manual-syncthing-linking', '#working-directories']) {
+      assert.ok(steps.includes(`](${anchor})`), anchor)
+    }
+    assert.ok(!steps.includes('--no-build'), 'computer B starts by the steps of its own section')
   })
 }

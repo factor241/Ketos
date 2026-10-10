@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Two Ketos instances side by side in Docker: each has its own `DSH_HOME` home, its own working directory `/workspace`, its own Syncthing home, and its own Web port, all on separate volumes. Files reach the other side only through the Syncthing folder `/workspace/shared` ([Working directories](#working-directories)). The image is built from this branch's sources (`docker/stand/Dockerfile`) and contains `ketos web`, `bd` (Beads), and `syncthing`. For the demonstration the two instances run on two computers, one service per computer from the same prebuilt image ([Two computers](#two-computers); a Windows 11 computer: [Windows 11 (computer B)](#windows-11-computer-b)).
+Two Ketos instances side by side in Docker: each has its own `DSH_HOME` home, its own working directory `/workspace`, its own Syncthing home, and its own Web port, all on separate volumes. Files reach the other side only through the Syncthing folder `/workspace/shared` ([Working directories](#working-directories)). The image is built from this branch's sources (`docker/stand/Dockerfile`) and contains `ketos web`, `bd` (Beads), and `syncthing`. For the demonstration the two instances run on two computers, one service per computer from the same prebuilt image ([Two computers](#two-computers); a Windows 11 computer: [Windows 11 (computer B)](#windows-11-computer-b); the order of a demonstration from empty volumes: [Demonstration from scratch](#demonstration-from-scratch)).
 
 ## Preparation
 
@@ -67,7 +67,7 @@ For a computer of the other architecture, build from the repository root under a
 
 ## Windows 11 (computer B)
 
-Computer B can be a Windows 11 PC with an Intel processor (x86-64) and Docker Desktop on the WSL2 backend. The steps below prepare it; the check on a real Windows computer is stage 36.1.
+Computer B can be a Windows 11 PC with an Intel processor (x86-64) and Docker Desktop on the WSL2 backend. The steps below prepare it.
 
 1. Give WSL2 at least 8 GiB of memory: create `%UserProfile%\.wslconfig` with the content below, then run `wsl --shutdown` and restart Docker Desktop.
 
@@ -110,6 +110,44 @@ docker compose -f docker/stand/compose.yaml logs ketos-b | Select-String "ketos 
 ```
 
 Service `ketos-b` publishes the Web board on port 3081 and the Syncthing GUI on `127.0.0.1:8385` (loopback only).
+
+## Demonstration from scratch
+
+A demonstration from scratch starts both computers with `docker compose -f docker/stand/compose.yaml down -v`. The command removes the computer's stand volumes: the Ketos home (`DSH_HOME`) with the board, the chats, the iroh node key `peer.key`, the known peers `peers.json`, and the Ketos Beads database; the Syncthing home with its configuration; and the working directory, which goes together with the Syncthing volume as [Working directories](#working-directories) requires. Each demonstration therefore links the two Ketos instances with a new invitation code.
+
+In the commands below, `<VPS>` is the VPS address and `<relay-host>` is the host name in `KETOS_RELAY_URLS`.
+
+1. On the VPS, check that the `iroh-relay` and `strelaysrv` services are running; `/opt/ketos-relay` is the deployment directory of the [relay README](../relay/README.md):
+
+```sh
+ssh <user>@<VPS>
+cd /opt/ketos-relay && docker compose ps
+```
+
+2. On computer A (macOS), send the HTTPS request of step 1 of «Reading the credentials for the stand» in the [relay README](../relay/README.md) with `<relay-host>` in place of `${IROH_RELAY_HOST}` (the answer is `200`), then check that the `notAfter` date of the relay certificate is still ahead and that the Syncthing relay accepts TCP on port 22067:
+
+```sh
+openssl s_client -connect <relay-host>:443 -servername <relay-host> </dev/null 2>/dev/null | openssl x509 -noout -enddate
+nc -vz <VPS> 22067
+```
+
+On computer B (Windows), PowerShell checks the port with `Test-NetConnection <VPS> -Port 22067`. A VPN or proxy client in TUN mode completes the TCP handshake on the checking computer itself, so a port check succeeds even when the server is unreachable; on such a computer only an HTTPS answer shows that the VPS is reachable. Behind such a client the first connection to the VPS after an idle period can time out or take 5 to 10 seconds, so repeat the request until it answers `200`. On Windows the built-in `curl.exe` sends that request (in Windows PowerShell, `curl` names `Invoke-WebRequest`) and prints the code `200` and the TLS handshake time, or `000 0.000000` when no server answers:
+
+```powershell
+curl.exe -s -o NUL -w "%{http_code} %{time_appconnect}\n" https://<relay-host>/
+```
+
+3. On computer A (macOS, zsh), from the repository root: `ketos-stand:local` is built from the same commit as computer B's `ketos-stand:amd64`, because builds of different peer protocol versions cannot connect ([peer README](../../packages/ketos/peer/README.md#known-limitations-and-deferred-work)); `docker/stand/.env` carries this computer's values ([Two computers](#two-computers), step 1), and the model key is set as [Preparation](#preparation) describes. Reset the stand, start service A, and read the board address:
+
+```sh
+docker compose -f docker/stand/compose.yaml down -v
+docker compose -f docker/stand/compose.yaml up -d ketos-a
+docker compose -f docker/stand/compose.yaml logs ketos-a | grep 'ketos web:'
+```
+
+4. On computer B (Windows 11, PowerShell), in the directory that contains `docker/`, run `docker compose -f docker/stand/compose.yaml down -v`, then steps 6 and 7 of [Windows 11 (computer B)](#windows-11-computer-b); the image and `docker/stand/.env` are the ones from steps 3 to 5 there.
+5. On each computer, open the board address, open «Окно агента», and send a message: an answer in the chat confirms the model key of that computer.
+6. Link the two Ketos instances as step 4 of [Two computers](#two-computers) describes: the invitation on computer A, «Подключить Кетос» on computer B. If the automatic Syncthing linking does not complete, use [Manual Syncthing linking](#manual-syncthing-linking).
 
 ## Addresses
 
@@ -180,7 +218,7 @@ docker compose -f docker/stand/compose.yaml exec ketos-a bd version
 
 - `Dockerfile` — a multi-stage build: node:24-bookworm builds the branch, and the runtime receives the checksum-pinned Syncthing and `bd`.
 - `Dockerfile.dockerignore` — the build context without `.env`, `.git`, `references/`, `graphify-out*`, image archives (`*.tar.gz`), and the stand's own tests and fixtures; `node --test docker/stand/tools/dockerignore.test.mjs` checks that the tests, `.env` files, and image archives stay out of the context (and archives out of git) and the files the runtime stage copies stay in.
-- `stand.patch.yml` — the profile overlay: the `0.0.0.0` bind, the port from `KETOS_PORT`, trusted hosts, the `opencode-go` route, the default model, and the enabled `ketos-peer` row with this computer's identity, the relay, the 5-second cap on the reconnection pause (`reconnectMaxMs`, package default 20 seconds), the 5-second dial timeout (`connectTimeoutMs`, package default 10 seconds), so the link is back within 30 seconds after the network returns even when a dial after a long outage times out (a pause of at most 5 s, a dial that may time out at 5 s, a pause of at most 5 s, then the dial; a dial started while the relay is still reconnecting wastes the whole timeout, and measured dials take 0.5 to 1 s), and the Syncthing section (the relay address loses its `token` parameter); `node --test docker/stand/tools/stand-patch.test.mjs` checks the row.
+- `stand.patch.yml` — the profile overlay: the `0.0.0.0` bind, the port from `KETOS_PORT`, trusted hosts, the `opencode-go` route, the default model, and the enabled `ketos-peer` row with this computer's identity, the relay, the 5-second cap on the reconnection pause (`reconnectMaxMs`, package default 20 seconds), the 5-second dial timeout (`connectTimeoutMs`, package default 10 seconds), so the link is back within 30 seconds after the network returns even when a dial after a long outage times out (a pause of at most 5 s, a dial that may time out at 5 s, a pause of at most 5 s, then the dial; a dial started while the relay is still reconnecting wastes the whole timeout, and measured dials take 0.5 to 1 s), and the Syncthing section (the relay address loses its `token` parameter); the overlay also carries the `ketos-board-todo` row with a 60-second `bdTimeoutMs` (package default 15 seconds), because the first `bd init` on a fresh stand can exceed 15 seconds under the load of a demonstration; `node --test docker/stand/tools/stand-patch.test.mjs` checks both rows.
 - `docker-entrypoint.sh` — seeds the shared folder's `.stignore`, then starts Syncthing (through `run-with-redacted-log.sh`) and `ketos web` in one container; `node --test docker/stand/tools/docker-entrypoint.test.mjs` checks the Syncthing start (through the wrapper, with the wrapper and `ensure-stignore.mjs` copied where the entrypoint calls them) and that the `.stignore` seed runs before Syncthing.
 - `run-with-redacted-log.sh` — runs a command with its output appended to a log file after `token=<value>` becomes `token=REDACTED`; the command keeps the script's process ID; `node --test docker/stand/tools/run-with-redacted-log.test.mjs` checks the redaction, the line-by-line flush, and the process ID.
 - `ensure-stignore.mjs` — creates `/workspace/shared/.stignore` when it is missing and never overwrites it; `node --test docker/stand/tools/ensure-stignore.test.mjs` checks creation, an existing file, and a rerun.
@@ -189,4 +227,4 @@ docker compose -f docker/stand/compose.yaml exec ketos-a bd version
 - `tools/sync-latency.mjs` — the board synchronization latency probe: `send` on one Ketos creates, patches, and removes timestamped notes; `receive` on the other measures only the sender's changes and reports per kind the median, maximum, and lost count (`--timeout`, `--offset-ms` for a measured clock offset). `node --test docker/stand/tools/sync-latency.test.mjs` checks its accounting.
 - `.env.example` — this computer's participant name, relay URLs, Syncthing GUI key, and model key (commented out, because an empty value here would replace the key of the root `.env`); `node --test docker/stand/tools/env-example.test.mjs` checks that no active assignment is empty.
 - `compose.yaml` — the `ketos-a` and `ketos-b` services with their home, Syncthing home, and working directory volumes, and their ports.
-- `tools/readme.test.mjs` — `node --test docker/stand/tools/readme.test.mjs` checks the statements of this README and its Chinese pair that an operator acts on: the archive path, the architecture tags, the lost-link timing, the PowerShell key recipe, the ports of service B, the board row after manual linking, and the volume names.
+- `tools/readme.test.mjs` — `node --test docker/stand/tools/readme.test.mjs` checks the statements of this README and its Chinese pair that an operator acts on: the archive path, the architecture tags, the lost-link timing, the PowerShell key recipe, the ports of service B, the board row after manual linking, the volume names, and the steps of a demonstration from scratch.

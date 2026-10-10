@@ -429,7 +429,16 @@ describe('to-do route: bd failures', () => {
     const response = await fix.post({ action: 'create', title: 'x', x: 0, y: 0 })
     expect(response.status).toBe(502)
     expect(await body(response)).toEqual({ ok: false, error: 'ketos/beads-failed' })
-    expect(fix.logs.some(message => message.includes('secret stderr'))).toBe(true)
+    expect(fix.logs).toEqual(['to-do list: bd create failed: secret stderr'])
+  })
+
+  it('logs a timed-out bd call by its message, which carries no stderr', async () => {
+    const fix = await fixture()
+    fix.beads.failure = new BeadsCommandError(null, '', 'bd init --prefix kt timed out after 15000ms')
+    const response = await fix.post({ action: 'create', title: 'x', x: 0, y: 0 })
+    expect(response.status).toBe(502)
+    expect(await body(response)).toEqual({ ok: false, error: 'ketos/beads-failed' })
+    expect(fix.logs).toEqual(['to-do list: bd init --prefix kt timed out after 15000ms'])
   })
 
   it('answers 502 for a protocol failure and 503 for a missing executable', async () => {

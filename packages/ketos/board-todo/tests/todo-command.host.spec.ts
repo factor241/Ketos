@@ -1,6 +1,7 @@
 // The `/todo` command: registration and withdrawal with the plugin fiber, the
-// usage error without a title, and the paired command/run + command/done
-// events of a successful creation that waits for placement.
+// usage error without a title, the paired command/run + command/done events of
+// a successful creation that waits for placement, and the host-journal line of
+// a failed creation.
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -176,7 +177,19 @@ describe('/todo command', () => {
     const execution = await ctx.commands.execute(agent, '/todo Покупки', [], new AbortController().signal)
 
     expect(execution?.result).toEqual({ kind: 'error', text: 'The to-do list could not be created.' })
-    expect(logs).toEqual(['/todo: stderr text'])
+    expect(logs).toEqual(['/todo: bd create failed: stderr text'])
+    await fiber.dispose()
+  })
+
+  it('logs a timed-out bd call by its message, which carries no stderr', async () => {
+    const { ctx, agent, beads, logs, config } = await mount()
+    const fiber = await register(ctx, config)
+    beads.failure = new BeadsCommandError(null, '', 'bd init --prefix kt timed out after 15000ms')
+
+    const execution = await ctx.commands.execute(agent, '/todo Покупки', [], new AbortController().signal)
+
+    expect(execution?.result).toEqual({ kind: 'error', text: 'The to-do list could not be created.' })
+    expect(logs).toEqual(['/todo: bd init --prefix kt timed out after 15000ms'])
     await fiber.dispose()
   })
 

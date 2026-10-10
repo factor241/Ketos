@@ -3,15 +3,17 @@
  * It resolves the executable once, creates the Ketos Beads directory
  * owner-only, runs one call at a time through a queue, retries the Dolt
  * exclusive lock, disables telemetry and interaction in every child
- * environment, checks the CLI version before the first operation, and parses
- * only the documented `schema_version: 1` JSON envelope.
+ * environment, checks the CLI version before the first operation, initializes
+ * a missing database in a staging directory that becomes `.beads` only after
+ * `bd init` succeeds, and parses only the documented `schema_version: 1` JSON
+ * envelope.
  *
  * A non-zero exit, a timeout, or a malformed answer becomes one of the typed
  * errors, so callers never inspect raw streams.
  * @module @ketos/board-todo/beads
  */
 
-import { mkdir } from 'node:fs/promises'
+import { access, mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isBeadsIssueId, TODO_STATUSES } from '@ketos/board-doc/data'
@@ -34,6 +36,16 @@ const LOCK_RETRIES = 3
 /** Smallest `bd` release this wrapper's protocol is written against. */
 const MINIMUM_VERSION: readonly [number, number, number] = [1, 2, 2]
 
+/** Database directory `bd` uses below the Beads directory. */
+const DATABASE_DIRECTORY = '.beads'
+
+/**
+ * Ketos-owned directory below the Beads directory where a missing database is
+ * initialized before it is renamed to {@link DATABASE_DIRECTORY}; it never
+ * holds an accepted database.
+ */
+const STAGING_DIRECTORY = '.beads-init'
+
 /** The `bd` executable is missing, unsupported, or cannot be started. */
 export class BeadsUnavailableError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -54,6 +66,18 @@ export class BeadsCommandError extends Error {
     super(message)
     this.name = 'BeadsCommandError'
   }
+}
+
+/**
+ * Host-journal text of one failed call: the message, followed by the retained
+ * stderr tail when `bd` wrote one. A timed-out or aborted call has an empty
+ * tail, so its message alone names the cause.
+ * @param error - failed call.
+ * @returns the journal text; it may quote `bd` stderr, so it never reaches a browser.
+ */
+export function beadsCommandErrorText(error: BeadsCommandError): string {
+  const tail = error.stderrTail.trim()
+  return tail === '' ? error.message : `${error.message}: ${tail}`
 }
 
 /** `bd` answered outside the documented JSON envelope. */
@@ -210,7 +234,26 @@ function versionSupported(parts: readonly [number, number, number]): boolean {
 }
 
 /**
- * The `bd` CLI as one queued, owner-scoped, strict-parsing wrapper.
+ * Whether one path exists.
+ * @param path - path to check.
+ * @returns false when the path cannot be reached.
+ */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    // ENOENT is the expected failure. Another one, such as EACCES on an
+    // unsearchable Beads directory, also reads as missing, and the staged
+    // init then fails on that same directory.
+    return false
+  }
+}
+
+/**
+ * The `bd` CLI as one queued, owner-scoped, strict-parsing wrapper. A `bd
+ * init` that fails, times out, or is aborted never leaves `<beadsDir>/.beads`
+ * behind, so the next operation initializes the database again.
  */
 export class BeadsCli {
   private readonly env: Readonly<Record<string, string>>
@@ -236,7 +279,7 @@ export class BeadsCli {
     )
     this.env = {
       ...blanked,
-      BEADS_DIR: join(options.beadsDir, '.beads'),
+      BEADS_DIR: join(options.beadsDir, DATABASE_DIRECTORY),
       BD_JSON_ENVELOPE: '1',
       BD_DISABLE_METRICS: '1',
       DO_NOT_TRACK: '1',
@@ -425,7 +468,13 @@ export class BeadsCli {
 
   /**
    * Create the beads directory, check the CLI version, and initialize the
-   * database if it is missing.
+   * database. An existing `<beadsDir>/.beads` gets `bd init
+   * --init-if-missing` in place. A missing one is initialized in
+   * `<beadsDir>/.beads-init` and renamed to `.beads` only after `bd init`
+   * exits 0; a leftover `.beads-init` of an interrupted attempt is removed
+   * first. When the staged init fails, times out, or is aborted, the staging
+   * directory is removed on a best-effort basis and the init error is
+   * rethrown, so an interrupted init never leaves `.beads`.
    * @param signal - caller's cancellation signal.
    * @returns when the database is ready.
    */
@@ -443,6 +492,46 @@ export class BeadsCli {
     if (!versionSupported(parts)) {
       throw new BeadsUnavailableError(`bd ${raw} is not supported; Ketos needs ${MINIMUM_VERSION.join('.')} or newer on the 1.x line`)
     }
+    const database = join(this.options.beadsDir, DATABASE_DIRECTORY)
+    if (await pathExists(database)) {
+      await this.init(this.env, signal)
+    } else {
+      await this.initStaged(database, signal)
+    }
+    this.options.logger(`bd ${raw} is ready at ${await this.resolveExecutable(signal)}`)
+  }
+
+  /**
+   * Initialize a missing database in the staging directory and rename it to
+   * the database directory after `bd init` succeeds.
+   * @param database - absolute path of `<beadsDir>/.beads`.
+   * @param signal - caller's cancellation signal.
+   * @returns when the database directory exists.
+   */
+  private async initStaged(database: string, signal: AbortSignal): Promise<void> {
+    const staging = join(this.options.beadsDir, STAGING_DIRECTORY)
+    await rm(staging, { recursive: true, force: true })
+    try {
+      await this.init({ ...this.env, BEADS_DIR: staging }, signal)
+      await rename(staging, database)
+    } catch (error: unknown) {
+      try {
+        await rm(staging, { recursive: true, force: true })
+      } catch {
+        // A staging directory that cannot be removed must not replace the
+        // init error; the next prepare() removes it before its own init.
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Run `bd init` with the fixed flags; it never touches a git repository.
+   * @param env - child environment whose `BEADS_DIR` names the directory to initialize.
+   * @param signal - caller's cancellation signal.
+   * @returns when `bd init` exited 0.
+   */
+  private async init(env: Readonly<Record<string, string>>, signal: AbortSignal): Promise<void> {
     const initResult = await this.runOnce([
       'init',
       '--prefix', this.options.beadsPrefix,
@@ -451,9 +540,8 @@ export class BeadsCli {
       '--skip-agents',
       '--non-interactive',
       '--init-if-missing',
-    ], signal)
+    ], signal, env)
     if (initResult.exitCode !== 0) throw commandFailure('bd init', initResult)
-    this.options.logger(`bd ${raw} is ready at ${await this.resolveExecutable(signal)}`)
   }
 
   /**
@@ -489,9 +577,10 @@ export class BeadsCli {
    * Spawn one `bd` call with the fixed environment, timeout, and stdio caps.
    * @param args - `bd` arguments without the executable.
    * @param signal - caller's cancellation signal.
+   * @param env - child environment; only the staged init replaces the wrapper's own.
    * @returns the settled call.
    */
-  private async runOnce(args: readonly string[], signal: AbortSignal): Promise<BeadsResult> {
+  private async runOnce(args: readonly string[], signal: AbortSignal, env = this.env): Promise<BeadsResult> {
     const executable = await this.resolveExecutable(signal)
     const timeout = AbortSignal.timeout(this.options.bdTimeoutMs)
     const combined = AbortSignal.any([signal, timeout])
@@ -505,7 +594,7 @@ export class BeadsCli {
       },
       graceMs: TERMINATE_GRACE_MS,
       signal: combined,
-      env: this.env,
+      env,
     }
     let handle: SubprocessHandle
     try {

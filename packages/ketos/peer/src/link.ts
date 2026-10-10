@@ -1,16 +1,27 @@
 /**
  * One peer connection's framed message channel: a serialized write queue, a
  * read loop that turns bytes into frames, request/response correlation with
- * per-request timeouts, and close handling that never lets a malformed frame
- * throw past the loop. The channel above it — service, handshake, known
- * peers — sees only typed payloads.
+ * per-request timeouts, the heartbeat that notices a silent peer, and close
+ * handling that never lets a malformed frame throw past the loop. The channel
+ * above it — service, handshake, known peers — sees only typed payloads.
+ *
+ * The heartbeat runs from {@link PeerLink.start} until the link starts
+ * closing: the link sends `peer.ping` every `heartbeatIntervalMs`, answers
+ * every received ping with `peer.pong`, and closes with code
+ * {@link PEER_LINK_HEARTBEAT_CLOSE_CODE} and reason `heartbeat-timeout` when
+ * it completed no read for `heartbeatTimeoutMs`. A completed read is a frame
+ * header or one body slice of up to {@link PEER_READ_SLICE_BYTES}, so board
+ * traffic keeps a link open, and a large update keeps it open while each
+ * slice arrives within the timeout; bytes of an unfinished slice do not
+ * count. Pings go out unconditionally and every ping is answered, so each
+ * side's detection depends on its own two values only.
  * @module @ketos/peer/link
  */
 
 import {
   PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, PeerFrameError, classifyPeerPayload, encodePeerFrame,
-  frameNameFor, isBinaryFrameCode, parseByePayload, parseHelloPayload, parsePeerFrameHeader,
-  parsePeerFramePayload, type PeerEnvelope, type PeerHelloPayload, type PeerFrameName,
+  frameNameFor, isBinaryFrameCode, parseByePayload, parseHeartbeatPayload, parseHelloPayload, parsePeerFrameHeader,
+  parsePeerFramePayload, peerFrameBodyLimit, type PeerEnvelope, type PeerHelloPayload, type PeerFrameName,
 } from './frame.ts'
 import type { PeerConnection, PeerStream } from './transport.ts'
 import type { KetosPeerId } from './types.ts'
@@ -40,6 +51,18 @@ export const PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE = 4n
 
 /** The close code of a link a newer authenticated connection of the same peer replaced. */
 export const PEER_LINK_REPLACED_CLOSE_CODE = 5n
+
+/** The close code of a link that completed no read for `heartbeatTimeoutMs`. */
+export const PEER_LINK_HEARTBEAT_CLOSE_CODE = 6n
+
+/**
+ * Largest slice of a frame body one stream read takes, in bytes. A body
+ * longer than this arrives in several reads, and each completed read counts
+ * as a sign of life for the heartbeat; a large frame therefore keeps a link
+ * open only above one slice per `heartbeatTimeoutMs`, about 14.6 kbit/s with
+ * the default 9000 ms.
+ */
+export const PEER_READ_SLICE_BYTES = 16_384
 
 /**
  * Longest wait, in milliseconds, for the transport to accept a closing link's
@@ -78,7 +101,11 @@ export interface PeerLinkOptions {
   readonly peerId: KetosPeerId
   /** Largest accepted frame body, in bytes. */
   readonly maxFrameBytes: number
-  /** Receives one line per protocol anomaly. */
+  /** Pause between two `peer.ping` frames, in milliseconds. */
+  readonly heartbeatIntervalMs: number
+  /** Longest time without a completed read before the link closes, in milliseconds. */
+  readonly heartbeatTimeoutMs: number
+  /** Receives one line per protocol anomaly and one per heartbeat timeout. */
   readonly logger: (message: string) => void
   /** Receives a `hello` a peer sends after the handshake, such as a color change. */
   readonly onHello: (hello: PeerHelloPayload) => void
@@ -94,18 +121,36 @@ interface PendingRequest {
 }
 
 /**
- * Read one frame from a stream.
+ * Read one frame from a stream. The header is read first and its declared
+ * length checked against the code's bound before any body byte is read; a
+ * body longer than {@link PEER_READ_SLICE_BYTES} is read in slices.
  * @param stream - the stream to read.
- * @param maxFrameBytes - largest accepted body.
+ * @param maxFrameBytes - largest accepted body; the heartbeat codes have a smaller one.
+ * @param onBytes - runs after each completed read: the header and every body slice.
  * @returns the decoded code and payload.
  */
-export async function readPeerFrame(stream: PeerStream, maxFrameBytes: number): Promise<{ code: number; payload: unknown }> {
-  const header = await stream.readExact(PEER_FRAME_HEADER_BYTES)
-  const { length, code } = parsePeerFrameHeader(header)
-  if (length > maxFrameBytes) {
-    throw new PeerFrameError(`frame length ${String(length)} exceeds ${String(maxFrameBytes)} bytes`)
+export async function readPeerFrame(
+  stream: PeerStream,
+  maxFrameBytes: number,
+  onBytes?: () => void,
+): Promise<{ code: number; payload: unknown }> {
+  const read = async (length: number): Promise<Uint8Array> => {
+    const bytes = await stream.readExact(length)
+    onBytes?.()
+    return bytes
   }
-  const body = length === 0 ? new Uint8Array(0) : await stream.readExact(length)
+  const { length, code } = parsePeerFrameHeader(await read(PEER_FRAME_HEADER_BYTES))
+  const limit = peerFrameBodyLimit(code, maxFrameBytes)
+  if (length > limit) {
+    throw new PeerFrameError(`frame length ${String(length)} exceeds ${String(limit)} bytes`)
+  }
+  if (length <= PEER_READ_SLICE_BYTES) {
+    return { code, payload: parsePeerFramePayload(code, length === 0 ? new Uint8Array(0) : await read(length)) }
+  }
+  const body = new Uint8Array(length)
+  for (let offset = 0; offset < length; offset += PEER_READ_SLICE_BYTES) {
+    body.set(await read(Math.min(PEER_READ_SLICE_BYTES, length - offset)), offset)
+  }
   return { code, payload: parsePeerFramePayload(code, body) }
 }
 
@@ -131,6 +176,14 @@ export class PeerLink {
   private writeQueue: Promise<void> = Promise.resolve()
   private closedReason: string | undefined
   private requestSequence = 0
+  /** Sends `peer.ping` every `heartbeatIntervalMs`; armed by start, cleared by the close. */
+  private pingTimer: NodeJS.Timeout | undefined
+  /** Fires `heartbeatTimeoutMs` after the last completed read; armed by start, cleared by the close. */
+  private silenceTimer: NodeJS.Timeout | undefined
+  /** The close decision one loop turn after the silence timer fired; cleared by the close. */
+  private silenceCheck: NodeJS.Timeout | undefined
+  /** Completed reads so far; the close decision compares it with its value when the silence timer fired. */
+  private reads = 0
 
   /**
    * @param connection - the open transport connection.
@@ -163,8 +216,16 @@ export class PeerLink {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** Start the read loop. */
+  /**
+   * Start the read loop and the heartbeat. A link that already closed starts
+   * neither, so no timer outlives it.
+   */
   start(): void {
+    if (this.closedReason !== undefined) return
+    this.pingTimer = setInterval(() => { this.ping() }, this.options.heartbeatIntervalMs)
+    this.pingTimer.unref()
+    this.silenceTimer = setTimeout(() => { this.onSilence() }, this.options.heartbeatTimeoutMs)
+    this.silenceTimer.unref()
     void this.readLoop()
   }
 
@@ -246,12 +307,15 @@ export class PeerLink {
    * {@link PEER_LINK_BYE_GRACE_MS} for the transport to accept it, then close
    * the connection. The `bye` is a courtesy that may not arrive: a write queue
    * stalled behind a peer that stopped reading never delays the close past the
-   * grace, and the connection close is the act both sides rely on.
+   * grace, and the connection close is the act both sides rely on. The
+   * heartbeat stops when the close begins, so the grace never ends in a
+   * heartbeat timeout.
    * @param reason - short reason text.
    * @param code - application close code; defaults to a regular close.
    */
   async close(reason: string, code: bigint = 0n): Promise<void> {
     if (this.closedReason !== undefined) return
+    this.stopHeartbeat()
     let timer: NodeJS.Timeout | undefined
     const grace = new Promise<void>((resolve) => { timer = setTimeout(resolve, PEER_LINK_BYE_GRACE_MS) })
     // A failed bye means the peer is already gone; the connection close below is the real act.
@@ -261,10 +325,51 @@ export class PeerLink {
     this.fail(code, reason)
   }
 
+  /** Clear the heartbeat timers and a pending close decision; the silence timer's refresh is a no-op afterwards. */
+  private stopHeartbeat(): void {
+    clearInterval(this.pingTimer)
+    clearTimeout(this.silenceTimer)
+    clearTimeout(this.silenceCheck)
+    this.pingTimer = undefined
+    this.silenceTimer = undefined
+    this.silenceCheck = undefined
+  }
+
+  /** Queue one `peer.ping`. */
+  private ping(): void {
+    // A failed ping write means the stream broke; the read loop or the
+    // silence timer ends the link, so the failure needs no handling here.
+    this.send(PEER_FRAME_CODES['peer.ping'], {}).catch(() => undefined)
+  }
+
+  /**
+   * Decide one loop turn after the silence timer fired. After a blocked event
+   * loop, Node runs due timers before it delivers the bytes that arrived
+   * meanwhile; a 0 ms timer runs only after that delivery, so a read it
+   * completes counts, and its refresh has already re-armed the silence timer.
+   */
+  private onSilence(): void {
+    const reads = this.reads
+    this.silenceCheck = setTimeout(() => {
+      this.silenceCheck = undefined
+      if (this.reads !== reads) return
+      this.options.logger(
+        `ketos-peer: peer.heartbeat-timeout ${String(this.options.peerId).slice(0, 12)}: no completed read for ${String(this.options.heartbeatTimeoutMs)} ms`,
+      )
+      this.fail(PEER_LINK_HEARTBEAT_CLOSE_CODE, 'heartbeat-timeout')
+    }, 0)
+    this.silenceCheck.unref()
+  }
+
   private async readLoop(): Promise<void> {
+    // Count the read and restart the silence countdown; the timer is undefined once the link closed.
+    const received = (): void => {
+      this.reads += 1
+      this.silenceTimer?.refresh()
+    }
     try {
       while (this.closedReason === undefined) {
-        const { code, payload } = await readPeerFrame(this.stream, this.options.maxFrameBytes)
+        const { code, payload } = await readPeerFrame(this.stream, this.options.maxFrameBytes, received)
         this.dispatch(code, payload)
       }
     } catch (error: unknown) {
@@ -293,6 +398,17 @@ export class PeerLink {
     }
     if (code === PEER_FRAME_CODES.hello) {
       this.options.onHello(parseHelloPayload(payload))
+      return
+    }
+    if (code === PEER_FRAME_CODES['peer.ping']) {
+      parseHeartbeatPayload(payload)
+      // A failed pong write means the stream broke; the read loop or the
+      // silence timer ends the link, so the failure needs no handling here.
+      this.send(PEER_FRAME_CODES['peer.pong'], {}).catch(() => undefined)
+      return
+    }
+    if (code === PEER_FRAME_CODES['peer.pong']) {
+      parseHeartbeatPayload(payload)
       return
     }
     const name = frameNameFor(code)
@@ -416,6 +532,7 @@ export class PeerLink {
   private settle(reason: string): void {
     if (this.closedReason !== undefined) return
     this.closedReason = reason
+    this.stopHeartbeat()
     for (const resolve of [...this.closeWaiters]) resolve(reason)
     this.closeWaiters.clear()
     for (const [requestId, pending] of [...this.pending]) {

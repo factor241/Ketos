@@ -1,6 +1,6 @@
 // The frame vocabulary: the header shape, JSON body round trip, the reserved
-// code table, the envelope classification, and the boundary validation of
-// `hello` and `bye`.
+// code table, the envelope classification, the per-code body bound, and the
+// boundary validation of `hello`, `bye`, and the heartbeat frames.
 import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,9 +8,9 @@ import { describe, expect, it } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { OwnerId } from '@ketos/board-doc/types'
 import {
-  PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, PEER_PROTOCOL_VERSION, PeerFrameError, classifyPeerPayload, encodePeerFrame,
-  frameCodeFor, frameNameFor, parseByePayload, parseHelloPayload, parsePeerFrameHeader,
-  parsePeerFramePayload,
+  PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, PEER_HEARTBEAT_MAX_BYTES, PEER_PROTOCOL_VERSION, PeerFrameError,
+  classifyPeerPayload, encodePeerFrame, frameCodeFor, frameNameFor, parseByePayload, parseHeartbeatPayload,
+  parseHelloPayload, parsePeerFrameHeader, parsePeerFramePayload, peerFrameBodyLimit,
 } from '../src/frame.ts'
 
 // A consumer of a later stage merges its type into the map; a name without a
@@ -55,8 +55,8 @@ describe('peer frame encoding', () => {
     expect(parsePeerFramePayload(PEER_FRAME_CODES['board.update'], text('5'))).toEqual(text('5'))
   })
 
-  it('speaks protocol version 2', () => {
-    expect(PEER_PROTOCOL_VERSION).toBe(2)
+  it('speaks protocol version 3', () => {
+    expect(PEER_PROTOCOL_VERSION).toBe(3)
   })
 
   it('writes the length big-endian', () => {
@@ -69,7 +69,7 @@ describe('peer frame encoding', () => {
     expect(() => parsePeerFramePayload(PEER_FRAME_CODES.hello, new TextEncoder().encode('not json'))).toThrow(/not JSON/u)
   })
 
-  it('reserves the consumer codes 3 to 7', () => {
+  it('reserves the consumer codes 3 to 7 and the heartbeat codes 8 and 9', () => {
     expect(frameCodeFor('hello')).toBe(1)
     expect(frameCodeFor('bye')).toBe(2)
     expect(frameNameFor(3)).toBe('board.sv')
@@ -77,8 +77,19 @@ describe('peer frame encoding', () => {
     expect(frameNameFor(5)).toBe('chat.transcript.request')
     expect(frameNameFor(6)).toBe('chat.transcript.response')
     expect(frameNameFor(7)).toBe('syncthing.device')
-    expect(frameNameFor(9)).toBeUndefined()
+    expect(frameCodeFor('peer.ping')).toBe(8)
+    expect(frameCodeFor('peer.pong')).toBe(9)
+    expect(frameNameFor(10)).toBeUndefined()
     expect((PEER_FRAME_CODES as Readonly<Record<string, number>>)['board.sv']).toBe(3)
+  })
+
+  it('bounds a heartbeat body far below the frame bound and leaves every other code at it', () => {
+    expect(PEER_HEARTBEAT_MAX_BYTES).toBe(16)
+    expect(peerFrameBodyLimit(PEER_FRAME_CODES['peer.ping'], 1_000_000)).toBe(16)
+    expect(peerFrameBodyLimit(PEER_FRAME_CODES['peer.pong'], 1_000_000)).toBe(16)
+    expect(peerFrameBodyLimit(PEER_FRAME_CODES['peer.ping'], 8)).toBe(8)
+    expect(peerFrameBodyLimit(PEER_FRAME_CODES['board.update'], 1_000_000)).toBe(1_000_000)
+    expect(peerFrameBodyLimit(PEER_FRAME_CODES.hello, 4096)).toBe(4096)
   })
 
   it('refuses a merged frame type without a reserved code', () => {
@@ -110,26 +121,31 @@ describe('peer envelope classification', () => {
 
 describe('hello and bye validation', () => {
   it('accepts a minimal hello and one with an invite', () => {
-    expect(parseHelloPayload({ v: 2, selfId: 'owner-a', name: 'Kirill', color: 3 }))
-      .toEqual({ v: 2, selfId: owner, name: 'Kirill', color: 3 })
-    expect(parseHelloPayload({ v: 2, selfId: 'owner-a', name: 'Kirill', color: 3, invite: 'secret' }))
-      .toEqual({ v: 2, selfId: 'owner-a', name: 'Kirill', color: 3, invite: 'secret' })
+    expect(parseHelloPayload({ v: 3, selfId: 'owner-a', name: 'Kirill', color: 3 }))
+      .toEqual({ v: 3, selfId: owner, name: 'Kirill', color: 3 })
+    expect(parseHelloPayload({ v: 3, selfId: 'owner-a', name: 'Kirill', color: 3, invite: 'secret' }))
+      .toEqual({ v: 3, selfId: 'owner-a', name: 'Kirill', color: 3, invite: 'secret' })
+  })
+
+  it('refuses a hello of protocol version 2 or 1', () => {
+    expect(() => parseHelloPayload({ v: 2, selfId: 'owner-a', name: 'Kirill', color: 3 })).toThrow(/hello version must be 3/u)
+    expect(() => parseHelloPayload({ v: 1, selfId: 'owner-a', name: 'Kirill', color: 3 })).toThrow(/hello version must be 3/u)
   })
 
   it('refuses malformed hello payloads', () => {
     const cases: unknown[] = [
       null,
       [],
-      { v: 1, selfId: 'owner-a', name: 'n', color: 1 },
+      { v: 2, selfId: 'owner-a', name: 'n', color: 1 },
       { v: 99, selfId: 'owner-a', name: 'n', color: 1 },
-      { v: 2, selfId: '', name: 'n', color: 1 },
-      { v: 2, selfId: 'a'.repeat(65), name: 'n', color: 1 },
-      { v: 2, selfId: 'a', name: '', color: 1 },
-      { v: 2, selfId: 'a', name: 'n', color: 0 },
-      { v: 2, selfId: 'a', name: 'n', color: 1.5 },
-      { v: 2, selfId: 'a', name: 'n', color: 11 },
-      { v: 2, selfId: 'a', name: 'n', color: 1, invite: '' },
-      { v: 2, selfId: 'a', name: 'n', color: 1, extra: true },
+      { v: 3, selfId: '', name: 'n', color: 1 },
+      { v: 3, selfId: 'a'.repeat(65), name: 'n', color: 1 },
+      { v: 3, selfId: 'a', name: '', color: 1 },
+      { v: 3, selfId: 'a', name: 'n', color: 0 },
+      { v: 3, selfId: 'a', name: 'n', color: 1.5 },
+      { v: 3, selfId: 'a', name: 'n', color: 11 },
+      { v: 3, selfId: 'a', name: 'n', color: 1, invite: '' },
+      { v: 3, selfId: 'a', name: 'n', color: 1, extra: true },
     ]
     for (const value of cases) expect(() => parseHelloPayload(value)).toThrow(PeerFrameError)
   })
@@ -138,6 +154,13 @@ describe('hello and bye validation', () => {
     expect(parseByePayload({ reason: 'done' })).toEqual({ reason: 'done' })
     expect(() => parseByePayload({})).toThrow(PeerFrameError)
     expect(() => parseByePayload([1])).toThrow(PeerFrameError)
+  })
+
+  it('accepts only the empty JSON object as a heartbeat body', () => {
+    expect(parseHeartbeatPayload({})).toEqual({})
+    for (const value of [null, [], 'ping', 1, { seq: 1 }, { requestId: 'r1', request: {} }]) {
+      expect(() => parseHeartbeatPayload(value)).toThrow(/heartbeat body must be an empty JSON object/u)
+    }
   })
 })
 

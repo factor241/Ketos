@@ -1,5 +1,7 @@
 # Two Ketos instances beside each other, each with its own home volume,
-# Syncthing home, published Web port and Syncthing UI port.
+# Syncthing home, working directory volume, published Web port and Syncthing UI
+# port. The working directories are separate on purpose: `/workspace/shared`
+# reaches the other side only through Syncthing.
 #
 # The demonstration runs one service per computer: computer 1 runs
 # `docker compose -f docker/stand/compose.yaml up -d ketos-a`, computer 2 runs
@@ -35,7 +37,7 @@ services:
     volumes:
       - ketos-a-home:/data/ketos
       - ketos-a-syncthing:/data/syncthing
-      - ketos-stand-workspace:/workspace
+      - ketos-a-workspace:/workspace
 
   ketos-b:
     <<: *ketos-service
@@ -49,11 +51,12 @@ services:
     volumes:
       - ketos-b-home:/data/ketos
       - ketos-b-syncthing:/data/syncthing
-      - ketos-stand-workspace:/workspace
+      - ketos-b-workspace:/workspace
 
 volumes:
   ketos-a-home:
   ketos-b-home:
   ketos-a-syncthing:
   ketos-b-syncthing:
-  ketos-stand-workspace:
+  ketos-a-workspace:
+  ketos-b-workspace:

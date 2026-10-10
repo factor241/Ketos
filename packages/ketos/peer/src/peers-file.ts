@@ -17,6 +17,16 @@ import type { KetosPeerId } from './types.ts'
 /** Largest accepted peer id and ticket string in a stored record. */
 const RECORD_STRING_MAX = 512
 
+/**
+ * Validate one peer id read at a boundary by the rule of the known-peer file:
+ * a non-empty string of at most 512 characters.
+ * @param value - the decoded value.
+ * @returns the branded id, or undefined when the value breaks the rule.
+ */
+export function parsePeerId(value: unknown): KetosPeerId | undefined {
+  return isRecordString(value) ? brandString<KetosPeerId>(value) : undefined
+}
+
 /** Fields one stored record may carry; any other field refuses the file. */
 const RECORD_FIELDS: readonly string[] = ['peerId', 'selfId', 'name', 'color', 'ticket', 'lastSeen']
 
@@ -94,7 +104,8 @@ function parseKnownPeer(value: unknown, path: string): KnownPeer {
   for (const key of Object.keys(source)) {
     if (!RECORD_FIELDS.includes(key)) throw new Error(`peer file ${path} record carries unknown field ${JSON.stringify(key)}`)
   }
-  if (!isRecordString(source.peerId)) throw new Error(`peer file ${path} record peerId must be a non-empty string`)
+  const peerId = parsePeerId(source.peerId)
+  if (peerId === undefined) throw new Error(`peer file ${path} record peerId must be a non-empty string`)
   if (!isRecordString(source.selfId)) throw new Error(`peer file ${path} record selfId must be a non-empty string`)
   if (!isRecordString(source.name)) throw new Error(`peer file ${path} record name must be a non-empty string`)
   if (!isPeerColor(source.color)) throw new Error(`peer file ${path} record color must be an integer from 1 to 10`)
@@ -103,7 +114,7 @@ function parseKnownPeer(value: unknown, path: string): KnownPeer {
   }
   if (!isRecordString(source.lastSeen)) throw new Error(`peer file ${path} record lastSeen must be a non-empty string`)
   return {
-    peerId: brandString<KetosPeerId>(source.peerId),
+    peerId,
     selfId: brandString<OwnerId>(source.selfId),
     name: source.name,
     color: source.color,

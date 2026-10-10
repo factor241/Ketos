@@ -41,6 +41,39 @@ export interface PeerSelfState {
   readonly color: number
 }
 
+/**
+ * State of the shared Syncthing folder as the browser reads it, from the
+ * latest poll of the local Syncthing and the current Ketos channel states:
+ *
+ * - `unavailable` — the local Syncthing gives no answer: nothing listens, or
+ *   a request ran out of time;
+ * - `waiting` — the first poll has not completed; the folder is missing or
+ *   not running; no other device of the folder is connected; the folder
+ *   state is none of `idle`, `error`, or a scanning or transferring state
+ *   (`unknown`, for example) while nothing is needed; no connected device of
+ *   the folder carries the name `ketos:<peer id>`; the Ketos channel to no
+ *   peer of such a device is online, whether the folder syncs or is idle and
+ *   although Syncthing may still report the device connected; or no peer
+ *   with an online channel has its Syncthing sharing the folder back (its
+ *   `remoteState` is not `valid`);
+ * - `syncing` — the Ketos channel to the peer of a connected
+ *   `ketos:<peer id>` device is online and the folder scans, prepares,
+ *   transfers, cleans, starts, or waits to do one of these, or this device
+ *   still needs items or deletions; or the folder is idle and every peer with
+ *   an online channel whose Syncthing shares the folder back still needs
+ *   items or deletions;
+ * - `synced` — the folder is idle and needs nothing, and a connected device
+ *   named `ketos:<peer id>` belongs to a peer whose Ketos channel is online
+ *   and whose Syncthing shares the folder back and needs nothing;
+ * - `error` — Syncthing refuses a request (a wrong API key, 401 or 403, or
+ *   another error status such as a 5xx), answers without a field this
+ *   package reads or with no JSON at all, the API key is no longer set or
+ *   can no longer be read, Syncthing's discovery and listening settings
+ *   diverge from the stand's private-relay settings, or the folder reports
+ *   `error`.
+ */
+export type SharedFolderState = 'unavailable' | 'waiting' | 'syncing' | 'synced' | 'error'
+
 /** Answer of `GET /api/ketos.peer.state`. */
 export interface PeerStateResponse {
   /** The local node's own participant record. */
@@ -49,6 +82,8 @@ export interface PeerStateResponse {
   readonly peers: readonly PeerState[]
   /** How often the browser should poll this route, in milliseconds. */
   readonly refreshMs: number
+  /** State of the shared Syncthing folder; absent when the Syncthing feature is off. */
+  readonly sharedFolder?: SharedFolderState
 }
 
 /** Stable error code of the peer routes. */

@@ -4134,6 +4134,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'peer', description: 'the peer whose channel ended.' }],
   },
   {
+    name: 'ketos-peer/forgotten',
+    mode: 'emit',
+    signature: '\'ketos-peer/forgotten\'(peer: PeerForgottenEvent): void',
+    summary: 'A peer was forgotten: the known-peer file no longer lists it, and only a new invitation admits it again.',
+    description: 'A peer was forgotten: the known-peer file no longer lists it, and only a new invitation admits it again.',
+    parameters: [{ name: 'peer', description: 'the peer that was forgotten.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -5936,6 +5944,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PeerDisconnectedEvent',
     declaration: 'export interface PeerDisconnectedEvent {\n    readonly peerId: KetosPeerId;\n}',
+  },
+  {
+    name: 'PeerForgottenEvent',
+    declaration: 'export interface PeerForgottenEvent {\n    readonly peerId: KetosPeerId;\n}',
   },
   {
     name: 'PeerId',

@@ -1,8 +1,9 @@
 /**
  * Popover of the dock's participants control: the board roster with each
- * connected peer's link state, the invitation flow ("Invite" mints one code),
- * the connect flow ("Connect Ketos" redeems one), and "Forget" on a peer
- * without a live channel.
+ * connected peer's link state, the shared Syncthing folder's state while the
+ * host reports one, the invitation flow ("Invite" mints one code), the connect
+ * flow ("Connect Ketos" redeems one), and "Forget" on a peer without a live
+ * channel.
  *
  * The popover mounts in the dock's screen-space popover host (no windowId,
  * scale 1), stays inside the board box, closes on Escape or an outside click,
@@ -12,9 +13,10 @@
  * the roster with every link shown as lost.
  */
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import clsx from 'clsx'
 import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { KetosPeerId } from '@ketos/peer/types'
+import type { KetosPeerId, SharedFolderState } from '@ketos/peer/types'
 import type { BoardStoreHandle } from '../store.ts'
 import type { BoardPeerConnectOutcome, BoardPeerFailureCode, BoardPeerInviteOutcome } from '../contract/slots.ts'
 import { boardParticipants, participantColorAttr, participantLabel } from '../owners.ts'
@@ -38,6 +40,15 @@ const PEER_ERROR_KEY = {
   'ketos/peer-unavailable': 'peer.error.unreachable',
   'ketos/unreachable': 'peer.error.unreachable',
 } as const satisfies Record<BoardPeerFailureCode, BoardKey>
+
+/** Dictionary row each shared-folder state names. */
+const SHARED_FOLDER_KEY = {
+  unavailable: 'peer.folder.unavailable',
+  waiting: 'peer.folder.waiting',
+  syncing: 'peer.folder.syncing',
+  synced: 'peer.folder.synced',
+  error: 'peer.folder.error',
+} as const satisfies Record<SharedFolderState, BoardKey>
 
 /**
  * The address's clipboard API, or undefined where the runtime lacks one (a
@@ -108,6 +119,7 @@ export function ParticipantsPopover({
     || peers.some(peer => peer.selfId === participant.id)), [roster, records, selfId, peers])
   const available = useStore(s => s.peerAvailable)
   const missing = useStore(s => s.peerMissing)
+  const sharedFolder = useStore(s => s.peerSharedFolder)
   const [invite, setInvite] = useState<string | null>(null)
   const [inviteBusy, setInviteBusy] = useState(false)
   const [inviteError, setInviteError] = useState<BoardKey | null>(null)
@@ -227,6 +239,14 @@ export function ParticipantsPopover({
       </ul>
       {forgetError !== null && (
         <div className={css.error} role="alert">{t(forgetError)}</div>
+      )}
+      {sharedFolder !== null && (
+        <div className={css.folder} data-board-shared-folder={sharedFolder}>
+          <span className={css.name}>{t('peer.folder')}</span>
+          <span className={clsx(css.link, (sharedFolder === 'error' || sharedFolder === 'unavailable') && css.folderFailed)}>
+            {t(SHARED_FOLDER_KEY[sharedFolder])}
+          </span>
+        </div>
       )}
       {available
         ? (

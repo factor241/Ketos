@@ -85,6 +85,8 @@ async function createHarness(options: {
       reconnectMaxMs: 200,
       inviteTtlMs: 60_000,
       stateRefreshMs: 1000,
+      heartbeatIntervalMs: 3000,
+      heartbeatTimeoutMs: 9000,
       logger: () => undefined,
       transport,
     }
@@ -374,7 +376,8 @@ describe('transcript request: unavailable', () => {
     const owner = new KetosPeerService(ownerCtx, {
       name: 'Кирилл', relayUrls: [], keyPath: join(root, 'peer.key'), peersPath: join(root, 'peers.json'),
       maxFrameBytes: 1_000_000, onlineTimeoutMs: 500, connectTimeoutMs: 500, reconnectMinMs: 50,
-      reconnectMaxMs: 200, inviteTtlMs: 60_000, stateRefreshMs: 1000, logger: () => undefined, transport: pair.a,
+      reconnectMaxMs: 200, inviteTtlMs: 60_000, stateRefreshMs: 1000, heartbeatIntervalMs: 3000, heartbeatTimeoutMs: 9000,
+      logger: () => undefined, transport: pair.a,
     })
     cleanups.push(() => owner.close())
     const logs: string[] = []
@@ -444,7 +447,8 @@ describe('transcript with real board documents', () => {
     const peer = new KetosPeerService(ctx, {
       name, relayUrls: [], keyPath: join(root, 'peer.key'), peersPath: join(root, 'peers.json'),
       maxFrameBytes: 1_000_000, onlineTimeoutMs: 500, connectTimeoutMs: 500, reconnectMinMs: 50,
-      reconnectMaxMs: 200, inviteTtlMs: 60_000, stateRefreshMs: 1000, logger: () => undefined, transport,
+      reconnectMaxMs: 200, inviteTtlMs: 60_000, stateRefreshMs: 1000, heartbeatIntervalMs: 3000, heartbeatTimeoutMs: 9000,
+      logger: () => undefined, transport,
     })
     registerBoardSync(ctx, peer, board, {
       maxSyncUpdateBytes: 15_728_640, reconnectMinMs: 50, reconnectMaxMs: 200, logger: () => undefined,

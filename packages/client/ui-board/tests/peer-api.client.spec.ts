@@ -9,7 +9,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { OwnerId } from '@ketos/board-doc/types'
 import type { KetosPeerId } from '@ketos/peer/types'
 import {
-  connectPeer, createInvite, fetchPeerState, forgetPeer, isPeerStateResponse,
+  connectPeer, createInvite, fetchPeerState, forgetPeer, parsePeerStateResponse,
   PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH,
 } from '../src/client/peer-api.ts'
 
@@ -43,9 +43,9 @@ function stubFetch(handler: (request: Request) => Response | Promise<Response>):
   return requests
 }
 
-describe('isPeerStateResponse', () => {
+describe('parsePeerStateResponse', () => {
   it('accepts a complete answer and refuses every malformed field', () => {
-    expect(isPeerStateResponse(state())).toBe(true)
+    expect(parsePeerStateResponse(state())).toEqual(state())
     for (const bad of [
       null,
       { ...state(), self: undefined },
@@ -57,15 +57,34 @@ describe('isPeerStateResponse', () => {
       { ...state(), peers: [{ peerId: PEER, selfId: REMOTE, name: 'x', color: 1, link: 'away' }] },
       { ...state(), refreshMs: 0 },
       { ...state(), refreshMs: Number.NaN },
-    ]) expect(isPeerStateResponse(bad)).toBe(false)
+    ]) expect(parsePeerStateResponse(bad)).toBeUndefined()
+  })
+
+  it('keeps each shared-folder state and reads an unknown one as absent', () => {
+    for (const sharedFolder of ['unavailable', 'waiting', 'syncing', 'synced', 'error']) {
+      expect(parsePeerStateResponse(state({ sharedFolder }))).toEqual(state({ sharedFolder }))
+    }
+    // A host without the Syncthing feature sends no field.
+    expect(parsePeerStateResponse(state())).not.toHaveProperty('sharedFolder')
+    // A state this client does not know keeps the roster and drops the row.
+    for (const sharedFolder of ['paused', '', 3, null, { state: 'synced' }]) {
+      const parsed = parsePeerStateResponse(state({ sharedFolder }))
+      expect(parsed).toEqual(state())
+      expect(parsed).not.toHaveProperty('sharedFolder')
+    }
+  })
+
+  it('keeps only the fields of the state answer', () => {
+    expect(parsePeerStateResponse(state({ extra: 'x', sharedFolder: 'synced' })))
+      .toEqual(state({ sharedFolder: 'synced' }))
   })
 })
 
 describe('fetchPeerState', () => {
   it('reads and decodes the state from the mount-relative route', async () => {
-    const requests = stubFetch(() => Response.json(state()))
+    const requests = stubFetch(() => Response.json(state({ sharedFolder: 'syncing' })))
     const outcome = await fetchPeerState()
-    expect(outcome).toEqual({ ok: true, state: state() })
+    expect(outcome).toEqual({ ok: true, state: state({ sharedFolder: 'syncing' }) })
     expect(requests).toHaveLength(1)
     expect(new URL(requests[0]?.url ?? '').pathname).toBe(PEER_STATE_PATH)
   })

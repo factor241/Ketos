@@ -10,6 +10,15 @@
  * path are activated, not duplicated. Every read is guarded by the mounting
  * controller and a per-level generation, so a switched tab never paints a
  * settled answer that belongs to a request it already replaced.
+ *
+ * While the panel is open, every shown level of a Files tab — the root and
+ * each expanded folder under expanded ancestors — keeps one directory
+ * observation, ended when the level is hidden, the tab closes, the window
+ * changes session, or the panel collapses. A frame re-lists only its own level
+ * and keeps the level's rows meanwhile; frames arriving during a listing fold
+ * into one more listing after it. A failed observation, or a frame's re-list
+ * that fails while the level's rows stay, shows a caption naming the folder in
+ * the tab's header, and Reload re-lists every level and observes them again.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -37,6 +46,8 @@ export type RightPanelProps = {
   readonly sessionId: SessionId | undefined
   /** Session working directory: the workspace root of a files tab. */
   readonly cwd: string | undefined
+  /** Whether the panel is open; a collapsed panel keeps no directory observation. */
+  readonly open: boolean
   /** Board locale seat. */
   readonly t: BoardTranslate
   /** Board store selector seat. */
@@ -49,12 +60,21 @@ export type RightPanelProps = {
   readonly documentPreviewFor: BoardWindowInjected['documentPreviewFor']
   /** List one directory of the session workspace. */
   readonly listWorkspaceDirectory: BoardWindowInjected['listWorkspaceDirectory']
+  /** Observe the direct entries of one directory of the session workspace. */
+  readonly watchWorkspaceDirectory: BoardWindowInjected['watchWorkspaceDirectory']
   /** Read one file of the session workspace. */
   readonly readWorkspaceFile: BoardWindowInjected['readWorkspaceFile']
 }
 
 /** Suffixes the viewer draws as an image, in the standard interface's set. */
 const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'])
+
+/**
+ * Listing failures that describe the directory itself, so a background
+ * re-list shows them in place of the level's rows; any other failure of a
+ * background re-list keeps the rows and adds the header caption.
+ */
+const DIRECTORY_FAILURES: ReadonlySet<string> = new Set(['workspace-file/not-found', 'workspace-file/not-directory'])
 
 /** Natural, case-insensitive name order, so `file2` precedes `file10`. */
 const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
@@ -103,6 +123,46 @@ function childPath(parent: string, name: string): string {
   return `${parent.replace(/[/\\]+$/, '')}/${name}`
 }
 /* jscpd:ignore-end */
+
+/**
+ * The header caption for the levels whose rows are not live: the tab's own
+ * folder when the root is among them, otherwise every such folder by its path
+ * under the root.
+ * @param t - board locale seat.
+ * @param root - absolute workspace root of the tab.
+ * @param paths - absolute paths of the levels, the root or descendants of it.
+ * @returns the caption for the active locale.
+ */
+function watchCaption(t: BoardTranslate, root: string, paths: ReadonlySet<string>): string {
+  if (paths.has(root)) return t('right.watchFailed')
+  // Every level path is built by `childPath` from the root, so it starts with the trimmed root and `/`.
+  const prefix = root.replace(/[/\\]+$/, '').length + 1
+  const folders = [...paths].map(path => path.slice(prefix)).sort((left, right) => byName.compare(left, right))
+  return t('right.watchFailedFolder', { folder: folders.join(', ') })
+}
+
+/**
+ * One path added to a set held in React state.
+ * @param held - the current set.
+ * @param path - the path to add.
+ * @returns `held` itself when it already has the path, so the state does not change.
+ */
+function withPath(held: ReadonlySet<string>, path: string): ReadonlySet<string> {
+  return held.has(path) ? held : new Set(held).add(path)
+}
+
+/**
+ * One path removed from a set held in React state.
+ * @param held - the current set.
+ * @param path - the path to remove.
+ * @returns `held` itself when it lacks the path, so the state does not change.
+ */
+function withoutPath(held: ReadonlySet<string>, path: string): ReadonlySet<string> {
+  if (!held.has(path)) return held
+  const next = new Set(held)
+  next.delete(path)
+  return next
+}
 
 /**
  * The viewer one path selects by extension; the document-preview definition
@@ -261,16 +321,23 @@ function TreeEntry({ parent, entry, tree }: {
   )
 }
 
-/** What every tree level shares: its state, its two gestures, and its copy. */
+/** What every tree level shares: its state, its two gestures, its observation, and its copy. */
 interface TreeContext {
   readonly state: BoardFilesTabState
   readonly t: BoardTranslate
   readonly onToggle: (path: string) => void
   readonly onOpen: (path: string) => void
+  /** Observe one shown level; the returned function ends the observation. */
+  readonly watch: (path: string) => () => void
 }
 
-/** One directory's rows: its state while listing, its entries once listed. */
+/**
+ * One directory's rows: its state while listing, its entries once listed. The
+ * level is observed for as long as it is shown.
+ */
 function TreeLevel({ path, tree }: { readonly path: string; readonly tree: TreeContext }): ReactNode {
+  const { watch } = tree
+  useEffect(() => watch(path), [watch, path])
   const level = tree.state.levels[path]
   if (level === undefined || level.kind === 'loading') {
     return <div className={css.rowNote} data-board-right-row="loading">{tree.t('right.loading')}</div>
@@ -292,69 +359,141 @@ function TreeLevel({ path, tree }: { readonly path: string; readonly tree: TreeC
   )
 }
 
+/** Listing bookkeeping of one level: the generation a settlement must match, and folded frames. */
+interface LevelReads {
+  /** Generation of the newest listing; an older settlement writes nothing. */
+  generation: number
+  /** Whether the newest listing is still in flight. */
+  busy: boolean
+  /** Whether a frame arrived during the newest listing, asking for one more. */
+  again: boolean
+}
+
 /**
  * One files tab: the absolute workspace root, its reload control, and the tree
  * of expanded directories. Every expanded level without state is listed once;
  * a settled listing older than the level's newest request writes nothing.
+ * Each shown level is observed while the panel is open: a frame re-lists that
+ * level without its loading line, and a failed observation adds the header
+ * caption until Reload observes the levels again. A frame's re-list that
+ * fails for any reason but a missing or replaced directory keeps the level's
+ * rows and adds the caption until a later listing of the level succeeds.
  */
-function FilesPane({ sessionId, tabId, state, t, actions, windowId, openFileInPanel, listWorkspaceDirectory }: {
+function FilesPane({
+  sessionId, tabId, state, t, actions, windowId, open, openFileInPanel, listWorkspaceDirectory, watchWorkspaceDirectory,
+}: {
   readonly sessionId: SessionId
   readonly tabId: string
   readonly state: BoardFilesTabState
   readonly t: BoardTranslate
   readonly actions: RightPanelProps['actions']
   readonly windowId: WindowId
+  readonly open: boolean
   readonly openFileInPanel: RightPanelProps['openFileInPanel']
   readonly listWorkspaceDirectory: RightPanelProps['listWorkspaceDirectory']
+  readonly watchWorkspaceDirectory: RightPanelProps['watchWorkspaceDirectory']
 }): ReactNode {
   const [controller] = useState(() => new AbortController())
-  const generations = useRef(new Map<string, number>())
+  const reads = useRef(new Map<string, LevelReads>())
   const live = useRef(true)
+  // Reload remounts the tree, so every shown level is observed again.
+  const [treeEpoch, setTreeEpoch] = useState(0)
+  // Levels whose observation ended, and levels whose latest background re-list failed.
+  const [unobserved, setUnobserved] = useState<ReadonlySet<string>>(() => new Set())
+  const [stale, setStale] = useState<ReadonlySet<string>>(() => new Set())
+  // Levels with an open observation; a background re-list of any other level adds no caption.
+  const observed = useRef(new Set<string>())
   useEffect(() => () => {
     live.current = false
     controller.abort()
   }, [controller])
 
-  const load = useCallback((path: string): void => {
-    const generation = (generations.current.get(path) ?? 0) + 1
-    generations.current.set(path, generation)
-    actions.filesLoading(sessionId, tabId, path)
+  /** List one level; `quiet` keeps its rows on screen and folds into a listing in flight. */
+  const read = useCallback(function read(path: string, quiet: boolean): void {
+    const level = reads.current.get(path) ?? { generation: 0, busy: false, again: false }
+    reads.current.set(path, level)
+    if (quiet && level.busy) {
+      level.again = true
+      return
+    }
+    const generation = level.generation + 1
+    level.generation = generation
+    level.busy = true
+    level.again = false
+    if (!quiet) actions.filesLoading(sessionId, tabId, path)
     void listWorkspaceDirectory(sessionId, path, controller.signal).then((result) => {
       // An unmounted pane and a level asked for again both retire this answer.
-      if (!live.current || generations.current.get(path) !== generation) return
-      if (result.ok) actions.filesLoaded(sessionId, tabId, path, result)
-      else actions.filesFailed(sessionId, tabId, path, result.code, result.message)
+      if (!live.current || level.generation !== generation) return
+      level.busy = false
+      if (result.ok) {
+        actions.filesLoaded(sessionId, tabId, path, result)
+        setStale(held => withoutPath(held, path))
+      } else if (quiet && !DIRECTORY_FAILURES.has(result.code)) {
+        // The rows the failed re-list would replace stay on screen.
+        if (observed.current.has(path)) setStale(held => withPath(held, path))
+      } else {
+        actions.filesFailed(sessionId, tabId, path, result.code, result.message)
+        setStale(held => withoutPath(held, path))
+      }
+      if (level.again) read(path, true)
     })
   }, [actions, sessionId, tabId, listWorkspaceDirectory, controller])
 
   useEffect(() => {
     for (const path of state.expanded) {
-      if (state.levels[path] === undefined) load(path)
+      if (state.levels[path] === undefined) read(path, false)
     }
-  }, [state.expanded, state.levels, load])
+  }, [state.expanded, state.levels, read])
+
+  const watch = useCallback((path: string): (() => void) => {
+    if (!open) return () => {}
+    observed.current.add(path)
+    const stop = watchWorkspaceDirectory(sessionId, path, {
+      changed: () => { read(path, true) },
+      failed: () => { setUnobserved(held => withPath(held, path)) },
+    })
+    return () => {
+      observed.current.delete(path)
+      void stop()
+      setUnobserved(held => withoutPath(held, path))
+      setStale(held => withoutPath(held, path))
+    }
+  }, [open, sessionId, watchWorkspaceDirectory, read])
 
   const tree: TreeContext = {
     state,
     t,
     onToggle: (path) => { actions.filesToggle(sessionId, tabId, path) },
     onOpen: (path) => { openFileInPanel(windowId, path) },
+    watch,
   }
+  const notLive = unobserved.size === 0 ? stale : new Set([...unobserved, ...stale])
+  const caption = notLive.size === 0 ? undefined : watchCaption(t, state.root, notLive)
   return (
     <div className={css.files} data-board-right-files="">
       <div className={css.filesHeader}>
-        <span className={css.filesPath} title={state.root} data-board-right-files-path="">{state.root}</span>
+        {caption === undefined
+          ? <span className={css.filesPath} title={state.root} data-board-right-files-path="">{state.root}</span>
+          : (
+            <span className={css.filesNotice} title={caption} role="status" data-board-right-files-watch="failed">
+              {caption}
+            </span>
+          )}
         <button
           type="button"
           className={css.filesReload}
           data-board-action="right-files-reload"
           aria-label={t('right.reload')}
           title={t('right.reload')}
-          onClick={() => { actions.filesReset(sessionId, tabId) }}
+          onClick={() => {
+            setTreeEpoch(epoch => epoch + 1)
+            actions.filesReset(sessionId, tabId)
+          }}
         >
           <IconRefreshOutlineRegular />
         </button>
       </div>
-      <div className={css.tree}>
+      <div key={treeEpoch} className={css.tree}>
         <TreeLevel path={state.root} tree={tree} />
       </div>
     </div>
@@ -401,8 +540,8 @@ function TabChip({ tab, active, t, onActivate, onClose }: {
 
 /** The window's right panel: tab strip, Home, files tree, and file viewers. */
 export function RightPanel({
-  windowId, sessionId, cwd, t, useStore, actions, openFileInPanel, documentPreviewFor,
-  listWorkspaceDirectory, readWorkspaceFile,
+  windowId, sessionId, cwd, open, t, useStore, actions, openFileInPanel, documentPreviewFor,
+  listWorkspaceDirectory, watchWorkspaceDirectory, readWorkspaceFile,
 }: RightPanelProps): ReactNode {
   const panel = useStore(s => sessionId === undefined ? undefined : s.rightPanels[sessionId])
   const tabs = panel === undefined ? [] : panel.tabs
@@ -438,14 +577,17 @@ export function RightPanel({
       ? <div className={css.rowNote} data-board-right-row="loading">{t('right.loading')}</div>
       : (
         <FilesPane
+          key={`${sessionId}:${activeTab.id}`}
           sessionId={sessionId}
           tabId={activeTab.id}
           state={filesState}
           t={t}
           actions={actions}
           windowId={windowId}
+          open={open}
           openFileInPanel={openFileInPanel}
           listWorkspaceDirectory={listWorkspaceDirectory}
+          watchWorkspaceDirectory={watchWorkspaceDirectory}
         />
       )
   } else {

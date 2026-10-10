@@ -91,6 +91,8 @@ async function createSide(options: SideOptions): Promise<Harness> {
     reconnectMaxMs: options.reconnectMaxMs ?? 200,
     inviteTtlMs: 60_000,
     stateRefreshMs: 1000,
+    heartbeatIntervalMs: 3000,
+    heartbeatTimeoutMs: 9000,
     logger: (message) => { peerLogs.push(message) },
     transport: options.transport,
   }

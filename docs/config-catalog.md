@@ -4440,7 +4440,7 @@ export interface Config {
 ## `@ketos/peer`
 
 - `inject`: `connection` · `ketosBoardDoc`
-- `source`: [`packages/ketos/peer/src/index.ts:35`](../packages/ketos/peer/src/index.ts)
+- `source`: [`packages/ketos/peer/src/index.ts:39`](../packages/ketos/peer/src/index.ts)
 
 ```ts config-catalog
 /** Deployment configuration of the peer node. */
@@ -4480,6 +4480,16 @@ export interface Config {
   inviteTtlMs?: number
   /** Poll interval the state route publishes, in milliseconds (250–60000). */
   stateRefreshMs?: number
+  /** Pause between two `peer.ping` frames on every channel, in milliseconds (500–30000). */
+  heartbeatIntervalMs?: number
+  /**
+   * Longest time a channel may complete no read — a frame header or a body
+   * slice of up to 16 KiB — before it closes with reason `heartbeat-timeout`,
+   * the peer turns `lost`, and the redial starts, in milliseconds (1000–60000).
+   * Must be at least twice `heartbeatIntervalMs`, so the pong to the first
+   * ping after the last completed read has at least one interval to arrive.
+   */
+  heartbeatTimeoutMs?: number
   /** Local address the node binds, when the deployment pins one. */
   bindAddr?: string
   /** Most messages this Ketos returns for a chat window it hosts; the latest ones are kept (1–200). */
@@ -4500,6 +4510,64 @@ export interface Config {
   transcriptMaxBytes?: number
   /** How long this Ketos waits for another Ketos to answer a transcript request, in milliseconds (500–60000). */
   transcriptTimeoutMs?: number
+  /**
+   * The shared Syncthing folder. When present, the two Ketoses exchange their
+   * Syncthing device ids over the channel and link the devices and the folder
+   * through the local Syncthing REST API; when absent, the feature is off.
+   */
+  syncthing?: SyncthingConfig
+}
+
+/** Deployment configuration of the shared Syncthing folder. */
+export interface SyncthingConfig {
+  /**
+   * Base URL of the local Syncthing REST API, such as `http://127.0.0.1:8384`.
+   * `http://` is accepted only for a loopback host, since the API key travels
+   * in a request header; the URL must not carry a user name, a password, a
+   * query, or a fragment, since request paths are appended to it.
+   */
+  url: string
+  /**
+   * Name of the environment variable that holds the Syncthing API key, read
+   * through the credentials service when one is present and from the launch
+   * environment when there is none or it has no value, again before every
+   * Syncthing request. When the variable is not set at start, the Syncthing
+   * feature stays off with one host log line and the rest of the plugin works.
+   */
+  apiKeyEnv: string
+  /**
+   * The private relay both Syncthing devices dial each other through,
+   * `relay://host:port/?id=<relay device id>`, without the `token` parameter:
+   * the token admits a listener to the relay and is never needed to dial a peer.
+   */
+  relayAddress: string
+  /** Id of the shared folder: 1–64 letters, digits, `.`, `_`, or `-`, starting with a letter or digit. */
+  folderId: string
+  /** Absolute directory of the shared folder on the Syncthing host. */
+  folderPath: string
+  /** Seconds Syncthing's watcher collects changes before it scans (1–3600, default 10, Syncthing's own default). */
+  fsWatcherDelayS?: number
+  /** How often the shared-folder state is read from Syncthing, in milliseconds (250–60000, default 2000). */
+  statusRefreshMs?: number
+  /** How long one Syncthing request may take, in milliseconds (100–60000, default 5000). */
+  requestTimeoutMs?: number
+  /**
+   * Pause before a linking step is retried after Syncthing gave no answer,
+   * timed out, or answered with a server error, in milliseconds (100–600000,
+   * default 2000).
+   */
+  retryMs?: number
+  /**
+   * How long the Ketos channel to a peer must have been lost before its next
+   * connection restarts Syncthing's connection to the peer's device, in
+   * milliseconds (10000–600000, default 90000). Syncthing's relay connections
+   * survive shorter outages, and restarting one that still works costs one
+   * of the few immediate redials Syncthing allows per device before it holds
+   * off for minutes; a longer outage outlasts the relay session, whose dead
+   * connection Syncthing may keep counting as connected for more than a
+   * minute.
+   */
+  kickAfterLostMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@ketos/peer -->

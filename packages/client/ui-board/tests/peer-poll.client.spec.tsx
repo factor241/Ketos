@@ -176,6 +176,40 @@ describe('peer state polling', () => {
   })
 })
 
+describe('shared folder state', () => {
+  it('shows the state the poll reports in the participants popover and follows its changes', async () => {
+    let folder: string | undefined = 'waiting'
+    const boardDoc = createBoardDocDouble(undefined, globalThis.fetch, {
+      state: () => Response.json(folder === undefined ? stateAnswer() : { ...stateAnswer(), sharedFolder: folder }),
+    })
+    const prepared = await createBoardBench({ boardDoc })
+    runtimes.add(prepared.runtime)
+    await prepared.mountBoard()
+    const panel = prepared.runtime.renderSlot('main', {}, { entryKey: 'board' })
+    const store = prepared.runtime.storeOf('board.dock') as BoardInstance
+    await vi.waitFor(() => { expect(store.getSnapshot().peerSharedFolder).toBe('waiting') })
+    act(() => {
+      fireEvent.click(panel.container.querySelector('[data-board-action="dock-participants"]') as Element)
+    })
+    await prepared.runtime.flush()
+    const row = (): Element | null => document.querySelector('[role="dialog"] [data-board-shared-folder]')
+    expect(row()?.textContent).toBe('Shared folderWaiting for the other side')
+
+    folder = 'synced'
+    await vi.waitFor(() => { expect(row()?.textContent).toBe('Shared folderSynced') })
+    expect(row()?.getAttribute('data-board-shared-folder')).toBe('synced')
+
+    // A state this client does not know reads as no folder at all.
+    folder = 'paused'
+    await vi.waitFor(() => { expect(row()).toBeNull() })
+    folder = 'error'
+    await vi.waitFor(() => { expect(row()?.textContent).toBe('Shared folderSync error') })
+    folder = undefined
+    await vi.waitFor(() => { expect(row()).toBeNull() })
+    expect(store.getSnapshot().peerAvailable).toBe(true)
+  })
+})
+
 describe('transfer to a connected peer', () => {
   it('offers the peer and leaves the window on this Ketos under the new owner', async () => {
     const boardDoc = createBoardDocDouble(undefined, globalThis.fetch, {

@@ -8,19 +8,21 @@ The Ketos soft fork's transport subsystem: two Ketos instances on different comp
 
 | Owner | Responsibility |
 |---|---|
-| [@ketos/peer](../../packages/ketos/peer/README.md) | `ctx.ketosPeer`: the iroh node with a stored key, the framed channel, the invitation code, the known-peer file, participant records, and reconnection |
+| [@ketos/peer](../../packages/ketos/peer/README.md) | `ctx.ketosPeer`: the iroh node with a stored key, the framed channel and its heartbeat, the invitation code, the known-peer file, participant records, and reconnection |
 | [@ketos/board-doc](../../packages/ketos/board-doc/README.md) | The board document whose `participants` map each Ketos writes its own record into |
 | [docker/relay](../../docker/relay/README.md) | The private iroh relay and Syncthing relay the deployment runs on its VPS |
 
 ## Channel
 
-The node binds with a key stored at `$DSH_HOME/peer.key` and the team's relay URLs, so its `EndpointId` is stable and reachable only through that relay. One connection carries one bidirectional stream; messages are `[u32 BE length][u8 code][JSON body]`, with codes for board document synchronization and chat transcripts, and a code reserved for the Syncthing device handshake of a later stage. A frame over the size bound, a non-JSON body, an unknown code, or a truncated frame closes the connection without throwing past the read loop.
+The node binds with a key stored at `$DSH_HOME/peer.key` and the team's relay URLs, so its `EndpointId` is stable and reachable only through that relay. One connection carries one bidirectional stream; messages are `[u32 BE length][u8 code][body]`, with codes for board document synchronization, chat transcripts, the exchange of Syncthing device ids that links both Ketoses to one shared folder, and the heartbeat. The board synchronization bodies are raw bytes, every other body JSON. A frame over the size bound, a malformed body, an unknown code, or a truncated frame closes the connection without throwing past the read loop. The channel speaks protocol version 3, which its transport protocol name `ketos/peer/3` carries, so a build of another version cannot connect.
+
+Each side sends `peer.ping` every `heartbeatIntervalMs` and answers every ping with `peer.pong`. A link that completes no read — a frame header or a body slice of up to 16 KiB — for `heartbeatTimeoutMs` closes with reason `heartbeat-timeout`, the peer turns `lost`, and the dialing side redials.
 
 The dialing side writes `hello` first; the receiver admits a known peer, or an unknown one whose `hello` carries the one-time secret of its pending `ketos1.…` invitation code. Admitted nodes are stored in `$DSH_HOME/peers.json`, and only the dialing side keeps the peer's ticket, so it owns reconnection with bounded, jittered retries.
 
 ## Events
 
-`ketos-peer/connected` fires after a handshake established a usable channel, carrying the peer identity and its participant record; stage 33 uses it to catch up the synchronized document. `ketos-peer/disconnected` fires when that channel ends, before any reconnection attempt.
+`ketos-peer/connected` fires after a handshake established a usable channel, carrying the peer identity and its participant record; stage 33 uses it to catch up the synchronized document. `ketos-peer/disconnected` fires when that channel ends, before any reconnection attempt. `ketos-peer/forgotten` fires once `forget` has removed a peer from the known-peer file; the Syncthing feature uses it to remove that peer's device from the shared folder.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -62,6 +64,22 @@ A channel to a known peer ended; reconnection may follow.
  * @mode emit
  */
 'ketos-peer/disconnected'(peer: PeerDisconnectedEvent): void
+```
+
+Source: [`packages/ketos/peer/src/service.ts`](../../packages/ketos/peer/src/service.ts)
+
+<a id="ketos-peerforgotten--emit"></a>
+
+#### `ketos-peer/forgotten` — emit
+
+A peer was forgotten: the known-peer file no longer lists it, and only a new invitation admits it again.
+
+```ts cordis-catalog
+/** A peer was forgotten: the known-peer file no longer lists it, and only a new invitation admits it again.
+ * @param peer - the peer that was forgotten.
+ * @mode emit
+ */
+'ketos-peer/forgotten'(peer: PeerForgottenEvent): void
 ```
 
 Source: [`packages/ketos/peer/src/service.ts`](../../packages/ketos/peer/src/service.ts)

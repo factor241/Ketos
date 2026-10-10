@@ -3,29 +3,38 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docker/stand/README.md
 /two-ketos-stand-stage-26-4:
-  en: 049196ab4f5596d1
-  zh: 801837983c5aba81
+  en: 16465828baf43d90
+  zh: 6060cab653af7af7
 /two-ketos-stand-stage-26-4/preparation:
-  en: deea95c8c62e5827
-  zh: 9bd934e774674516
+  en: 435ec1a53f4ab7bf
+  zh: 01d35b784600c7d5
 /two-ketos-stand-stage-26-4/launch:
   en: 99c2a21121ba8de9
-  zh: f05947498b860390
+  zh: 434753e17862c562
+/two-ketos-stand-stage-26-4/working-directories:
+  en: d43b00e91e7b0353
+  zh: c60fa48aee50e9e4
 /two-ketos-stand-stage-26-4/two-computers:
-  en: 63f3e30cd4edd360
-  zh: 181a69f1f63f0c62
+  en: 45004da0dfea9e2d
+  zh: 27218871dab2a44a
+/two-ketos-stand-stage-26-4/windows-11-computer-b:
+  en: 351369bf79d653ef
+  zh: 30669a91405bbb0d
 /two-ketos-stand-stage-26-4/addresses:
-  en: 9c706a3f2061b5ea
-  zh: afdd557ca720e419
+  en: 46806f3d77c34471
+  zh: 6de387b00c295d20
 /two-ketos-stand-stage-26-4/checks:
   en: 59cb402d6bb28c32
   zh: 404f998292dfd143
 /two-ketos-stand-stage-26-4/syncthing:
-  en: d657104cc5df90cc
-  zh: 5d341df93c0357bc
+  en: 4df1961178006f1f
+  zh: 1a441e1d1f82fbaf
+/two-ketos-stand-stage-26-4/manual-syncthing-linking:
+  en: 4b12268f9e91e03a
+  zh: c92f30c0db6b3abf
 /two-ketos-stand-stage-26-4/beads-bd:
   en: f200689e003bc15d
   zh: 2a0b889aec80c685
 /two-ketos-stand-stage-26-4/contents:
-  en: 1da901b2b44bc38a
-  zh: da2e6f050ccf3004
+  en: 24b650a9b49497e4
+  zh: 7ec329252b0aac2f

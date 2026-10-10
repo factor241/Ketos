@@ -74,7 +74,7 @@ function WindowChatsPanelView({
   bindSession, createChat, startChat, renameChat, forkChat, archiveChat, reorderChat,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspace,
   listDirectory, createDirectory, pickDirectory, canOpenWorkspacePath, openWorkspacePath,
-  openFileInPanel, documentPreviewFor, listWorkspaceDirectory, readWorkspaceFile, t,
+  openFileInPanel, documentPreviewFor, listWorkspaceDirectory, watchWorkspaceDirectory, readWorkspaceFile, t,
 }: WindowChatsPanelProps) {
   const groupBy = useStore(s => s.panelGroupBy)
   const orderBy = useStore(s => s.panelOrderBy)
@@ -718,12 +718,14 @@ function WindowChatsPanelView({
           windowId={cardWindow.id}
           sessionId={windowSessionId}
           cwd={session?.cwd}
+          open={rightOpen}
           t={t}
           useStore={useStore}
           actions={actions}
           openFileInPanel={openFileInPanel}
           documentPreviewFor={documentPreviewFor}
           listWorkspaceDirectory={listWorkspaceDirectory}
+          watchWorkspaceDirectory={watchWorkspaceDirectory}
           readWorkspaceFile={readWorkspaceFile}
         />
       </WindowPanelShell>

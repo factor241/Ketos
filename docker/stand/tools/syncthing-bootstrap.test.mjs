@@ -39,6 +39,44 @@ test('first run pins the relay and disables public discovery', () => {
   assert.ok(!xml.includes('<listenAddress>default</listenAddress>'))
 })
 
+test('first run pins the reconnection interval to 10 seconds', () => {
+  const home = freshHome()
+  assert.match(readFileSync(join(home, 'config.xml'), 'utf8'), /<reconnectionIntervalS>20</, 'the stock value is not 10')
+  const result = run(home)
+  assert.equal(result.status, 0, result.stderr)
+  const xml = readFileSync(join(home, 'config.xml'), 'utf8')
+  assert.equal(xml.match(/<reconnectionIntervalS>/g).length, 1)
+  assert.match(xml, /<reconnectionIntervalS>10<\/reconnectionIntervalS>/)
+})
+
+test('first run pins the relay redial interval to 1 minute', () => {
+  const home = freshHome()
+  assert.match(readFileSync(join(home, 'config.xml'), 'utf8'), /<relayReconnectIntervalM>10</, 'the stock value is not 1')
+  const result = run(home)
+  assert.equal(result.status, 0, result.stderr)
+  const xml = readFileSync(join(home, 'config.xml'), 'utf8')
+  assert.equal(xml.match(/<relayReconnectIntervalM>/g).length, 1)
+  assert.match(xml, /<relayReconnectIntervalM>1<\/relayReconnectIntervalM>/)
+})
+
+test('a template without <relayReconnectIntervalM> fails loud and names the element', () => {
+  const home = freshHome()
+  const path = join(home, 'config.xml')
+  writeFileSync(path, readFileSync(path, 'utf8').replace(/[ \t]*<relayReconnectIntervalM>[^<]*<\/relayReconnectIntervalM>\n?/, ''))
+  const result = run(home)
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /relayReconnectIntervalM/)
+})
+
+test('a template without <reconnectionIntervalS> fails loud and names the element', () => {
+  const home = freshHome()
+  const path = join(home, 'config.xml')
+  writeFileSync(path, readFileSync(path, 'utf8').replace(/[ \t]*<reconnectionIntervalS>[^<]*<\/reconnectionIntervalS>\n/, ''))
+  const result = run(home)
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /reconnectionIntervalS/)
+})
+
 test('second run on an already bootstrapped config succeeds and changes nothing', () => {
   const home = freshHome()
   assert.equal(run(home).status, 0)

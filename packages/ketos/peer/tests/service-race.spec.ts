@@ -178,6 +178,8 @@ async function createSide(selfId: string, transport: PeerTransport, pauses: Paus
     reconnectMaxMs: pauses.maxMs,
     inviteTtlMs: 60_000,
     stateRefreshMs: 1000,
+    heartbeatIntervalMs: 3000,
+    heartbeatTimeoutMs: 9000,
     logger: (message) => { logs.push(message) },
     transport,
   })

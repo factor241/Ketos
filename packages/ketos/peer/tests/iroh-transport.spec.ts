@@ -99,10 +99,10 @@ describe('iroh transport', () => {
     expect(['pending', 'failed']).toContain(outcome)
   })
 
-  it('negotiates the version 2 protocol name and refuses the version 1 name', async () => {
-    expect(PEER_ALPN).toBe('ketos/peer/2')
+  it('negotiates the version 3 protocol name and refuses the version 2 name', async () => {
+    expect(PEER_ALPN).toBe('ketos/peer/3')
     const server = await loopback({ key: new Uint8Array(32).fill(14) })
-    const old = await loopback({ key: new Uint8Array(32).fill(15), alpn: 'ketos/peer/1' })
+    const old = await loopback({ key: new Uint8Array(32).fill(15), alpn: 'ketos/peer/2' })
     await server.bind()
     await old.bind()
     const incoming = server.accept().then(next => next.complete())
@@ -126,12 +126,12 @@ describe('iroh transport', () => {
     expect(clientConnection.peerId).toBe(server.selfId())
 
     const clientStream = await clientConnection.openStream()
-    const hello = { v: 2 as const, selfId: 'owner-a', name: 'Кирилл', color: 1 }
+    const hello = { v: 3 as const, selfId: 'owner-a', name: 'Кирилл', color: 1 }
     await writePeerFrame(clientStream, PEER_FRAME_CODES.hello, hello)
     const serverStream = await serverConnection.acceptStream()
     await expect(readPeerFrame(serverStream, 1024)).resolves.toEqual({ code: PEER_FRAME_CODES.hello, payload: hello })
 
-    const reply = { v: 2 as const, selfId: 'owner-b', name: 'Юрист', color: 2 }
+    const reply = { v: 3 as const, selfId: 'owner-b', name: 'Юрист', color: 2 }
     await writePeerFrame(serverStream, PEER_FRAME_CODES.hello, reply)
     await expect(readPeerFrame(clientStream, 1024)).resolves.toEqual({ code: PEER_FRAME_CODES.hello, payload: reply })
     await serverStream.finish()

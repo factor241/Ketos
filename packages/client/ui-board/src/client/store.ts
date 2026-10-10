@@ -13,7 +13,7 @@ import type {
   BoardWindowRecord, ElementId, StrokeWidth,
 } from '@ketos/board-doc/types'
 import { clampWindowTitle } from '@ketos/board-doc/windows'
-import type { PeerSelfState, PeerState, PeerStateResponse } from '@ketos/peer/types'
+import type { PeerSelfState, PeerState, PeerStateResponse, SharedFolderState } from '@ketos/peer/types'
 import type { BoardTool, BoardEraserPreview } from './board-tool.ts'
 import type { CloneEdit } from './clone-draft.ts'
 import {
@@ -198,7 +198,12 @@ type BoardActions = {
   filesStart: (draft: BoardState, sessionId: SessionId, tabId: string, root: string) => void
   /** Mark one directory level as being listed. */
   filesLoading: (draft: BoardState, sessionId: SessionId, tabId: string, path: string) => void
-  /** Record one directory level's contents. */
+  /**
+   * Record one directory level's contents. A listing equal to the level's
+   * shown one — same entries by name, kind, and size in the same order, same
+   * truncation — writes nothing, so a re-list that finds no change does not
+   * restart the layout write debounce.
+   */
   filesLoaded: (
     draft: BoardState,
     sessionId: SessionId,
@@ -206,7 +211,7 @@ type BoardActions = {
     path: string,
     level: { readonly entries: readonly WorkspaceDirectoryEntry[]; readonly truncated: boolean },
   ) => void
-  /** Record why one directory level could not be listed. */
+  /** Record why one directory level could not be listed; a repeat of the shown failure writes nothing. */
   filesFailed: (
     draft: BoardState,
     sessionId: SessionId,
@@ -240,20 +245,22 @@ type BoardActions = {
   applyBoardPatch: (draft: BoardState, patch: BoardPatch) => void
   /**
    * Replace the peer slice with one state answer: the local participant
-   * record, the known peers, and the routes being available. The roster
-   * re-derives from it; the document slice is untouched.
+   * record, the known peers, the shared-folder state (null when the answer
+   * carries none), and the routes being available. The roster re-derives from
+   * it; the document slice is untouched.
    */
   applyPeerState: (draft: BoardState, response: PeerStateResponse) => void
   /**
    * Mark peer networking unavailable: the host answered 404, so drop the peer
-   * slice, the local record, and every known peer. The dock shows the
-   * not-configured hint from this state.
+   * slice, the local record, every known peer, and the shared-folder state.
+   * The dock shows the not-configured hint from this state.
    */
   markPeerUnavailable: (draft: BoardState) => void
   /**
    * Mark the last poll unreachable: keep the peer slice the last answer
    * reported and downgrade every link to `lost`, because without a host
-   * answer no link is confirmed. A later answer restores what it names.
+   * answer no link is confirmed. The shared-folder state stays as the last
+   * answer reported it. A later answer restores what it names.
    */
   markPeerUnreachable: (draft: BoardState) => void
   /** Record whether the board surface is rendered; peer polling follows it. */
@@ -433,6 +440,8 @@ export interface BoardState {
   peerAvailable: boolean
   /** Whether the state route answered 404; the dock's not-configured hint follows it. */
   peerMissing: boolean
+  /** Shared Syncthing folder state the last answer reported; null when it carried none (the feature is off) or before it. */
+  peerSharedFolder: SharedFolderState | null
   /** Whether the board surface is rendered; peer polling runs only while it is. */
   boardMounted: boolean
   /** The one selected element, or null. */
@@ -720,6 +729,20 @@ function moveBefore<T extends string>(order: readonly T[], id: T, before: T | nu
 }
 
 /**
+ * Whether two directory listings carry the same entries in the same order.
+ * @param left - the shown entries.
+ * @param right - the new listing's entries.
+ * @returns whether every entry matches by name, kind, and size.
+ */
+function sameEntries(left: readonly WorkspaceDirectoryEntry[], right: readonly WorkspaceDirectoryEntry[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((entry, index) => {
+    const other = right[index]
+    return other !== undefined && entry.name === other.name && entry.type === other.type && entry.size === other.size
+  })
+}
+
+/**
  * Whether two local peer records carry the same fields.
  * @param left - the stored record, or null before the first answer.
  * @param right - the answer's record.
@@ -894,6 +917,7 @@ export function createBoardStore(): BoardStoreHandle {
       peerStates: [],
       peerAvailable: false,
       peerMissing: false,
+      peerSharedFolder: null,
       boardMounted: false,
       selectedBoardElementId: null,
       editingBoardElementId: null,
@@ -1130,11 +1154,15 @@ export function createBoardStore(): BoardStoreHandle {
       filesLoaded: (draft, sessionId, tabId, path, level) => {
         const files = rightPanelFiles(draft, sessionId, tabId)
         if (files === undefined) return
+        const shown = files.levels[path]
+        if (shown?.kind === 'ready' && shown.truncated === level.truncated && sameEntries(shown.entries, level.entries)) return
         files.levels[path] = { kind: 'ready', entries: level.entries, truncated: level.truncated }
       },
       filesFailed: (draft, sessionId, tabId, path, code, message) => {
         const files = rightPanelFiles(draft, sessionId, tabId)
         if (files === undefined) return
+        const shown = files.levels[path]
+        if (shown?.kind === 'failed' && shown.code === code && shown.message === message) return
         files.levels[path] = { kind: 'failed', code, message }
       },
       filesToggle: (draft, sessionId, tabId, path) => {
@@ -1298,19 +1326,23 @@ export function createBoardStore(): BoardStoreHandle {
       applyPeerState: (draft, response) => {
         // An unchanged answer is not a store change: the poll repeats every
         // second, and every mutation would re-arm the layout write debounce.
+        const sharedFolder = response.sharedFolder ?? null
         if (draft.peerAvailable && !draft.peerMissing && samePeerSelf(draft.peerSelf, response.self)
-          && samePeers(draft.peerStates, response.peers)) return
+          && samePeers(draft.peerStates, response.peers) && draft.peerSharedFolder === sharedFolder) return
         draft.peerSelf = { ...response.self }
         draft.peerStates = response.peers.map(peer => ({ ...peer }))
         draft.peerAvailable = true
         draft.peerMissing = false
+        draft.peerSharedFolder = sharedFolder
       },
       markPeerUnavailable: (draft) => {
-        if (draft.peerMissing && !draft.peerAvailable && draft.peerSelf === null && draft.peerStates.length === 0) return
+        if (draft.peerMissing && !draft.peerAvailable && draft.peerSelf === null && draft.peerStates.length === 0
+          && draft.peerSharedFolder === null) return
         draft.peerSelf = null
         draft.peerStates = []
         draft.peerAvailable = false
         draft.peerMissing = true
+        draft.peerSharedFolder = null
       },
       markPeerUnreachable: (draft) => {
         // The roster keeps the identities, names, and colors of the last

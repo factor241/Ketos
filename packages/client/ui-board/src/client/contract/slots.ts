@@ -484,6 +484,22 @@ export type BoardDirectoryLevelOutcome =
   | { readonly ok: true; readonly entries: readonly WorkspaceDirectoryEntry[]; readonly truncated: boolean }
   | { readonly ok: false; readonly code: string; readonly message: string }
 
+/**
+ * Callbacks of one directory observation of the right panel's files tab. No
+ * callback runs after the observation's stop function was called; a callback
+ * that throws is reported and does not end the observation.
+ */
+export interface BoardDirectoryWatchListener {
+  /**
+   * The directory's direct entries may differ from its last listing: the
+   * observation became active — first, and again after the host connection
+   * returned — or an entry was added, removed, or changed.
+   */
+  readonly changed: () => void
+  /** The observation ended with a failure; nothing runs after it. */
+  readonly failed: () => void
+}
+
 /** One file read the right panel's viewer performs. */
 export type BoardFileReadOutcome =
   | { readonly ok: true; readonly kind: 'text'; readonly text: string }
@@ -826,6 +842,19 @@ export interface BoardWindowInjected {
     path: string,
     signal?: AbortSignal,
   ) => Promise<BoardDirectoryLevelOutcome>
+  /**
+   * Observe the direct entries of one session-workspace directory for the
+   * right panel's files tab; descendants are not observed.
+   * @param sessionId - session whose workspace resolves the path.
+   * @param path - absolute directory path.
+   * @param listener - receives the observation's change and failure calls.
+   * @returns the stop function: it ends the observation, and its promise settles once the host stream is disposed.
+   */
+  watchWorkspaceDirectory: (
+    sessionId: SessionId,
+    path: string,
+    listener: BoardDirectoryWatchListener,
+  ) => () => Promise<void>
   /**
    * Read one file of a session workspace for the right panel's viewer:
    * `text-pages` reads the first page of lines, `bytes-complete` reads the

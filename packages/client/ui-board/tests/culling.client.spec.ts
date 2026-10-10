@@ -64,6 +64,7 @@ function state(overrides: Partial<BoardState> = {}): BoardState {
     peerStates: [],
     peerAvailable: false,
     peerMissing: false,
+    peerSharedFolder: null,
     boardMounted: false,
     layoutSource: null,
     selectedBoardElementId: null,

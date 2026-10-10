@@ -1,8 +1,9 @@
 /**
  * The peer channel's frame vocabulary: the `[u32 BE length][u8 code][data]`
- * wire shape, the code table with the reserved consumer types, the `hello`
- * and `bye` payloads, the request/response envelope, and the boundary
- * validation that refuses a `hello` no Ketos should accept.
+ * wire format, the code table with the reserved consumer types, the `hello`,
+ * `bye`, and heartbeat payloads, the request/response envelope, the per-code
+ * body bound, and the boundary validation that refuses a `hello` no Ketos
+ * should accept.
  * @module @ketos/peer/frame
  */
 
@@ -11,10 +12,12 @@ import type { OwnerId } from '@ketos/board-doc/types'
 
 /**
  * Version of the peer protocol, announced in `hello.v` and in the transport
- * protocol name. Version 2 carries the board synchronization frames as raw
- * bytes; a build speaking version 1 sent them as JSON and cannot connect.
+ * protocol name. Version 3 adds the `peer.ping` and `peer.pong` heartbeat
+ * frames, which a version 2 build refuses as unknown codes; version 2 carries
+ * the board synchronization frames as raw bytes, which version 1 sent as
+ * JSON. A build connects only to a build of the same version.
  */
-export const PEER_PROTOCOL_VERSION = 2
+export const PEER_PROTOCOL_VERSION = 3
 
 /**
  * Largest body of the first frame a connection carries. A `hello` holds a
@@ -30,7 +33,9 @@ export const PEER_FRAME_HEADER_BYTES = 5
  * Every frame code this channel reserves, by type name. Codes 3–7 belong to
  * the consumers of stages 33–35 and are listed here so one build's channel
  * recognizes them; a frame of a reserved type without a registered handler is
- * ignored with a log line.
+ * ignored with a log line. Codes 1, 2, 8, and 9 belong to the link itself:
+ * it consumes `hello`, `bye`, `peer.ping`, and `peer.pong`, and no frame
+ * listener receives them.
  */
 export const PEER_FRAME_CODES = {
   hello: 1,
@@ -40,6 +45,8 @@ export const PEER_FRAME_CODES = {
   'chat.transcript.request': 5,
   'chat.transcript.response': 6,
   'syncthing.device': 7,
+  'peer.ping': 8,
+  'peer.pong': 9,
 } as const
 
 /** Name of one reserved frame type. */
@@ -62,6 +69,25 @@ export const PEER_BINARY_FRAME_CODES: readonly number[] = [
  */
 export function isBinaryFrameCode(code: number): boolean {
   return PEER_BINARY_FRAME_CODES.includes(code)
+}
+
+/**
+ * Largest body of a `peer.ping` or `peer.pong` frame, in bytes. The body is
+ * the empty JSON object, so a longer declared length refuses the frame before
+ * its body is read.
+ */
+export const PEER_HEARTBEAT_MAX_BYTES = 16
+
+/**
+ * The largest body one wire code may declare: the heartbeat codes are capped
+ * at {@link PEER_HEARTBEAT_MAX_BYTES}, every other code at the reader's bound.
+ * @param code - wire code from the frame header.
+ * @param maxFrameBytes - the reader's bound for every code.
+ * @returns the bound for this code, in bytes.
+ */
+export function peerFrameBodyLimit(code: number, maxFrameBytes: number): number {
+  const heartbeat = code === PEER_FRAME_CODES['peer.ping'] || code === PEER_FRAME_CODES['peer.pong']
+  return heartbeat ? Math.min(maxFrameBytes, PEER_HEARTBEAT_MAX_BYTES) : maxFrameBytes
 }
 
 /** The `hello` frame: the dialer's introduction, answered by the receiver. */
@@ -88,6 +114,14 @@ export interface PeerByePayload {
 }
 
 /**
+ * The body of `peer.ping` and `peer.pong`: the empty JSON object. A link sends
+ * a ping every heartbeat interval and answers each ping with a pong; the frame
+ * carries no data because every completed read of any frame — its header or
+ * a body slice of up to 16 KiB — counts as a sign of life.
+ */
+export type PeerHeartbeatPayload = Readonly<Record<string, never>>
+
+/**
  * Frame payloads by type name. The board synchronization frames carry
  * `Uint8Array` bodies, every other frame JSON; consumers of stages 34–35
  * merge their own entries through declaration merging, and `send` and
@@ -98,6 +132,8 @@ export interface PeerFrameTypeMap {
   bye: PeerByePayload
   'board.sv': Uint8Array
   'board.update': Uint8Array
+  'peer.ping': PeerHeartbeatPayload
+  'peer.pong': PeerHeartbeatPayload
 }
 
 /** Name of one frame type this build can send. */
@@ -316,4 +352,16 @@ export function parseByePayload(payload: unknown): PeerByePayload {
   const source = payload as Record<string, unknown>
   if (typeof source.reason !== 'string') throw new PeerFrameError('bye reason must be a string')
   return { reason: source.reason }
+}
+
+/**
+ * Validate one decoded `peer.ping` or `peer.pong` body at the wire boundary.
+ * @param payload - decoded frame payload.
+ * @returns the typed heartbeat body.
+ */
+export function parseHeartbeatPayload(payload: unknown): PeerHeartbeatPayload {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload) || Object.keys(payload).length > 0) {
+    throw new PeerFrameError('heartbeat body must be an empty JSON object')
+  }
+  return {}
 }

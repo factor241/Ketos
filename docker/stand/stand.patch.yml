@@ -42,8 +42,15 @@
 
 # Peer channel: the shipped web profile keeps `ketos-peer` disabled because a
 # developer machine has no participant name or relay; the stand enables the
-# same row with this computer's identity and the team's private relay. The
-# model key above and these values arrive as environment variables only.
+# same row with this computer's identity, the team's private relay, and the
+# Syncthing integration for the shared folder. The model key above, the
+# Syncthing GUI key (`STGUIAPIKEY`), and these values arrive as environment
+# variables only: `syncthing.apiKeyEnv` names the GUI key variable, and
+# `syncthing.relayAddress` is `$KETOS_SYNCTHING_RELAY` without its `token`
+# query parameter, so the plugin receives the relay location and `id` but never
+# the token. An unset, empty, or unparsable `KETOS_SYNCTHING_RELAY` gives an
+# empty address, which the plugin rejects at load: the `URL` error of an
+# unparsable value carries the input, token included, so it is swallowed here.
 - id: ketos-peer
   name: '@ketos/peer'
   disabled: false
@@ -52,6 +59,17 @@
     relayUrls: !!js (process.env.KETOS_RELAY_URLS ?? '').split(',').filter(Boolean)
     keyPath: !!js dshHomePath('peer.key')
     peersPath: !!js dshHomePath('peers.json')
+    # A dial started while the relay is still reconnecting wastes the whole timeout; measured dials take 0.5-1 s.
+    connectTimeoutMs: 5000
+    # Back online within 30 s even when a dial after a long outage times out: pause <= 5 s + failed dial 5 s + pause <= 5 s + dial.
+    reconnectMaxMs: 5000
+    syncthing:
+      url: http://127.0.0.1:8384
+      apiKeyEnv: STGUIAPIKEY
+      relayAddress: !!js "(s => { try { const u = new URL(s); u.searchParams.delete('token'); return u.href } catch { return '' } })(process.env.KETOS_SYNCTHING_RELAY ?? '')"
+      folderId: ketos-shared
+      folderPath: /workspace/shared
+      fsWatcherDelayS: 1
 
 # Host log: the web profile ships no console exporter, so `ketos-peer`
 # warnings (peer.connected, board.sync.too-large, bd errors) would stay

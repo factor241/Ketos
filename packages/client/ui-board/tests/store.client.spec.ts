@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import { MIN_WINDOW_SIZE, clampWindowSize, createBoardStore, nextWindowOrdinal, snapPosition, type BoardStoreInstance } from '../src/client/store.ts'
 import { DEMO_SELF_ID, canManageWindow, type OwnerId } from '../src/client/owners.ts'
@@ -933,5 +933,42 @@ describe('right panel state', () => {
     actions.openRightTab(session, { id: 'files', kind: 'files' })
     actions.closeRightTab(session, 'files')
     expect(store.getSnapshot().rightPanels['s1']?.files['files']).toBeUndefined()
+  })
+
+  it('writes nothing when a listing or a failure repeats what the level shows', () => {
+    const { actions, store } = createBoardStore().create()
+    actions.filesStart(session, 'files', '/root')
+    const listener = vi.fn()
+    const unsubscribe = store.subscribe(listener)
+    const level = (entries: readonly { name: string; type: 'file' | 'directory' | 'other'; size?: number }[], truncated = false) =>
+      ({ entries: entries.map(entry => ({ ...entry })), truncated })
+
+    actions.filesLoaded(session, 'files', '/root', level([{ name: 'a.txt', type: 'file', size: 1 }, { name: 'd', type: 'directory' }]))
+    expect(listener).toHaveBeenCalledTimes(1)
+    // The same entries in fresh objects are no change.
+    actions.filesLoaded(session, 'files', '/root', level([{ name: 'a.txt', type: 'file', size: 1 }, { name: 'd', type: 'directory' }]))
+    expect(listener).toHaveBeenCalledTimes(1)
+    // Size, kind, name, order, count, and truncation each are.
+    for (const changed of [
+      level([{ name: 'a.txt', type: 'file', size: 2 }, { name: 'd', type: 'directory' }]),
+      level([{ name: 'a.txt', type: 'file', size: 2 }, { name: 'd', type: 'other' }]),
+      level([{ name: 'b.txt', type: 'file', size: 2 }, { name: 'd', type: 'other' }]),
+      level([{ name: 'd', type: 'other' }, { name: 'b.txt', type: 'file', size: 2 }]),
+      level([{ name: 'd', type: 'other' }]),
+      level([{ name: 'd', type: 'other' }], true),
+    ]) actions.filesLoaded(session, 'files', '/root', changed)
+    expect(listener).toHaveBeenCalledTimes(7)
+
+    actions.filesFailed(session, 'files', '/root', 'workspace-file/not-found', 'missing')
+    expect(listener).toHaveBeenCalledTimes(8)
+    actions.filesFailed(session, 'files', '/root', 'workspace-file/not-found', 'missing')
+    expect(listener).toHaveBeenCalledTimes(8)
+    actions.filesFailed(session, 'files', '/root', 'workspace-file/not-found', 'gone')
+    expect(listener).toHaveBeenCalledTimes(9)
+    // A listing after a failure, and a loading line after a listing, always write.
+    actions.filesLoaded(session, 'files', '/root', level([]))
+    actions.filesLoading(session, 'files', '/root')
+    expect(listener).toHaveBeenCalledTimes(11)
+    unsubscribe()
   })
 })

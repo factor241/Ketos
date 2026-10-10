@@ -1,7 +1,7 @@
 # Overlay for docker/stand/compose.yaml: ketos-a and ketos-b on separate bridge
-# networks, so the only path between them is the team's iroh relay, and gives
-# ketos-b its own working directory volume, so no file reaches the other side
-# through the shared `ketos-stand-workspace` volume.
+# networks, so the only path between them is the team's iroh relay. The two
+# services already have separate working directory volumes in the base file, so
+# no file reaches the other side except through Syncthing.
 #
 #   docker compose -f docker/stand/compose.yaml -f docker/stand/relay-only.compose.yaml up -d
 #
@@ -15,12 +15,6 @@ services:
   ketos-b:
     networks: !override
       - net-b
-    volumes: !override
-      - ketos-b-home:/data/ketos
-      - ketos-b-syncthing:/data/syncthing
-      - ketos-b-workspace:/workspace
 networks:
   net-a: {}
   net-b: {}
-volumes:
-  ketos-b-workspace:

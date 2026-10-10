@@ -4,6 +4,8 @@
 // EndpointId across restarts through its key file, and a wrong-length key
 // refuses to start.
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -19,6 +21,14 @@ import * as BoardDoc from '@ketos/board-doc'
 import * as Peer from '@ketos/peer'
 import { PEER_CONNECT_PATH, PEER_FORGET_PATH, PEER_INVITE_PATH, PEER_STATE_PATH, PEER_TRANSCRIPT_PATH } from '../src/routes.ts'
 import { KetosPeerService } from '../src/service.ts'
+import { registerSyncthing } from '../src/syncthing.ts'
+import { FAKE_API_KEY, FakeSyncthing, RELAY_ADDRESS } from './syncthing-fake.ts'
+
+// The real feature by default; one spec makes its start reject.
+vi.mock('../src/syncthing.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/syncthing.ts')>()
+  return { ...actual, registerSyncthing: vi.fn(actual.registerSyncthing) }
+})
 
 /** Stand-in for the authenticated Fetch surface the plugin registers onto. */
 class RecordingConnection extends Service {
@@ -45,10 +55,15 @@ class RecordingConnection extends Service {
 
 let root: string | undefined
 let context: Context | undefined
+let syncthingServer: Server | undefined
 
 afterEach(async () => {
   await context?.fiber.dispose()
   context = undefined
+  vi.unstubAllEnvs()
+  const server = syncthingServer
+  syncthingServer = undefined
+  if (server !== undefined) await new Promise((resolve) => { server.close(resolve) })
   if (root !== undefined) await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 })
   root = undefined
 })
@@ -59,6 +74,8 @@ interface Booted {
   readonly routes: Map<string, ConnectionFetchRoute>
   readonly withdrawn: string[]
   readonly keyPath: string
+  /** Every log message since the context was created, all severities. */
+  readonly messages: Message[]
 }
 
 /**
@@ -93,6 +110,12 @@ async function boot(
 
   const ctx = new Context()
   context = ctx
+  // Registered before the Loader runs, so lines logged during activation land too.
+  const messages: Message[] = []
+  ctx.logger.exporter({
+    levels: { default: 100 },
+    export: (message) => { messages.push(message) },
+  })
   ctx.baseUrl = pathToFileURL(directory).href + '/'
   const connection = new RecordingConnection(ctx)
   await ctx.plugin(Loader)
@@ -116,8 +139,66 @@ async function boot(
       expect(entry?.fiber?.state).toBe(FiberState.ACTIVE)
     }
   }
-  return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, keyPath }
+  return { ctx, routes: connection.routes, withdrawn: connection.withdrawn, keyPath, messages }
 }
+
+/**
+ * Lines the peer plugin logged that contain one text.
+ * @param messages - the captured messages.
+ * @param text - the text to look for.
+ * @returns the matching lines.
+ */
+function peerLines(messages: readonly Message[], text: string): string[] {
+  return messages
+    .filter(message => message.name === 'ketos-peer')
+    .map(message => message.args.map(String).join(' '))
+    .filter(line => line.includes(text))
+}
+
+/**
+ * YAML lines of a `syncthing` section, indented under the peer row's config.
+ * @param fields - the section's fields.
+ * @returns the lines.
+ */
+function syncthingRows(fields: Readonly<Record<string, string | number>>): string[] {
+  return ['    syncthing:', ...Object.entries(fields).map(([key, value]) => `      ${key}: ${JSON.stringify(value)}`)]
+}
+
+/**
+ * Serve one fake Syncthing over HTTP on a loopback port this spec owns.
+ * @param fake - the fake that answers.
+ * @returns the base URL.
+ */
+async function serveSyncthing(fake: FakeSyncthing): Promise<string> {
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+    request.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8')
+      const headers: Record<string, string> = {}
+      for (const [key, value] of Object.entries(request.headers)) if (typeof value === 'string') headers[key] = value
+      void fake.fetch(`http://127.0.0.1${request.url ?? '/'}`, {
+        method: request.method ?? 'GET', headers, ...body === '' ? {} : { body },
+      }).then(async (answer) => {
+        response.writeHead(answer.status, { 'content-type': answer.headers.get('content-type') ?? 'text/plain' })
+        response.end(await answer.text())
+      })
+    })
+  })
+  syncthingServer = server
+  await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve) })
+  return `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`
+}
+
+/** The stand's `syncthing` section with a key variable no test environment sets. */
+const SYNCTHING_SECTION = {
+  url: 'http://127.0.0.1:8384',
+  apiKeyEnv: 'KETOS_PEER_SPEC_UNSET_SYNCTHING_KEY',
+  relayAddress: 'relay://203.0.113.7:22067/?id=MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD',
+  folderId: 'ketos-shared',
+  folderPath: '/workspace/shared',
+  fsWatcherDelayS: 1,
+} as const
 
 describe('peer package real Loader composition', () => {
   it('activates with the board document, provides the service, and withdraws its routes', async () => {
@@ -291,6 +372,40 @@ describe('peer package real Loader composition', () => {
     for (const override of refused) expect(() => Peer.Config({ ...base, ...override })).toThrow()
   })
 
+  it('defaults and bounds the heartbeat', () => {
+    const base = { name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'peer.key', peersPath: 'peers.json' }
+    const config = Peer.Config(base)
+    expect(config.heartbeatIntervalMs).toBe(3000)
+    expect(config.heartbeatTimeoutMs).toBe(9000)
+    const accepted: Array<Record<string, number>> = [
+      { heartbeatIntervalMs: 500 }, { heartbeatIntervalMs: 30_000 },
+      { heartbeatTimeoutMs: 1000 }, { heartbeatTimeoutMs: 60_000 },
+    ]
+    for (const override of accepted) expect(() => Peer.Config({ ...base, ...override })).not.toThrow()
+    const refused: Array<Record<string, number>> = [
+      { heartbeatIntervalMs: 499 }, { heartbeatIntervalMs: 30_001 }, { heartbeatIntervalMs: 1500.5 },
+      { heartbeatTimeoutMs: 999 }, { heartbeatTimeoutMs: 60_001 }, { heartbeatTimeoutMs: 9000.5 },
+    ]
+    for (const override of refused) expect(() => Peer.Config({ ...base, ...override })).toThrow()
+  })
+
+  it('refuses a heartbeat timeout shorter than two intervals', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath, ['    heartbeatIntervalMs: 3000', '    heartbeatTimeoutMs: 5999'], false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(
+      'heartbeatTimeoutMs (5999) must be at least twice heartbeatIntervalMs (3000)',
+    )
+  })
+
+  it('accepts a heartbeat timeout of exactly two intervals', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const { ctx } = await boot(root, join(root, 'peer.key'), ['    heartbeatIntervalMs: 30000', '    heartbeatTimeoutMs: 60000'])
+    expect(ctx.ketosPeer).toBeInstanceOf(KetosPeerService)
+  })
+
   it('defaults the reconnection ceiling to 20 seconds', () => {
     const config = Peer.Config({
       name: 'Кирилл', relayUrls: ['http://127.0.0.1:1'], keyPath: 'peer.key', peersPath: 'peers.json',
@@ -358,6 +473,86 @@ describe('peer package real Loader composition', () => {
     } finally {
       handle.mockRestore()
     }
+  })
+
+  it('loads with a syncthing section whose key is not set, the feature off with one log line', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx, routes, messages } = await boot(root, keyPath, syncthingRows(SYNCTHING_SECTION))
+    expect(ctx.ketosPeer).toBeInstanceOf(KetosPeerService)
+    expect(routes.has(PEER_STATE_PATH)).toBe(true)
+    await vi.waitFor(() => { expect(peerLines(messages, 'syncthing.')).toHaveLength(1) })
+    expect(peerLines(messages, 'syncthing.disabled')).toEqual([
+      'ketos-peer: syncthing.disabled: KETOS_PEER_SPEC_UNSET_SYNCTHING_KEY is not set; the shared folder stays off',
+    ])
+    expect(await ctx.ketosPeer.state()).not.toHaveProperty('sharedFolder')
+  })
+
+  it('logs a failed Syncthing start once and keeps the plugin alive', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    vi.mocked(registerSyncthing).mockImplementationOnce(() => ({
+      sharedFolder: () => undefined,
+      started: Promise.reject(new Error('syncthing start broke')),
+    }))
+    const { ctx, messages } = await boot(root, join(root, 'peer.key'), syncthingRows(SYNCTHING_SECTION))
+    await vi.waitFor(() => {
+      expect(peerLines(messages, 'syncthing')).toEqual(['ketos-peer: syncthing start failed: Error: syncthing start broke'])
+    })
+    expect(ctx.ketosPeer).toBeInstanceOf(KetosPeerService)
+    expect(await ctx.ketosPeer.state()).not.toHaveProperty('sharedFolder')
+  })
+
+  it('reports no shared-folder state without a syncthing section', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const { ctx, messages } = await boot(root, join(root, 'peer.key'))
+    expect(await ctx.ketosPeer.state()).not.toHaveProperty('sharedFolder')
+    expect(peerLines(messages, 'syncthing.')).toEqual([])
+  })
+
+  it('reads a Syncthing served over HTTP with the key from the environment and reports the shared folder', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const fake = new FakeSyncthing()
+    const url = await serveSyncthing(fake)
+    vi.stubEnv('KETOS_PEER_SPEC_SYNCTHING_KEY', FAKE_API_KEY)
+    const { ctx, messages } = await boot(root, join(root, 'peer.key'), syncthingRows({
+      ...SYNCTHING_SECTION, url, apiKeyEnv: 'KETOS_PEER_SPEC_SYNCTHING_KEY', relayAddress: RELAY_ADDRESS,
+    }))
+    await vi.waitFor(async () => { expect((await ctx.ketosPeer.state()).sharedFolder).toBe('waiting') })
+    expect(fake.requests.map(request => request.path)).toEqual(expect.arrayContaining(['/rest/system/ping', '/rest/config/options']))
+    expect(fake.requests.every(request => request.apiKey === FAKE_API_KEY)).toBe(true)
+    expect(fake.writes()).toEqual([])
+    expect(peerLines(messages, 'syncthing.')).toEqual(['ketos-peer: syncthing.waiting: no shared folder yet'])
+  })
+
+  it('refuses a syncthing relay address that carries the token, without echoing the token', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const token = 'spec-relay-token-91c2'
+    const { ctx } = await boot(root, keyPath, syncthingRows({
+      ...SYNCTHING_SECTION, relayAddress: `${SYNCTHING_SECTION.relayAddress}&token=${token}`,
+    }), false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    const error = await entry?.fiber?.await().then(() => undefined, (reason: unknown) => reason)
+    expect(String(error)).toMatch(/syncthing\.relayAddress must not carry the relay token/u)
+    expect(String(error)).not.toContain(token)
+  })
+
+  it('refuses an empty syncthing relay address, as an unset stand variable yields', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath, syncthingRows({ ...SYNCTHING_SECTION, relayAddress: '' }), false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow(/syncthing\.relayAddress is empty/u)
+  })
+
+  it('refuses a syncthing section outside its bounds', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-peer-loader-'))
+    const keyPath = join(root, 'peer.key')
+    const { ctx } = await boot(root, keyPath, syncthingRows({ ...SYNCTHING_SECTION, statusRefreshMs: 10 }), false)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@ketos/peer')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
   })
 
   it('ships the web profile row disabled so a developer machine never loads iroh', async () => {

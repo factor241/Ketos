@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-10-09-ketos-syncthing-over-iroh.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-09-ketos-syncthing-over-iroh.md
+/agent-note-syncthing-over-the-iroh-channel:
+  en: 670907d5bb4dbb1f
+  zh: 4e08dec44bd62e2d
+/agent-note-syncthing-over-the-iroh-channel/problem:
+  en: ac9f2585da6fc239
+  zh: 1e92764e1ef97dc4
+/agent-note-syncthing-over-the-iroh-channel/decision:
+  en: 102cf9f4336d089f
+  zh: 6b90591dc62cf794
+/agent-note-syncthing-over-the-iroh-channel/alternatives-considered:
+  en: e9f37beb795b058b
+  zh: 78455be784cf9c69
+/agent-note-syncthing-over-the-iroh-channel/consequences:
+  en: 07fa28b83001a14e
+  zh: 662e322f9c2f400b
+/agent-note-syncthing-over-the-iroh-channel/testing:
+  en: 9fe18c84e8290059
+  zh: d467c1fd8bff5984
+/agent-note-syncthing-over-the-iroh-channel/related:
+  en: d514e3f8d0a56e2c
+  zh: 37195ff07a13df20

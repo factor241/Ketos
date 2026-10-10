@@ -32,7 +32,7 @@ import { loadOrCreateSecretKey } from './key-file.ts'
 import { loadKnownPeers, saveKnownPeers, type KnownPeer } from './peers-file.ts'
 import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from './transport.ts'
 import type {
-  PeerErrorCode, KetosPeerId, PeerLinkState, PeerSelfState, PeerState, PeerStateResponse,
+  PeerErrorCode, KetosPeerId, PeerLinkState, PeerSelfState, PeerState, PeerStateResponse, SharedFolderState,
 } from './types.ts'
 
 /** One committed peer handshake, as the connected event carries it. */
@@ -53,6 +53,12 @@ export interface PeerDisconnectedEvent {
   readonly peerId: KetosPeerId
 }
 
+/** One forgotten peer, as the forgotten event carries it. */
+export interface PeerForgottenEvent {
+  /** Identity of the peer's node. */
+  readonly peerId: KetosPeerId
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     ketosPeer: KetosPeerService
@@ -69,6 +75,11 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'ketos-peer/disconnected'(peer: PeerDisconnectedEvent): void
+    /** A peer was forgotten: the known-peer file no longer lists it, and only a new invitation admits it again.
+     * @param peer - the peer that was forgotten.
+     * @mode emit
+     */
+    'ketos-peer/forgotten'(peer: PeerForgottenEvent): void
   }
 }
 
@@ -100,8 +111,23 @@ export interface KetosPeerOptions {
   readonly inviteTtlMs: number
   /** Interval the state route publishes for browser polling, in milliseconds. */
   readonly stateRefreshMs: number
+  /** Pause between two `peer.ping` frames on every link, in milliseconds. */
+  readonly heartbeatIntervalMs: number
+  /**
+   * Longest time a link may complete no read — a frame header or a body slice
+   * — before it closes with reason `heartbeat-timeout` and the peer turns
+   * `lost`, in milliseconds.
+   */
+  readonly heartbeatTimeoutMs: number
   /** Local address the node binds, when the deployment pins one. */
   readonly bindAddr?: string
+  /**
+   * Reads the shared-folder state for the `sharedFolder` field of
+   * {@link KetosPeerService.state}. It runs on every state route call, so it
+   * answers from memory; undefined leaves the field out. Absent while the
+   * deployment has no Syncthing feature.
+   */
+  readonly sharedFolder?: () => SharedFolderState | undefined
   /** Receives one line per connection act and protocol anomaly. */
   readonly logger: (message: string) => void
   /** Test seam: a pre-bound transport; production derives one from iroh. */
@@ -284,14 +310,17 @@ export class KetosPeerService extends Service {
 
   /**
    * The current peer state the browser polls.
-   * @returns the local record, every known peer, and the poll interval.
+   * @returns the local record, every known peer, the poll interval, and the
+   * shared-folder state while the `sharedFolder` reader of the options returns one.
    */
   async state(): Promise<PeerStateResponse> {
     await this.ensureStarted()
+    const sharedFolder = this.options.sharedFolder?.()
     return {
       self: this.self as PeerSelfState,
       peers: this.peers(),
       refreshMs: this.options.stateRefreshMs,
+      ...sharedFolder === undefined ? {} : { sharedFolder },
     }
   }
 
@@ -369,8 +398,9 @@ export class KetosPeerService extends Service {
   /**
    * Forget one known peer that has no open channel: remove it from the
    * known-peer file and the peer list, and cancel its redials, including one
-   * in flight. The peer is known again only after a new invitation. When the
-   * file cannot be written the peer stays known and its redials continue.
+   * in flight. The peer is known again only after a new invitation. Once the
+   * file is written, `ketos-peer/forgotten` fires. When the file cannot be
+   * written the peer stays known, its redials continue, and no event fires.
    * @param peerId - the peer to forget.
    * @throws PeerServiceError `ketos/peer-unknown` for an unknown peer and
    * `ketos/peer-online` while a channel to it is open.
@@ -401,6 +431,7 @@ export class KetosPeerService extends Service {
       throw error
     }
     this.options.logger(`ketos-peer: peer.forgotten ${shortId(peerId)}`)
+    this.ctx.emit('ketos-peer/forgotten', { peerId })
   }
 
   /**
@@ -569,14 +600,21 @@ export class KetosPeerService extends Service {
     return Math.min(this.options.maxFrameBytes, PEER_HELLO_MAX_BYTES)
   }
 
+  /**
+   * Dial one ticket within `connectTimeoutMs`. The timeout does not cancel the
+   * transport's dial, so a connection that completes after it is closed at
+   * once instead of waiting for the peer's handshake timeout.
+   * @param ticket - the remote node's ticket.
+   * @returns the open connection; rejects with `ketos/peer-unreachable`.
+   */
   private async dial(ticket: string): Promise<PeerConnection> {
+    const dialing = (this.transport as PeerTransport).dial(ticket)
     try {
-      return await withTimeout(
-        (this.transport as PeerTransport).dial(ticket),
-        this.options.connectTimeoutMs,
-        'dial timed out',
-      )
+      return await withTimeout(dialing, this.options.connectTimeoutMs, 'dial timed out')
     } catch (error: unknown) {
+      // When the dial itself failed, its error is the one reported below; the
+      // second handler only absorbs that rejection.
+      void dialing.then((late) => { late.close(0n, 'dial timed out') }, () => undefined)
       throw new PeerServiceError('ketos/peer-unreachable', error instanceof Error ? error.message : String(error))
     }
   }
@@ -662,6 +700,8 @@ export class KetosPeerService extends Service {
     const link = new PeerLink(connection, stream, {
       peerId,
       maxFrameBytes: this.options.maxFrameBytes,
+      heartbeatIntervalMs: this.options.heartbeatIntervalMs,
+      heartbeatTimeoutMs: this.options.heartbeatTimeoutMs,
       logger: this.options.logger,
       onHello: (hello) => {
         void this.recordHello(peerId, hello, this.records.get(peerId)?.ticket).then(() => {

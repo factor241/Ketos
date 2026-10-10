@@ -56,6 +56,21 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The shared folder's state below the roster: the label, then the state in the link-state style. */
+.folder {
+  display: flex;
+  align-items: center;
+  gap: var(--board-gap-row);
+  min-height: var(--board-control-small);
+  padding-top: var(--board-gap-row);
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+/* A folder state that needs attention: synchronization failed or Syncthing does not answer. */
+.folderFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
 /* Quiet text button in a roster row: forgets a peer that has no channel. */
 .forget {
   flex: none;

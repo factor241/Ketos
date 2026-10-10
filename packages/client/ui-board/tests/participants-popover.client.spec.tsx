@@ -135,6 +135,58 @@ describe('participants roster', () => {
   })
 })
 
+describe('shared folder row', () => {
+  /** The row's label and state text, or null while no row renders. */
+  function folderRow(): { readonly state: string | null; readonly text: string } | null {
+    const row = screen.getByRole('dialog').querySelector('[data-board-shared-folder]')
+    return row === null ? null : { state: row.getAttribute('data-board-shared-folder'), text: row.textContent ?? '' }
+  }
+
+  it('renders no row while the host reports no shared folder', () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    connectPeers(instance, [])
+    const seated = props(instance)
+    const { rerender } = render(<ParticipantsPopover {...seated} />)
+    expect(folderRow()).toBeNull()
+
+    instance.actions.markPeerUnavailable()
+    rerender(<ParticipantsPopover {...seated} />)
+    expect(folderRow()).toBeNull()
+  })
+
+  it('names the folder state and follows each new answer', () => {
+    const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])
+    const seated = props(instance)
+    const answer = (sharedFolder: 'unavailable' | 'waiting' | 'syncing' | 'synced' | 'error'): void => {
+      instance.actions.applyPeerState({
+        self: { selfId: SELF, name: 'Kirill', color: 1 },
+        peers: [],
+        refreshMs: 1000,
+        sharedFolder,
+      })
+    }
+    answer('waiting')
+    const { rerender } = render(<ParticipantsPopover {...seated} />)
+    expect(folderRow()).toEqual({ state: 'waiting', text: 'Shared folderWaiting for the other side' })
+
+    for (const [state, text] of [
+      ['syncing', 'Syncing…'],
+      ['synced', 'Synced'],
+      ['error', 'Sync error'],
+      ['unavailable', 'Syncthing is unavailable'],
+    ] as const) {
+      answer(state)
+      rerender(<ParticipantsPopover {...seated} />)
+      expect(folderRow()).toEqual({ state, text: `Shared folder${text}` })
+    }
+
+    // The host switched the feature off: the next answer carries no field.
+    connectPeers(instance, [])
+    rerender(<ParticipantsPopover {...seated} />)
+    expect(folderRow()).toBeNull()
+  })
+})
+
 describe('invitation flow', () => {
   it('mints, shows, and copies the code', async () => {
     const instance = storeWith([{ id: SELF, name: 'Kirill', color: 1 }])

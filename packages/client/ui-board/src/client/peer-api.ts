@@ -2,16 +2,16 @@
  * Browser client of the peer routes: the polling state read, the invitation
  * mint, the connect post, and the forget post.
  *
- * The state read answers `{ self, peers, refreshMs }` while the peer plugin is
- * enabled and 404 when the deployment runs without it; the caller maps a
- * failure to the dock's "peer networking is not configured" mode. Every
- * decoded value is validated before it reaches the store, and every failure
- * collapses to one of the stable codes the participants surface names.
+ * The state read answers `{ self, peers, refreshMs, sharedFolder? }` while the
+ * peer plugin is enabled and 404 when the deployment runs without it; the
+ * caller maps a failure to the dock's "peer networking is not configured" mode.
+ * Every decoded value is validated before it reaches the store, and every
+ * failure collapses to one of the stable codes the participants surface names.
  */
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type {
   PeerConnectResponse, PeerErrorCode, KetosPeerId, PeerInviteResponse, PeerLinkState, PeerState, PeerStateResponse,
-  PeerSelfState,
+  PeerSelfState, SharedFolderState,
 } from '@ketos/peer/types'
 import { isFiniteNumber, isRecord } from './board-doc-api.ts'
 import type {
@@ -69,16 +69,27 @@ function isPeerState(value: unknown): value is PeerState {
     && isPeerLinkState(value['link'])
 }
 
+/** Whether a decoded value is one of the five shared-folder states. */
+function isSharedFolderState(value: unknown): value is SharedFolderState {
+  return value === 'unavailable' || value === 'waiting' || value === 'syncing' || value === 'synced' || value === 'error'
+}
+
 /**
- * Decode one state answer.
+ * Decode one state answer into its known fields. A `sharedFolder` value outside
+ * the five states this client names reads as absent, so a host that reports a
+ * newer state keeps the roster and the flows and only loses the folder row.
  * @param value - decoded JSON value.
- * @returns whether the value is a complete state answer.
+ * @returns the answer, or undefined when a required field is missing or malformed.
  */
-export function isPeerStateResponse(value: unknown): value is PeerStateResponse {
-  if (!isRecord(value)) return false
-  return isPeerSelfState(value['self'])
-    && Array.isArray(value['peers']) && value['peers'].every(isPeerState)
-    && isFiniteNumber(value['refreshMs']) && value['refreshMs'] > 0
+export function parsePeerStateResponse(value: unknown): PeerStateResponse | undefined {
+  if (!isRecord(value)) return undefined
+  const self = value['self']
+  const peers = value['peers']
+  const refreshMs = value['refreshMs']
+  if (!isPeerSelfState(self) || !Array.isArray(peers) || !peers.every(isPeerState)) return undefined
+  if (!isFiniteNumber(refreshMs) || refreshMs <= 0) return undefined
+  const sharedFolder = value['sharedFolder']
+  return isSharedFolderState(sharedFolder) ? { self, peers, refreshMs, sharedFolder } : { self, peers, refreshMs }
 }
 
 /** Whether a decoded value is a complete invitation answer. */
@@ -128,9 +139,9 @@ export async function fetchPeerState(signal?: AbortSignal): Promise<PeerStateOut
     })
     if (response.status === 404) return { ok: false, code: 'ketos/peer-unavailable' }
     if (!response.ok) return { ok: false, code: 'ketos/unreachable' }
-    const payload: unknown = await response.json()
-    if (!isPeerStateResponse(payload)) return { ok: false, code: 'ketos/unreachable' }
-    return { ok: true, state: payload }
+    const state = parsePeerStateResponse(await response.json())
+    if (state === undefined) return { ok: false, code: 'ketos/unreachable' }
+    return { ok: true, state }
   } catch {
     return { ok: false, code: 'ketos/unreachable' }
   }

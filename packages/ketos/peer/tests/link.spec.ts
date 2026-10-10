@@ -1,15 +1,16 @@
 // The framed link: reading and writing frames at the stream boundary, the
 // read loop's refusal of malformed bytes, message and request dispatch over
-// two connected links, request correlation and timeout, and close handling
-// from the link, the connection, and the transport.
+// two connected links, request correlation and timeout, close handling from
+// the link, the connection, and the transport, and the heartbeat: pings,
+// pongs, the silence timeout, and the timers' end with the link.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
   PEER_FRAME_CODES, PEER_FRAME_HEADER_BYTES, encodePeerFrame, type PeerHelloPayload,
 } from '../src/frame.ts'
 import {
-  PEER_LINK_BYE_GRACE_MS, PEER_LINK_PROTOCOL_CLOSE_CODE, PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE, PEER_UNHANDLED, PeerLink,
-  PeerRequestTimeoutError, readPeerFrame, writePeerFrame,
+  PEER_LINK_BYE_GRACE_MS, PEER_LINK_HEARTBEAT_CLOSE_CODE, PEER_LINK_PROTOCOL_CLOSE_CODE, PEER_LINK_SYNC_TOO_LARGE_CLOSE_CODE,
+  PEER_READ_SLICE_BYTES, PEER_UNHANDLED, PeerLink, PeerRequestTimeoutError, readPeerFrame, writePeerFrame,
 } from '../src/link.ts'
 import { createMemoryStreamPair, createMemoryTransports, type MemoryTransportPair } from '../src/memory-transport.ts'
 import type { PeerConnection, PeerStream } from '../src/transport.ts'
@@ -74,7 +75,12 @@ interface LinkHarness {
 interface LinkOverrides {
   readonly maxFrameBytes?: number
   readonly peerId?: KetosPeerId
+  readonly heartbeatIntervalMs?: number
+  readonly heartbeatTimeoutMs?: number
 }
+
+/** The heartbeat of the shipped defaults, which the specs use unless they override it. */
+const HEARTBEAT = { heartbeatIntervalMs: 3000, heartbeatTimeoutMs: 9000 } as const
 
 /** The raw link, its stub connection, and the writer end of its stream. */
 interface RawLink {
@@ -87,7 +93,7 @@ interface RawLink {
  * Build one link over an already connected stream.
  * @param connection - the connection whose close state feeds the link.
  * @param stream - the link's single stream.
- * @param overrides - frame bound and remote identity.
+ * @param overrides - frame bound, remote identity, and heartbeat.
  * @returns the link plus its recorded log lines and hellos.
  */
 function createLink(connection: PeerConnection, stream: PeerStream, overrides: LinkOverrides = {}): LinkHarness {
@@ -96,6 +102,8 @@ function createLink(connection: PeerConnection, stream: PeerStream, overrides: L
   const link = new PeerLink(connection, stream, {
     peerId: overrides.peerId ?? connection.peerId,
     maxFrameBytes: overrides.maxFrameBytes ?? 1024,
+    heartbeatIntervalMs: overrides.heartbeatIntervalMs ?? HEARTBEAT.heartbeatIntervalMs,
+    heartbeatTimeoutMs: overrides.heartbeatTimeoutMs ?? HEARTBEAT.heartbeatTimeoutMs,
     logger: (message) => { logs.push(message) },
     onHello: (hello) => { hellos.push(hello) },
   })
@@ -104,7 +112,7 @@ function createLink(connection: PeerConnection, stream: PeerStream, overrides: L
 
 /**
  * Build one link over a raw memory stream pair.
- * @param overrides - frame bound and remote identity.
+ * @param overrides - frame bound, remote identity, and heartbeat.
  * @returns the link, its stub connection, and the writer end of its stream.
  */
 function createRawLink(overrides: LinkOverrides = {}): RawLink {
@@ -333,10 +341,10 @@ describe('peer link protocol refusals', () => {
   it('closes with the protocol code on an unknown frame code and stays usable', async () => {
     const { harness, connection, writer } = createRawLink()
     harness.link.start()
-    await writer.write(encodePeerFrame(9, { n: 1 }))
+    await writer.write(encodePeerFrame(42, { n: 1 }))
     await expect(harness.link.closed()).resolves.toContain('protocol error')
     expect(connection.closeCalls).toEqual([{ code: PEER_LINK_PROTOCOL_CLOSE_CODE, reason: 'protocol error' }])
-    expect(harness.logs[0]).toContain('unknown frame code 9')
+    expect(harness.logs[0]).toContain('unknown frame code 42')
 
     const next = createRawLink()
     next.harness.link.start()
@@ -351,6 +359,7 @@ describe('peer link protocol refusals', () => {
     const link = new PeerLink(connection, stream, {
       peerId: connection.peerId,
       maxFrameBytes: 1024,
+      ...HEARTBEAT,
       logger: (message) => { logs.push(message) },
       onHello: () => { throw 'bad hello' },
     })
@@ -359,7 +368,7 @@ describe('peer link protocol refusals', () => {
       void writer.finish()
     })
     link.start()
-    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 }))
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-b', name: 'Юрист', color: 2 }))
     await expect(link.closed()).resolves.toContain('protocol error')
     expect(logs[0]).toContain('closing after bad hello')
   })
@@ -431,9 +440,9 @@ describe('peer link frame dispatch', () => {
   it('passes a hello sent after the handshake to the onHello callback', async () => {
     const { harness, writer } = createRawLink()
     harness.link.start()
-    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 }))
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-b', name: 'Юрист', color: 2 }))
     await vi.waitFor(() => { expect(harness.hellos).toHaveLength(1) })
-    expect(harness.hellos[0]).toEqual({ v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
+    expect(harness.hellos[0]).toEqual({ v: 3, selfId: 'owner-b', name: 'Юрист', color: 2 })
   })
 
   it('settles on bye and closes the connection without a protocol code', async () => {
@@ -630,5 +639,264 @@ describe('peer link binary frames and bounds', () => {
     await expect(harness.link.send(5, 'x'.repeat(32))).rejects.toThrow(/exceeds 8 bytes/u)
     await harness.link.send(5, { n: 1 })
     await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: 5, payload: { n: 1 } })
+  })
+})
+
+describe('peer link heartbeat', () => {
+  /** Run one spec on fake timers; the after-each cleanup restores the real ones after the links end. */
+  function fakeClock(): void {
+    vi.useFakeTimers()
+    cleanups.unshift(() => { vi.useRealTimers() })
+  }
+
+  it('sends a ping every heartbeatIntervalMs from start, whatever else it sends', async () => {
+    fakeClock()
+    const { harness, writer } = createRawLink()
+    harness.link.start()
+    const frames: { code: number; payload: unknown }[] = []
+    const reader = (async (): Promise<void> => {
+      for (;;) frames.push(await readPeerFrame(writer, 64))
+    })()
+    reader.catch(() => undefined)
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(frames).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(frames).toEqual([{ code: PEER_FRAME_CODES['peer.ping'], payload: {} }])
+    await vi.advanceTimersByTimeAsync(1000)
+    await harness.link.send(PEER_FRAME_CODES['board.update'], new Uint8Array([1]))
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(frames.map(frame => frame.code)).toEqual([
+      PEER_FRAME_CODES['peer.ping'], PEER_FRAME_CODES['board.update'], PEER_FRAME_CODES['peer.ping'],
+    ])
+  })
+
+  it('answers every ping with a pong and hands neither to the frame listeners', async () => {
+    // Real timers: an interval far above the spec's run time keeps the link's
+    // own ping from arriving ahead of the expected pongs on a slow runner.
+    const { harness, writer } = createRawLink({ heartbeatIntervalMs: 30_000, heartbeatTimeoutMs: 60_000 })
+    const seen: number[] = []
+    harness.link.onFrame((code) => { seen.push(code); return undefined })
+    harness.link.start()
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.ping'], {}))
+    await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: PEER_FRAME_CODES['peer.pong'], payload: {} })
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.ping'], {}))
+    await expect(readPeerFrame(writer, 64)).resolves.toEqual({ code: PEER_FRAME_CODES['peer.pong'], payload: {} })
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.pong'], {}))
+    await writer.write(encodePeerFrame(5, { n: 1 }))
+    await vi.waitFor(() => { expect(seen).toEqual([5]) })
+    expect(harness.logs).toEqual([])
+  })
+
+  it('closes the link one loop turn after heartbeatTimeoutMs without a read, with one log line', async () => {
+    fakeClock()
+    const { harness, connection } = createRawLink()
+    harness.link.start()
+    await vi.advanceTimersByTimeAsync(8999)
+    expect(connection.closeCalls).toEqual([])
+    await vi.advanceTimersByTimeAsync(2)
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_HEARTBEAT_CLOSE_CODE, reason: 'heartbeat-timeout' }])
+    await expect(harness.link.closed()).resolves.toBe('closed locally: heartbeat-timeout (code 6)')
+    expect(harness.logs).toEqual(['ketos-peer: peer.heartbeat-timeout stub-peer: no completed read for 9000 ms'])
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(harness.logs).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('counts every received frame, so board traffic alone keeps the link open without heartbeat frames', async () => {
+    fakeClock()
+    const { harness, connection, writer } = createRawLink()
+    const seen: unknown[] = []
+    harness.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    harness.link.start()
+    for (let frame = 0; frame < 6; frame += 1) {
+      await vi.advanceTimersByTimeAsync(5000)
+      await writer.write(encodePeerFrame(PEER_FRAME_CODES['board.update'], new Uint8Array([frame + 1])))
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(seen).toHaveLength(6)
+    expect(connection.closeCalls).toEqual([])
+    await vi.advanceTimersByTimeAsync(8999)
+    expect(connection.closeCalls).toEqual([])
+    await vi.advanceTimersByTimeAsync(2)
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_HEARTBEAT_CLOSE_CODE, reason: 'heartbeat-timeout' }])
+  })
+
+  it('counts a pong as life, so a peer that only answers pings keeps the link open', async () => {
+    fakeClock()
+    const { harness, connection, writer } = createRawLink()
+    harness.link.start()
+    const answering = (async (): Promise<void> => {
+      for (;;) {
+        const frame = await readPeerFrame(writer, 64)
+        if (frame.code === PEER_FRAME_CODES['peer.ping']) await writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.pong'], {}))
+      }
+    })()
+    answering.catch(() => undefined)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(connection.closeCalls).toEqual([])
+    expect(harness.logs).toEqual([])
+  })
+
+  it('counts each slice of a large frame, so a body slower than the timeout keeps the link open', async () => {
+    fakeClock()
+    const { harness, connection, writer } = createRawLink({ maxFrameBytes: 4 * PEER_READ_SLICE_BYTES })
+    const seen: unknown[] = []
+    harness.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    harness.link.start()
+    const body = new Uint8Array(3 * PEER_READ_SLICE_BYTES).fill(7)
+    const frame = encodePeerFrame(PEER_FRAME_CODES['board.update'], body)
+    const header = PEER_FRAME_HEADER_BYTES
+    await writer.write(frame.subarray(0, header + PEER_READ_SLICE_BYTES))
+    await vi.advanceTimersByTimeAsync(8000)
+    await writer.write(frame.subarray(header + PEER_READ_SLICE_BYTES, header + 2 * PEER_READ_SLICE_BYTES))
+    await vi.advanceTimersByTimeAsync(8000)
+    expect(seen).toEqual([])
+    await writer.write(frame.subarray(header + 2 * PEER_READ_SLICE_BYTES))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen).toEqual([body])
+    expect(connection.closeCalls).toEqual([])
+  })
+
+  it('reads a large body in 16 KiB slices, so a frame arriving one slice every 8 s keeps the link open', async () => {
+    fakeClock()
+    expect(PEER_READ_SLICE_BYTES).toBe(16_384)
+    const { harness, connection, writer } = createRawLink({ maxFrameBytes: 8 * PEER_READ_SLICE_BYTES })
+    const seen: unknown[] = []
+    harness.link.onFrame((_code, payload) => { seen.push(payload); return undefined })
+    harness.link.start()
+    const body = new Uint8Array(6 * PEER_READ_SLICE_BYTES).fill(5)
+    const frame = encodePeerFrame(PEER_FRAME_CODES['board.update'], body)
+    await writer.write(frame.subarray(0, PEER_FRAME_HEADER_BYTES))
+    for (let slice = 0; slice < 6; slice += 1) {
+      await vi.advanceTimersByTimeAsync(8000)
+      const start = PEER_FRAME_HEADER_BYTES + slice * PEER_READ_SLICE_BYTES
+      await writer.write(frame.subarray(start, start + PEER_READ_SLICE_BYTES))
+    }
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen).toEqual([body])
+    expect(connection.closeCalls).toEqual([])
+  })
+
+  it('does not count the bytes of an unfinished slice, the documented throughput floor', async () => {
+    fakeClock()
+    const { harness, connection, writer } = createRawLink({ maxFrameBytes: 4 * PEER_READ_SLICE_BYTES })
+    harness.link.start()
+    const frame = encodePeerFrame(PEER_FRAME_CODES['board.update'], new Uint8Array(2 * PEER_READ_SLICE_BYTES).fill(5))
+    await writer.write(frame.subarray(0, PEER_FRAME_HEADER_BYTES + 1024))
+    await vi.advanceTimersByTimeAsync(5000)
+    await writer.write(frame.subarray(PEER_FRAME_HEADER_BYTES + 1024, PEER_FRAME_HEADER_BYTES + 2048))
+    await vi.advanceTimersByTimeAsync(4001)
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_HEARTBEAT_CLOSE_CODE, reason: 'heartbeat-timeout' }])
+  })
+
+  it('counts a read that completes in the loop turn after the timeout fired, as after a blocked event loop', async () => {
+    fakeClock()
+    const { harness, connection, writer } = createRawLink()
+    harness.link.start()
+    // Created after start(), this timer fires after the silence timer at 9000 ms,
+    // so its bytes arrive between the timeout and the check that follows it.
+    setTimeout(() => { void writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.pong'], {})) }, 9000)
+    await vi.advanceTimersByTimeAsync(9001)
+    expect(connection.closeCalls).toEqual([])
+    expect(harness.logs).toEqual([])
+    // The read at 9000 ms restarted the countdown.
+    await vi.advanceTimersByTimeAsync(8998)
+    expect(connection.closeCalls).toEqual([])
+    await vi.advanceTimersByTimeAsync(2)
+    expect(connection.closeCalls).toEqual([{ code: PEER_LINK_HEARTBEAT_CLOSE_CODE, reason: 'heartbeat-timeout' }])
+    expect(harness.logs).toHaveLength(1)
+  })
+
+  it('drops a pending timeout check when a regular close begins in the turn after the timeout fired', async () => {
+    fakeClock()
+    const { harness, connection } = createRawLink()
+    harness.link.start()
+    setTimeout(() => { void harness.link.close('done') }, 9000)
+    await vi.advanceTimersByTimeAsync(9010)
+    expect(connection.closeCalls).toEqual([{ code: 0n, reason: 'done' }])
+    expect(harness.logs).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('arms its timers only at start and clears them when the link closes or its connection ends', async () => {
+    fakeClock()
+    const first = createRawLink()
+    expect(vi.getTimerCount()).toBe(0)
+    first.harness.link.start()
+    expect(vi.getTimerCount()).toBe(2)
+    await first.harness.link.close('done')
+    expect(vi.getTimerCount()).toBe(0)
+
+    const second = createRawLink()
+    second.harness.link.start()
+    expect(vi.getTimerCount()).toBe(2)
+    second.connection.settle('network down')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(vi.getTimerCount()).toBe(0)
+
+    // A link whose connection ended before start() arms nothing.
+    const third = createRawLink()
+    third.connection.settle('gone')
+    await vi.advanceTimersByTimeAsync(0)
+    third.harness.link.start()
+    expect(vi.getTimerCount()).toBe(0)
+    expect([...first.harness.logs, ...second.harness.logs, ...third.harness.logs]).toEqual([])
+  })
+
+  it('stops the heartbeat when a regular close begins, so the bye grace never ends in a heartbeat timeout', async () => {
+    fakeClock()
+    const [base] = createMemoryStreamPair()
+    const stream: PeerStream = {
+      write: () => new Promise<void>(() => undefined),
+      readExact: length => base.readExact(length),
+      finish: () => base.finish(),
+    }
+    const connection = new StubConnection()
+    const harness = createLink(connection, stream)
+    harness.link.start()
+    await vi.advanceTimersByTimeAsync(9000 - PEER_LINK_BYE_GRACE_MS / 2)
+    const closing = harness.link.close('done')
+    await vi.advanceTimersByTimeAsync(PEER_LINK_BYE_GRACE_MS)
+    await closing
+    expect(connection.closeCalls).toEqual([{ code: 0n, reason: 'done' }])
+    expect(harness.logs).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('ignores a ping or pong the transport refuses to write, logging nothing', async () => {
+    fakeClock()
+    const [base, writer] = createMemoryStreamPair()
+    const stream: PeerStream = {
+      write: () => Promise.reject(new Error('write refused')),
+      readExact: length => base.readExact(length),
+      finish: () => base.finish(),
+    }
+    const connection = new StubConnection()
+    const harness = createLink(connection, stream)
+    cleanups.push(() => {
+      connection.settle('test cleanup')
+      void writer.finish()
+    })
+    harness.link.start()
+    await writer.write(encodePeerFrame(PEER_FRAME_CODES['peer.ping'], {}))
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(harness.logs).toEqual([])
+    expect(connection.closeCalls).toEqual([])
+  })
+
+  it('closes with the protocol code on a malformed or oversized heartbeat frame', async () => {
+    const frames: readonly [Uint8Array, string][] = [
+      [encodePeerFrame(PEER_FRAME_CODES['peer.ping'], { seq: 1 }), 'heartbeat body must be an empty JSON object'],
+      [encodePeerFrame(PEER_FRAME_CODES['peer.pong'], []), 'heartbeat body must be an empty JSON object'],
+      [rawFrame(PEER_FRAME_CODES['peer.ping'], `{}${' '.repeat(15)}`), 'frame length 17 exceeds 16 bytes'],
+    ]
+    for (const [frame, reason] of frames) {
+      const { harness, connection, writer } = createRawLink()
+      harness.link.start()
+      await writer.write(frame)
+      await expect(harness.link.closed()).resolves.toContain('protocol error')
+      expect(connection.closeCalls).toEqual([{ code: PEER_LINK_PROTOCOL_CLOSE_CODE, reason: 'protocol error' }])
+      expect(harness.logs[0]).toContain(reason)
+    }
   })
 })

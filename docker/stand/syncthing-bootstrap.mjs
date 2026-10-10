@@ -8,6 +8,14 @@
 // first start never serves the stock config and contacts no public node. Every
 // expected element must exist: a template drift fails loud instead of silently
 // shipping a partly configured stand.
+//
+// `reconnectionIntervalS` is the pause in seconds between Syncthing's dial
+// attempts to a disconnected peer (stock 20, minimum 5). The stand pins 10 so
+// the peers reconnect sooner after a network cut in the relay-only topology.
+// `relayReconnectIntervalM` is the pause in minutes before Syncthing's relay
+// dialer redials a device after its immediate redials are used up (stock 10).
+// The stand pins 1, because the private relay is the only path between the
+// peers and files would otherwise stop for minutes after a repeated cut.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const home = process.env['SYNCTHING_HOME'] ?? '/data/syncthing'
@@ -42,6 +50,8 @@ setElement('urAccepted', '-1')
 setElement('autoUpgradeIntervalH', '0')
 setElement('stunKeepaliveStartS', '0')
 setElement('announceLANAddresses', 'false')
+setElement('reconnectionIntervalS', '10')
+setElement('relayReconnectIntervalM', '1')
 setElement('apikey', apiKey)
 
 // Replace every <listenAddress> so a rerun (or a changed relay value) ends with

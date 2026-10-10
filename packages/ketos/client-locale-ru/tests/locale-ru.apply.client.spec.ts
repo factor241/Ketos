@@ -131,6 +131,12 @@ describe('ketos ru language pack', () => {
     }
   })
 
+  it('words the Files tab watch-failure captions with the verb of the Reload control beside them', () => {
+    expect(boardRu['right.reload']).toBe('Перезагрузить')
+    expect(boardRu['right.watchFailed']).toBe('Не удалось следить за папкой — перезагрузите вручную')
+    expect(boardRu['right.watchFailedFolder']).toBe('Не удалось следить за папкой {folder} — перезагрузите вручную')
+  })
+
   it('defaults to ru when the browser names the exact ru tag', async () => {
     await withBrowserLanguage(['ru'], async () => {
       const b = await bench(undefined)

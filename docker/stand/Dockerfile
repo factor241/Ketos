@@ -38,6 +38,8 @@ COPY --from=build /app /app
 COPY docker/stand/stand.patch.yml /usr/local/share/ketos-stand/stand.patch.yml
 COPY docker/stand/docker-entrypoint.sh /usr/local/bin/ketos-stand-entrypoint.sh
 COPY docker/stand/syncthing-bootstrap.mjs /usr/local/share/ketos-stand/syncthing-bootstrap.mjs
+COPY docker/stand/ensure-stignore.mjs /usr/local/share/ketos-stand/ensure-stignore.mjs
+COPY docker/stand/run-with-redacted-log.sh /usr/local/share/ketos-stand/run-with-redacted-log.sh
 
 # Pin Syncthing to one official release verified by checksum per architecture:
 # Debian's package (1.19.2) predates relay tokens and would join public relays.

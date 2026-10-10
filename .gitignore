@@ -1,5 +1,6 @@
 CLAUDE.local.md
 docker/relay/iroh-relay.toml
+*.tar.gz
 .env
 .env.*
 !.env.example

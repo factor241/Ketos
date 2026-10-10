@@ -18,6 +18,12 @@
     "src/peers-file.ts",
     "src/routes.ts",
     "src/service.ts",
+    "src/syncthing-client.ts",
+    "src/syncthing-config.ts",
+    "src/syncthing-device-id.ts",
+    "src/syncthing-link.ts",
+    "src/syncthing-state.ts",
+    "src/syncthing.ts",
     "src/transcript-read.ts",
     "src/transcript.ts",
     "src/transport.ts",
@@ -37,10 +43,16 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
       "path": "../../session/session-persistence"
     },
     {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/launch-environment"
     },
     {
       "path": "../../util/values"

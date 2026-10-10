@@ -3,32 +3,32 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/ketos/peer/README.md
 /:
-  en: ec714d31a59be1ff
-  zh: 562bea2a6afc6ad5
+  en: 18aa18e9cda57f66
+  zh: b00b816e0f5d6267
 /ketos-peer:
   en: 765e09a4e29fe234
   zh: ca71814d06b1ac4f
 /ketos-peer/summary:
-  en: 7cecca2ae70b0bb9
-  zh: 0d39e1d48f1d7153
+  en: 8dea9c81b3c9c4a1
+  zh: 35299cdb804330a3
 /ketos-peer/table-of-contents:
   en: d152484eb41ac6b4
   zh: 63fd4fdd874e939c
 /ketos-peer/use-this-package:
-  en: acba80334a358387
-  zh: 8d9be03aaa851dc0
+  en: 1e53ec50fb933f92
+  zh: abc159629e72e47a
 /ketos-peer/understand-the-implementation:
   en: 42b15ac6321706aa
   zh: c5500056b41ce570
 /ketos-peer/understand-the-implementation/node-and-key:
-  en: 2bb50ddb1dea5ddb
-  zh: 754480e9d6cb0ea1
+  en: 94c6f06301adfb9e
+  zh: ceeb23dc3672511d
 /ketos-peer/understand-the-implementation/frames:
-  en: 61eb862028052c0d
-  zh: b20fe5083c9bb3c2
+  en: bbd2c2291c66cd59
+  zh: b4dab8b175d6efef
 /ketos-peer/understand-the-implementation/handshake-and-known-peers:
-  en: 285b530d54ae8212
-  zh: 6c8899565cde998e
+  en: d0d31dc1a3ae32b1
+  zh: 6c46b62a2a935ac9
 /ketos-peer/understand-the-implementation/invitation-code:
   en: bb2505c84a7be73b
   zh: 1c974027e932c586
@@ -41,15 +41,21 @@
 /ketos-peer/understand-the-implementation/foreign-chat-transcripts:
   en: 5db09f495f76d458
   zh: d75165de3ffe5ce7
+/ketos-peer/understand-the-implementation/shared-syncthing-folder:
+  en: 98e4be50277ab515
+  zh: 60b469e1841418f8
+/ketos-peer/understand-the-implementation/heartbeat:
+  en: 83cf2eb6e5018110
+  zh: ff410b90bb120062
 /ketos-peer/understand-the-implementation/reconnection:
-  en: 2e2c2961f9ac845c
-  zh: 91b41fafaa572b22
+  en: 654ffa5d1c53b4de
+  zh: 0f61f744592c4f5b
 /ketos-peer/understand-the-implementation/laziness-and-the-native-ban:
   en: 83c50c1280294810
   zh: 852c7d01cc3abaa9
 /ketos-peer/understand-the-implementation/source-map:
-  en: 01cfc792db510eed
-  zh: 60c8654bc7dcfcf2
+  en: 9f65ecc8f5221faa
+  zh: fc729e73be2adada
 /ketos-peer/further-exploration:
   en: 2f8887fd6e391e67
   zh: c047c12e63059f21
@@ -60,8 +66,8 @@
   en: 70c415e5db6ffd57
   zh: e08baced58f575cf
 /ketos-peer/known-limitations-and-deferred-work:
-  en: 5384a2f615567979
-  zh: c90bde2608445435
+  en: 4a7b64c0bee47a56
+  zh: a5301c7b8cb06db4
 /ketos-peer/known-limitations-and-deferred-work/dev-note:
   en: a46b4cabc29b3cae
   zh: f0f65cf660db73c0

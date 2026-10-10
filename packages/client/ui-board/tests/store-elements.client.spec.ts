@@ -308,6 +308,45 @@ describe('participants and peer state', () => {
     expect(listener).toHaveBeenCalledTimes(3)
     unsubscribe()
   })
+
+  it('follows the shared-folder state of each answer and drops it with the peer routes', () => {
+    const instance = store()
+    const response: PeerStateResponse = {
+      self: { selfId: SELF, name: 'Kirill', color: 1 },
+      peers: [],
+      refreshMs: 500,
+    }
+    const listener = vi.fn()
+    const unsubscribe = instance.subscribe(listener)
+
+    // A host without the Syncthing feature reports no folder.
+    instance.actions.applyPeerState(response)
+    expect(instance.getSnapshot().peerSharedFolder).toBeNull()
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    // An answer that changes only the folder state is a store change.
+    instance.actions.applyPeerState({ ...response, sharedFolder: 'syncing' })
+    expect(instance.getSnapshot().peerSharedFolder).toBe('syncing')
+    expect(listener).toHaveBeenCalledTimes(2)
+    instance.actions.applyPeerState({ ...response, sharedFolder: 'syncing' })
+    expect(listener).toHaveBeenCalledTimes(2)
+    instance.actions.applyPeerState({ ...response, sharedFolder: 'synced' })
+    expect(instance.getSnapshot().peerSharedFolder).toBe('synced')
+    expect(listener).toHaveBeenCalledTimes(3)
+
+    // An unreachable host keeps the last reported state; a 404 drops it.
+    instance.actions.markPeerUnreachable()
+    expect(instance.getSnapshot().peerSharedFolder).toBe('synced')
+    instance.actions.markPeerUnavailable()
+    expect(instance.getSnapshot().peerSharedFolder).toBeNull()
+
+    // The feature switched off on the host: the field disappears, and so does the state.
+    instance.actions.applyPeerState({ ...response, sharedFolder: 'error' })
+    expect(instance.getSnapshot().peerSharedFolder).toBe('error')
+    instance.actions.applyPeerState(response)
+    expect(instance.getSnapshot().peerSharedFolder).toBeNull()
+    unsubscribe()
+  })
 })
 
 describe('element selection and view', () => {

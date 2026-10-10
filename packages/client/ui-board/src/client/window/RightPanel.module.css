@@ -214,6 +214,16 @@
   font-size: var(--board-font-hint);
 }
 
+/* Replaces the root path while a level's rows are not live; it wraps, so the
+   whole caption shows at the narrowest panel. */
+.filesNotice {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--board-font-hint);
+}
+
 .filesReload {
   display: flex;
   align-items: center;

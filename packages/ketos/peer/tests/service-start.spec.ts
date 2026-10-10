@@ -67,6 +67,8 @@ describe('peer service default transport', () => {
       reconnectMaxMs: 200,
       inviteTtlMs: 60_000,
       stateRefreshMs: 1000,
+      heartbeatIntervalMs: 3000,
+      heartbeatTimeoutMs: 9000,
       logger: () => undefined,
     })
     cleanups.push(async () => {

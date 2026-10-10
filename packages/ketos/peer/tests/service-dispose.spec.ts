@@ -128,6 +128,8 @@ describe('peer service closed during each step of its start', () => {
       reconnectMaxMs: 20,
       inviteTtlMs: 60_000,
       stateRefreshMs: 1000,
+      heartbeatIntervalMs: 3000,
+      heartbeatTimeoutMs: 9000,
       logger: () => undefined,
     })
     cleanups.push(async () => {

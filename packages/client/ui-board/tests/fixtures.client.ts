@@ -21,6 +21,7 @@ import type { ChatSnapshot, ConversationNode } from '@deepseek-ai/dsh-client-ui-
 import type { BoardWindowSessionState } from '../src/client/contract/slots.ts'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorkspaceFileWatchFrame } from '@deepseek-ai/dsh-api-workspace-files/types'
 import { apply, inject } from '../src/client/index.ts'
 import { BOARD_DOC_EVENTS_PATH, BOARD_DOC_OPS_PATH, BOARD_DOC_PATH } from '../src/client/board-doc-api.ts'
 import { PEER_CONNECT_PATH, PEER_INVITE_PATH, PEER_STATE_PATH } from '../src/client/peer-api.ts'
@@ -243,6 +244,12 @@ export interface BoardBenchOptions {
     readonly list?: (sessionId: SessionId, path: string, signal?: AbortSignal) => Promise<unknown>
     readonly read?: (sessionId: SessionId, path: string, range: unknown, signal?: AbortSignal) => Promise<unknown>
     readonly readBytes?: (sessionId: SessionId, path: string, options: unknown, signal?: AbortSignal) => Promise<unknown>
+    /**
+     * Directory observation the files tab opens per shown level, run through
+     * the bench's one-generation stream supervisor; the default stays silent
+     * until its signal ends.
+     */
+    readonly changes?: (sessionId: SessionId, path: string, signal: AbortSignal) => AsyncIterable<unknown>
   }
   /** Document-preview registry double overrides; the default matches by extension. */
   readonly documentPreviews?: {
@@ -281,6 +288,146 @@ function defaultPreviewCandidates(path: string): readonly DocumentPreviewDouble[
     return [{ id: 'pdf', extensions: ['pdf'], priority: 'builtin', title: () => 'PDF', loading: 'bytes-complete' }]
   }
   return [{ id: 'text', extensions: [], priority: 'builtin', title: () => 'Text', loading: 'text-pages' }]
+}
+
+/**
+ * Default directory observation: no frame, ending when its signal does.
+ * @param _sessionId - unused session.
+ * @param _path - unused directory.
+ * @param signal - the generation's lifetime.
+ * @yields nothing.
+ */
+async function* silentChanges(_sessionId: SessionId, _path: string, signal: AbortSignal): AsyncGenerator<never> {
+  if (signal.aborted) return
+  await new Promise<void>((resolve) => { signal.addEventListener('abort', () => { resolve() }, { once: true }) })
+}
+
+/** One item of the bench's stream supervisor, as the Client Remote's own items read. */
+export interface BenchStreamItem<Item> {
+  readonly generation: number
+  readonly value: Item
+  readonly signal: AbortSignal
+  accept(): void
+}
+
+/**
+ * One-generation stand-in for the Client Remote's stream supervisor
+ * (`ctx.remote.$stream`): it opens one generation, classifies a normal end
+ * through `ended`, passes a failure through unchanged, and on disposal aborts
+ * the generation and waits until the consumer's iterator has closed. It never
+ * reconnects. Unlike the real supervisor it also hands over a value or a
+ * failure its generation delivers after the disposal, so a consumer's own stop
+ * guard is what keeps such a late delivery out.
+ * @param options - the opener and the end classification the caller supplies.
+ * @returns the single-consumer stream.
+ */
+export function benchRemoteStream<Item>(options: {
+  readonly open: (signal: AbortSignal) => AsyncIterable<Item>
+  readonly ended: (accepted: boolean) => Error
+}): AsyncIterable<BenchStreamItem<Item>> & { readonly signal: AbortSignal; restart(): void; dispose(): Promise<void> } {
+  const lifetime = new AbortController()
+  let consumer: AsyncGenerator<BenchStreamItem<Item>> | undefined
+  async function* read(): AsyncGenerator<BenchStreamItem<Item>> {
+    let accepted = false
+    for await (const value of options.open(lifetime.signal)) {
+      yield { generation: 1, value, signal: lifetime.signal, accept: () => { accepted = true } }
+    }
+    if (lifetime.signal.aborted) return
+    throw options.ended(accepted)
+  }
+  return {
+    signal: lifetime.signal,
+    restart: () => {},
+    dispose: async () => {
+      lifetime.abort(new Error('bench stream disposed'))
+      await consumer?.return(undefined)
+    },
+    [Symbol.asyncIterator]: () => {
+      consumer = read()
+      return consumer
+    },
+  }
+}
+
+/** One directory observation opened through the scripted `workspaceFiles.changes`. */
+export interface OpenedWatch {
+  readonly sessionId: SessionId
+  readonly path: string
+  readonly signal: AbortSignal
+  /** Whether the host side of the observation finished its iteration. */
+  readonly closed: () => boolean
+  /** How many frames the source handed to the consumer. */
+  readonly delivered: () => number
+  /** How many frames the consumer took and handled (asked for the next one after). */
+  readonly handled: () => number
+  /** Deliver one frame. */
+  readonly push: (frame: WorkspaceFileWatchFrame) => void
+  /** End the observation with a failure. */
+  readonly fail: (error: unknown) => void
+  /** End the observation normally, as a host stream that stops. */
+  readonly end: () => void
+}
+
+/**
+ * Scripted `workspaceFiles.changes`: one push source per opened observation.
+ * A source delivers what was queued before its signal ended — frames already
+ * in transit — and then ends.
+ * @returns the `changes` double and its observation registry.
+ */
+export function createWatchDouble() {
+  const opened: OpenedWatch[] = []
+  const changes = (sessionId: SessionId, path: string, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame> => {
+    const queue: ({ readonly frame: WorkspaceFileWatchFrame } | { readonly error: unknown } | { readonly end: true })[] = []
+    let wake: (() => void) | undefined
+    let closed = false
+    let delivered = 0
+    let handled = 0
+    const nudge = (): void => { wake?.() }
+    signal.addEventListener('abort', nudge, { once: true })
+    opened.push({
+      sessionId,
+      path,
+      signal,
+      closed: () => closed,
+      delivered: () => delivered,
+      handled: () => handled,
+      push: (frame) => { queue.push({ frame }); nudge() },
+      fail: (error) => { queue.push({ error }); nudge() },
+      end: () => { queue.push({ end: true }); nudge() },
+    })
+    return (async function* () {
+      try {
+        for (;;) {
+          const next = queue.shift()
+          if (next === undefined) {
+            if (signal.aborted) return
+            await new Promise<void>((resolve) => { wake = resolve })
+            continue
+          }
+          if ('error' in next) throw next.error
+          if ('end' in next) return
+          delivered += 1
+          yield next.frame
+          handled += 1
+        }
+      } finally {
+        closed = true
+      }
+    })()
+  }
+  return {
+    changes,
+    opened,
+    /** Paths whose observation is neither stopped nor finished, sorted. */
+    active: (): string[] => opened.filter(watch => !watch.signal.aborted && !watch.closed())
+      .map(watch => watch.path).sort(),
+    /** The newest open observation of one path. */
+    of: (path: string): OpenedWatch => {
+      const found = opened.findLast(watch => watch.path === path && !watch.signal.aborted && !watch.closed())
+      if (found === undefined) throw new Error(`no open observation of ${path}`)
+      return found
+    },
+  }
 }
 
 /** One prepared bench: the runtime, its services, and the board mount. */
@@ -586,6 +733,7 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
       ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 1, text: '', lines: 0, eof: true } })),
     readBytes: options.workspaceFiles?.readBytes
       ?? (async () => ({ ok: true as const, value: { absolutePath: '', version: 'v1', offset: 0, data: new Uint8Array(), eof: true } })),
+    changes: options.workspaceFiles?.changes ?? silentChanges,
   }
   // The document-preview registry the board's `documentPreviewFor` reads.
   runtime.ctx.provide('documentPreviews', {
@@ -619,6 +767,9 @@ export async function createBoardBench(options: BoardBenchOptions = {}): Promise
         ?? (async () => ({ ok: true as const, value: { opened: true } })),
     },
   })
+  // The test Remote carries no stream supervisor; the files tab's directory
+  // observation needs `ctx.remote.$stream`.
+  Object.assign(runtime.remote, { $stream: benchRemoteStream })
   // Background uploads: the runtime's stub is replaced with one that stages a
   // receipt the prompt can carry, so file intake works unless a test opts out.
   runtime.fileUpload.upload = options.fileUpload?.upload ?? (async () => ({

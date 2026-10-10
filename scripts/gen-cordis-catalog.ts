@@ -287,6 +287,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   OTelEventScalar: 'otel.md',
   PeerConnectedEvent: 'ketos-peer.md',
   PeerDisconnectedEvent: 'ketos-peer.md',
+  PeerForgottenEvent: 'ketos-peer.md',
   ProductTelemetryRecord: 'product-telemetry.md',
   ProductTelemetryScalar: 'product-telemetry.md',
   WorkspaceChangesSummary: 'deliverables.md',

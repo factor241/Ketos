@@ -1,7 +1,8 @@
 // The peer service end to end over the in-memory transport: lazy start,
 // participant publication and the color rule, the invitation handshake with
-// its refusals, the known-peer file, framed send/request handling, and
-// reconnection with its pause sequence.
+// its refusals, the known-peer file, framed send/request handling,
+// reconnection with its pause sequence, and the heartbeat that reports a
+// silent peer lost.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,7 +16,7 @@ import { readPeerFrame, writePeerFrame } from '../src/link.ts'
 import { createMemoryStreamPair, createMemoryTransports, type MemoryTransportPair } from '../src/memory-transport.ts'
 import { KetosPeerService, type KetosPeerOptions } from '../src/service.ts'
 import type { PeerConnection, PeerIncoming, PeerStream, PeerTransport } from '../src/transport.ts'
-import type { KetosPeerId } from '../src/types.ts'
+import type { KetosPeerId, SharedFolderState } from '../src/types.ts'
 
 // A consumer merges its payload type into the map; this spec uses a test-only
 // name so it never collides with the types the reserved codes 5-7 receive.
@@ -107,6 +108,7 @@ interface HarnessOptions {
   readonly onlineTimeoutMs?: number
   readonly inviteTtlMs?: number
   readonly logger?: (message: string) => void
+  readonly sharedFolder?: () => SharedFolderState | undefined
 }
 
 let cleanups: (() => Promise<void>)[] = []
@@ -149,8 +151,11 @@ async function createHarness(options: HarnessOptions): Promise<Harness> {
     reconnectMaxMs: options.reconnectMaxMs ?? 200,
     inviteTtlMs: options.inviteTtlMs ?? 60_000,
     stateRefreshMs: 1000,
+    heartbeatIntervalMs: 3000,
+    heartbeatTimeoutMs: 9000,
     logger: options.logger ?? (() => undefined),
     transport,
+    ...options.sharedFolder === undefined ? {} : { sharedFolder: options.sharedFolder },
   }
   const service = new KetosPeerService(ctx, peerOptions)
   const close = async (): Promise<void> => {
@@ -187,7 +192,7 @@ async function dialAndHello(
 ): Promise<{ connection: PeerConnection; stream: PeerStream }> {
   const connection = await transport.dial(ticket)
   const stream = await connection.openStream()
-  await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
+  await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-b', name: 'Юрист', color: 2 })
   await readPeerFrame(stream, 4096)
   return { connection, stream }
 }
@@ -256,6 +261,18 @@ describe('peer service start and participants', () => {
     expect(state.peers).toEqual([])
     expect(state.refreshMs).toBe(1000)
     expect(harness.board.records.get('owner-a')?.color).toBe(2)
+  })
+
+  it('reports the shared-folder state its reader returns, read on every call, and leaves the field out while there is none', async () => {
+    let shared: SharedFolderState | undefined = 'syncing'
+    const harness = await createHarness({ selfId: 'owner-a', sharedFolder: () => shared })
+    expect((await harness.service.state()).sharedFolder).toBe('syncing')
+    shared = undefined
+    expect(await harness.service.state()).not.toHaveProperty('sharedFolder')
+    shared = 'synced'
+    expect((await harness.service.state()).sharedFolder).toBe('synced')
+    const without = await createHarness({ selfId: 'owner-b' })
+    expect(await without.service.state()).not.toHaveProperty('sharedFolder')
   })
 
   it('counts a known peer color when choosing the local one', async () => {
@@ -386,6 +403,25 @@ describe('peer service invitation handshake', () => {
     await expect(waiting.service.invite()).rejects.toMatchObject({ code: 'ketos/peer-offline' })
   })
 
+  it('closes a dial that completes after its timeout at once instead of leaving the connection open', async () => {
+    const [left, right] = await createPair()
+    const code = await left.service.invite()
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const dial = right.transport.dial.bind(right.transport)
+    let late: PeerConnection | undefined
+    vi.spyOn(right.transport, 'dial').mockImplementation(async (ticket: string) => {
+      await gate
+      late = await dial(ticket)
+      return late
+    })
+    await expect(right.service.connect(code)).rejects.toMatchObject({ code: 'ketos/peer-unreachable', message: 'dial timed out' })
+    release()
+    await vi.waitFor(() => { expect(late).toBeDefined() })
+    await expect(late?.closed()).resolves.toBe('closed locally: dial timed out (code 0)')
+    expect(right.service.peers()).toEqual([])
+  })
+
   it('replaces the live channel when the same known peer connects again', async () => {
     const logs: string[] = []
     const pair = createMemoryTransports()
@@ -420,7 +456,7 @@ describe('peer service invitation handshake', () => {
   it('lets the newer of two racing dials of this node replace the older link, closing it with code 5', async () => {
     const rogue = new RogueDialTransport(async (stream) => {
       await readPeerFrame(stream, 1_000_000)
-      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-a', name: 'Кирилл', color: 1 })
     })
     const harness = await createHarness({ selfId: 'owner-b', transport: rogue })
     const connected: unknown[] = []
@@ -505,7 +541,7 @@ describe('peer service disposal during start and handshakes', () => {
     const rogue = new RogueDialTransport(async (stream) => {
       await readPeerFrame(stream, 1_000_000)
       await gate
-      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-a', name: 'Кирилл', color: 1 })
     })
     const harness = await createHarness({ selfId: 'owner-b', transport: rogue })
     const connected: unknown[] = []
@@ -547,7 +583,7 @@ describe('peer service disposal during start and handshakes', () => {
   it('closes an accepted channel quietly when the service closed during its handshake', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => { release = resolve })
-    const hello = encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+    const hello = encodePeerFrame(PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-a', name: 'Кирилл', color: 1 })
     const transport = new RogueAcceptTransport(hello, gate)
     const logs: string[] = []
     const harness = await createHarness({ selfId: 'owner-b', transport, logger: (message) => { logs.push(message) } })
@@ -601,7 +637,7 @@ describe('peer accept loop after a refused stranger', () => {
     await right.service.ensureStarted()
     const stranger = await right.transport.dial(left.transport.invitationTicket())
     const strangerStream = await stranger.openStream()
-    await writePeerFrame(strangerStream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-z', name: 'Z', color: 3 })
+    await writePeerFrame(strangerStream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-z', name: 'Z', color: 3 })
     await expect(stranger.closed()).resolves.toContain('(code 1)')
 
     await right.service.connect(code)
@@ -904,6 +940,8 @@ describe('peer forget', () => {
     await harness.service.ensureStarted()
     await vi.advanceTimersByTimeAsync(600)
     expect(transport.dialCalls).toBeGreaterThan(0)
+    const forgotten: unknown[] = []
+    harness.ctx.on('ketos-peer/forgotten', (event) => { forgotten.push(event) })
 
     await harness.service.forget(brandString<KetosPeerId>('peer-x'))
     const dialsAtForget = transport.dialCalls
@@ -912,6 +950,7 @@ describe('peer forget', () => {
     expect(transport.dialCalls).toBe(dialsAtForget)
     expect(harness.service.peers()).toEqual([])
     expect(JSON.parse(await readPeers(harness.root))).toEqual([])
+    expect(forgotten).toEqual([{ peerId: 'peer-x' }])
   })
 
   it('refuses an unknown peer and a peer with an open channel', async () => {
@@ -944,7 +983,7 @@ describe('peer forget', () => {
     await left.service.forget(pair.b.selfId())
     const again = await pair.b.dial(pair.a.invitationTicket())
     const stream = await again.openStream()
-    await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-b', name: 'Юрист', color: 2 })
+    await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-b', name: 'Юрист', color: 2 })
     await expect(again.closed()).resolves.toContain('(code 1)')
     expect(left.service.peers()).toEqual([])
   })
@@ -955,7 +994,7 @@ describe('peer forget', () => {
     const rogue = new RogueDialTransport(async (stream) => {
       await readPeerFrame(stream, 1_000_000)
       await gate
-      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-a', name: 'Кирилл', color: 1 })
     })
     const harness = await createHarness({ selfId: 'owner-b', transport: rogue, reconnectMinMs: 10, reconnectMaxMs: 20 })
     await writeFile(join(harness.root, 'peers.json'), JSON.stringify([{
@@ -987,9 +1026,12 @@ describe('peer forget', () => {
     // A directory in place of the file makes the atomic rename fail.
     await rm(join(harness.root, 'peers.json'))
     await mkdir(join(harness.root, 'peers.json'))
+    const forgotten: unknown[] = []
+    harness.ctx.on('ketos-peer/forgotten', (event) => { forgotten.push(event) })
 
     await expect(harness.service.forget(brandString<KetosPeerId>('peer-x'))).rejects.toThrow()
     expect(harness.service.peers()).toHaveLength(1)
+    expect(forgotten).toEqual([])
     const dialsAfterFailure = transport.dialCalls
     await vi.advanceTimersByTimeAsync(2000)
     expect(transport.dialCalls).toBeGreaterThan(dialsAfterFailure)
@@ -1144,6 +1186,18 @@ describe('peer handshake refusals', () => {
     expect(rogue.closes).toContainEqual({ code: 1n, reason: 'connect failed' })
   })
 
+  it('closes a connection whose hello speaks protocol version 2', async () => {
+    const transport = new RogueAcceptTransport(
+      encodePeerFrame(PEER_FRAME_CODES.hello, { v: 2, selfId: 'owner-z', name: 'Z', color: 3 }),
+    )
+    const logs: string[] = []
+    const harness = await createHarness({ selfId: 'owner-a', transport, logger: (message) => { logs.push(message) } })
+    await harness.service.ensureStarted()
+    await vi.waitFor(() => { expect(transport.closes).toEqual([{ code: 2n, reason: 'handshake' }]) })
+    expect(logs.some(line => line.includes('hello version must be 3'))).toBe(true)
+    expect(harness.service.peers()).toEqual([])
+  })
+
   it('logs a failed reconnect handshake and keeps retrying', async () => {
     const rogue = new RogueDialTransport(async (stream) => {
       await readPeerFrame(stream, 1_000_000)
@@ -1289,7 +1343,7 @@ describe('peer participant edge cases', () => {
     const connection = await pair.b.dial(pair.a.invitationTicket())
     const stream = await connection.openStream()
     await writePeerFrame(stream, PEER_FRAME_CODES.hello, {
-      v: 2, selfId: 'owner-b', name: 'Юрист', color: 2, invite: 'short',
+      v: 3, selfId: 'owner-b', name: 'Юрист', color: 2, invite: 'short',
     })
     await expect(connection.closed()).resolves.toContain('(code 1)')
     expect(left.service.peers()).toEqual([])
@@ -1314,3 +1368,100 @@ describe('peer participant edge cases', () => {
 async function readPeers(root: string): Promise<string> {
   return readFile(join(root, 'peers.json'), 'utf8')
 }
+
+describe('peer channel heartbeat', () => {
+  /** The stored record of the rogue peer the dialing harness redials. */
+  const roguePeer = {
+    peerId: 'rogue-peer', selfId: 'owner-a', name: 'Кирилл', color: 1, ticket: 'memory:<rogue>', lastSeen: '2026-10-07T00:00:00.000Z',
+  }
+
+  it('reports a silent peer lost heartbeatTimeoutMs after its link opened, logs one line, and redials', async () => {
+    vi.useFakeTimers()
+    const rogue = new RogueDialTransport(async (stream) => {
+      await readPeerFrame(stream, 1_000_000)
+      await writePeerFrame(stream, PEER_FRAME_CODES.hello, { v: 3, selfId: 'owner-a', name: 'Кирилл', color: 1 })
+    })
+    const logs: string[] = []
+    const harness = await createHarness({
+      selfId: 'owner-b', transport: rogue, connectTimeoutMs: 60_000, logger: (message) => { logs.push(message) },
+    })
+    await writeFile(join(harness.root, 'peers.json'), JSON.stringify([roguePeer]))
+    const events: string[] = []
+    let connectedAt = 0
+    harness.ctx.on('ketos-peer/connected', () => {
+      events.push('connected')
+      connectedAt = Date.now()
+    })
+    harness.ctx.on('ketos-peer/disconnected', () => { events.push('disconnected') })
+    await harness.service.ensureStarted()
+    for (let step = 0; step < 1000 && events.length === 0; step += 1) await vi.advanceTimersByTimeAsync(5)
+    expect(events).toEqual(['connected'])
+
+    await vi.advanceTimersByTimeAsync(connectedAt + 9000 - 1 - Date.now())
+    expect(harness.service.peers()[0]?.link).toBe('online')
+    // The close follows one loop turn after the timeout.
+    await vi.advanceTimersByTimeAsync(2)
+    expect(events).toEqual(['connected', 'disconnected'])
+    expect(harness.service.peers()[0]?.link).toBe('lost')
+    expect(rogue.closes).toEqual([{ code: 6n, reason: 'heartbeat-timeout' }])
+    expect(logs.filter(line => line.includes('peer.heartbeat-timeout'))).toEqual([
+      'ketos-peer: peer.heartbeat-timeout rogue-peer: no completed read for 9000 ms',
+    ])
+    expect(logs).toContain('ketos-peer: peer.disconnected rogue-peer: closed locally: heartbeat-timeout (code 6)')
+
+    const dials = rogue.dialCalls
+    for (let step = 0; step < 1000 && rogue.dialCalls === dials; step += 1) await vi.advanceTimersByTimeAsync(5)
+    expect(rogue.dialCalls).toBe(dials + 1)
+  })
+
+  it('leaves no heartbeat timer of a link a newer connection replaced', async () => {
+    vi.useFakeTimers()
+    const pair = createMemoryTransports()
+    const left = await createHarness({ selfId: 'owner-a', pair, transport: pair.a, connectTimeoutMs: 60_000 })
+    await writeFile(join(left.root, 'peers.json'), JSON.stringify([{
+      peerId: String(pair.b.selfId()), selfId: 'owner-b', name: 'Юрист', color: 2, lastSeen: '2026-10-07T00:00:00.000Z',
+    }]))
+    await left.service.ensureStarted()
+    await pair.b.bind()
+    const connected: unknown[] = []
+    left.ctx.on('ketos-peer/connected', (event) => { connected.push(event) })
+    const first = await dialAndHello(pair.b, pair.a.invitationTicket())
+    for (let step = 0; step < 1000 && connected.length < 1; step += 1) await vi.advanceTimersByTimeAsync(5)
+    // The live link's ping and silence timers.
+    expect(vi.getTimerCount()).toBe(2)
+
+    await dialAndHello(pair.b, pair.a.invitationTicket())
+    await expect(first.connection.closed()).resolves.toMatch(/replaced.*\(code 5\)/u)
+    for (let step = 0; step < 1000 && connected.length < 2; step += 1) await vi.advanceTimersByTimeAsync(5)
+    expect(connected).toHaveLength(2)
+    // Only the new link's two timers remain.
+    expect(vi.getTimerCount()).toBe(2)
+  })
+
+  it('keeps a connected pair online through a quiet minute and leaves no timer behind after close', async () => {
+    vi.useFakeTimers()
+    const logs: string[] = []
+    const pair = createMemoryTransports()
+    const left = await createHarness({
+      selfId: 'owner-a', pair, transport: pair.a, connectTimeoutMs: 60_000, logger: (message) => { logs.push(message) },
+    })
+    const right = await createHarness({
+      selfId: 'owner-b', name: 'Юрист', pair, transport: pair.b, connectTimeoutMs: 60_000,
+      logger: (message) => { logs.push(message) },
+    })
+    await right.service.connect(await left.service.invite())
+    for (let step = 0; step < 1000 && left.service.peers()[0]?.link !== 'online'; step += 1) {
+      await vi.advanceTimersByTimeAsync(5)
+    }
+    expect(left.service.peers()[0]?.link).toBe('online')
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(left.service.peers()[0]?.link).toBe('online')
+    expect(right.service.peers()[0]?.link).toBe('online')
+    expect(logs.filter(line => line.includes('peer.heartbeat-timeout') || line.includes('peer.disconnected'))).toEqual([])
+
+    await left.service.close()
+    await right.service.close()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})

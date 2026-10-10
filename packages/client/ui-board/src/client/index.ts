@@ -29,6 +29,7 @@ import { createBoardStore, nextWindowOrdinal, type BoardStoreHandle, type BoardW
 import { fetchBoardSnapshot, openBoardEvents, postBoardOps } from './board-doc-api.ts'
 import { connectPeer, createInvite, fetchPeerState } from './peer-api.ts'
 import { fetchTranscript } from './transcript-api.ts'
+import { observeWorkspaceDirectory } from './directory-watch.ts'
 import { placeTodoList } from './todo-api.ts'
 import { TodoPlacement } from './todo-placement.ts'
 import { BoardLayoutPersistence } from './board-persistence.ts'
@@ -1044,6 +1045,7 @@ export function apply(ctx: ClientContext, config: Config = Config({})): void {
         ? { ok: true, entries: result.value.entries, truncated: result.value.truncated }
         : { ok: false, code: result.error.code, message: result.error.message }
     },
+    watchWorkspaceDirectory: (sessionId, path, listener) => observeWorkspaceDirectory(ctx.remote, sessionId, path, listener),
     readWorkspaceFile: async (sessionId, path, mode, signal) => {
       if (mode === 'bytes-complete') {
         const result = await ctx.remote.workspaceFiles.readBytes(sessionId, path, {}, signal)

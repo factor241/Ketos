@@ -89,11 +89,11 @@
     "@ketos/clone-core": "workspace:~",
     "@ketos/peer": "workspace:~",
     "@types/react": "~18.3.1",
-    "@types/react-dom": "~18.3.0",
+    "@types/react-dom": "~19.3.0",
     "clsx": "^2.0.0",
     "perfect-freehand": "1.2.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^19.3.0"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~"
